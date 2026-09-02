@@ -1,0 +1,149 @@
+services:
+  # ─── Reverse Proxy (Nginx) ───
+  nginx:
+    build:
+      context: .
+      dockerfile: docker/nginx/Dockerfile
+    container_name: alphamaster-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./docker/nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./backend:/var/www/html:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - alphamaster_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+
+  # ─── Backend API (PHP-FPM) ───
+  backend:
+    build:
+      context: .
+      dockerfile: docker/backend/Dockerfile
+    container_name: alphamaster-backend
+    volumes:
+      - ./backend:/var/www/html
+    env_file:
+      - ./backend/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - alphamaster_network
+    healthcheck:
+      test: ["CMD-SHELL", "php -r \"exit(@fsockopen('127.0.0.1', 9000) ? 0 : 1);\""]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  # ─── Queue Supervisor (Laravel Horizon) ───
+  horizon:
+    build:
+      context: .
+      dockerfile: docker/backend/Dockerfile
+    container_name: alphamaster-horizon
+    command: php artisan horizon
+    volumes:
+      - ./backend:/var/www/html
+    env_file:
+      - ./backend/.env
+    depends_on:
+      backend:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - alphamaster_network
+    healthcheck:
+      test: ["CMD", "php", "artisan", "horizon:status"]
+      interval: 20s
+      timeout: 15s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+  # ─── Task Scheduler ───
+  scheduler:
+    build:
+      context: .
+      dockerfile: docker/backend/Dockerfile
+    container_name: alphamaster-scheduler
+    command: php artisan schedule:work
+    volumes:
+      - ./backend:/var/www/html
+    env_file:
+      - ./backend/.env
+    depends_on:
+      backend:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - alphamaster_network
+    restart: unless-stopped
+
+  # ─── Primary Database (PostgreSQL 17) ───
+  postgres:
+    image: postgres:17-alpine
+    container_name: alphamaster-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-alphamaster}
+      POSTGRES_USER: ${DB_USERNAME:-alphamaster}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-secret}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - alphamaster_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-alphamaster} -d ${DB_DATABASE:-alphamaster}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+
+  # ─── In-Memory Cache & Queue Broker (Redis 7) ───
+  redis:
+    image: redis:7-alpine
+    container_name: alphamaster-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - alphamaster_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 3s
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    name: alphamaster_postgres_data
+  redis_data:
+    name: alphamaster_redis_data
+
+networks:
+  alphamaster_network:
+    name: alphamaster_network
+    driver: bridge
