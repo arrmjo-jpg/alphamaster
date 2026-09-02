@@ -1,4 +1,4 @@
-﻿# ADR 0001: Backend API-Only Architecture
+# ADR 0001: Backend API-Only Architecture
 
 * **Status**: Accepted
 * **Date**: 2026-09-03

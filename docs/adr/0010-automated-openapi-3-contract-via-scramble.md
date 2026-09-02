@@ -1,4 +1,4 @@
-﻿# ADR 0010: Automated OpenAPI 3.1 Contract via Scramble
+# ADR 0010: Automated OpenAPI 3.1 Contract via Scramble
 
 * **Status**: Accepted
 * **Date**: 2026-09-03

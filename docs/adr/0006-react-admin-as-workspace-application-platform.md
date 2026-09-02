@@ -1,4 +1,4 @@
-﻿# ADR 0006: React Admin as a Workspace Application Platform
+# ADR 0006: React Admin as a Workspace Application Platform
 
 * **Status**: Accepted
 * **Date**: 2026-09-03

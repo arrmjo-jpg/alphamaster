@@ -1,4 +1,4 @@
-﻿# ADR 0004: ULID Primary Keys with Pragmatic Index Locality
+# ADR 0004: ULID Primary Keys with Pragmatic Index Locality
 
 * **Status**: Accepted
 * **Date**: 2026-09-03

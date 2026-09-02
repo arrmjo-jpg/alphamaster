@@ -1,4 +1,4 @@
-﻿# ADR 0003: PostgreSQL 17 as Sole Database Engine
+# ADR 0003: PostgreSQL 17 as Sole Database Engine
 
 * **Status**: Accepted
 * **Date**: 2026-09-03

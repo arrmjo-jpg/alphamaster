@@ -1,4 +1,4 @@
-﻿# ADR 0021: GitHub Flow Branching and CI Quality Gates
+# ADR 0021: GitHub Flow Branching and CI Quality Gates
 
 * **Status**: Accepted
 * **Date**: 2026-09-03

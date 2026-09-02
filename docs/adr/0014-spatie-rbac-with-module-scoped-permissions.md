@@ -1,4 +1,4 @@
-﻿# ADR 0014: Spatie RBAC with Module-Scoped Permissions
+# ADR 0014: Spatie RBAC with Module-Scoped Permissions
 
 * **Status**: Accepted
 * **Date**: 2026-09-03

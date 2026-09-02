@@ -1,4 +1,4 @@
-﻿# ADR 0007: Shadcn/UI and Tailwind CSS for Admin Platform
+# ADR 0007: Shadcn/UI and Tailwind CSS for Admin Platform
 
 * **Status**: Accepted
 * **Date**: 2026-09-03

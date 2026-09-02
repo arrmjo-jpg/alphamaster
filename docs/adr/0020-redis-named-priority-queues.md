@@ -1,4 +1,4 @@
-﻿# ADR 0020: Redis Named Priority Queues
+# ADR 0020: Redis Named Priority Queues
 
 * **Status**: Accepted
 * **Date**: 2026-09-03

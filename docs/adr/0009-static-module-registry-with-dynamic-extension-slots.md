@@ -1,4 +1,4 @@
-﻿# ADR 0009: Static Module Registry with Dynamic Extension Slots
+# ADR 0009: Static Module Registry with Dynamic Extension Slots
 
 * **Status**: Accepted
 * **Date**: 2026-09-03

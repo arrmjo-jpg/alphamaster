@@ -1,4 +1,4 @@
-﻿# ADR 0013: Contract-Based Multi-Factor Authentication (MFA)
+# ADR 0013: Contract-Based Multi-Factor Authentication (MFA)
 
 * **Status**: Accepted
 * **Date**: 2026-09-03

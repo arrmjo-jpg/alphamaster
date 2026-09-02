@@ -1,4 +1,4 @@
-﻿# ADR 0023: Native Laravel Context for Distributed Observability
+# ADR 0023: Native Laravel Context for Distributed Observability
 
 * **Status**: Accepted
 * **Date**: 2026-09-03

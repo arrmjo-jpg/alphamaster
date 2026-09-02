@@ -1,4 +1,4 @@
-﻿# ADR 0002: Native Custom Modular Architecture
+# ADR 0002: Native Custom Modular Architecture
 
 * **Status**: Accepted
 * **Date**: 2026-09-03

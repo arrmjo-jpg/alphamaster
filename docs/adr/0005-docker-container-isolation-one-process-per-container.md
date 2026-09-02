@@ -1,4 +1,4 @@
-﻿# ADR 0005: Docker Container Isolation (One Process Per Container)
+# ADR 0005: Docker Container Isolation (One Process Per Container)
 
 * **Status**: Accepted
 * **Date**: 2026-09-03

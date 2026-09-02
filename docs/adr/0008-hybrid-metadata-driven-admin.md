@@ -1,4 +1,4 @@
-﻿# ADR 0008: Hybrid Metadata-Driven Admin
+# ADR 0008: Hybrid Metadata-Driven Admin
 
 * **Status**: Accepted
 * **Date**: 2026-09-03
