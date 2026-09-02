@@ -1,4 +1,4 @@
-﻿# ADR 0024: Encapsulation of MediaLibrary behind Internal Contracts
+# ADR 0024: Encapsulation of MediaLibrary behind Internal Contracts
 
 * **Status**: Accepted
 * **Date**: 2026-09-03

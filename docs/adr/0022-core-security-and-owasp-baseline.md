@@ -1,4 +1,4 @@
-﻿# ADR 0022: Core Security and OWASP Baseline
+# ADR 0022: Core Security and OWASP Baseline
 
 * **Status**: Accepted
 * **Date**: 2026-09-03

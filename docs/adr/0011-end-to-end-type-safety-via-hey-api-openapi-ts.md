@@ -1,4 +1,4 @@
-﻿# ADR 0011: End-to-End Type Safety via @hey-api/openapi-ts
+# ADR 0011: End-to-End Type Safety via @hey-api/openapi-ts
 
 * **Status**: Accepted
 * **Date**: 2026-09-03

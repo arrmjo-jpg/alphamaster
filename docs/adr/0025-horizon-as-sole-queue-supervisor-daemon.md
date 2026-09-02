@@ -1,4 +1,4 @@
-﻿# ADR 0025: Horizon as Sole Queue Supervisor Daemon
+# ADR 0025: Horizon as Sole Queue Supervisor Daemon
 
 * **Status**: Accepted
 * **Date**: 2026-09-03

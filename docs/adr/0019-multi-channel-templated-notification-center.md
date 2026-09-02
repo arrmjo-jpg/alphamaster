@@ -1,4 +1,4 @@
-﻿# ADR 0019: Multi-Channel Templated Notification Center
+# ADR 0019: Multi-Channel Templated Notification Center
 
 * **Status**: Accepted
 * **Date**: 2026-09-03

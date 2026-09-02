@@ -1,4 +1,4 @@
-﻿# ADR 0017: Laravel Manager Pattern for Vendor Providers
+# ADR 0017: Laravel Manager Pattern for Vendor Providers
 
 * **Status**: Accepted
 * **Date**: 2026-09-03

@@ -1,4 +1,4 @@
-﻿# Architecture Decision Records (ADRs)
+# Architecture Decision Records (ADRs)
 
 This directory maintains the architectural decision records for the **alphamaster** Laravel Foundation Platform.
 
@@ -15,7 +15,7 @@ This directory maintains the architectural decision records for the **alphamaste
 | [0009](0009-static-module-registry-with-dynamic-extension-slots.md) | Static Module Registry with Dynamic Extension Slots | Accepted |
 | [0010](0010-automated-openapi-3-contract-via-scramble.md) | Automated OpenAPI 3.1 Contract via Scramble | Accepted |
 | [0011](0011-end-to-end-type-safety-via-hey-api-openapi-ts.md) | End-to-End Type Safety via @hey-api/openapi-ts | Accepted |
-| [0012](0012-multi-guard-authentication-and-perimeter-boundary.md) | Multi-Guard Authentication and Perimeter Boundary | Accepted |
+| [0012](0012-token-abilities-and-admin-perimeter-boundary.md) | Sanctum Token Abilities and Admin Perimeter Boundary | Accepted |
 | [0013](0013-contract-based-multi-factor-authentication.md) | Contract-Based Multi-Factor Authentication (MFA) | Accepted |
 | [0014](0014-spatie-rbac-with-module-scoped-permissions.md) | Spatie RBAC with Module-Scoped Permissions | Accepted |
 | [0015](0015-dynamic-multilingual-with-native-relational-translations.md) | Dynamic Multilingual Architecture with Native Relational Translations | Accepted |

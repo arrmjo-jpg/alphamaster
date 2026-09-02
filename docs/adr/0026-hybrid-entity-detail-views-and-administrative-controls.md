@@ -1,4 +1,4 @@
-﻿# ADR 0026: Hybrid Entity Detail Views and Administrative Controls
+# ADR 0026: Hybrid Entity Detail Views and Administrative Controls
 
 * **Status**: Accepted
 * **Date**: 2026-09-03

@@ -1,4 +1,4 @@
-﻿# ADR 0015: Dynamic Multilingual Architecture with Native Relational Translations
+# ADR 0015: Dynamic Multilingual Architecture with Native Relational Translations
 
 * **Status**: Accepted
 * **Date**: 2026-09-03

@@ -1,4 +1,4 @@
-﻿# ADR 0018: Grouped, Encrypted, and Cached Settings System
+# ADR 0018: Grouped, Encrypted, and Cached Settings System
 
 * **Status**: Accepted
 * **Date**: 2026-09-03

@@ -1,4 +1,4 @@
-﻿# ADR 0016: Hybrid Custom Fields with Runtime Zod Generation
+# ADR 0016: Hybrid Custom Fields with Runtime Zod Generation
 
 * **Status**: Accepted
 * **Date**: 2026-09-03
