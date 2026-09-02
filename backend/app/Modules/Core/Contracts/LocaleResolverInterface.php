@@ -26,6 +26,11 @@ interface LocaleResolverInterface
     public function getActiveLanguageCodes(): array;
 
     /**
+     * Get the authoritative default locale code from database or fallback.
+     */
+    public function getDefaultLocale(): string;
+
+    /**
      * Invalidate any cached language state in Redis.
      */
     public function clearCache(): void;

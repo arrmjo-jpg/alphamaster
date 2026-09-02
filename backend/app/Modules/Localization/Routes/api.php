@@ -12,7 +12,7 @@ Route::prefix('v1')->group(function (): void {
 
     // Admin language management routes (protected by admin perimeter)
     Route::prefix('admin/languages')
-        ->middleware(['admin'])
+        ->middleware(['auth:sanctum', 'ability:admin:access', 'active', 'admin'])
         ->group(function (): void {
             Route::get('/', [LanguageAdminController::class, 'index'])->name('admin.languages.index');
             Route::post('/', [LanguageAdminController::class, 'store'])->name('admin.languages.store');

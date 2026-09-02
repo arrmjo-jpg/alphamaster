@@ -22,7 +22,7 @@ class LocaleResolver implements LocaleResolverInterface
      * Resolve the active locale for an incoming request according to the deterministic precedence:
      * 1. Explicit request header (X-Locale) or query parameter (?locale=)
      * 2. Authenticated user's preferred locale (if available)
-     * 3. HTTP Accept-Language header negotiation
+     * 3. HTTP Accept-Language header negotiation (filtering q=0, wildcards, malformed weights)
      * 4. Database-configured default language (is_default = true)
      * 5. Application configuration fallback (config('app.locale'))
      */
@@ -111,6 +111,16 @@ class LocaleResolver implements LocaleResolverInterface
     }
 
     /**
+     * Get the authoritative default locale from the database or fallback.
+     */
+    public function getDefaultLocale(): string
+    {
+        $defaultCode = $this->getDefaultLanguageCode();
+
+        return $defaultCode ?? (string) config('app.locale', 'en');
+    }
+
+    /**
      * Retrieve active languages metadata from Redis cache or database.
      *
      * @return Collection<int, array<string, mixed>>
@@ -169,7 +179,7 @@ class LocaleResolver implements LocaleResolverInterface
     /**
      * Normalize locale code (e.g. 'en-US' -> 'en' or lowercase 'en').
      */
-    protected function normalizeLocale(string $locale): string
+    public function normalizeLocale(string $locale): string
     {
         $trimmed = trim($locale);
         $parts = explode('-', str_replace('_', '-', $trimmed));
@@ -180,6 +190,12 @@ class LocaleResolver implements LocaleResolverInterface
     /**
      * Negotiate Accept-Language header against active language codes.
      *
+     * Rules:
+     * - Discards empty tags and wildcard '*'
+     * - Discards explicit q=0 (not acceptable)
+     * - Rejects malformed quality values without giving them precedence
+     * - Sorts valid weights in descending order
+     *
      * @param  array<int, string>  $availableLocales
      */
     protected function negotiateAcceptLanguage(string $header, array $availableLocales): ?string
@@ -188,18 +204,37 @@ class LocaleResolver implements LocaleResolverInterface
 
         foreach (explode(',', $header) as $part) {
             $subParts = explode(';', trim($part));
-            $langCode = $this->normalizeLocale($subParts[0]);
+            $tag = trim($subParts[0]);
+
+            // Wildcard '*' and empty tags do not bypass validation
+            if ($tag === '' || $tag === '*') {
+                continue;
+            }
+
+            $langCode = $this->normalizeLocale($tag);
             $weight = 1.0;
 
             if (isset($subParts[1])) {
                 $qParts = explode('=', trim($subParts[1]));
                 if (isset($qParts[0], $qParts[1]) && trim($qParts[0]) === 'q') {
-                    $weight = (float) trim($qParts[1]);
+                    $qValue = trim($qParts[1]);
+                    if (is_numeric($qValue)) {
+                        $parsedWeight = (float) $qValue;
+                        // Clamp between 0.0 and 1.0
+                        $weight = max(0.0, min(1.0, $parsedWeight));
+                    } else {
+                        $weight = 0.0; // Malformed quality value is disregarded
+                    }
                 }
             }
 
+            // Exclude explicit q=0 (not acceptable according to HTTP specification)
+            if ($weight <= 0.0) {
+                continue;
+            }
+
             if ($langCode !== '') {
-                $localesWithWeights[$langCode] = $weight;
+                $localesWithWeights[$langCode] = max($localesWithWeights[$langCode] ?? 0.0, $weight);
             }
         }
 

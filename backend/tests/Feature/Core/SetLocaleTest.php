@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use App\Modules\Localization\Database\Seeders\LanguageSeeder;
+use App\Modules\Localization\Enums\LanguageDirection;
 use App\Modules\Localization\Models\Language;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Route;
@@ -16,45 +18,49 @@ beforeEach(function (): void {
         ]);
     })->middleware(['api']);
 
-    // Seed active languages in database
-    foreach (['fr', 'de', 'es', 'ja', 'ar', 'en'] as $index => $code) {
-        Language::firstOrCreate(
-            ['code' => $code],
-            [
-                'name' => ucfirst($code),
-                'native_name' => ucfirst($code),
-                'direction' => $code === 'ar' ? 'rtl' : 'ltr',
-                'is_active' => true,
-                'is_default' => $code === 'en',
-                'sort_order' => $index + 1,
-            ]
-        );
-    }
+    $this->seed(LanguageSeeder::class);
 });
 
-test('set locale middleware sets application locale dynamically from active database languages without hardcoded restriction', function (string $locale): void {
-    $response = $this->withHeader('X-Locale', $locale)
+test('Core SetLocale resolves dynamically from active DB records and falls back when deactivated', function (): void {
+    // 1. Create a dynamic language in the DB (e.g. French 'fr')
+    $french = Language::create([
+        'code' => 'fr',
+        'name' => 'French',
+        'native_name' => 'Français',
+        'direction' => LanguageDirection::LTR,
+        'is_active' => true,
+        'is_default' => false,
+        'sort_order' => 5,
+    ]);
+
+    // 2. Request X-Locale: fr -> Core resolves 'fr' dynamically
+    $response = $this->withHeader('X-Locale', 'fr')
         ->getJson('/api/v1/test-locale');
 
     $response->assertOk();
+    $response->assertHeader('Content-Language', 'fr');
+    $response->assertHeader('X-Direction', 'ltr');
     $response->assertJson([
         'success' => true,
-        'locale' => $locale,
+        'locale' => 'fr',
     ]);
-})->with(['fr', 'de', 'es', 'ja', 'ar', 'en']);
 
-test('set locale falls back to default locale when requested locale is not in active DB languages', function (): void {
-    $response = $this->withHeader('X-Locale', 'xx-unsupported')
+    // 3. Deactivate the language in the DB
+    $french->update(['is_active' => false]);
+
+    // 4. Request X-Locale: fr again -> Falls back to DB default 'en'
+    $responseFallback = $this->withHeader('X-Locale', 'fr')
         ->getJson('/api/v1/test-locale');
 
-    $response->assertOk();
-    $response->assertJson([
+    $responseFallback->assertOk();
+    $responseFallback->assertHeader('Content-Language', 'en');
+    $responseFallback->assertJson([
         'success' => true,
         'locale' => 'en',
     ]);
 });
 
-test('set locale falls back to default locale when header is missing', function (): void {
+test('Core SetLocale falls back to DB default when header is missing', function (): void {
     $response = $this->getJson('/api/v1/test-locale');
 
     $response->assertOk();

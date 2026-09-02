@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Localization\Traits;
 
+use App\Modules\Core\Contracts\LocaleResolverInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
@@ -42,6 +43,18 @@ trait HasTranslations
     }
 
     /**
+     * Get the authoritative default locale from the Localization resolver or fallback.
+     */
+    public function getDefaultLocale(): string
+    {
+        if (app()->bound(LocaleResolverInterface::class)) {
+            return app(LocaleResolverInterface::class)->getDefaultLocale();
+        }
+
+        return (string) config('app.locale', 'en');
+    }
+
+    /**
      * Retrieve translated attribute with automatic locale fallback.
      */
     public function getTranslation(string $attribute, ?string $locale = null, bool $fallback = true): ?string
@@ -60,7 +73,7 @@ trait HasTranslations
         }
 
         if ($fallback) {
-            $defaultLocale = (string) config('app.locale', 'en');
+            $defaultLocale = $this->getDefaultLocale();
             if ($targetLocale !== $defaultLocale) {
                 $fallbackMatch = $translations->firstWhere('locale', $defaultLocale);
                 if ($fallbackMatch && isset($fallbackMatch->{$attribute})) {
@@ -90,7 +103,7 @@ trait HasTranslations
         }
 
         if ($fallback) {
-            $defaultLocale = (string) config('app.locale', 'en');
+            $defaultLocale = $this->getDefaultLocale();
 
             return $translations->firstWhere('locale', $defaultLocale);
         }

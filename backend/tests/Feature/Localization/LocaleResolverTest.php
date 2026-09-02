@@ -61,6 +61,15 @@ test('resolver falls back to default database language when requested locale is 
     expect($resolver->resolve($request))->toBe('en');
 });
 
+test('resolver normalizes en-US to en and resolves active en locale', function (): void {
+    $resolver = app(LocaleResolverInterface::class);
+
+    $request = Request::create('/api/v1/health');
+    $request->headers->set('X-Locale', 'en-US');
+
+    expect($resolver->resolve($request))->toBe('en');
+});
+
 test('resolver negotiates Accept-Language header matching active language', function (): void {
     $resolver = app(LocaleResolverInterface::class);
 
@@ -68,6 +77,25 @@ test('resolver negotiates Accept-Language header matching active language', func
     $request->headers->set('Accept-Language', 'ar-SA,ar;q=0.9,en-US;q=0.8');
 
     expect($resolver->resolve($request))->toBe('ar');
+});
+
+test('resolver excludes q=0 entries and rejects malformed quality weights in Accept-Language', function (): void {
+    $resolver = app(LocaleResolverInterface::class);
+
+    // en is marked with q=0 (not acceptable), ar has valid weight 0.5 -> ar must be selected
+    $request = Request::create('/api/v1/health');
+    $request->headers->set('Accept-Language', 'en;q=0,ar;q=0.5');
+    expect($resolver->resolve($request))->toBe('ar');
+
+    // Malformed quality value q=invalid must not beat valid weight 0.8
+    $requestMalformed = Request::create('/api/v1/health');
+    $requestMalformed->headers->set('Accept-Language', 'en;q=invalid,ar;q=0.8');
+    expect($resolver->resolve($requestMalformed))->toBe('ar');
+
+    // Wildcard '*' must not bypass active language validation
+    $requestWildcard = Request::create('/api/v1/health');
+    $requestWildcard->headers->set('Accept-Language', '*,ar;q=0.1');
+    expect($resolver->resolve($requestWildcard))->toBe('ar');
 });
 
 test('resolver respects authenticated user preferred locale if active', function (): void {
