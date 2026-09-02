@@ -12,16 +12,19 @@ class SetLocale
 {
     /**
      * Handle an incoming request and set the active application locale.
+     *
+     * Core does not hardcode supported languages. It safely applies requested locale
+     * syntax or falls back to config('app.locale'). Dynamic database-driven
+     * language resolution is deferred to Phase 3 Localization.
      */
     public function handle(Request $request, Closure $next): Response
     {
-        $locale = $request->header('X-Locale')
-            ?? $request->query('locale')
-            ?? $request->getPreferredLanguage(['en', 'ar'])
-            ?? config('app.locale', 'en');
+        $requestedLocale = $request->header('X-Locale') ?? $request->query('locale');
 
-        if (is_string($locale) && in_array($locale, ['en', 'ar'], true)) {
-            app()->setLocale($locale);
+        if (is_string($requestedLocale) && preg_match('/^[a-z]{2,3}(?:[_-][a-zA-Z0-9]+)?$/', $requestedLocale)) {
+            app()->setLocale($requestedLocale);
+        } else {
+            app()->setLocale((string) config('app.locale', 'en'));
         }
 
         return $next($request);

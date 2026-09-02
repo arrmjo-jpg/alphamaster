@@ -12,6 +12,9 @@ class EnsureUserIsAdmin
 {
     /**
      * Handle an incoming request and enforce the Admin perimeter boundary.
+     *
+     * The boundary fails closed: any request where administrative identity
+     * cannot be strictly proven is denied with HTTP 403.
      */
     public function handle(Request $request, Closure $next): Response
     {
@@ -27,27 +30,12 @@ class EnsureUserIsAdmin
             ], 401);
         }
 
-        // 1. Verify Sanctum token ability if request uses token-based auth
-        if (method_exists($user, 'currentAccessToken') && $user->currentAccessToken()) {
-            if (! $user->tokenCan('admin:access') && ! $user->tokenCan('*')) {
-                return response()->json([
-                    'success' => false,
-                    'error' => [
-                        'code' => 'FORBIDDEN',
-                        'message' => 'Token does not possess required administrative abilities.',
-                    ],
-                ], 403);
-            }
-        }
-
-        // 2. Verify administrative identity attribute/role if present
+        // Administrative identity must be explicitly established (Fail Closed)
         $isAdmin = false;
+
         if (isset($user->is_admin) && (bool) $user->is_admin) {
             $isAdmin = true;
         } elseif (method_exists($user, 'hasRole') && ($user->hasRole('admin') || $user->hasRole('super-admin'))) {
-            $isAdmin = true;
-        } elseif (! isset($user->is_admin) && ! method_exists($user, 'hasRole')) {
-            // Fallback for base user during early scaffolding
             $isAdmin = true;
         }
 
