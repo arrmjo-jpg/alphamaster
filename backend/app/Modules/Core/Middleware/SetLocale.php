@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Core\Middleware;
 
+use App\Modules\Core\Contracts\LocaleResolverInterface;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -11,22 +12,30 @@ use Symfony\Component\HttpFoundation\Response;
 class SetLocale
 {
     /**
-     * Handle an incoming request and set the active application locale.
+     * Handle an incoming request and set the active application locale and direction.
      *
-     * Core does not hardcode supported languages. It safely applies requested locale
-     * syntax or falls back to config('app.locale'). Dynamic database-driven
-     * language resolution is deferred to Phase 3 Localization.
+     * Core relies on the injected LocaleResolverInterface without importing or coupling
+     * to any specific domain implementation or hardcoding languages.
      */
     public function handle(Request $request, Closure $next): Response
     {
-        $requestedLocale = $request->header('X-Locale') ?? $request->query('locale');
-
-        if (is_string($requestedLocale) && preg_match('/^[a-z]{2,3}(?:[_-][a-zA-Z0-9]+)?$/', $requestedLocale)) {
-            app()->setLocale($requestedLocale);
+        if (app()->bound(LocaleResolverInterface::class)) {
+            /** @var LocaleResolverInterface $resolver */
+            $resolver = app(LocaleResolverInterface::class);
+            $locale = $resolver->resolve($request);
+            $direction = $resolver->getDirection($locale);
         } else {
-            app()->setLocale((string) config('app.locale', 'en'));
+            $locale = (string) config('app.locale', 'en');
+            $direction = 'ltr';
         }
 
-        return $next($request);
+        app()->setLocale($locale);
+
+        $response = $next($request);
+
+        $response->headers->set('Content-Language', $locale);
+        $response->headers->set('X-Direction', $direction);
+
+        return $response;
     }
 }

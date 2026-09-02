@@ -16,6 +16,9 @@ use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use Laravel\Sanctum\Exceptions\MissingAbilityException;
+use Laravel\Sanctum\Http\Middleware\CheckAbilities;
+use Laravel\Sanctum\Http\Middleware\CheckForAnyAbility;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -38,6 +41,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'admin' => EnsureUserIsAdmin::class,
             'active' => EnsureAccountActive::class,
+            'ability' => CheckForAnyAbility::class,
+            'abilities' => CheckAbilities::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
@@ -76,6 +81,16 @@ return Application::configure(basePath: dirname(__DIR__))
             ], 403);
         });
 
+        $exceptions->render(function (MissingAbilityException $e, Request $request): JsonResponse {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'FORBIDDEN',
+                    'message' => 'Token does not possess required administrative abilities.',
+                ],
+            ], 403);
+        });
+
         $exceptions->render(function (ModelNotFoundException $e, Request $request): JsonResponse {
             return response()->json([
                 'success' => false,
@@ -107,10 +122,18 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         $exceptions->render(function (HttpException $e, Request $request): JsonResponse {
+            $code = match ($e->getStatusCode()) {
+                401 => 'UNAUTHENTICATED',
+                403 => 'FORBIDDEN',
+                404 => 'NOT_FOUND',
+                405 => 'METHOD_NOT_ALLOWED',
+                default => 'HTTP_ERROR',
+            };
+
             return response()->json([
                 'success' => false,
                 'error' => [
-                    'code' => 'HTTP_ERROR',
+                    'code' => $code,
                     'message' => $e->getMessage() ?: 'An HTTP error occurred.',
                 ],
             ], $e->getStatusCode());
