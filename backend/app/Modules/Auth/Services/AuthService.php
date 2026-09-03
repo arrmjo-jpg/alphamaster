@@ -72,6 +72,34 @@ class AuthService implements AuthServiceContract
     }
 
     /**
+     * Whether this user must enrol a second factor before receiving a token at all.
+     *
+     * MFA is mandatory for administrators (ADR 0013) and optional for everyone else,
+     * so an administrator who has not enrolled is stopped at sign-in and handed an
+     * enrolment credential instead of access.
+     */
+    public function requiresMfaEnrolment(User $user): bool
+    {
+        return $user->is_admin && ! $this->mfa->isEnabled($user);
+    }
+
+    /**
+     * Issue a token that can do nothing but enrol a second factor.
+     *
+     * Deliberately a real Sanctum token rather than another bespoke credential: the
+     * ability layer already refuses it everywhere that matters, so mandatory enrolment
+     * needs no new enforcement path.
+     */
+    public function issueEnrolmentToken(User $user): AuthenticatedToken
+    {
+        return new AuthenticatedToken(
+            $user,
+            $user->createToken('mfa-enrolment', [TokenAbility::MFA_ENROL->value])->plainTextToken,
+            TokenAbility::MFA_ENROL,
+        );
+    }
+
+    /**
      * Issue a Sanctum token carrying exactly one ability, per ADR 0012.
      */
     public function issueToken(User $user, string $name = 'api-token'): AuthenticatedToken

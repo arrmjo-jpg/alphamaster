@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Auth\Controllers\Api;
 
 use App\Modules\Auth\Contracts\AuthServiceContract;
+use App\Modules\Auth\Enums\TokenAbility;
 use App\Modules\Auth\Exceptions\AccountInactiveException;
 use App\Modules\Auth\Exceptions\InvalidCredentialsException;
 use App\Modules\Auth\Exceptions\MfaChallengeException;
@@ -54,6 +55,18 @@ class AuthController extends BaseApiController
         }
 
         $this->throttle->clear($key);
+
+        // MFA is mandatory for administrators. One who has not enrolled receives no
+        // access token, only a credential scoped to enrolment, so there is no window
+        // in which an administrator holds access without a second factor.
+        if ($this->auth->requiresMfaEnrolment($user)) {
+            return $this->successResponse([
+                'mfa_setup_required' => true,
+                'enrolment_token' => $this->auth->issueEnrolmentToken($user)->plainTextToken,
+                'token_type' => 'Bearer',
+                'abilities' => [TokenAbility::MFA_ENROL->value],
+            ], 'Multi-factor authentication is required for administrators. Enrol a second factor to continue.');
+        }
 
         // A user with MFA enabled gets no access token here — only a short-lived
         // challenge token, which grants nothing on its own.

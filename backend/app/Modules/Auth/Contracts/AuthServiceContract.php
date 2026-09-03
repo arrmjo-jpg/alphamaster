@@ -26,6 +26,16 @@ interface AuthServiceContract
     public function requiresMfa(User $user): bool;
 
     /**
+     * Whether this user must enrol a second factor before receiving a token at all.
+     */
+    public function requiresMfaEnrolment(User $user): bool;
+
+    /**
+     * Issue a token scoped to MFA enrolment and nothing else.
+     */
+    public function issueEnrolmentToken(User $user): AuthenticatedToken;
+
+    /**
      * Issue a Sanctum token carrying exactly one ability, per ADR 0012.
      */
     public function issueToken(User $user, string $name = 'api-token'): AuthenticatedToken;

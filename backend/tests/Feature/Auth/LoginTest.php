@@ -53,31 +53,21 @@ test('a regular user can sign in and receives a user:access token', function ():
         ->and($token->can(TokenAbility::ADMIN_ACCESS->value))->toBeFalse();
 });
 
-test('an administrator signs in and receives an admin:access token', function (): void {
+test('an administrator receives an admin:access token only after enrolling MFA', function (): void {
     makeUser(['email' => 'boss@example.com', 'is_admin' => true]);
 
-    $response = $this->postJson('/api/v1/auth/login', [
-        'email' => 'boss@example.com',
-        'password' => 'correct-horse-battery',
-    ]);
+    $result = signInAdminWithMfa($this, 'boss@example.com', 'correct-horse-battery');
+    $token = PersonalAccessToken::findToken($result['token']);
 
-    $response->assertOk()
-        ->assertJsonPath('data.abilities', [TokenAbility::ADMIN_ACCESS->value]);
-
-    $token = PersonalAccessToken::findToken($response->json('data.token'));
-
-    expect($token->can(TokenAbility::ADMIN_ACCESS->value))->toBeTrue();
+    expect($token)->not->toBeNull()
+        ->and($token->can(TokenAbility::ADMIN_ACCESS->value))->toBeTrue();
 });
 
 test('a token carries exactly one ability, never both', function (): void {
     makeUser(['email' => 'boss2@example.com', 'is_admin' => true]);
 
-    $response = $this->postJson('/api/v1/auth/login', [
-        'email' => 'boss2@example.com',
-        'password' => 'correct-horse-battery',
-    ]);
-
-    $token = PersonalAccessToken::findToken($response->json('data.token'));
+    $result = signInAdminWithMfa($this, 'boss2@example.com', 'correct-horse-battery');
+    $token = PersonalAccessToken::findToken($result['token']);
 
     expect($token->abilities)->toBe([TokenAbility::ADMIN_ACCESS->value])
         ->and($token->abilities)->toHaveCount(1)
@@ -102,10 +92,7 @@ test('a regular user token is refused at the admin perimeter', function (): void
 test('an administrator token is accepted at the admin perimeter', function (): void {
     makeUser(['email' => 'boss3@example.com', 'is_admin' => true]);
 
-    $token = $this->postJson('/api/v1/auth/login', [
-        'email' => 'boss3@example.com',
-        'password' => 'correct-horse-battery',
-    ])->json('data.token');
+    $token = signInAdminWithMfa($this, 'boss3@example.com', 'correct-horse-battery')['token'];
 
     $this->withToken($token)
         ->getJson('/api/v1/admin/settings')
@@ -189,10 +176,7 @@ test('logout revokes the presented token and nothing else', function (): void {
 test('me returns the identity and the abilities actually on the token', function (): void {
     makeUser(['email' => 'who@example.com', 'is_admin' => true]);
 
-    $token = $this->postJson('/api/v1/auth/login', [
-        'email' => 'who@example.com',
-        'password' => 'correct-horse-battery',
-    ])->json('data.token');
+    $token = signInAdminWithMfa($this, 'who@example.com', 'correct-horse-battery')['token'];
 
     $this->withToken($token)->getJson('/api/v1/auth/me')
         ->assertOk()

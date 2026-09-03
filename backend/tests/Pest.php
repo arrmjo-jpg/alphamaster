@@ -2,6 +2,7 @@
 
 use App\Modules\User\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PragmaRX\Google2FA\Google2FA;
 use Tests\TestCase;
 
 /*
@@ -63,4 +64,51 @@ function adminToken(array $abilities = ['admin:access'], bool $isAdmin = true): 
     ]);
 
     return $admin->createToken('test-token', $abilities)->plainTextToken;
+}
+
+/**
+ * Return the test client to a genuinely unauthenticated state.
+ *
+ * withToken() persists the Authorization header across requests, and
+ * AttachRequestContext resolves $request->user() on every API route, which caches the
+ * resolution on the guard for the lifetime of this application instance. Production
+ * builds a fresh instance per request; a test has to clear both by hand.
+ */
+function resetClient(mixed $test): void
+{
+    $test->flushHeaders();
+    app('auth')->forgetGuards();
+}
+/**
+ * Drive an administrator through mandatory MFA enrolment and return the resulting
+ * access token together with the material needed to sign in again.
+ *
+ * MFA is compulsory for administrators (ADR 0013), so login alone no longer yields a
+ * token: the enrolment credential has to be exchanged for one.
+ *
+ * @return array{token: string, secret: string, recovery: array<int, string>}
+ */
+function signInAdminWithMfa(mixed $test, string $email, string $password): array
+{
+    $enrolmentToken = $test->postJson('/api/v1/auth/login', [
+        'email' => $email,
+        'password' => $password,
+    ])->json('data.enrolment_token');
+
+    $secret = $test->withToken($enrolmentToken)
+        ->postJson('/api/v1/auth/mfa/enrol')
+        ->json('data.secret');
+
+    $verified = $test->withToken($enrolmentToken)->postJson('/api/v1/auth/mfa/verify', [
+        'code' => app(Google2FA::class)->getCurrentOtp($secret),
+    ]);
+
+    // Leave no stale credential or cached guard resolution behind for the caller.
+    resetClient($test);
+
+    return [
+        'token' => $verified->json('data.token'),
+        'secret' => $secret,
+        'recovery' => $verified->json('data.recovery_codes'),
+    ];
 }

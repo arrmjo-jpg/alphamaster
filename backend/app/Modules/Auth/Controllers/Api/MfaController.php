@@ -4,19 +4,23 @@ declare(strict_types=1);
 
 namespace App\Modules\Auth\Controllers\Api;
 
+use App\Modules\Auth\Contracts\AuthServiceContract;
 use App\Modules\Auth\Contracts\MfaManagerContract;
 use App\Modules\Auth\Enums\MfaType;
+use App\Modules\Auth\Enums\TokenAbility;
 use App\Modules\Auth\Exceptions\MfaEnrolmentException;
 use App\Modules\Auth\Requests\MfaCodeRequest;
 use App\Modules\Auth\Services\MfaManager;
 use App\Modules\Core\Controllers\BaseApiController;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Laravel\Sanctum\PersonalAccessToken;
 
 class MfaController extends BaseApiController
 {
     public function __construct(
-        protected MfaManagerContract $mfa
+        protected MfaManagerContract $mfa,
+        protected AuthServiceContract $auth,
     ) {}
 
     /**
@@ -73,10 +77,26 @@ class MfaController extends BaseApiController
             return $this->errorResponse('MFA_ENROLMENT_INVALID', $e->getMessage(), null, 422);
         }
 
-        return $this->successResponse([
+        $payload = [
             'enabled' => true,
             'recovery_codes' => $recoveryCodes,
-        ], 'Multi-factor authentication is now enabled. Store these recovery codes; they will not be shown again.');
+        ];
+
+        // An administrator who arrived on an enrolment token has now proved possession
+        // of the factor, which together with the password they signed in with is a
+        // complete two-factor authentication. Hand them the real token and burn the
+        // enrolment credential, rather than making them sign in twice.
+        $current = $request->user()->currentAccessToken();
+
+        if ($current instanceof PersonalAccessToken && $current->can(TokenAbility::MFA_ENROL->value)) {
+            $current->delete();
+            $payload = array_merge($payload, $this->auth->issueToken($request->user())->toArray());
+        }
+
+        return $this->successResponse(
+            $payload,
+            'Multi-factor authentication is now enabled. Store these recovery codes; they will not be shown again.'
+        );
     }
 
     /**
@@ -108,6 +128,19 @@ class MfaController extends BaseApiController
         }
 
         $this->mfa->disable($user);
+
+        // MFA is mandatory for administrators, so one who disables it must not keep
+        // the access token they already hold. Revoking every token means the invariant
+        // "an administrator holding access has a second factor" is true at all times,
+        // and their next sign-in walks them back through enrolment.
+        if ($user->is_admin) {
+            $user->tokens()->delete();
+
+            return $this->successResponse(
+                ['enabled' => false, 'tokens_revoked' => true],
+                'Multi-factor authentication has been disabled. All sessions were signed out, and enrolment is required at next sign-in.'
+            );
+        }
 
         return $this->successResponse(['enabled' => false], 'Multi-factor authentication has been disabled.');
     }

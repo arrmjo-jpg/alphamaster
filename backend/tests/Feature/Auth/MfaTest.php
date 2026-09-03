@@ -64,20 +64,6 @@ function enrolMfa(mixed $test): array
 }
 
 /**
- * Return the test client to a genuinely unauthenticated state.
- *
- * withToken() persists the Authorization header across requests, and
- * AttachRequestContext resolves $request->user() on every API route, which caches the
- * resolution on the guard for the lifetime of this application instance. Production
- * builds a fresh instance per request; a test has to clear both by hand.
- */
-function resetClient(mixed $test): void
-{
-    $test->flushHeaders();
-    app('auth')->forgetGuards();
-}
-
-/**
  * A TOTP code for a specific time slice.
  *
  * Time-travel helpers cannot be used here: Google2FA reads microtime() directly, so
