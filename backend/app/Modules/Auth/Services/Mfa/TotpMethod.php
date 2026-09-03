@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Auth\Services\Mfa;
 
 use App\Modules\Auth\Contracts\MfaMethodContract;
+use App\Modules\Auth\Data\MfaEnrolment;
 use App\Modules\Auth\Enums\MfaType;
 use App\Modules\Auth\Models\MfaMethod;
 use App\Modules\User\Models\User;
@@ -34,9 +35,9 @@ class TotpMethod implements MfaMethodContract
      * Replaces any unconfirmed enrolment so a restarted setup does not leave a
      * stale secret behind.
      *
-     * @return array{secret: string, uri: string}
+     * @param  array<string, mixed>  $options  unused: TOTP needs no enrolment input
      */
-    public function enrol(User $user): array
+    public function enrol(User $user, array $options = []): MfaEnrolment
     {
         $secret = $this->google2fa->generateSecretKey();
 
@@ -52,14 +53,15 @@ class TotpMethod implements MfaMethodContract
         $method->setSecret($secret);
         $method->save();
 
-        return [
-            'secret' => $secret,
-            'uri' => $this->google2fa->getQRCodeUrl(
+        return MfaEnrolment::forSecret(
+            $this->type(),
+            $secret,
+            $this->google2fa->getQRCodeUrl(
                 (string) config('app.name'),
                 $user->email,
                 $secret
-            ),
-        ];
+            )
+        );
     }
 
     /**

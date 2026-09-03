@@ -8,6 +8,7 @@ use App\Modules\Auth\Contracts\AuthServiceContract;
 use App\Modules\Auth\Contracts\MfaManagerContract;
 use App\Modules\Auth\Enums\MfaType;
 use App\Modules\Auth\Services\AuthService;
+use App\Modules\Auth\Services\Mfa\SmsOtpMethod;
 use App\Modules\Auth\Services\Mfa\TotpMethod;
 use App\Modules\Auth\Services\MfaManager;
 use Illuminate\Support\Facades\Route;
@@ -24,11 +25,13 @@ class AuthServiceProvider extends ServiceProvider
         $this->app->singleton(Google2FA::class, fn (): Google2FA => new Google2FA);
 
         $this->app->singleton(TotpMethod::class);
+        $this->app->singleton(SmsOtpMethod::class);
 
         // Methods are registered by type, so a future WebAuthn or OTP driver is added
         // here and nothing in the challenge flow changes (ADR 0013).
         $this->app->singleton(MfaManagerContract::class, fn ($app): MfaManager => new MfaManager([
             MfaType::TOTP->value => $app->make(TotpMethod::class),
+            MfaType::SMS_OTP->value => $app->make(SmsOtpMethod::class),
         ]));
 
         $this->app->singleton(AuthServiceContract::class, AuthService::class);

@@ -2,7 +2,7 @@
 
 * **Status**: Accepted
 * **Date**: 2026-09-03
-* **Revised**: 2026-09-03 — mandatory administrator MFA implemented; OTP channel deferred
+* **Revised**: 2026-09-03 — SMS OTP implemented for regular users; WhatsApp still deferred
 
 ## Context
 
@@ -13,6 +13,8 @@ Admin accounts require MFA. This is enforced, not aspirational: the enforcement 
 ## Decision
 
 Abstract MFA behind `MfaMethodContract`. A method owns its own secret material and verification rule, so a new factor is added by implementing the contract rather than by changing the challenge flow that consumes it.
+
+Enrolment returns a typed `MfaEnrolment` rather than the `{secret, uri}` array the contract first used. That shape was drawn from TOTP and meant nothing for a method that has neither a shared secret nor a provisioning URI; each method now returns only the fields it actually has. A method whose code must be delivered additionally implements `DeliversMfaCodes`, so the challenge flow can ask whether delivery applies instead of every method carrying a `send()` that most would leave empty.
 
 **Implemented.** TOTP via `pragmarx/google2fa`, resolved through `MfaManagerContract`, which registers methods by type. Enrolment returns a secret and an `otpauth://` URI exactly once and leaves the method inactive until it is confirmed with a genuine code. Secrets are encrypted at rest with `Crypt::encryptString`; a failed decrypt raises rather than returning ciphertext. A code is accepted only from a time slice strictly newer than the last one accepted, so a code cannot be replayed inside its own validity window.
 
@@ -28,7 +30,13 @@ The enrolment ability exists to resolve a deadlock: a compulsory second factor m
 
 An administrator who disables MFA has every one of their tokens revoked, so the invariant that an administrator holding access has a second factor is true continuously rather than merely at sign-in. Their next sign-in returns them to enrolment. Disabling remains available so that a lost device can be recovered from with a recovery code.
 
-**Deferred.** SMS and WhatsApp OTP remain unbuilt, but the dependency they waited on now exists: the Integration module provides an SMS capability with provider selection, failover and encrypted credentials (ADR 0017). Implementing an OTP method is therefore a matter of adding an MfaMethodContract implementation that dispatches through it, with no change to the challenge flow. WhatsApp additionally needs a WhatsApp capability, which arrives with a consumer for it. TOTP remains sufficient for the mandatory administrator requirement, so nothing is blocked in the meantime.
+**SMS one-time codes.** Implemented for regular users, dispatched through the Integration module's SMS capability (ADR 0017), so the method owns no transport: provider selection, failover and usage logging happen there and a vendor change is invisible to it. The number is stored encrypted on the method row and is verified by the enrolment itself — a code sent to it and returned proves possession, exactly as a TOTP code proves possession of a secret — so there is no separate unverified-number state to reason about. Only a hash of the pending code is stored, it dies on first correct presentation, and it expires after five minutes.
+
+Delivery is an explicit request, never a side effect of signing in. A login for an SMS-enrolled account returns the challenge and sends nothing; the client then asks for a code. Otherwise anyone holding a password could make the platform send unlimited messages to the account owner's phone. The send endpoint is throttled on the challenge token and the method enforces a thirty second resend cooldown on top, and a resend invalidates its predecessor so two live codes never exist for one account.
+
+**SMS does not satisfy the administrator requirement.** SIM swap and SS7 interception are practical attacks and NIST SP 800-63B treats an out-of-band SMS authenticator as restricted. Having made administrator MFA compulsory for security reasons, allowing exactly those accounts to satisfy it with the weakest available factor would undo the point. Administrators are refused SMS enrolment, and an account that somehow holds only a confirmed SMS method is still sent to enrolment when it becomes an administrator — the policy is evaluated, not merely enforced at the point of enrolment.
+
+**Deferred.** WhatsApp OTP needs a WhatsApp capability in the Integration module, which arrives with a consumer for it. Nothing is blocked in the meantime.
 
 ## Consequences
 

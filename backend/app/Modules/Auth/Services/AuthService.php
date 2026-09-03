@@ -80,7 +80,7 @@ class AuthService implements AuthServiceContract
      */
     public function requiresMfaEnrolment(User $user): bool
     {
-        return $user->isAdmin() && ! $this->mfa->isEnabled($user);
+        return $user->isAdmin() && ! $this->mfa->satisfiesPolicy($user);
     }
 
     /**

@@ -5,13 +5,16 @@ declare(strict_types=1);
 namespace App\Modules\Auth\Controllers\Api;
 
 use App\Modules\Auth\Contracts\AuthServiceContract;
+use App\Modules\Auth\Contracts\MfaManagerContract;
 use App\Modules\Auth\Enums\TokenAbility;
 use App\Modules\Auth\Exceptions\AccountInactiveException;
 use App\Modules\Auth\Exceptions\InvalidCredentialsException;
 use App\Modules\Auth\Exceptions\MfaChallengeException;
+use App\Modules\Auth\Exceptions\MfaDeliveryException;
 use App\Modules\Auth\Exceptions\TooManyAttemptsException;
 use App\Modules\Auth\Requests\LoginRequest;
 use App\Modules\Auth\Requests\MfaChallengeRequest;
+use App\Modules\Auth\Requests\MfaChallengeSendRequest;
 use App\Modules\Auth\Services\AuthService;
 use App\Modules\Auth\Services\LoginThrottle;
 use App\Modules\Core\Controllers\BaseApiController;
@@ -24,6 +27,7 @@ class AuthController extends BaseApiController
     public function __construct(
         protected AuthServiceContract $auth,
         protected LoginThrottle $throttle,
+        protected MfaManagerContract $mfa,
     ) {}
 
     /**
@@ -114,6 +118,53 @@ class AuthController extends BaseApiController
         $this->throttle->clear($key);
 
         return $this->successResponse($issued->toArray(), 'Authenticated successfully.');
+    }
+
+    /**
+     * Dispatch a code for a challenge that needs one.
+     *
+     * Delivery is a deliberate request rather than a side effect of signing in: an
+     * attacker holding a password must not be able to make the platform send
+     * unlimited messages to the account owner's phone. The endpoint is throttled on
+     * the challenge token, and the method itself enforces a resend cooldown.
+     */
+    public function mfaChallengeSend(MfaChallengeSendRequest $request): JsonResponse
+    {
+        $mfaToken = (string) $request->validated('mfa_token');
+        $key = $this->throttle->key($request, 'mfa-send', $mfaToken);
+
+        try {
+            $this->throttle->assertNotLimited($key);
+
+            $user = $this->auth->resolveMfaChallenge($mfaToken);
+            $destination = $this->mfa->deliverChallenge($user);
+        } catch (TooManyAttemptsException $e) {
+            return $this->throttledResponse($e);
+        } catch (AccountInactiveException $e) {
+            return $this->errorResponse('ACCOUNT_SUSPENDED', $e->getMessage(), null, 403);
+        } catch (MfaChallengeException $e) {
+            $this->throttle->recordFailure($key);
+
+            return $this->errorResponse('MFA_CHALLENGE_FAILED', $e->getMessage(), null, 401);
+        } catch (MfaDeliveryException $e) {
+            return $this->errorResponse('MFA_DELIVERY_THROTTLED', $e->getMessage(), null, 429);
+        }
+
+        $this->throttle->recordFailure($key);
+
+        if ($destination === null) {
+            return $this->errorResponse(
+                'MFA_DELIVERY_NOT_APPLICABLE',
+                'This account uses an authenticator app; no code needs to be sent.',
+                null,
+                422
+            );
+        }
+
+        return $this->successResponse(
+            ['destination' => $destination],
+            'A verification code has been sent.'
+        );
     }
 
     /**
