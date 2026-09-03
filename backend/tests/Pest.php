@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -44,7 +45,22 @@ expect()->extend('toBeOne', function () {
 |
 */
 
-function something()
+/**
+ * Create an administrator and return a Sanctum token carrying the given abilities.
+ *
+ * @param  array<int, string>  $abilities
+ */
+function adminToken(array $abilities = ['admin:access'], bool $isAdmin = true): string
 {
-    // ..
+    static $sequence = 0;
+    $sequence++;
+
+    $admin = User::create([
+        'name' => 'Test Admin '.$sequence,
+        'email' => 'admin'.$sequence.'@example.com',
+        'password' => bcrypt('secret'),
+        'is_admin' => $isAdmin,
+    ]);
+
+    return $admin->createToken('test-token', $abilities)->plainTextToken;
 }

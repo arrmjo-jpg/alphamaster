@@ -7,7 +7,7 @@ arch('Core module never depends on application domain modules')
     ->not->toUse([
         'App\Modules\Auth',
         'App\Modules\User',
-        'App\Modules\Setting',
+        'App\Modules\Settings',
         'App\Modules\Localization',
         'App\Modules\Integration',
         'App\Modules\Notification',
@@ -37,7 +37,27 @@ arch('Localization module only depends on Core and Framework')
     ->not->toUse([
         'App\Modules\Auth',
         'App\Modules\User',
-        'App\Modules\Setting',
+        'App\Modules\Settings',
+        'App\Modules\Integration',
+        'App\Modules\Notification',
+        'App\Modules\Media',
+    ]);
+
+arch('Settings controllers extend BaseApiController')
+    ->expect('App\Modules\Settings\Controllers')
+    ->classes()
+    ->toExtend('App\Modules\Core\Controllers\BaseApiController');
+
+arch('All Settings classes use strict types')
+    ->expect('App\Modules\Settings')
+    ->toUseStrictTypes();
+
+arch('Settings module only depends on Core and Framework')
+    ->expect('App\Modules\Settings')
+    ->not->toUse([
+        'App\Modules\Auth',
+        'App\Modules\User',
+        'App\Modules\Localization',
         'App\Modules\Integration',
         'App\Modules\Notification',
         'App\Modules\Media',
