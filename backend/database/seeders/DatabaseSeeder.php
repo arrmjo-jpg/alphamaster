@@ -7,6 +7,7 @@ namespace Database\Seeders;
 use App\Modules\Authorization\Database\Seeders\AdminPermissionSeeder;
 use App\Modules\Integration\Database\Seeders\IntegrationProviderSeeder;
 use App\Modules\Localization\Database\Seeders\LanguageSeeder;
+use App\Modules\Notification\Database\Seeders\NotificationTemplateSeeder;
 use App\Modules\Settings\Database\Seeders\SettingSeeder;
 use Illuminate\Database\Seeder;
 
@@ -28,6 +29,7 @@ class DatabaseSeeder extends Seeder
             SettingSeeder::class,
             AdminPermissionSeeder::class,
             IntegrationProviderSeeder::class,
+            NotificationTemplateSeeder::class,
         ]);
     }
 }

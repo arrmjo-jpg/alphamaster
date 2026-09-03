@@ -20,6 +20,7 @@ use Spatie\Permission\Traits\HasRoles;
  * @property string $name
  * @property string $email
  * @property Carbon|null $email_verified_at
+ * @property string|null $preferred_locale
  * @property string $password
  * @property AccountType $account_type
  * @property bool $is_active
@@ -71,6 +72,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'preferred_locale',
         'is_active',
     ];
 
