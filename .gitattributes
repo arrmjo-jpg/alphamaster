@@ -1,0 +1,6 @@
+# Shell scripts must keep LF endings regardless of the developer's platform.
+# core.autocrlf is on, so without this a fresh clone on Windows receives
+# scripts/gate.sh with CRLF endings and the shell refuses to run it — the quality
+# gate would be broken for exactly the people checking out the repository for the
+# first time.
+*.sh text eol=lf
