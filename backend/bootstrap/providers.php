@@ -5,6 +5,7 @@ use App\Modules\Authorization\Providers\AuthorizationServiceProvider;
 use App\Modules\Core\Providers\CoreServiceProvider;
 use App\Modules\Integration\Providers\IntegrationServiceProvider;
 use App\Modules\Localization\Providers\LocalizationServiceProvider;
+use App\Modules\Media\Providers\MediaServiceProvider;
 use App\Modules\Notification\Providers\NotificationServiceProvider;
 use App\Modules\Settings\Providers\SettingsServiceProvider;
 use App\Modules\User\Providers\UserServiceProvider;
@@ -22,4 +23,5 @@ return [
     AuthorizationServiceProvider::class,
     IntegrationServiceProvider::class,
     NotificationServiceProvider::class,
+    MediaServiceProvider::class,
 ];

@@ -175,3 +175,32 @@ arch('Notification module does not depend on Auth, User internals or Media')
 arch('Core module never depends on Notification')
     ->expect('App\Modules\Core')
     ->not->toUse(['App\Modules\Notification']);
+
+arch('Media controllers extend BaseApiController')
+    ->expect('App\Modules\Media\Controllers')
+    ->classes()
+    ->toExtend('App\Modules\Core\Controllers\BaseApiController');
+
+arch('All Media classes use strict types')
+    ->expect('App\Modules\Media')
+    ->toUseStrictTypes();
+
+arch('Media module does not depend on the modules that consume it')
+    ->expect('App\Modules\Media')
+    ->not->toUse([
+        'App\Modules\Auth',
+        'App\Modules\Localization',
+        'App\Modules\Notification',
+        'App\Modules\Integration',
+    ]);
+
+arch('Core module never depends on Media')
+    ->expect('App\Modules\Core')
+    ->not->toUse(['App\Modules\Media']);
+
+arch('Filesystem internals are reachable only from the Media storage layer')
+    // League\Flysystem is genuinely imported by DiskMediaStorage, so this rule guards
+    // a real edge rather than an empty set: no other module may reach past the
+    // storage contract to the filesystem implementation beneath it.
+    ->expect('League\Flysystem')
+    ->toOnlyBeUsedIn('App\Modules\Media\Services\Storage');
