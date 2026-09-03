@@ -1,10 +1,17 @@
 <?php
 
+use App\Modules\Authorization\Contracts\AdminRbacContract;
 use App\Modules\User\Enums\AccountType;
 use App\Modules\User\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PragmaRX\Google2FA\Google2FA;
 use Tests\TestCase;
+
+/**
+ * Password used by every account these helpers create, so a test that signs in
+ * separately does not have to guess what makeAccount() set.
+ */
+const TEST_ACCOUNT_PASSWORD = 'default-test-password';
 
 /*
 |--------------------------------------------------------------------------
@@ -63,7 +70,7 @@ function makeAccount(array $attributes = []): User
 
     $user = new User(array_merge([
         'name' => 'Test Account',
-        'password' => 'default-test-password',
+        'password' => TEST_ACCOUNT_PASSWORD,
         'is_active' => true,
     ], $attributes));
 
@@ -138,4 +145,54 @@ function signInAdminWithMfa(mixed $test, string $email, string $password): array
         'secret' => $secret,
         'recovery' => $verified->json('data.recovery_codes'),
     ];
+}
+
+/**
+ * An enrolled administrator holding the given roles, plus a usable admin token.
+ *
+ * @param  array<int, string>  $roles
+ * @return array{user: User, token: string}
+ */
+function adminWithRoles(mixed $test, array $roles, string $email = 'rbac-admin@example.com'): array
+{
+    $admin = makeAccount([
+        'name' => 'RBAC Admin',
+        'email' => $email,
+        'password' => TEST_ACCOUNT_PASSWORD,
+        'account_type' => AccountType::ADMIN,
+    ]);
+
+    if ($roles !== []) {
+        app(AdminRbacContract::class)->syncRoles($admin, $roles);
+    }
+
+    // MFA is mandatory for administrators, so a real token requires enrolment.
+    $token = signInAdminWithMfa($test, $email, TEST_ACCOUNT_PASSWORD)['token'];
+
+    return ['user' => $admin->refresh(), 'token' => $token];
+}
+
+/**
+ * A regular account with a usable user:access token.
+ *
+ * @return array{user: User, token: string}
+ */
+function regularWithToken(mixed $test, string $email = 'rbac-user@example.com'): array
+{
+    $user = makeAccount([
+        'name' => 'RBAC User',
+        'email' => $email,
+        'password' => TEST_ACCOUNT_PASSWORD,
+        'account_type' => AccountType::USER,
+    ]);
+
+    resetClient($test);
+    $token = $test->postJson('/api/v1/auth/login', [
+        'email' => $email,
+        'password' => TEST_ACCOUNT_PASSWORD,
+    ])->json('data.token');
+
+    resetClient($test);
+
+    return ['user' => $user, 'token' => $token];
 }

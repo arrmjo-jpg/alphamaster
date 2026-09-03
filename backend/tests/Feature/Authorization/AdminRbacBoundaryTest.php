@@ -25,64 +25,12 @@ use Spatie\Permission\PermissionRegistrar;
 
 uses(RefreshDatabase::class);
 
-const RBAC_PASSWORD = 'rbac-password';
-
 beforeEach(function (): void {
     Cache::flush();
     $this->seed(SettingSeeder::class);
     $this->seed(AdminPermissionSeeder::class);
     $this->rbac = app(AdminRbacContract::class);
 });
-
-/**
- * An enrolled administrator holding the given roles, plus a usable admin token.
- *
- * @param  array<int, string>  $roles
- * @return array{user: User, token: string}
- */
-function adminWithRoles(mixed $test, array $roles, string $email = 'rbac-admin@example.com'): array
-{
-    $admin = makeAccount([
-        'name' => 'RBAC Admin',
-        'email' => $email,
-        'password' => RBAC_PASSWORD,
-        'account_type' => AccountType::ADMIN,
-    ]);
-
-    if ($roles !== []) {
-        app(AdminRbacContract::class)->syncRoles($admin, $roles);
-    }
-
-    // MFA is mandatory for administrators, so a real token requires enrolment.
-    $token = signInAdminWithMfa($test, $email, RBAC_PASSWORD)['token'];
-
-    return ['user' => $admin->refresh(), 'token' => $token];
-}
-
-/**
- * A regular account with a usable user:access token.
- *
- * @return array{user: User, token: string}
- */
-function regularWithToken(mixed $test, string $email = 'rbac-user@example.com'): array
-{
-    $user = makeAccount([
-        'name' => 'RBAC User',
-        'email' => $email,
-        'password' => RBAC_PASSWORD,
-        'account_type' => AccountType::USER,
-    ]);
-
-    resetClient($test);
-    $token = $test->postJson('/api/v1/auth/login', [
-        'email' => $email,
-        'password' => RBAC_PASSWORD,
-    ])->json('data.token');
-
-    resetClient($test);
-
-    return ['user' => $user, 'token' => $token];
-}
 
 // ── 1. The users table supports exactly the intended account types ─────────────
 
@@ -130,7 +78,7 @@ test('a regular user never receives an admin:access token', function (): void {
 
 test('a regular user holding every admin role still receives only user:access', function (): void {
     $user = makeAccount([
-        'email' => 'sneaky@example.com', 'password' => RBAC_PASSWORD,
+        'email' => 'sneaky@example.com', 'password' => TEST_ACCOUNT_PASSWORD,
         'account_type' => AccountType::USER,
     ]);
 
@@ -149,7 +97,7 @@ test('a regular user holding every admin role still receives only user:access', 
 
     resetClient($this);
     $data = $this->postJson('/api/v1/auth/login', [
-        'email' => 'sneaky@example.com', 'password' => RBAC_PASSWORD,
+        'email' => 'sneaky@example.com', 'password' => TEST_ACCOUNT_PASSWORD,
     ])->json('data');
 
     expect($data['abilities'])->toBe([TokenAbility::USER_ACCESS->value]);
@@ -321,7 +269,7 @@ test('being an administrator does not by itself grant every permission', functio
 test('no relation a regular account can hold yields admin access', function (): void {
     // User groups are deferred, so this asserts the stronger property they were meant
     // to illustrate: classification of any kind never becomes administrative capability.
-    $user = makeAccount(['email' => 'related@example.com', 'password' => RBAC_PASSWORD, 'account_type' => AccountType::USER]);
+    $user = makeAccount(['email' => 'related@example.com', 'password' => TEST_ACCOUNT_PASSWORD, 'account_type' => AccountType::USER]);
 
     foreach (Role::query()->pluck('id') as $roleId) {
         DB::table('model_has_roles')->insert([
@@ -333,7 +281,7 @@ test('no relation a regular account can hold yields admin access', function (): 
 
     resetClient($this);
     $token = $this->postJson('/api/v1/auth/login', [
-        'email' => 'related@example.com', 'password' => RBAC_PASSWORD,
+        'email' => 'related@example.com', 'password' => TEST_ACCOUNT_PASSWORD,
     ])->json('data.token');
 
     resetClient($this);
@@ -388,7 +336,7 @@ test('demoting an admin revokes their tokens and strips their roles', function (
 
 test('promotion happens only through the protected workflow', function (): void {
     $actor = adminWithRoles($this, ['super_admin'], 'promoter@example.com');
-    $target = makeAccount(['email' => 'promoteme@example.com', 'password' => RBAC_PASSWORD, 'account_type' => AccountType::USER]);
+    $target = makeAccount(['email' => 'promoteme@example.com', 'password' => TEST_ACCOUNT_PASSWORD, 'account_type' => AccountType::USER]);
 
     $this->withToken($actor['token'])
         ->postJson('/api/v1/admin/users/'.$target->id.'/promote')
@@ -400,7 +348,7 @@ test('promotion happens only through the protected workflow', function (): void 
     // And the newly promoted admin must now enrol MFA before receiving admin:access.
     resetClient($this);
     $data = $this->postJson('/api/v1/auth/login', [
-        'email' => 'promoteme@example.com', 'password' => RBAC_PASSWORD,
+        'email' => 'promoteme@example.com', 'password' => TEST_ACCOUNT_PASSWORD,
     ])->json('data');
 
     expect($data['mfa_setup_required'])->toBeTrue()
@@ -430,13 +378,13 @@ test('promotion revokes tokens issued while the account was a regular user', fun
 
 test('admin login still requires mandatory MFA', function (): void {
     makeAccount([
-        'email' => 'stillmfa@example.com', 'password' => RBAC_PASSWORD,
+        'email' => 'stillmfa@example.com', 'password' => TEST_ACCOUNT_PASSWORD,
         'account_type' => AccountType::ADMIN,
     ]);
 
     resetClient($this);
     $data = $this->postJson('/api/v1/auth/login', [
-        'email' => 'stillmfa@example.com', 'password' => RBAC_PASSWORD,
+        'email' => 'stillmfa@example.com', 'password' => TEST_ACCOUNT_PASSWORD,
     ])->json('data');
 
     expect($data['mfa_setup_required'])->toBeTrue()
@@ -446,14 +394,14 @@ test('admin login still requires mandatory MFA', function (): void {
 
 test('an unenrolled admin holding every role still cannot reach the admin API', function (): void {
     $admin = makeAccount([
-        'email' => 'unenrolled@example.com', 'password' => RBAC_PASSWORD,
+        'email' => 'unenrolled@example.com', 'password' => TEST_ACCOUNT_PASSWORD,
         'account_type' => AccountType::ADMIN,
     ]);
     $this->rbac->syncRoles($admin, ['super_admin']);
 
     resetClient($this);
     $enrolmentToken = $this->postJson('/api/v1/auth/login', [
-        'email' => 'unenrolled@example.com', 'password' => RBAC_PASSWORD,
+        'email' => 'unenrolled@example.com', 'password' => TEST_ACCOUNT_PASSWORD,
     ])->json('data.enrolment_token');
 
     // Every permission in the catalogue, and still no way in.

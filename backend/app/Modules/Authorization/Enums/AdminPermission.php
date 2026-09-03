@@ -27,6 +27,9 @@ enum AdminPermission: string
     case PERMISSIONS_VIEW = 'permissions.view';
     case PERMISSIONS_UPDATE = 'permissions.update';
 
+    case INTEGRATIONS_VIEW = 'integrations.view';
+    case INTEGRATIONS_UPDATE = 'integrations.update';
+
     /**
      * The module that owns this permission.
      */
@@ -37,6 +40,7 @@ enum AdminPermission: string
             self::SETTINGS_VIEW, self::SETTINGS_UPDATE => 'settings',
             self::ROLES_VIEW, self::ROLES_UPDATE,
             self::PERMISSIONS_VIEW, self::PERMISSIONS_UPDATE => 'authorization',
+            self::INTEGRATIONS_VIEW, self::INTEGRATIONS_UPDATE => 'integration',
         };
     }
 
