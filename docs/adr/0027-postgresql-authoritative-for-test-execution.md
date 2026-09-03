@@ -22,6 +22,8 @@ PostgreSQL is authoritative for test results. A change is considered verified on
 
 Because SQLite is a fallback rather than a supported engine, application code does not acquire portability layers to satisfy it. Where an invariant must exist in both places — such as the `settings` table CHECK constraints — the PostgreSQL implementation is the real one and the SQLite implementation exists solely so the local harness can exercise the same behaviour. Any driver other than `pgsql` or `sqlite` raises rather than silently skipping the invariant.
 
+The same environment precedence that makes the container run PostgreSQL also pointed it at `alphamaster`, the development database, so `php artisan test` was running `migrate:fresh` through real development data. `tests/bootstrap.php`, which PHPUnit loads before Laravel reads the environment, now redirects any non-SQLite run to a database whose name ends in `_test`, creating it on demand, and aborts the run outright if that name cannot be established. Test isolation is therefore a property of the harness rather than of whoever remembers which database their shell is pointed at.
+
 ## Consequences
 
 CI must run the suite through the Docker stack against PostgreSQL; a host-only SQLite run is insufficient to merge. Tests that assert database-level behaviour must be written so they hold under PostgreSQL transaction semantics, which generally means wrapping an expected constraint violation in a nested transaction (a `SAVEPOINT`) so that subsequent assertions can still query. Contributors keep a fast host-side loop, at the cost of remembering that a green host run has not proven engine-specific behaviour.
