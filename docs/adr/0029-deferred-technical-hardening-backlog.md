@@ -2,7 +2,7 @@
 
 * **Status**: Accepted
 * **Date**: 2026-09-03
-* **Revised**: 2026-09-04 — CI added as item 2 after Phase 9
+* **Revised**: 2026-09-04 — CI added as item 2 after Phase 9; closed by Phase 11
 
 ## Context
 
@@ -24,7 +24,7 @@ Pest's architecture tests analyse classes. A module's `Routes/api.php` is a plai
 
 *Closed by*: a check that parses `app/Modules/*/Routes/*.php` for cross-module imports and asserts them against the same boundaries the class rules use.
 
-### 2. No automated CI runs on a pull request
+### 2. No automated CI runs on a pull request — CLOSED (Phase 11)
 
 Nothing runs on GitHub when a pull request is opened. `statusCheckRollup` on PR #8 was empty, and every green figure reported at a phase gate — tests on both engines, architecture rules, Pint, the security scans — came from a developer machine. `MERGEABLE` on a pull request is a statement about conflicts and nothing more.
 
@@ -33,6 +33,8 @@ This has been the arrangement since Phase 2 and the reporting has held up, but i
 *Deferred because*: CI is infrastructure work rather than application work, and folding it into a feature phase would gate that phase on a pipeline as well as on code.
 
 *Closed by*: a GitHub Actions workflow running on every pull request — the suite against PostgreSQL and against SQLite, the architecture rules, Pint, and the security scans — with the result required before merge. The scans must carry positive controls, so a check that has stopped detecting anything fails rather than reporting clean.
+
+*Closed by*: `.github/workflows/ci.yml` in Phase 11. The suite runs on PostgreSQL and on SQLite, plus architecture rules, Pint, whitespace, the secret scan and a from-scratch Docker build, all through `scripts/gate.sh` so CI and a developer issue the same commands. The scan carries positive controls and fails as unproven rather than clean. Preparing the Docker gate found the first thing it would have caught: both Dockerfiles had been unbuildable since Phase 1. ADR 0021 records which gates are live and which wait on Phases 12 and 13.
 
 ### 3. `integration_usage_logs` grows without bound
 
@@ -53,6 +55,8 @@ ADR 0022 requires composite rate limiting. What exists is endpoint-specific: log
 ### 5. No static analysis
 
 PHPStan or Larastan is not installed. Two defects that reached review would have been caught by it: the implicit array-to-string conversion in Phase 4's `serializeValue`, and the unused `$type` parameter on `SettingService::set()`.
+
+Measured in Phase 11 against this codebase: **96 errors at level 8**, 31 at level 5. By module at level 8: Auth 24, Localization 13, Settings 13, Notification 12, Media 10, Integration 9, User 7, Core 5, Authorization 3. Roughly half are Eloquent scope and builder typing; 18 concern `User|null` where middleware guarantees a user the type system cannot see, 14 of them in one controller.
 
 *Deferred because*: introducing static analysis to a codebase of this size produces a baseline that wants its own review pass, which is a phase of work rather than an aside.
 
@@ -102,4 +106,4 @@ The Integration module implements SMS only. Email, WhatsApp, storage and AI were
 
 The backlog is reviewable and survives the conversations that produced it. Each item can be scheduled on its merits rather than resurfacing as a fresh discovery in a later review.
 
-The risk this record carries is the ordinary one for any backlog: that listing an item comes to feel like addressing it. Items 2, 4 and 5 are the ones to watch. Absent CI means every gate result is self-reported; unlimited public endpoints and absent static analysis are the two remaining entries most likely to cost something real if they stay deferred indefinitely.
+The risk this record carries is the ordinary one for any backlog: that listing an item comes to feel like addressing it. Item 2 closed in Phase 11, which is the shape this list is meant to have: an entry leaves by being built, not by being forgotten. Items 4 and 5 are the ones to watch now — unlimited public endpoints and absent static analysis are the entries most likely to cost something real if they stay deferred indefinitely.
