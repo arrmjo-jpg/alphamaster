@@ -33,6 +33,9 @@ enum AdminPermission: string
     case NOTIFICATIONS_VIEW = 'notifications.view';
     case NOTIFICATIONS_UPDATE = 'notifications.update';
 
+    case MEDIA_VIEW = 'media.view';
+    case MEDIA_DELETE = 'media.delete';
+
     /**
      * The module that owns this permission.
      */
@@ -45,6 +48,7 @@ enum AdminPermission: string
             self::PERMISSIONS_VIEW, self::PERMISSIONS_UPDATE => 'authorization',
             self::INTEGRATIONS_VIEW, self::INTEGRATIONS_UPDATE => 'integration',
             self::NOTIFICATIONS_VIEW, self::NOTIFICATIONS_UPDATE => 'notification',
+            self::MEDIA_VIEW, self::MEDIA_DELETE => 'media',
         };
     }
 

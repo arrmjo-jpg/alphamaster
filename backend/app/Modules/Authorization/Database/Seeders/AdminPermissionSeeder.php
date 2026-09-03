@@ -38,6 +38,8 @@ class AdminPermissionSeeder extends Seeder
                 AdminPermission::INTEGRATIONS_UPDATE,
                 AdminPermission::NOTIFICATIONS_VIEW,
                 AdminPermission::NOTIFICATIONS_UPDATE,
+                AdminPermission::MEDIA_VIEW,
+                AdminPermission::MEDIA_DELETE,
             ],
             'editor' => [
                 AdminPermission::USERS_VIEW,
