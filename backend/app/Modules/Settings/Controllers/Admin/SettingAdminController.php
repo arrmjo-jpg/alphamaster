@@ -6,6 +6,8 @@ namespace App\Modules\Settings\Controllers\Admin;
 
 use App\Modules\Core\Controllers\BaseApiController;
 use App\Modules\Settings\Contracts\SettingServiceInterface;
+use App\Modules\Settings\Exceptions\SettingGroupNotFoundException;
+use App\Modules\Settings\Exceptions\UnknownSettingKeyException;
 use App\Modules\Settings\Requests\UpdateGroupSettingsRequest;
 use Illuminate\Http\JsonResponse;
 use InvalidArgumentException;
@@ -21,12 +23,7 @@ class SettingAdminController extends BaseApiController
      */
     public function index(): JsonResponse
     {
-        $data = $this->settingService->getAdminAll();
-
-        return response()->json([
-            'success' => true,
-            'data' => $data,
-        ]);
+        return $this->successResponse($this->settingService->getAdminAll());
     }
 
     /**
@@ -34,41 +31,41 @@ class SettingAdminController extends BaseApiController
      */
     public function show(string $group): JsonResponse
     {
-        $data = $this->settingService->getAdminGroup($group);
-
-        return response()->json([
-            'success' => true,
-            'data' => $data,
-        ]);
+        try {
+            return $this->successResponse($this->settingService->getAdminGroup($group));
+        } catch (SettingGroupNotFoundException $e) {
+            return $this->errorResponse('SETTING_GROUP_NOT_FOUND', $e->getMessage(), null, 404);
+        }
     }
 
     /**
      * Batch update an array of settings within a group atomically.
      * Expected contract: { "settings": { "key1": "val1", "key2": val2 } }
+     *
+     * An unknown group or key is a 404 (settings are provisioned, not created here);
+     * a value that cannot be represented in the setting's declared type is a 422.
      */
     public function update(UpdateGroupSettingsRequest $request, string $group): JsonResponse
     {
+        /** @var array<string, mixed> $payload */
         $payload = $request->validated()['settings'];
 
         try {
             $updated = $this->settingService->updateGroup($group, $payload);
-
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'group' => $group,
-                    'updated' => $updated,
-                ],
-                'message' => "Settings for group [{$group}] successfully updated.",
-            ]);
+        } catch (SettingGroupNotFoundException $e) {
+            return $this->errorResponse('SETTING_GROUP_NOT_FOUND', $e->getMessage(), null, 404);
+        } catch (UnknownSettingKeyException $e) {
+            return $this->errorResponse('SETTING_KEY_NOT_FOUND', $e->getMessage(), null, 404);
         } catch (InvalidArgumentException $e) {
-            return response()->json([
-                'success' => false,
-                'error' => [
-                    'code' => 'INVALID_SETTING_VALUE',
-                    'message' => $e->getMessage(),
-                ],
-            ], 422);
+            return $this->errorResponse('INVALID_SETTING_VALUE', $e->getMessage(), null, 422);
         }
+
+        return $this->successResponse(
+            data: [
+                'group' => $group,
+                'updated' => $updated,
+            ],
+            message: "Settings for group [{$group}] successfully updated.",
+        );
     }
 }

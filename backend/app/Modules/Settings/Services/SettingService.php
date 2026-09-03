@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Modules\Settings\Services;
 
 use App\Modules\Settings\Contracts\SettingServiceInterface;
-use App\Modules\Settings\Enums\SettingType;
+use App\Modules\Settings\Exceptions\SettingGroupNotFoundException;
+use App\Modules\Settings\Exceptions\UnknownSettingKeyException;
 use App\Modules\Settings\Models\Setting;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
@@ -18,31 +20,45 @@ class SettingService implements SettingServiceInterface
     public const CACHE_TTL = 86400; // 24 hours
 
     /**
+     * Cache key holding the list of groups that expose at least one public setting.
+     *
+     * Consulted before any per-group cache write so that an unknown (attacker supplied)
+     * group name can never mint a cache entry of its own.
+     */
+    public const PUBLIC_GROUPS_KEY = self::CACHE_PREFIX.'public:groups';
+
+    /**
      * Get a typed setting value by key formatted as 'group.key'.
+     *
+     * Returns null — not $default — for a provisioned setting whose stored value is
+     * NULL; $default is reserved for a key that does not exist at all.
      */
     public function get(string $key, mixed $default = null): mixed
     {
-        $parts = explode('.', $key, 2);
-        if (count($parts) !== 2) {
-            throw new InvalidArgumentException("Setting key must be in the format 'group.key', received [{$key}].");
+        [$group, $settingKey] = $this->splitKey($key);
+
+        $index = $this->getGroupIndex($group);
+
+        if (array_key_exists($settingKey, $index['values'])) {
+            return $index['values'][$settingKey];
         }
 
-        [$group, $settingKey] = $parts;
-
-        // Try to fetch from internal group cache
-        $internalGroup = $this->getInternalGroupCached($group);
-
-        if (array_key_exists($settingKey, $internalGroup)) {
-            return $internalGroup[$settingKey];
+        // Secret values are deliberately absent from the cache and read straight from
+        // the database on demand, so decrypted plaintext never reaches the cache store.
+        if (in_array($settingKey, $index['secrets'], true)) {
+            return $this->readSecret($group, $settingKey);
         }
 
         return $default;
     }
 
     /**
-     * Set / update a setting value.
+     * Set / update the value of an already provisioned setting.
+     *
+     * Settings are provisioned by migrations and seeders; this never creates one, and
+     * the stored type is authoritative, so callers do not get to declare a type.
      */
-    public function set(string $group, string $key, mixed $value, ?string $type = null): void
+    public function set(string $group, string $key, mixed $value): void
     {
         $this->updateGroup($group, [$key => $value]);
     }
@@ -57,33 +73,49 @@ class SettingService implements SettingServiceInterface
     {
         return DB::transaction(function () use ($group, $settings): array {
             $existing = Setting::query()->where('group', $group)->get()->keyBy('key');
+
+            if ($existing->isEmpty()) {
+                throw new SettingGroupNotFoundException($group);
+            }
+
             $updatedValues = [];
 
             foreach ($settings as $key => $val) {
-                if (! $existing->has($key)) {
-                    throw new InvalidArgumentException("Setting [{$group}.{$key}] does not exist. Cannot update unknown setting.");
+                $key = (string) $key;
+
+                /** @var Setting|null $setting */
+                $setting = $existing->get($key);
+
+                if ($setting === null) {
+                    throw new UnknownSettingKeyException($group, $key);
                 }
 
-                /** @var Setting $setting */
-                $setting = $existing->get($key);
-                $type = $setting->type instanceof SettingType ? $setting->type : SettingType::from((string) $setting->type);
-
-                // If is_secret and value is the mask '••••••••', keep current value intact
+                // A submitted mask means "keep the stored secret as it is".
                 if ($setting->is_secret && $val === Setting::SECRET_MASK) {
-                    $updatedValues[$key] = Setting::SECRET_MASK;
+                    $updatedValues[$key] = $setting->value === null ? null : Setting::SECRET_MASK;
 
                     continue;
                 }
 
-                // Strictly serialize and validate type
-                $serialized = Setting::serializeValue($val, $type);
+                // serializeValue maps null to null (explicitly unset) and rejects every
+                // value it cannot represent exactly, rather than coercing it.
+                $serialized = Setting::serializeValue($val, $setting->type);
                 $setting->setRawValue($serialized);
                 $setting->save();
 
-                $updatedValues[$key] = $setting->is_secret ? Setting::SECRET_MASK : Setting::castValue($serialized, $type);
+                $updatedValues[$key] = match (true) {
+                    $serialized === null => null,
+                    $setting->is_secret => Setting::SECRET_MASK,
+                    default => Setting::castValue($serialized, $setting->type),
+                };
             }
 
-            $this->clearCache($group);
+            // Invalidate only once the transaction has actually committed. Clearing
+            // inside the transaction lets a concurrent reader repopulate the cache from
+            // pre-commit state and pin stale values for a full TTL.
+            DB::afterCommit(function () use ($group): void {
+                $this->clearCache($group);
+            });
 
             return $updatedValues;
         });
@@ -98,16 +130,10 @@ class SettingService implements SettingServiceInterface
     public function getPublicSettings(): array
     {
         return Cache::remember(self::CACHE_PREFIX.'public', self::CACHE_TTL, function (): array {
-            $publicRecords = Setting::query()
-                ->where('is_public', true)
-                ->where('is_secret', false)
-                ->get(['group', 'key', 'value', 'type']);
-
             $result = [];
-            foreach ($publicRecords as $record) {
-                $type = $record->type instanceof SettingType ? $record->type : SettingType::from((string) $record->type);
-                $typedValue = $record->value !== null ? Setting::castValue($record->value, $type) : null;
-                $result[$record->group][$record->key] = $typedValue;
+
+            foreach ($this->publicQuery()->get() as $record) {
+                $result[$record->group][$record->key] = $record->getTypedValue();
             }
 
             return $result;
@@ -118,38 +144,19 @@ class SettingService implements SettingServiceInterface
      * Retrieve public settings for a specific group.
      *
      * @return array<string, mixed>
+     *
+     * @throws SettingGroupNotFoundException when the group exposes no public settings
      */
     public function getPublicGroup(string $group): array
     {
+        if (! in_array($group, $this->getPublicGroupNames(), true)) {
+            throw new SettingGroupNotFoundException($group);
+        }
+
         return Cache::remember(self::CACHE_PREFIX.'group:'.$group.':public', self::CACHE_TTL, function () use ($group): array {
-            $publicRecords = Setting::query()
-                ->where('group', $group)
-                ->where('is_public', true)
-                ->where('is_secret', false)
-                ->get(['key', 'value', 'type']);
-
-            $result = [];
-            foreach ($publicRecords as $record) {
-                $type = $record->type instanceof SettingType ? $record->type : SettingType::from((string) $record->type);
-                $result[$record->key] = $record->value !== null ? Setting::castValue($record->value, $type) : null;
-            }
-
-            return $result;
-        });
-    }
-
-    /**
-     * Internal server-side cache for a group. Secrets are NOT exposed to public caches.
-     *
-     * @return array<string, mixed>
-     */
-    protected function getInternalGroupCached(string $group): array
-    {
-        return Cache::remember(self::CACHE_PREFIX.'internal:group:'.$group, self::CACHE_TTL, function () use ($group): array {
-            $records = Setting::query()->where('group', $group)->get();
             $result = [];
 
-            foreach ($records as $record) {
+            foreach ($this->publicQuery()->where('group', $group)->get() as $record) {
                 $result[$record->key] = $record->getTypedValue();
             }
 
@@ -161,15 +168,21 @@ class SettingService implements SettingServiceInterface
      * Retrieve all settings in a group for admin inspection (with secrets masked).
      *
      * @return array<int, array<string, mixed>>
+     *
+     * @throws SettingGroupNotFoundException
      */
     public function getAdminGroup(string $group): array
     {
-        return Setting::query()
+        $settings = Setting::query()
             ->where('group', $group)
             ->orderBy('key')
-            ->get()
-            ->map(fn (Setting $s): array => $this->formatAdminSetting($s))
-            ->all();
+            ->get();
+
+        if ($settings->isEmpty()) {
+            throw new SettingGroupNotFoundException($group);
+        }
+
+        return $settings->map(fn (Setting $s): array => $this->formatAdminSetting($s))->all();
     }
 
     /**
@@ -179,14 +192,122 @@ class SettingService implements SettingServiceInterface
      */
     public function getAdminAll(): array
     {
-        $all = Setting::query()->orderBy('group')->orderBy('key')->get();
         $grouped = [];
 
-        foreach ($all as $setting) {
+        foreach (Setting::query()->orderBy('group')->orderBy('key')->get() as $setting) {
             $grouped[$setting->group][] = $this->formatAdminSetting($setting);
         }
 
         return $grouped;
+    }
+
+    /**
+     * Invalidate cached settings.
+     */
+    public function clearCache(?string $group = null): void
+    {
+        Cache::forget(self::CACHE_PREFIX.'public');
+        Cache::forget(self::PUBLIC_GROUPS_KEY);
+
+        $groups = $group !== null
+            ? [$group]
+            : Setting::query()->distinct()->pluck('group')->all();
+
+        foreach ($groups as $name) {
+            Cache::forget(self::CACHE_PREFIX.'group:'.$name.':public');
+            Cache::forget(self::CACHE_PREFIX.'internal:group:'.$name);
+        }
+    }
+
+    /**
+     * Split a 'group.key' reference into its two parts.
+     *
+     * @return array{0: string, 1: string}
+     */
+    protected function splitKey(string $key): array
+    {
+        $parts = explode('.', $key, 2);
+
+        if (count($parts) !== 2 || $parts[0] === '' || $parts[1] === '') {
+            throw new InvalidArgumentException("Setting key must be in the format 'group.key', received [{$key}].");
+        }
+
+        return [$parts[0], $parts[1]];
+    }
+
+    /**
+     * Base query for settings safe to expose publicly.
+     */
+    protected function publicQuery(): Builder
+    {
+        return Setting::query()
+            ->where('is_public', true)
+            ->where('is_secret', false);
+    }
+
+    /**
+     * The groups exposing at least one public setting.
+     *
+     * @return array<int, string>
+     */
+    protected function getPublicGroupNames(): array
+    {
+        return Cache::remember(self::PUBLIC_GROUPS_KEY, self::CACHE_TTL, function (): array {
+            return $this->publicQuery()->distinct()->orderBy('group')->pluck('group')->all();
+        });
+    }
+
+    /**
+     * Cached index of a group.
+     *
+     * Only non-secret values are cached. Secrets contribute their key name alone, so
+     * the cache store never holds decrypted secret material.
+     *
+     * @return array{values: array<string, mixed>, secrets: array<int, string>}
+     */
+    protected function getGroupIndex(string $group): array
+    {
+        $cacheKey = self::CACHE_PREFIX.'internal:group:'.$group;
+        $cached = Cache::get($cacheKey);
+
+        // A cache entry written by an older revision can have a different shape. Treat
+        // anything that does not match the current contract as a miss and rebuild it,
+        // rather than letting a stale entry fault every read until the cache is purged.
+        if (is_array($cached) && is_array($cached['values'] ?? null) && is_array($cached['secrets'] ?? null)) {
+            return $cached;
+        }
+
+        $values = [];
+        $secrets = [];
+
+        foreach (Setting::query()->where('group', $group)->get() as $record) {
+            if ($record->is_secret) {
+                $secrets[] = $record->key;
+
+                continue;
+            }
+
+            $values[$record->key] = $record->getTypedValue();
+        }
+
+        $index = ['values' => $values, 'secrets' => $secrets];
+
+        Cache::put($cacheKey, $index, self::CACHE_TTL);
+
+        return $index;
+    }
+
+    /**
+     * Read and decrypt a single secret directly from the database, bypassing the cache.
+     */
+    protected function readSecret(string $group, string $key): mixed
+    {
+        $setting = Setting::query()
+            ->where('group', $group)
+            ->where('key', $key)
+            ->first();
+
+        return $setting?->getTypedValue();
     }
 
     /**
@@ -196,42 +317,20 @@ class SettingService implements SettingServiceInterface
      */
     protected function formatAdminSetting(Setting $setting): array
     {
-        $type = $setting->type instanceof SettingType ? $setting->type->value : (string) $setting->type;
-
         return [
             'id' => $setting->id,
             'group' => $setting->group,
             'key' => $setting->key,
-            'value' => $setting->is_secret ? Setting::SECRET_MASK : $setting->getTypedValue(),
-            'type' => $type,
-            'is_secret' => (bool) $setting->is_secret,
-            'is_public' => (bool) $setting->is_public,
+            // Secret plaintext is never rendered; a masked secret is distinguishable
+            // from an unset one, which reads as null.
+            'value' => $setting->is_secret
+                ? ($setting->value === null ? null : Setting::SECRET_MASK)
+                : $setting->getTypedValue(),
+            'type' => $setting->type->value,
+            'is_secret' => $setting->is_secret,
+            'is_public' => $setting->is_public,
             'description' => $setting->description,
             'updated_at' => $setting->updated_at?->toIso8601String(),
         ];
-    }
-
-    /**
-     * Invalidate cached settings in Redis.
-     */
-    public function clearCache(?string $group = null): void
-    {
-        Cache::forget(self::CACHE_PREFIX.'public');
-
-        if ($group !== null) {
-            Cache::forget(self::CACHE_PREFIX.'group:'.$group.':public');
-            Cache::forget(self::CACHE_PREFIX.'internal:group:'.$group);
-        } else {
-            // Clear all possible groups from DB
-            try {
-                $groups = Setting::query()->distinct()->pluck('group')->all();
-                foreach ($groups as $grp) {
-                    Cache::forget(self::CACHE_PREFIX.'group:'.$grp.':public');
-                    Cache::forget(self::CACHE_PREFIX.'internal:group:'.$grp);
-                }
-            } catch (\Throwable) {
-                // Ignore DB error on drop/migration
-            }
-        }
     }
 }

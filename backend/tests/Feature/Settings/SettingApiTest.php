@@ -2,10 +2,11 @@
 
 declare(strict_types=1);
 
-use App\Models\User;
+use App\Modules\Settings\Contracts\SettingServiceInterface;
 use App\Modules\Settings\Database\Seeders\SettingSeeder;
 use App\Modules\Settings\Models\Setting;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 
 uses(RefreshDatabase::class);
 
@@ -59,61 +60,83 @@ test('public settings show returns public settings for specific group', function
     ]);
 });
 
-test('admin settings index denies unauthenticated request with 401', function (): void {
-    $response = $this->getJson('/api/v1/admin/settings');
+test('public settings show returns 404 for a group with no public settings', function (): void {
+    // 'security' exists but exposes nothing publicly: indistinguishable from absent.
+    $this->getJson('/api/v1/settings/security')
+        ->assertStatus(404)
+        ->assertJsonPath('success', false)
+        ->assertJsonPath('error.code', 'SETTING_GROUP_NOT_FOUND');
+});
 
-    $response->assertStatus(401);
+test('public settings show returns 404 for an entirely unknown group', function (): void {
+    $this->getJson('/api/v1/settings/no_such_group')
+        ->assertStatus(404)
+        ->assertJsonPath('error.code', 'SETTING_GROUP_NOT_FOUND');
+});
+
+test('an unknown group never mints a cache entry of its own', function (): void {
+    $store = Cache::getStore();
+
+    foreach (['aaaa', 'bbbb', 'cccc'] as $bogus) {
+        $this->getJson('/api/v1/settings/'.$bogus)->assertStatus(404);
+        expect(Cache::has('settings:group:'.$bogus.':public'))->toBeFalse();
+    }
+
+    expect($store)->not->toBeNull();
+});
+
+test('route constraint rejects group names outside the identifier pattern', function (): void {
+    $this->getJson('/api/v1/settings/NotAllowed')
+        ->assertStatus(404)
+        ->assertJsonPath('error.code', 'NOT_FOUND');
+});
+
+test('admin settings index denies unauthenticated request with 401', function (): void {
+    $this->getJson('/api/v1/admin/settings')->assertStatus(401);
 });
 
 test('admin settings index denies token without admin:access ability with 403', function (): void {
-    $admin = User::create([
-        'name' => 'Admin User',
-        'email' => 'admin@example.com',
-        'password' => bcrypt('secret'),
-        'is_admin' => true,
-    ]);
+    $this->withToken(adminToken(['user:access']))
+        ->getJson('/api/v1/admin/settings')
+        ->assertStatus(403);
+});
 
-    $token = $admin->createToken('user-token', ['user:access'])->plainTextToken;
-
-    $response = $this->withToken($token)->getJson('/api/v1/admin/settings');
-
-    $response->assertStatus(403);
+test('admin settings index denies an authenticated non-admin even with the admin:access ability', function (): void {
+    // Exercises the `admin` stage of the perimeter specifically: a valid token carrying
+    // the right ability is still not enough when the user is not an administrator.
+    $this->withToken(adminToken(['admin:access'], isAdmin: false))
+        ->getJson('/api/v1/admin/settings')
+        ->assertStatus(403);
 });
 
 test('admin with admin:access can list all settings with secrets properly masked', function (): void {
-    $admin = User::create([
-        'name' => 'Valid Admin',
-        'email' => 'validadmin@example.com',
-        'password' => bcrypt('secret'),
-        'is_admin' => true,
-    ]);
+    // Provision the secret so the mask has something to hide.
+    app(SettingServiceInterface::class)
+        ->set('security', 'api_secret_key', 'provisioned-secret');
 
-    $token = $admin->createToken('admin-token', ['admin:access'])->plainTextToken;
-
-    $response = $this->withToken($token)->getJson('/api/v1/admin/settings');
+    $response = $this->withToken(adminToken())->getJson('/api/v1/admin/settings');
 
     $response->assertOk();
     $response->assertJsonPath('success', true);
 
-    // Verify secrets are masked
-    $securitySettings = $response->json('data.security');
-    $secretItem = collect($securitySettings)->firstWhere('key', 'api_secret_key');
+    $secretItem = collect($response->json('data.security'))->firstWhere('key', 'api_secret_key');
 
     expect($secretItem['is_secret'])->toBeTrue()
         ->and($secretItem['value'])->toBe(Setting::SECRET_MASK);
+
+    // The plaintext must not appear anywhere in the admin payload.
+    expect($response->getContent())->not->toContain('provisioned-secret');
+});
+
+test('admin settings show returns 404 for an unknown group', function (): void {
+    $this->withToken(adminToken())
+        ->getJson('/api/v1/admin/settings/no_such_group')
+        ->assertStatus(404)
+        ->assertJsonPath('error.code', 'SETTING_GROUP_NOT_FOUND');
 });
 
 test('admin can batch update settings within a group atomically', function (): void {
-    $admin = User::create([
-        'name' => 'Valid Admin',
-        'email' => 'validadmin2@example.com',
-        'password' => bcrypt('secret'),
-        'is_admin' => true,
-    ]);
-
-    $token = $admin->createToken('admin-token', ['admin:access'])->plainTextToken;
-
-    $response = $this->withToken($token)->putJson('/api/v1/admin/settings/general', [
+    $response = $this->withToken(adminToken())->putJson('/api/v1/admin/settings/general', [
         'settings' => [
             'site_name' => 'New Platform Name',
             'maintenance_mode' => true,
@@ -136,50 +159,57 @@ test('admin can batch update settings within a group atomically', function (): v
         ->and(setting('general.maintenance_mode'))->toBeTrue();
 });
 
-test('admin batch update preserves existing secret when mask is submitted', function (): void {
-    $admin = User::create([
-        'name' => 'Valid Admin',
-        'email' => 'validadmin3@example.com',
-        'password' => bcrypt('secret'),
-        'is_admin' => true,
-    ]);
+test('admin batch update rejects invalid type casting strictly', function (): void {
+    $this->withToken(adminToken())
+        ->putJson('/api/v1/admin/settings/auth', [
+            'settings' => ['password_min_length' => 'not-an-int'],
+        ])
+        ->assertStatus(422)
+        ->assertJsonPath('error.code', 'INVALID_SETTING_VALUE');
 
-    $token = $admin->createToken('admin-token', ['admin:access'])->plainTextToken;
-
-    $originalRawSecret = Setting::query()->where('group', 'security')->where('key', 'api_secret_key')->firstOrFail()->getRawValue();
-
-    // Submit batch update sending the mask for secret
-    $response = $this->withToken($token)->putJson('/api/v1/admin/settings/security', [
-        'settings' => [
-            'max_login_attempts' => 10,
-            'api_secret_key' => Setting::SECRET_MASK,
-        ],
-    ]);
-
-    $response->assertOk();
-
-    // Verify max_login_attempts was updated but secret remained intact
-    expect(setting('security.max_login_attempts'))->toBe(10)
-        ->and(Setting::query()->where('group', 'security')->where('key', 'api_secret_key')->firstOrFail()->getRawValue())->toBe($originalRawSecret);
+    expect(setting('auth.password_min_length'))->toBe(8);
 });
 
-test('admin batch update rejects invalid type casting strictly', function (): void {
-    $admin = User::create([
-        'name' => 'Valid Admin',
-        'email' => 'validadmin4@example.com',
-        'password' => bcrypt('secret'),
-        'is_admin' => true,
-    ]);
+test('admin batch update rejects an array for a string setting instead of storing "Array"', function (): void {
+    $this->withToken(adminToken())
+        ->putJson('/api/v1/admin/settings/general', [
+            'settings' => ['site_name' => ['nested' => 'payload']],
+        ])
+        ->assertStatus(422)
+        ->assertJsonPath('error.code', 'INVALID_SETTING_VALUE');
 
-    $token = $admin->createToken('admin-token', ['admin:access'])->plainTextToken;
+    expect(setting('general.site_name'))->toBe('AlphaMaster Enterprise');
+});
 
-    // Send invalid string for integer setting
-    $response = $this->withToken($token)->putJson('/api/v1/admin/settings/auth', [
-        'settings' => [
-            'password_min_length' => 'not-an-int',
-        ],
-    ]);
+test('admin batch update reports an unknown key as 404 rather than an invalid value', function (): void {
+    $this->withToken(adminToken())
+        ->putJson('/api/v1/admin/settings/general', [
+            'settings' => ['no_such_key' => 'value'],
+        ])
+        ->assertStatus(404)
+        ->assertJsonPath('error.code', 'SETTING_KEY_NOT_FOUND');
+});
 
-    $response->assertStatus(422);
-    $response->assertJsonPath('error.code', 'INVALID_SETTING_VALUE');
+test('admin batch update reports an unknown group as 404', function (): void {
+    $this->withToken(adminToken())
+        ->putJson('/api/v1/admin/settings/no_such_group', [
+            'settings' => ['anything' => 'value'],
+        ])
+        ->assertStatus(404)
+        ->assertJsonPath('error.code', 'SETTING_GROUP_NOT_FOUND');
+});
+
+test('a batch update that fails partway leaves the whole group untouched', function (): void {
+    $this->withToken(adminToken())
+        ->putJson('/api/v1/admin/settings/general', [
+            'settings' => [
+                'site_name' => 'Committed Before Failure',
+                'maintenance_mode' => 'definitely-not-a-boolean',
+            ],
+        ])
+        ->assertStatus(422);
+
+    // The first key was saved inside the transaction, which must have rolled back.
+    expect(setting('general.site_name'))->toBe('AlphaMaster Enterprise')
+        ->and(setting('general.maintenance_mode'))->toBeFalse();
 });

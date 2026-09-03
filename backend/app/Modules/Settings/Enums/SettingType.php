@@ -13,10 +13,12 @@ enum SettingType: string
     case JSON = 'json';
 
     /**
-     * Determine if a given type string is valid.
+     * All backing values, for validation rules and DB constraint assertions.
+     *
+     * @return array<int, string>
      */
-    public static function isValid(string $type): bool
+    public static function values(): array
     {
-        return self::tryFrom($type) !== null;
+        return array_column(self::cases(), 'value');
     }
 }

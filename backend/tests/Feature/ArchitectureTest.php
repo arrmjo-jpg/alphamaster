@@ -57,6 +57,7 @@ arch('Settings module only depends on Core and Framework')
     ->not->toUse([
         'App\Modules\Auth',
         'App\Modules\User',
+        'App\Modules\Localization',
         'App\Modules\Integration',
         'App\Modules\Notification',
         'App\Modules\Media',

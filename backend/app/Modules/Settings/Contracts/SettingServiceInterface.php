@@ -4,17 +4,24 @@ declare(strict_types=1);
 
 namespace App\Modules\Settings\Contracts;
 
+use App\Modules\Settings\Exceptions\SettingGroupNotFoundException;
+
 interface SettingServiceInterface
 {
     /**
      * Get a typed setting value by key formatted as 'group.key'.
+     *
+     * Returns null for a provisioned setting whose stored value is NULL; $default is
+     * returned only when the key does not exist.
      */
     public function get(string $key, mixed $default = null): mixed;
 
     /**
-     * Set / update a setting value.
+     * Set / update the value of an already provisioned setting.
+     *
+     * The stored type is authoritative and is never supplied by the caller.
      */
-    public function set(string $group, string $key, mixed $value, ?string $type = null): void;
+    public function set(string $group, string $key, mixed $value): void;
 
     /**
      * Batch update an array of settings within a group atomically.
@@ -35,6 +42,8 @@ interface SettingServiceInterface
      * Retrieve public settings for a specific group.
      *
      * @return array<string, mixed>
+     *
+     * @throws SettingGroupNotFoundException
      */
     public function getPublicGroup(string $group): array;
 
@@ -42,6 +51,8 @@ interface SettingServiceInterface
      * Retrieve all settings in a group for admin inspection (with secrets masked).
      *
      * @return array<int, array<string, mixed>>
+     *
+     * @throws SettingGroupNotFoundException
      */
     public function getAdminGroup(string $group): array;
 
@@ -53,7 +64,7 @@ interface SettingServiceInterface
     public function getAdminAll(): array;
 
     /**
-     * Invalidate cached settings in Redis.
+     * Invalidate cached settings.
      */
     public function clearCache(?string $group = null): void;
 }

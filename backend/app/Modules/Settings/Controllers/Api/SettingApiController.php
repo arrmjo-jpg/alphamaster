@@ -6,6 +6,7 @@ namespace App\Modules\Settings\Controllers\Api;
 
 use App\Modules\Core\Controllers\BaseApiController;
 use App\Modules\Settings\Contracts\SettingServiceInterface;
+use App\Modules\Settings\Exceptions\SettingGroupNotFoundException;
 use Illuminate\Http\JsonResponse;
 
 class SettingApiController extends BaseApiController
@@ -20,24 +21,21 @@ class SettingApiController extends BaseApiController
      */
     public function index(): JsonResponse
     {
-        $data = $this->settingService->getPublicSettings();
-
-        return response()->json([
-            'success' => true,
-            'data' => $data,
-        ]);
+        return $this->successResponse($this->settingService->getPublicSettings());
     }
 
     /**
      * Get public settings for a specific group.
+     *
+     * A group that exposes no public settings is reported as 404 rather than as an
+     * empty 200, so callers can tell "no such group" from "group with nothing in it".
      */
     public function show(string $group): JsonResponse
     {
-        $data = $this->settingService->getPublicGroup($group);
-
-        return response()->json([
-            'success' => true,
-            'data' => $data,
-        ]);
+        try {
+            return $this->successResponse($this->settingService->getPublicGroup($group));
+        } catch (SettingGroupNotFoundException $e) {
+            return $this->errorResponse('SETTING_GROUP_NOT_FOUND', $e->getMessage(), null, 404);
+        }
     }
 }
