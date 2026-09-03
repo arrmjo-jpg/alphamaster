@@ -30,12 +30,12 @@ class EnsureUserIsAdmin
             ], 401);
         }
 
-        // Administrative identity must be explicitly established (Fail Closed).
-        // This is the whole boundary: there is deliberately no role lookup here.
-        // Spatie RBAC (ADR 0014) is not built yet, and a branch that consults an
-        // absent role system is an authorization decision nothing can verify.
-        // When RBAC lands in a later phase, this layer gets redesigned against it.
-        $isAdmin = isset($user->is_admin) && (bool) $user->is_admin;
+        // Administrative identity rests on the account type discriminator and nothing
+        // else (Fail Closed). Deliberately no role or permission lookup happens here:
+        // a role is what an administrator may do, never what makes them one, so a
+        // regular user cannot become an administrator by acquiring a role relation.
+        // Permission checks are a separate, later stage (EnsurePermission).
+        $isAdmin = method_exists($user, 'isAdmin') && $user->isAdmin();
 
         if (! $isAdmin) {
             return response()->json([

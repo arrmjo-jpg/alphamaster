@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Modules\Authorization\Middleware\EnsurePermission;
 use App\Modules\Core\Middleware\AttachRequestContext;
 use App\Modules\Core\Middleware\EnsureAccountActive;
 use App\Modules\Core\Middleware\EnsureUserIsAdmin;
@@ -40,6 +41,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // Register route middleware aliases
         $middleware->alias([
             'admin' => EnsureUserIsAdmin::class,
+            'permission' => EnsurePermission::class,
             'active' => EnsureAccountActive::class,
             'ability' => CheckForAnyAbility::class,
             'abilities' => CheckAbilities::class,

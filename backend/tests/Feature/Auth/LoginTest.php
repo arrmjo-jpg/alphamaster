@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Modules\Auth\Enums\TokenAbility;
 use App\Modules\Settings\Database\Seeders\SettingSeeder;
+use App\Modules\User\Enums\AccountType;
 use App\Modules\User\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
@@ -24,11 +25,11 @@ beforeEach(function (): void {
  */
 function makeUser(array $attributes = []): User
 {
-    return User::create(array_merge([
+    return makeAccount(array_merge([
         'name' => 'Test Person',
         'email' => 'person@example.com',
         'password' => 'correct-horse-battery',
-        'is_admin' => false,
+        'account_type' => AccountType::USER,
         'is_active' => true,
     ], $attributes));
 }
@@ -54,7 +55,7 @@ test('a regular user can sign in and receives a user:access token', function ():
 });
 
 test('an administrator receives an admin:access token only after enrolling MFA', function (): void {
-    makeUser(['email' => 'boss@example.com', 'is_admin' => true]);
+    makeUser(['email' => 'boss@example.com', 'account_type' => AccountType::ADMIN]);
 
     $result = signInAdminWithMfa($this, 'boss@example.com', 'correct-horse-battery');
     $token = PersonalAccessToken::findToken($result['token']);
@@ -64,7 +65,7 @@ test('an administrator receives an admin:access token only after enrolling MFA',
 });
 
 test('a token carries exactly one ability, never both', function (): void {
-    makeUser(['email' => 'boss2@example.com', 'is_admin' => true]);
+    makeUser(['email' => 'boss2@example.com', 'account_type' => AccountType::ADMIN]);
 
     $result = signInAdminWithMfa($this, 'boss2@example.com', 'correct-horse-battery');
     $token = PersonalAccessToken::findToken($result['token']);
@@ -90,7 +91,7 @@ test('a regular user token is refused at the admin perimeter', function (): void
 });
 
 test('an administrator token is accepted at the admin perimeter', function (): void {
-    makeUser(['email' => 'boss3@example.com', 'is_admin' => true]);
+    makeUser(['email' => 'boss3@example.com', 'account_type' => AccountType::ADMIN]);
 
     $token = signInAdminWithMfa($this, 'boss3@example.com', 'correct-horse-battery')['token'];
 
@@ -99,9 +100,9 @@ test('an administrator token is accepted at the admin perimeter', function (): v
         ->assertOk();
 });
 
-test('an is_admin user whose token lacks the ability is still refused', function (): void {
+test('an admin account whose token lacks the ability is still refused', function (): void {
     // Proves the perimeter checks the token, not merely the user record.
-    $admin = makeUser(['email' => 'boss4@example.com', 'is_admin' => true]);
+    $admin = makeUser(['email' => 'boss4@example.com', 'account_type' => AccountType::ADMIN]);
     $downgraded = $admin->createToken('downgraded', [TokenAbility::USER_ACCESS->value])->plainTextToken;
 
     $this->withToken($downgraded)
@@ -174,14 +175,14 @@ test('logout revokes the presented token and nothing else', function (): void {
 });
 
 test('me returns the identity and the abilities actually on the token', function (): void {
-    makeUser(['email' => 'who@example.com', 'is_admin' => true]);
+    makeUser(['email' => 'who@example.com', 'account_type' => AccountType::ADMIN]);
 
     $token = signInAdminWithMfa($this, 'who@example.com', 'correct-horse-battery')['token'];
 
     $this->withToken($token)->getJson('/api/v1/auth/me')
         ->assertOk()
         ->assertJsonPath('data.email', 'who@example.com')
-        ->assertJsonPath('data.is_admin', true)
+        ->assertJsonPath('data.account_type', 'admin')
         ->assertJsonPath('data.abilities', [TokenAbility::ADMIN_ACCESS->value]);
 });
 

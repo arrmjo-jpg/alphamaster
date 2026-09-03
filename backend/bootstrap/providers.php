@@ -1,6 +1,7 @@
 <?php
 
 use App\Modules\Auth\Providers\AuthServiceProvider;
+use App\Modules\Authorization\Providers\AuthorizationServiceProvider;
 use App\Modules\Core\Providers\CoreServiceProvider;
 use App\Modules\Localization\Providers\LocalizationServiceProvider;
 use App\Modules\Settings\Providers\SettingsServiceProvider;
@@ -16,4 +17,5 @@ return [
     SettingsServiceProvider::class,
     UserServiceProvider::class,
     AuthServiceProvider::class,
+    AuthorizationServiceProvider::class,
 ];

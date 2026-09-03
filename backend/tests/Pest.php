@@ -1,5 +1,6 @@
 <?php
 
+use App\Modules\User\Enums\AccountType;
 use App\Modules\User\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PragmaRX\Google2FA\Google2FA;
@@ -47,6 +48,32 @@ expect()->extend('toBeOne', function () {
 */
 
 /**
+ * Create an account, setting the guarded account_type deliberately.
+ *
+ * account_type is excluded from mass assignment on purpose, so it cannot be set
+ * through User::create(). Tests go through here for the same reason production goes
+ * through the promotion workflow: assigning it is always an explicit act.
+ *
+ * @param  array<string, mixed>  $attributes
+ */
+function makeAccount(array $attributes = []): User
+{
+    $type = $attributes['account_type'] ?? AccountType::USER;
+    unset($attributes['account_type']);
+
+    $user = new User(array_merge([
+        'name' => 'Test Account',
+        'password' => 'default-test-password',
+        'is_active' => true,
+    ], $attributes));
+
+    $user->account_type = $type instanceof AccountType ? $type : AccountType::from((string) $type);
+    $user->save();
+
+    return $user;
+}
+
+/**
  * Create an administrator and return a Sanctum token carrying the given abilities.
  *
  * @param  array<int, string>  $abilities
@@ -56,11 +83,11 @@ function adminToken(array $abilities = ['admin:access'], bool $isAdmin = true): 
     static $sequence = 0;
     $sequence++;
 
-    $admin = User::create([
+    $admin = makeAccount([
         'name' => 'Test Admin '.$sequence,
         'email' => 'admin'.$sequence.'@example.com',
         'password' => bcrypt('secret'),
-        'is_admin' => $isAdmin,
+        'account_type' => $isAdmin ? AccountType::ADMIN : AccountType::USER,
     ]);
 
     return $admin->createToken('test-token', $abilities)->plainTextToken;

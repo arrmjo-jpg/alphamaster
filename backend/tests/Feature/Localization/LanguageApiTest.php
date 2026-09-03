@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Modules\Localization\Database\Seeders\LanguageSeeder;
 use App\Modules\Localization\Models\Language;
+use App\Modules\User\Enums\AccountType;
 use App\Modules\User\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -51,11 +52,11 @@ test('admin languages endpoint denies unauthenticated request with 401', functio
 });
 
 test('admin languages endpoint denies admin whose token lacks admin:access ability with 403', function (): void {
-    $adminUser = User::create([
+    $adminUser = makeAccount([
         'name' => 'Admin User',
         'email' => 'admin@example.com',
         'password' => bcrypt('secret'),
-        'is_admin' => true,
+        'account_type' => AccountType::ADMIN,
     ]);
 
     // Issue token with only 'user:access' ability (lacking 'admin:access')
@@ -73,11 +74,11 @@ test('admin languages endpoint denies admin whose token lacks admin:access abili
 });
 
 test('admin languages endpoint denies authenticated non-admin even if token has admin:access with 403', function (): void {
-    $regularUser = User::create([
+    $regularUser = makeAccount([
         'name' => 'Regular User',
         'email' => 'regular@example.com',
         'password' => bcrypt('secret'),
-        'is_admin' => false,
+        'account_type' => AccountType::USER,
     ]);
 
     $plainToken = $regularUser->createToken('attempted-admin-token', ['admin:access'])->plainTextToken;
@@ -94,11 +95,11 @@ test('admin languages endpoint denies authenticated non-admin even if token has 
 });
 
 test('admin with admin:access token ability is allowed to access and create language', function (): void {
-    $adminUser = User::create([
+    $adminUser = makeAccount([
         'name' => 'Valid Admin',
         'email' => 'validadmin@example.com',
         'password' => bcrypt('secret'),
-        'is_admin' => true,
+        'account_type' => AccountType::ADMIN,
     ]);
 
     $plainToken = $adminUser->createToken('admin-token', ['admin:access'])->plainTextToken;
@@ -118,11 +119,11 @@ test('admin with admin:access token ability is allowed to access and create lang
 });
 
 test('admin cannot deactivate the default application language', function (): void {
-    $adminUser = User::create([
+    $adminUser = makeAccount([
         'name' => 'Valid Admin',
         'email' => 'validadmin2@example.com',
         'password' => bcrypt('secret'),
-        'is_admin' => true,
+        'account_type' => AccountType::ADMIN,
     ]);
 
     $plainToken = $adminUser->createToken('admin-token', ['admin:access'])->plainTextToken;
@@ -135,11 +136,11 @@ test('admin cannot deactivate the default application language', function (): vo
 });
 
 test('admin can change the default language atomically', function (): void {
-    $adminUser = User::create([
+    $adminUser = makeAccount([
         'name' => 'Valid Admin',
         'email' => 'validadmin3@example.com',
         'password' => bcrypt('secret'),
-        'is_admin' => true,
+        'account_type' => AccountType::ADMIN,
     ]);
 
     $plainToken = $adminUser->createToken('admin-token', ['admin:access'])->plainTextToken;

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use App\Modules\Settings\Contracts\SettingServiceInterface;
 use App\Modules\Settings\Database\Seeders\SettingSeeder;
-use App\Modules\User\Models\User;
+use App\Modules\User\Enums\AccountType;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Testing\TestResponse;
@@ -18,11 +18,11 @@ beforeEach(function (): void {
 
     $this->seed(SettingSeeder::class);
 
-    User::create([
+    makeAccount([
         'name' => 'Throttle Target',
         'email' => 'target@example.com',
         'password' => 'the-real-password',
-        'is_admin' => false,
+        'account_type' => AccountType::USER,
         'is_active' => true,
     ]);
 });
@@ -147,11 +147,11 @@ test('the throttle honours limits changed at runtime through Settings', function
 });
 
 test('the throttle is scoped per account, not global', function (): void {
-    User::create([
+    makeAccount([
         'name' => 'Bystander',
         'email' => 'bystander@example.com',
         'password' => 'bystander-password',
-        'is_admin' => false,
+        'account_type' => AccountType::USER,
         'is_active' => true,
     ]);
 
@@ -175,11 +175,11 @@ test('failed attempts report how many remain', function (): void {
 });
 
 test('a suspended account still consumes throttle attempts', function (): void {
-    User::create([
+    makeAccount([
         'name' => 'Suspended',
         'email' => 'locked@example.com',
         'password' => 'locked-password',
-        'is_admin' => false,
+        'account_type' => AccountType::USER,
         'is_active' => false,
     ]);
 

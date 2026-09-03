@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use App\Modules\Auth\Enums\TokenAbility;
 use App\Modules\Settings\Database\Seeders\SettingSeeder;
-use App\Modules\User\Models\User;
+use App\Modules\User\Enums\AccountType;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Laravel\Sanctum\PersonalAccessToken;
@@ -18,11 +18,11 @@ beforeEach(function (): void {
     Cache::flush();
     $this->seed(SettingSeeder::class);
 
-    $this->admin = User::create([
+    $this->admin = makeAccount([
         'name' => 'Mandatory Admin',
         'email' => 'mandatory@example.com',
         'password' => ADMIN_PASSWORD,
-        'is_admin' => true,
+        'account_type' => AccountType::ADMIN,
         'is_active' => true,
     ]);
 });
@@ -143,11 +143,11 @@ test('at no point does an unenrolled admin hold a token with admin:access', func
 // ─── Regular users are unaffected ─────────────────────────────────────────────
 
 test('a regular user without MFA still signs in directly', function (): void {
-    User::create([
+    makeAccount([
         'name' => 'Plain',
         'email' => 'plain@example.com',
         'password' => ADMIN_PASSWORD,
-        'is_admin' => false,
+        'account_type' => AccountType::USER,
         'is_active' => true,
     ]);
 
@@ -158,11 +158,11 @@ test('a regular user without MFA still signs in directly', function (): void {
 });
 
 test('a regular user may still enrol voluntarily with an ordinary token', function (): void {
-    User::create([
+    makeAccount([
         'name' => 'Volunteer',
         'email' => 'volunteer@example.com',
         'password' => ADMIN_PASSWORD,
-        'is_admin' => false,
+        'account_type' => AccountType::USER,
         'is_active' => true,
     ]);
 
@@ -202,11 +202,11 @@ test('an admin disabling MFA loses every token and must enrol again', function (
 });
 
 test('a regular user disabling MFA keeps their session', function (): void {
-    User::create([
+    makeAccount([
         'name' => 'Keeper',
         'email' => 'keeper@example.com',
         'password' => ADMIN_PASSWORD,
-        'is_admin' => false,
+        'account_type' => AccountType::USER,
         'is_active' => true,
     ]);
 
@@ -252,18 +252,18 @@ test('a wrong password never produces an enrolment credential', function (): voi
 });
 
 test('a user promoted to admin is forced to enrol on next sign-in', function (): void {
-    $user = User::create([
+    $user = makeAccount([
         'name' => 'Promoted',
         'email' => 'promoted@example.com',
         'password' => ADMIN_PASSWORD,
-        'is_admin' => false,
+        'account_type' => AccountType::USER,
         'is_active' => true,
     ]);
 
     expect(adminLogin($this, 'promoted@example.com')['abilities'])
         ->toBe([TokenAbility::USER_ACCESS->value]);
 
-    $user->forceFill(['is_admin' => true])->save();
+    $user->forceFill(['account_type' => AccountType::ADMIN])->save();
 
     expect(adminLogin($this, 'promoted@example.com')['mfa_setup_required'])->toBeTrue();
 });

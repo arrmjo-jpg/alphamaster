@@ -31,3 +31,4 @@ This directory maintains the architectural decision records for the **alphamaste
 | [0025](0025-horizon-as-sole-queue-supervisor-daemon.md) | Horizon as Sole Queue Supervisor Daemon | Accepted |
 | [0026](0026-hybrid-entity-detail-views-and-administrative-controls.md) | Hybrid Entity Detail Views and Administrative Controls | Accepted |
 | [0027](0027-postgresql-authoritative-for-test-execution.md) | PostgreSQL Is Authoritative for Test Execution | Accepted |
+| [0028](0028-explicit-account-type-discriminator.md) | Explicit Account Type Discriminator | Accepted |
