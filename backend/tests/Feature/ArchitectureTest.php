@@ -95,3 +95,34 @@ arch('User module does not depend on Auth or any other domain module')
         'App\Modules\Notification',
         'App\Modules\Media',
     ]);
+
+arch('Authorization controllers extend BaseApiController')
+    ->expect('App\Modules\Authorization\Controllers')
+    ->classes()
+    ->toExtend('App\Modules\Core\Controllers\BaseApiController');
+
+arch('All Authorization classes use strict types')
+    ->expect('App\Modules\Authorization')
+    ->toUseStrictTypes();
+
+arch('Authorization module only depends on Core, User and Framework')
+    ->expect('App\Modules\Authorization')
+    ->not->toUse([
+        'App\Modules\Auth',
+        'App\Modules\Settings',
+        'App\Modules\Localization',
+        'App\Modules\Integration',
+        'App\Modules\Notification',
+        'App\Modules\Media',
+    ]);
+
+arch('Core module never depends on Authorization')
+    ->expect('App\Modules\Core')
+    ->not->toUse(['App\Modules\Authorization']);
+
+arch('Spatie roles and permissions are reached only through the Authorization module')
+    ->expect('Spatie\Permission')
+    ->toOnlyBeUsedIn([
+        'App\Modules\Authorization',
+        'App\Modules\User\Models',
+    ]);

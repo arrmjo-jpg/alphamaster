@@ -63,6 +63,7 @@ function makeAccount(array $attributes = []): User
 
     $user = new User(array_merge([
         'name' => 'Test Account',
+        'password' => 'default-test-password',
         'is_active' => true,
     ], $attributes));
 

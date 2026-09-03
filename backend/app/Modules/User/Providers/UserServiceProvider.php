@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Modules\User\Providers;
 
+use App\Modules\User\Contracts\AccountTypeManagerContract;
+use App\Modules\User\Services\AccountTypeManager;
 use Illuminate\Support\ServiceProvider;
 
 class UserServiceProvider extends ServiceProvider
@@ -15,7 +17,10 @@ class UserServiceProvider extends ServiceProvider
      * config/auth.php resolves; it owns no bindings, migrations or routes of its
      * own yet. The users table lives in the framework's base migration.
      */
-    public function register(): void {}
+    public function register(): void
+    {
+        $this->app->singleton(AccountTypeManagerContract::class, AccountTypeManager::class);
+    }
 
     /**
      * Bootstrap module services.

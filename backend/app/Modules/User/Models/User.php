@@ -13,6 +13,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
 use Laravel\Sanctum\HasApiTokens;
+use Spatie\Permission\Traits\HasRoles;
 
 /**
  * @property string $id
@@ -31,7 +32,14 @@ use Laravel\Sanctum\HasApiTokens;
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, HasUlids, Notifiable;
+    /**
+     * HasRoles is attached here because Spatie resolves roles and permissions
+     * through the authenticatable model and cannot work otherwise. Attaching it does
+     * NOT make every account an RBAC account: admin roles and permissions are only
+     * ever granted, revoked or evaluated through AdminRbac, which refuses any account
+     * whose type is not admin. The trait is plumbing; the boundary is that service.
+     */
+    use HasApiTokens, HasFactory, HasRoles, HasUlids, Notifiable;
 
     /**
      * The table associated with the model.
