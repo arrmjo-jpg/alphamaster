@@ -2,6 +2,7 @@
 
 * **Status**: Accepted
 * **Date**: 2026-09-03
+* **Revised**: 2026-09-04 — CI added as item 2 after Phase 9
 
 ## Context
 
@@ -23,7 +24,17 @@ Pest's architecture tests analyse classes. A module's `Routes/api.php` is a plai
 
 *Closed by*: a check that parses `app/Modules/*/Routes/*.php` for cross-module imports and asserts them against the same boundaries the class rules use.
 
-### 2. `integration_usage_logs` grows without bound
+### 2. No automated CI runs on a pull request
+
+Nothing runs on GitHub when a pull request is opened. `statusCheckRollup` on PR #8 was empty, and every green figure reported at a phase gate — tests on both engines, architecture rules, Pint, the security scans — came from a developer machine. `MERGEABLE` on a pull request is a statement about conflicts and nothing more.
+
+This has been the arrangement since Phase 2 and the reporting has held up, but it rests on the person running the gate reporting it faithfully and on the gate being run at all. Two failures caught during Phase 10 illustrate the exposure: a security scan whose helper was silently broken and reported clean, and an architecture rule that passed because it guarded a namespace nothing imported. Both were found by running a positive control by hand. Neither would have been caught by a rule that says the tests passed.
+
+*Deferred because*: CI is infrastructure work rather than application work, and folding it into a feature phase would gate that phase on a pipeline as well as on code.
+
+*Closed by*: a GitHub Actions workflow running on every pull request — the suite against PostgreSQL and against SQLite, the architecture rules, Pint, and the security scans — with the result required before merge. The scans must carry positive controls, so a check that has stopped detecting anything fails rather than reporting clean.
+
+### 3. `integration_usage_logs` grows without bound
 
 Every send attempt writes a row, permanently. There is no pruning, retention window, or archival.
 
@@ -31,7 +42,7 @@ Every send attempt writes a row, permanently. There is no pruning, retention win
 
 *Closed by*: a retention policy with a scheduled prune, sized against what the usage endpoint and any future reporting actually need.
 
-### 3. Central API rate limiting
+### 4. Central API rate limiting
 
 ADR 0022 requires composite rate limiting. What exists is endpoint-specific: login, MFA challenge, and MFA delivery are throttled from the Settings module. The `api` middleware group itself has no throttle, so every other endpoint — including the public settings and language endpoints — is unlimited.
 
@@ -39,7 +50,7 @@ ADR 0022 requires composite rate limiting. What exists is endpoint-specific: log
 
 *Closed by*: a Core rate limiter applied to the `api` group, configured through Settings as the auth throttles already are, without weakening the endpoint-specific limits that exist.
 
-### 4. No static analysis
+### 5. No static analysis
 
 PHPStan or Larastan is not installed. Two defects that reached review would have been caught by it: the implicit array-to-string conversion in Phase 4's `serializeValue`, and the unused `$type` parameter on `SettingService::set()`.
 
@@ -47,7 +58,7 @@ PHPStan or Larastan is not installed. Two defects that reached review would have
 
 *Closed by*: adding Larastan, agreeing a level, and either fixing or explicitly baselining what it reports.
 
-### 5. `helpers.php` is loaded by the service provider
+### 6. `helpers.php` is loaded by the service provider
 
 The Settings module loads its `setting()` helper with `require_once` inside `register()`, rather than through Composer's `autoload.files`. The helper is therefore unavailable to anything that boots earlier.
 
@@ -55,7 +66,7 @@ The Settings module loads its `setting()` helper with `require_once` inside `reg
 
 *Closed by*: a decision on which coupling is preferable, recorded wherever the module structure is described.
 
-### 6. Timestamp type inconsistency
+### 7. Timestamp type inconsistency
 
 `users`, `settings`, `mfa_methods`, `languages`, `integration_*` and `notification_*` use `timestampsTz`. Spatie's `permissions` and `roles` tables use `timestamps`, because they came from a published vendor migration.
 
@@ -63,7 +74,7 @@ The Settings module loads its `setting()` helper with `require_once` inside `reg
 
 *Closed by*: a migration altering both columns, most sensibly bundled with other work touching those tables.
 
-### 7. Application-level authorization for regular users
+### 8. Application-level authorization for regular users
 
 Spatie RBAC is administrative infrastructure and only `account_type = admin` participates (ADR 0028). Regular users have no authorization system: no user groups, workspace membership, or application permissions. No speculative tables were created for any of it.
 
@@ -71,7 +82,7 @@ Spatie RBAC is administrative infrastructure and only `account_type = admin` par
 
 *Closed by*: a phase with an actual application-authorization requirement. It must stay conceptually separate from admin RBAC.
 
-### 8. Integration capabilities with no consumer
+### 9. Integration capabilities with no consumer
 
 The Integration module implements SMS only. Email, WhatsApp, storage and AI were named in ADR 0017 but not built.
 
@@ -79,7 +90,7 @@ The Integration module implements SMS only. Email, WhatsApp, storage and AI were
 
 *Closed by*: the phase that first needs each. WhatsApp OTP as a multi-factor method (ADR 0013) and WhatsApp or push notification channels (ADR 0019) are both waiting on this.
 
-### 9. Container log file permissions
+### 10. Container log file permissions
 
 `storage/logs/laravel.log` is not writable inside the backend container under the Windows bind mount. An application error becomes a wall of Monolog failures, which slowed diagnosis of a genuine bug during Phase 6.
 
@@ -91,4 +102,4 @@ The Integration module implements SMS only. Email, WhatsApp, storage and AI were
 
 The backlog is reviewable and survives the conversations that produced it. Each item can be scheduled on its merits rather than resurfacing as a fresh discovery in a later review.
 
-The risk this record carries is the ordinary one for any backlog: that listing an item comes to feel like addressing it. Items 3 and 4 are the ones to watch, since both are security-adjacent — unlimited public endpoints and absent static analysis are the two entries here most likely to cost something real if they stay deferred indefinitely.
+The risk this record carries is the ordinary one for any backlog: that listing an item comes to feel like addressing it. Items 2, 4 and 5 are the ones to watch. Absent CI means every gate result is self-reported; unlimited public endpoints and absent static analysis are the two remaining entries most likely to cost something real if they stay deferred indefinitely.
