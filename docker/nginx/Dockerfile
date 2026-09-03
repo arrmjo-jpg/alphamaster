@@ -1,4 +1,4 @@
-ROM nginx:alpine
+FROM nginx:alpine
 
 # Install curl for healthcheck
 RUN apk add --no-cache curl

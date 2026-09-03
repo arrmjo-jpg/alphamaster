@@ -1,4 +1,4 @@
-﻿.PHONY: up down restart build logs ps test shell artisan migrate seed
+﻿.PHONY: up down restart build logs ps gate test test-sqlite shell artisan migrate seed
 
 # Start all services in the background
 up:
@@ -24,9 +24,17 @@ logs:
 ps:
 	docker compose ps
 
-# Run tests in the backend container
+# Run the full quality gate — the same commands CI runs
+gate:
+	bash scripts/gate.sh all
+
+# Run tests in the backend container, on the engine ADR 0027 makes authoritative
 test:
-	docker compose exec backend php artisan test
+	bash scripts/gate.sh test-pgsql
+
+# Run the suite on the secondary engine
+test-sqlite:
+	bash scripts/gate.sh test-sqlite
 
 # Open an interactive bash shell in the backend container
 shell:

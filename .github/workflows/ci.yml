@@ -1,0 +1,151 @@
+# Quality gate for every pull request.
+#
+# The jobs here run the project's own images — the same Dockerfile that builds the
+# development and production containers — rather than a PHP provisioned onto the
+# runner. That costs a build on every run and buys the only thing worth having: a
+# green check that means "this commit passed in the environment this project
+# actually ships", not "it passed on some PHP 8.4 somewhere".
+#
+# Every command comes from scripts/gate.sh, which developers run locally too, so a
+# gate cannot drift between the two callers.
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Nothing here writes to the repository, publishes, or comments.
+permissions:
+  contents: read
+
+# A new push supersedes the run it interrupted.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Proves the stack can still be built from nothing.
+  #
+  # This gate exists because it was already failing: both Dockerfiles began with
+  # ROM instead of FROM from Phase 1 until Phase 11, and ten phases of green tests
+  # never noticed, because the containers running them had been built before the
+  # mistake. --no-cache and --pull are the point of this job — a cached layer or a
+  # stale local image would hide exactly the failure it is here to catch.
+  smoke:
+    name: Docker build from scratch
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - name: Compose needs an env file to interpolate
+        run: cp backend/.env.example backend/.env
+
+      - name: Build every image with no cache
+        run: docker compose build --no-cache --pull
+
+      - name: The built image must actually run
+        run: |
+          docker compose run --rm --no-deps --entrypoint php backend -v
+          docker compose run --rm --no-deps --entrypoint php backend -r '
+            $required = ["pdo_pgsql", "pgsql", "pdo_sqlite", "redis", "pcntl", "posix", "bcmath", "intl", "zip", "exif"];
+            $missing = array_values(array_diff($required, get_loaded_extensions()));
+            if ($missing !== []) {
+                fwrite(STDERR, "Missing extensions: " . implode(", ", $missing) . PHP_EOL);
+                exit(1);
+            }
+            echo "all required extensions present" . PHP_EOL;
+          '
+
+  # The quality gate itself, run inside the project's containers.
+  gate:
+    name: Quality gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        # Full history: the whitespace check needs the base commit to diff against.
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          fetch-depth: 0
+
+      - name: Environment file
+        # .env.example already names the compose services and matches the compose
+        # defaults for the database, so this needs no substitution.
+        run: cp backend/.env.example backend/.env
+
+      - name: Build images
+        run: docker compose build
+
+      - name: Application key
+        # This must happen before the stack starts. compose passes backend/.env
+        # through env_file, so its values become real environment variables in the
+        # container at creation — and Laravel's dotenv does not override a variable
+        # that already exists. Running `key:generate` after `up` writes a key into
+        # the file that the running container will never read, and every encrypted
+        # Settings test then fails with MissingAppKeyException. It is the same
+        # precedence trap tests/bootstrap.php exists to work around.
+        #
+        # Generated with the project's own image rather than a runner PHP, and
+        # without artisan, so it needs no vendor directory.
+        run: |
+          KEY="$(docker compose run --rm --no-deps --entrypoint php backend -r \
+            'echo "base64:" . base64_encode(random_bytes(32));')"
+          sed -i "s|^APP_KEY=.*|APP_KEY=${KEY}|" backend/.env
+          grep -q '^APP_KEY=base64:' backend/.env || { echo "APP_KEY was not written" >&2; exit 1; }
+
+      - name: Start database, cache and application containers
+        run: docker compose up -d --wait postgres redis backend
+
+      - name: Install dependencies
+        run: docker compose exec -T backend composer install --no-interaction --prefer-dist --no-progress
+
+      - name: The container must actually hold the key it will be tested with
+        # Asserted rather than assumed: a container that starts without APP_KEY
+        # fails 109 tests with an error that looks like an application bug.
+        run: |
+          docker compose exec -T backend php -r '
+            $key = (string) getenv("APP_KEY");
+            if (! str_starts_with($key, "base64:")) {
+                fwrite(STDERR, "APP_KEY is not present in the container environment." . PHP_EOL);
+                exit(1);
+            }
+            echo "APP_KEY present" . PHP_EOL;
+          '
+
+      - name: Code style
+        run: bash scripts/gate.sh pint
+
+      - name: Architecture rules
+        run: bash scripts/gate.sh arch
+
+      - name: Tests on PostgreSQL
+        run: bash scripts/gate.sh test-pgsql
+
+      - name: Tests on SQLite
+        run: bash scripts/gate.sh test-sqlite
+
+      - name: Migrations and seeders from empty
+        run: bash scripts/gate.sh migrate-fresh
+
+      - name: Whitespace
+        env:
+          # Read through the environment rather than interpolated into the shell.
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: bash scripts/gate.sh diff "$BASE_SHA"
+
+      - name: Secret scan
+        run: bash scripts/gate.sh secrets
+
+      - name: Container logs
+        if: failure()
+        run: docker compose logs --no-color --tail=200
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v
