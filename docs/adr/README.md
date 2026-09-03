@@ -27,7 +27,7 @@ This directory maintains the architectural decision records for the **alphamaste
 | [0021](0021-github-flow-branching-and-ci-quality-gates.md) | GitHub Flow Branching and CI Quality Gates | Accepted |
 | [0022](0022-core-security-and-owasp-baseline.md) | Core Security and OWASP Baseline | Accepted |
 | [0023](0023-native-laravel-context-for-observability.md) | Native Laravel Context for Distributed Observability | Accepted |
-| [0024](0024-encapsulation-of-medialibrary.md) | Encapsulation of MediaLibrary behind Internal Contracts | Accepted |
+| [0024](0024-encapsulation-of-medialibrary.md) | Media Encapsulation behind Internal Contracts | Accepted |
 | [0025](0025-horizon-as-sole-queue-supervisor-daemon.md) | Horizon as Sole Queue Supervisor Daemon | Accepted |
 | [0026](0026-hybrid-entity-detail-views-and-administrative-controls.md) | Hybrid Entity Detail Views and Administrative Controls | Accepted |
 | [0027](0027-postgresql-authoritative-for-test-execution.md) | PostgreSQL Is Authoritative for Test Execution | Accepted |
