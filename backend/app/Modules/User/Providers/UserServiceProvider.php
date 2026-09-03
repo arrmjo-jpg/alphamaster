@@ -20,5 +20,8 @@ class UserServiceProvider extends ServiceProvider
     /**
      * Bootstrap module services.
      */
-    public function boot(): void {}
+    public function boot(): void
+    {
+        $this->loadMigrationsFrom(dirname(__DIR__).'/Database/Migrations');
+    }
 }

@@ -142,7 +142,7 @@ class AuthController extends BaseApiController
             'id' => $user?->id,
             'name' => $user?->name,
             'email' => $user?->email,
-            'is_admin' => (bool) $user?->is_admin,
+            'account_type' => $user?->account_type->value,
             'is_active' => (bool) $user?->is_active,
             'abilities' => $token instanceof PersonalAccessToken ? $token->abilities : [],
         ]);

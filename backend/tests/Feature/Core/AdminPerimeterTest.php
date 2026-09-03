@@ -24,7 +24,7 @@ test('unauthenticated request to admin perimeter returns 401 unauthenticated', f
 });
 
 test('admin perimeter fails closed: user without administrative identity is denied 403', function (): void {
-    // Plain user model with neither is_admin nor hasRole method
+    // A model that cannot answer the account-type question at all.
     $regularUser = new class extends Illuminate\Foundation\Auth\User
     {
         protected $table = 'users';
@@ -43,10 +43,13 @@ test('admin perimeter fails closed: user without administrative identity is deni
     ]);
 });
 
-test('admin perimeter denies user with is_admin set to false', function (): void {
+test('admin perimeter denies an account whose type is user', function (): void {
     $user = new class extends Illuminate\Foundation\Auth\User
     {
-        public $is_admin = false;
+        public function isAdmin(): bool
+        {
+            return false;
+        }
     };
 
     $response = $this->actingAs($user)
@@ -61,10 +64,13 @@ test('admin perimeter denies user with is_admin set to false', function (): void
     ]);
 });
 
-test('admin perimeter permits user with is_admin set to true', function (): void {
+test('admin perimeter permits an account whose type is admin', function (): void {
     $adminUser = new class extends Illuminate\Foundation\Auth\User
     {
-        public $is_admin = true;
+        public function isAdmin(): bool
+        {
+            return true;
+        }
     };
 
     $response = $this->actingAs($adminUser)
@@ -77,11 +83,16 @@ test('admin perimeter permits user with is_admin set to true', function (): void
     ]);
 });
 
-test('admin perimeter denies a user carrying only a role, with no is_admin flag', function (): void {
-    // The perimeter no longer consults hasRole(): Spatie RBAC is not built, so a
-    // role claim is unverifiable and must not grant administrative access.
+test('admin perimeter denies an account carrying a role but not the admin type', function (): void {
+    // A role says what an administrator may do; it is never what makes one. An
+    // account of type user must be refused however many role relations it holds.
     $roleUser = new class extends Illuminate\Foundation\Auth\User
     {
+        public function isAdmin(): bool
+        {
+            return false;
+        }
+
         public function hasRole(string $role): bool
         {
             return $role === 'admin';

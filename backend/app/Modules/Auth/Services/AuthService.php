@@ -80,7 +80,7 @@ class AuthService implements AuthServiceContract
      */
     public function requiresMfaEnrolment(User $user): bool
     {
-        return $user->is_admin && ! $this->mfa->isEnabled($user);
+        return $user->isAdmin() && ! $this->mfa->isEnabled($user);
     }
 
     /**
@@ -104,7 +104,7 @@ class AuthService implements AuthServiceContract
      */
     public function issueToken(User $user, string $name = 'api-token'): AuthenticatedToken
     {
-        $ability = TokenAbility::forAdministrator($user->is_admin);
+        $ability = TokenAbility::forAdministrator($user->isAdmin());
 
         return new AuthenticatedToken(
             $user,

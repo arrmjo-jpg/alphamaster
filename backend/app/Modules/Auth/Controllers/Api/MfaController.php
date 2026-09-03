@@ -133,7 +133,7 @@ class MfaController extends BaseApiController
         // the access token they already hold. Revoking every token means the invariant
         // "an administrator holding access has a second factor" is true at all times,
         // and their next sign-in walks them back through enrolment.
-        if ($user->is_admin) {
+        if ($user->isAdmin()) {
             $user->tokens()->delete();
 
             return $this->successResponse(

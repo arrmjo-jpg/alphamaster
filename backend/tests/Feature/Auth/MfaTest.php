@@ -8,6 +8,7 @@ use App\Modules\Auth\Models\MfaMethod;
 use App\Modules\Auth\Models\MfaRecoveryCode;
 use App\Modules\Auth\Services\MfaManager;
 use App\Modules\Settings\Database\Seeders\SettingSeeder;
+use App\Modules\User\Enums\AccountType;
 use App\Modules\User\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
@@ -25,11 +26,11 @@ beforeEach(function (): void {
 
     $this->seed(SettingSeeder::class);
 
-    $this->user = User::create([
+    $this->user = makeAccount([
         'name' => 'MFA User',
         'email' => 'mfa@example.com',
         'password' => MFA_PASSWORD,
-        'is_admin' => false,
+        'account_type' => AccountType::USER,
         'is_active' => true,
     ]);
 
