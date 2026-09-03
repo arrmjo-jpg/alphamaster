@@ -2,6 +2,7 @@
 
 * **Status**: Accepted
 * **Date**: 2026-09-03
+* **Revised**: 2026-09-03 — implemented for database, mail and SMS
 
 ## Context
 
@@ -9,8 +10,20 @@ Notifications must dispatch across Database, Email, SMS, and WhatsApp with trans
 
 ## Decision
 
-Extend Laravel Notifications with notification_templates (translatable subjects/bodies) and notification_preferences. Notification jobs are processed asynchronously on dedicated Redis queues.
+Extend Laravel Notifications with `notification_templates` and `notification_preferences`. Notification jobs are queued on the dedicated `notifications` Redis queue (ADR 0020), so a burst of them cannot delay user-facing work on the default queue.
+
+**Templates.** Wording lives in the database, not in code: one template per registered notification type, with subject and body translated relationally per ADR 0015 — a locale is a row in `notification_template_translations` keyed `UNIQUE(template_id, locale)`, not a JSON key. A missing locale falls back to the platform default rather than to an empty message, and a notification with no active template raises rather than delivering nothing, because sending an empty message would leave the recipient uninformed and nobody aware the template was missing. Placeholders are substituted literally and never re-interpreted, so a value cannot itself be treated as a placeholder.
+
+**Channels.** Database, mail and SMS. SMS dispatches through the Integration module (ADR 0017), so the channel owns no transport and a vendor change is invisible to it. The recipient's number is the one confirmed during MFA enrolment, reached through a Core contract that Auth implements: neither module depends on the other, which keeps Auth's existing dependency on User from becoming a cycle. A recipient with no reachable number is skipped rather than failing the notification, so one unavailable route does not cost the others. WhatsApp and push arrive when the Integration capabilities they need do.
+
+**Preferences.** Per notification type and per channel, so a recipient can decline account updates by SMS while still receiving security alerts everywhere. Absence of a row means the notification's own defaults apply — a user who has never opened the settings screen is not represented by rows asserting the obvious.
+
+Two things are not preferences. The in-app record is always written: it is the audit trail of what the platform decided to tell someone, and silencing it would leave no evidence a notification was raised. A security alert is never silenced on any channel: a setting that lets someone mute the message telling them their account was compromised exists only to be regretted. Both rules are evaluated at delivery rather than merely enforced when a preference is written, so a row stored before the rules tightened cannot suppress a message that is now mandatory.
+
+**Locale.** A notification is read by its recipient, not by whoever triggered it, so it renders in the recipient's own `preferred_locale` and falls back to the platform default — never to the locale of the request that happened to cause it.
 
 ## Consequences
 
-Separates notification template management from code and respects user communication channels.
+Separates notification template management from code and respects user communication channels. Adding a notification is an enum case plus a template row rather than another notification class, and adding a channel is a driver plus a preference column value.
+
+The generic `HasTranslations` trait ADR 0015 prescribed but which was never built now exists in Core, resolving the active locale through `LocaleResolverInterface`. Any module can make an entity translatable without depending on the Localization module — the same inversion ADR 0015 established for `SetLocale`. Notification templates are its first consumer.

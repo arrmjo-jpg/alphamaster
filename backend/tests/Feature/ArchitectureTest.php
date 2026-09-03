@@ -151,3 +151,27 @@ arch('Integration module does not depend on the modules that consume it')
 arch('Core module never depends on Integration')
     ->expect('App\Modules\Core')
     ->not->toUse(['App\Modules\Integration']);
+
+arch('Notification controllers extend BaseApiController')
+    ->expect('App\Modules\Notification\Controllers')
+    ->classes()
+    ->toExtend('App\Modules\Core\Controllers\BaseApiController');
+
+arch('All Notification classes use strict types')
+    ->expect('App\Modules\Notification')
+    ->toUseStrictTypes();
+
+arch('Notification module does not depend on Auth, User internals or Media')
+    // Integration is permitted: the SMS channel dispatches through it (ADR 0017).
+    // Auth is not: the confirmed number reaches Notification through the Core
+    // contract, so neither module needs to know the other exists.
+    ->expect('App\Modules\Notification')
+    ->not->toUse([
+        'App\Modules\Auth',
+        'App\Modules\Localization',
+        'App\Modules\Media',
+    ]);
+
+arch('Core module never depends on Notification')
+    ->expect('App\Modules\Core')
+    ->not->toUse(['App\Modules\Notification']);

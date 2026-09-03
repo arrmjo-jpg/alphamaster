@@ -1,7 +1,8 @@
-﻿# ADR 0015: Dynamic Multilingual Architecture with Native Relational Translations
+# ADR 0015: Dynamic Multilingual Architecture with Native Relational Translations
 
 * **Status**: Accepted
 * **Date**: 2026-09-03
+* **Revised**: 2026-09-03 — HasTranslations implemented in Core; users.preferred_locale created
 
 ## Context
 
@@ -36,7 +37,8 @@ Enterprise applications require dynamic multi-language capabilities where admini
 
 5. **Separation of System UI vs Entity Translations**:
    - **System UI & API Errors**: Native JSON translation dictionaries (`lang/{locale}.json`).
-   - **Business Domain Entities**: Native relational translations via `HasTranslations` trait and normalized `{entity}_translations` tables with composite index `UNIQUE(foreign_id, locale)`.
+   - **Business Domain Entities**: Native relational translations via `HasTranslations` trait and normalized `{entity}_translations` tables with composite index `UNIQUE(foreign_id, locale)`. The trait lives in `App\Modules\Core\Concerns` and resolves the active locale through `LocaleResolverInterface`, so a module becomes translatable without depending on Localization — the same inversion applied to `SetLocale` in point 3. Notification templates are its first consumer.
+   - **Recipient locale**: `users.preferred_locale` backs tier 2 of the precedence above. It was referenced by `LocaleResolver` from the outset but the column itself was only created when notifications first needed to render in a recipient's own language rather than the request's; until then that tier resolved to null.
 
 ## Consequences
 

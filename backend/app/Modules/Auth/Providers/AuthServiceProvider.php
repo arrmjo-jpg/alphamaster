@@ -8,9 +8,11 @@ use App\Modules\Auth\Contracts\AuthServiceContract;
 use App\Modules\Auth\Contracts\MfaManagerContract;
 use App\Modules\Auth\Enums\MfaType;
 use App\Modules\Auth\Services\AuthService;
+use App\Modules\Auth\Services\ConfirmedMfaSmsRecipientResolver;
 use App\Modules\Auth\Services\Mfa\SmsOtpMethod;
 use App\Modules\Auth\Services\Mfa\TotpMethod;
 use App\Modules\Auth\Services\MfaManager;
+use App\Modules\Core\Contracts\SmsRecipientResolverInterface;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use PragmaRX\Google2FA\Google2FA;
@@ -35,6 +37,10 @@ class AuthServiceProvider extends ServiceProvider
         ]));
 
         $this->app->singleton(AuthServiceContract::class, AuthService::class);
+
+        // Auth owns the confirmed number, so it supplies the resolver Notification
+        // consumes through the Core contract.
+        $this->app->singleton(SmsRecipientResolverInterface::class, ConfirmedMfaSmsRecipientResolver::class);
     }
 
     /**
