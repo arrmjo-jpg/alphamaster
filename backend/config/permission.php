@@ -193,7 +193,14 @@ return [
          * The cache key used to store all permissions.
          */
 
-        'key' => 'spatie.permission.cache',
+        /*
+         * Namespaced by database. The cache lives in Redis while permission ids live
+         * in PostgreSQL, so a single shared key lets one database's ids answer
+         * another's lookups: a test run against alphamaster_test would otherwise
+         * poison the development application's permissions, and a re-seed would
+         * leave stale ids denying access until the cache happened to expire.
+         */
+        'key' => 'spatie.permission.cache.'.env('DB_DATABASE', 'default'),
 
         /*
          * You may optionally indicate a specific cache driver to use for permission and

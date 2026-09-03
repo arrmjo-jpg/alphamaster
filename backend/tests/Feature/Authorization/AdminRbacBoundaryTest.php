@@ -507,3 +507,47 @@ test('the permission catalogue endpoint groups by module', function (): void {
     expect($data)->toHaveKeys(['authorization', 'settings', 'user'])
         ->and($data['user'])->toContain(AdminPermission::USERS_VIEW->value);
 });
+
+test('listing users resolves roles for every row without lazy loading', function (): void {
+    // The suite previously exercised this endpoint with a single account, so an N+1
+    // over the collection went unnoticed until a live request hit it. Several accounts
+    // of both types, each with roles, make the eager load load-bearing: with
+    // Model::shouldBeStrict() active a lazy load raises rather than merely being slow.
+    $admin = adminWithRoles($this, ['super_admin'], 'lister@example.com');
+
+    adminWithRoles($this, ['editor'], 'listed-admin-a@example.com');
+    adminWithRoles($this, ['support'], 'listed-admin-b@example.com');
+    makeAccount(['email' => 'listed-user-a@example.com', 'account_type' => AccountType::USER]);
+    makeAccount(['email' => 'listed-user-b@example.com', 'account_type' => AccountType::USER]);
+
+    resetClient($this);
+    $data = $this->withToken($admin['token'])
+        ->getJson('/api/v1/admin/users')
+        ->assertOk()
+        ->json('data');
+
+    expect($data)->toHaveCount(5);
+
+    $byEmail = collect($data)->keyBy('email');
+
+    // Administrators report their roles; regular accounts report none, whatever rows exist.
+    expect($byEmail['listed-admin-a@example.com']['roles'])->toBe(['editor'])
+        ->and($byEmail['listed-admin-b@example.com']['roles'])->toBe(['support'])
+        ->and($byEmail['listed-user-a@example.com']['roles'])->toBe([])
+        ->and($byEmail['listed-user-a@example.com']['permissions'])->toBe([])
+        ->and($byEmail['listed-user-a@example.com']['account_type'])->toBe('user')
+        ->and($byEmail['listed-admin-a@example.com']['account_type'])->toBe('admin');
+});
+
+test('showing, promoting and demoting a user each resolve relations safely', function (): void {
+    $admin = adminWithRoles($this, ['super_admin'], 'mutator@example.com');
+    $target = makeAccount(['email' => 'mutated@example.com', 'account_type' => AccountType::USER]);
+
+    resetClient($this);
+    $this->withToken($admin['token'])->getJson('/api/v1/admin/users/'.$target->id)->assertOk();
+    $this->withToken($admin['token'])->postJson('/api/v1/admin/users/'.$target->id.'/promote')->assertOk();
+    $this->withToken($admin['token'])->putJson('/api/v1/admin/users/'.$target->id.'/roles', ['roles' => ['support']])->assertOk();
+    $this->withToken($admin['token'])->postJson('/api/v1/admin/users/'.$target->id.'/demote')->assertOk();
+
+    expect($target->refresh()->account_type)->toBe(AccountType::USER);
+});

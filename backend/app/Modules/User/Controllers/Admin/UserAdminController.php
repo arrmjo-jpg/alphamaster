@@ -24,7 +24,13 @@ class UserAdminController extends BaseApiController
      */
     public function index(): JsonResponse
     {
-        $users = User::query()->orderBy('email')->get()
+        // Roles and permissions are eager loaded: presenting a list resolves both for
+        // every row, which would otherwise be an N+1 and, with Model::shouldBeStrict()
+        // active outside production, a lazy-loading violation rather than merely slow.
+        $users = User::query()
+            ->with(['roles.permissions', 'permissions'])
+            ->orderBy('email')
+            ->get()
             ->map(fn (User $user): array => $this->present($user))
             ->all();
 
@@ -93,6 +99,8 @@ class UserAdminController extends BaseApiController
      */
     private function present(User $user): array
     {
+        $user->loadMissing(['roles.permissions', 'permissions']);
+
         return [
             'id' => $user->id,
             'name' => $user->name,
