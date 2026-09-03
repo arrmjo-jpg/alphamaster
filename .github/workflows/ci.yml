@@ -82,14 +82,41 @@ jobs:
       - name: Build images
         run: docker compose build
 
+      - name: Application key
+        # This must happen before the stack starts. compose passes backend/.env
+        # through env_file, so its values become real environment variables in the
+        # container at creation — and Laravel's dotenv does not override a variable
+        # that already exists. Running `key:generate` after `up` writes a key into
+        # the file that the running container will never read, and every encrypted
+        # Settings test then fails with MissingAppKeyException. It is the same
+        # precedence trap tests/bootstrap.php exists to work around.
+        #
+        # Generated with the project's own image rather than a runner PHP, and
+        # without artisan, so it needs no vendor directory.
+        run: |
+          KEY="$(docker compose run --rm --no-deps --entrypoint php backend -r \
+            'echo "base64:" . base64_encode(random_bytes(32));')"
+          sed -i "s|^APP_KEY=.*|APP_KEY=${KEY}|" backend/.env
+          grep -q '^APP_KEY=base64:' backend/.env || { echo "APP_KEY was not written" >&2; exit 1; }
+
       - name: Start database, cache and application containers
         run: docker compose up -d --wait postgres redis backend
 
       - name: Install dependencies
         run: docker compose exec -T backend composer install --no-interaction --prefer-dist --no-progress
 
-      - name: Generate application key
-        run: docker compose exec -T backend php artisan key:generate --force
+      - name: The container must actually hold the key it will be tested with
+        # Asserted rather than assumed: a container that starts without APP_KEY
+        # fails 109 tests with an error that looks like an application bug.
+        run: |
+          docker compose exec -T backend php -r '
+            $key = (string) getenv("APP_KEY");
+            if (! str_starts_with($key, "base64:")) {
+                fwrite(STDERR, "APP_KEY is not present in the container environment." . PHP_EOL);
+                exit(1);
+            }
+            echo "APP_KEY present" . PHP_EOL;
+          '
 
       - name: Code style
         run: bash scripts/gate.sh pint
