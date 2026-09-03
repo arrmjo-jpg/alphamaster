@@ -9,12 +9,12 @@ declare(strict_types=1);
 |
 | Searches the repository for credentials that must never be committed.
 |
-| The scan proves itself before it reports. Two controls run first: every pattern
-| must match a string built to match it, and a planted credential written into a
-| real file inside the scanned tree must be found by the file walk. If either
-| control fails the scan exits UNPROVEN rather than clean, because the failure
-| this guards against is not a missed secret — it is a scan that has quietly
-| stopped looking and reports zero findings with total confidence.
+| The scan proves itself before it reports. Three controls run first: every pattern
+| must match a string built to match it, the file walk must have reached known
+| repository files, and a credential planted moments earlier must be found end to
+| end. If any control fails the scan exits UNPROVEN rather than clean, because the
+| failure this guards against is not a missed secret — it is a scan that has
+| quietly stopped looking and reports zero findings with total confidence.
 |
 | That is not hypothetical. A scan at the Phase 9 gate returned zero because its
 | file list resolved to a path that did not exist; the control that would have
@@ -273,6 +273,7 @@ if ($brokenPatterns !== [] || $walkMisses !== [] || ! $plantedFound) {
 // ── Separate accepted findings from real ones ────────────────────────────────
 $real = [];
 $acknowledged = [];
+$unverifiable = [];
 
 foreach ($findings as $finding) {
     if (! isset($accepted[$finding['file']])) {
@@ -283,7 +284,15 @@ foreach ($findings as $finding) {
 
     // An acceptance is only valid while git genuinely ignores the file. The moment
     // it is committed the acceptance stops applying and the finding is real.
-    exec('git check-ignore -q '.escapeshellarg($finding['file']), $ignoreOutput, $ignored);
+    //
+    // git answers 0 for ignored and 1 for not ignored. Anything else means it did
+    // not answer at all — it refuses to operate on a tree owned by another user,
+    // which is what happens inside a container — and an unanswered question is not
+    // a yes or a no. Reporting it as a committed secret would be a false positive
+    // that trains people to ignore this scan; reporting it as clean would be worse.
+    // It is a broken check, so it fails as one.
+    $ignoreOutput = [];
+    exec('git check-ignore -q '.escapeshellarg($finding['file']).' 2>/dev/null', $ignoreOutput, $ignored);
 
     if ($ignored === 0) {
         $acknowledged[$finding['file']] = $accepted[$finding['file']];
@@ -291,8 +300,31 @@ foreach ($findings as $finding) {
         continue;
     }
 
+    if ($ignored !== 1) {
+        $unverifiable[] = $finding['file'];
+
+        continue;
+    }
+
     $finding['check'] .= ' (accepted path is no longer gitignored)';
     $real[] = $finding;
+}
+
+if ($unverifiable !== []) {
+    echo "unverifiable
+";
+    foreach ($unverifiable as $file) {
+        echo '  '.$file." — git could not say whether this path is ignored
+";
+    }
+    echo "
+RESULT: UNPROVEN
+";
+    echo "An acceptance could not be checked, so the scan cannot stand behind its own
+";
+    echo "result. This is a failure, not a pass.
+";
+    exit(EXIT_UNPROVEN);
 }
 
 if ($acknowledged !== []) {

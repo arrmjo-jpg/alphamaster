@@ -135,9 +135,18 @@ cmd_secrets() {
     local host_path
     host_path="$(pwd -W 2>/dev/null || pwd)"
 
+    # The scan asks git whether an accepted path is really ignored. Inside the
+    # container the mounted tree belongs to a different user than the one running
+    # git, which git refuses to touch ("dubious ownership") — so the question came
+    # back unanswered and a gitignored .env was reported as a committed secret.
+    # These variables declare the exception through the environment rather than by
+    # writing a config file into a read-only mount.
     MSYS_NO_PATHCONV=1 docker run --rm \
         -v "${host_path}":/repo:ro \
         -w /repo \
+        -e GIT_CONFIG_COUNT=1 \
+        -e GIT_CONFIG_KEY_0=safe.directory \
+        -e GIT_CONFIG_VALUE_0=/repo \
         "$image" php scripts/security/secrets-scan.php
 }
 
