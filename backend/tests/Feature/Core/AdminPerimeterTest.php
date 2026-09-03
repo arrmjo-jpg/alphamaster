@@ -77,7 +77,9 @@ test('admin perimeter permits user with is_admin set to true', function (): void
     ]);
 });
 
-test('admin perimeter permits user with admin role', function (): void {
+test('admin perimeter denies a user carrying only a role, with no is_admin flag', function (): void {
+    // The perimeter no longer consults hasRole(): Spatie RBAC is not built, so a
+    // role claim is unverifiable and must not grant administrative access.
     $roleUser = new class extends Illuminate\Foundation\Auth\User
     {
         public function hasRole(string $role): bool
@@ -86,11 +88,8 @@ test('admin perimeter permits user with admin role', function (): void {
         }
     };
 
-    $response = $this->actingAs($roleUser)
-        ->getJson('/api/v1/test-admin-perimeter');
-
-    $response->assertOk();
-    $response->assertJson([
-        'success' => true,
-    ]);
+    $this->actingAs($roleUser)
+        ->getJson('/api/v1/test-admin-perimeter')
+        ->assertStatus(403)
+        ->assertJsonPath('error.code', 'ADMIN_ACCESS_REQUIRED');
 });

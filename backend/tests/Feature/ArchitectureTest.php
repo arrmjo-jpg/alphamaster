@@ -62,3 +62,36 @@ arch('Settings module only depends on Core and Framework')
         'App\Modules\Notification',
         'App\Modules\Media',
     ]);
+
+arch('Auth controllers extend BaseApiController')
+    ->expect('App\Modules\Auth\Controllers')
+    ->classes()
+    ->toExtend('App\Modules\Core\Controllers\BaseApiController');
+
+arch('All Auth classes use strict types')
+    ->expect('App\Modules\Auth')
+    ->toUseStrictTypes();
+
+arch('All User classes use strict types')
+    ->expect('App\Modules\User')
+    ->toUseStrictTypes();
+
+arch('Auth module only depends on Core, User and Framework')
+    ->expect('App\Modules\Auth')
+    ->not->toUse([
+        'App\Modules\Localization',
+        'App\Modules\Integration',
+        'App\Modules\Notification',
+        'App\Modules\Media',
+    ]);
+
+arch('User module does not depend on Auth or any other domain module')
+    ->expect('App\Modules\User')
+    ->not->toUse([
+        'App\Modules\Auth',
+        'App\Modules\Settings',
+        'App\Modules\Localization',
+        'App\Modules\Integration',
+        'App\Modules\Notification',
+        'App\Modules\Media',
+    ]);
