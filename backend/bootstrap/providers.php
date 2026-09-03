@@ -3,6 +3,7 @@
 use App\Modules\Auth\Providers\AuthServiceProvider;
 use App\Modules\Authorization\Providers\AuthorizationServiceProvider;
 use App\Modules\Core\Providers\CoreServiceProvider;
+use App\Modules\Integration\Providers\IntegrationServiceProvider;
 use App\Modules\Localization\Providers\LocalizationServiceProvider;
 use App\Modules\Settings\Providers\SettingsServiceProvider;
 use App\Modules\User\Providers\UserServiceProvider;
@@ -18,4 +19,5 @@ return [
     UserServiceProvider::class,
     AuthServiceProvider::class,
     AuthorizationServiceProvider::class,
+    IntegrationServiceProvider::class,
 ];

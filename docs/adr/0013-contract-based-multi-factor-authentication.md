@@ -28,7 +28,7 @@ The enrolment ability exists to resolve a deadlock: a compulsory second factor m
 
 An administrator who disables MFA has every one of their tokens revoked, so the invariant that an administrator holding access has a second factor is true continuously rather than merely at sign-in. Their next sign-in returns them to enrolment. Disabling remains available so that a lost device can be recovered from with a recovery code.
 
-**Deferred.** SMS and WhatsApp OTP route through the Integration module, which does not exist yet; the contract is the seam where they attach, and no partial implementation of them is present. TOTP is sufficient for the mandatory administrator requirement, so nothing waits on it.
+**Deferred.** SMS and WhatsApp OTP remain unbuilt, but the dependency they waited on now exists: the Integration module provides an SMS capability with provider selection, failover and encrypted credentials (ADR 0017). Implementing an OTP method is therefore a matter of adding an MfaMethodContract implementation that dispatches through it, with no change to the challenge flow. WhatsApp additionally needs a WhatsApp capability, which arrives with a consumer for it. TOTP remains sufficient for the mandatory administrator requirement, so nothing is blocked in the meantime.
 
 ## Consequences
 

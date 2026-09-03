@@ -126,3 +126,26 @@ arch('Spatie roles and permissions are reached only through the Authorization mo
         'App\Modules\Authorization',
         'App\Modules\User\Models',
     ]);
+
+arch('Integration controllers extend BaseApiController')
+    ->expect('App\Modules\Integration\Controllers')
+    ->classes()
+    ->toExtend('App\Modules\Core\Controllers\BaseApiController');
+
+arch('All Integration classes use strict types')
+    ->expect('App\Modules\Integration')
+    ->toUseStrictTypes();
+
+arch('Integration module does not depend on the modules that consume it')
+    ->expect('App\Modules\Integration')
+    ->not->toUse([
+        'App\Modules\Auth',
+        'App\Modules\Settings',
+        'App\Modules\Localization',
+        'App\Modules\Notification',
+        'App\Modules\Media',
+    ]);
+
+arch('Core module never depends on Integration')
+    ->expect('App\Modules\Core')
+    ->not->toUse(['App\Modules\Integration']);

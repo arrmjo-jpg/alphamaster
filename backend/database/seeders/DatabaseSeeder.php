@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Database\Seeders;
 
 use App\Modules\Authorization\Database\Seeders\AdminPermissionSeeder;
+use App\Modules\Integration\Database\Seeders\IntegrationProviderSeeder;
 use App\Modules\Localization\Database\Seeders\LanguageSeeder;
 use App\Modules\Settings\Database\Seeders\SettingSeeder;
 use Illuminate\Database\Seeder;
@@ -26,6 +27,7 @@ class DatabaseSeeder extends Seeder
             LanguageSeeder::class,
             SettingSeeder::class,
             AdminPermissionSeeder::class,
+            IntegrationProviderSeeder::class,
         ]);
     }
 }
