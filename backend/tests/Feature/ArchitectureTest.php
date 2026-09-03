@@ -76,11 +76,13 @@ arch('All User classes use strict types')
     ->expect('App\Modules\User')
     ->toUseStrictTypes();
 
-arch('Auth module only depends on Core, User and Framework')
+arch('Auth module depends only on Core, User, Integration and Framework')
+    // Integration is permitted deliberately: ADR 0013 routes OTP delivery through it,
+    // and the SMS method dispatches there rather than owning a transport of its own.
+    // The dependency runs one way only, which the Integration rule below enforces.
     ->expect('App\Modules\Auth')
     ->not->toUse([
         'App\Modules\Localization',
-        'App\Modules\Integration',
         'App\Modules\Notification',
         'App\Modules\Media',
     ]);

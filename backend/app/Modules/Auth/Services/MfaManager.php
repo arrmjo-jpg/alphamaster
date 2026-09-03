@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace App\Modules\Auth\Services;
 
+use App\Modules\Auth\Contracts\DeliversMfaCodes;
 use App\Modules\Auth\Contracts\MfaManagerContract;
 use App\Modules\Auth\Contracts\MfaMethodContract;
+use App\Modules\Auth\Data\MfaEnrolment;
 use App\Modules\Auth\Enums\MfaType;
+use App\Modules\Auth\Exceptions\MfaDeliveryException;
 use App\Modules\Auth\Exceptions\MfaEnrolmentException;
 use App\Modules\Auth\Models\MfaMethod;
 use App\Modules\Auth\Models\MfaRecoveryCode;
@@ -51,15 +54,93 @@ class MfaManager implements MfaManagerContract
     }
 
     /**
-     * @return array{secret: string, uri: string}
+     * @param  array<string, mixed>  $options
      */
-    public function enrol(User $user, MfaType $type): array
+    public function enrol(User $user, MfaType $type, array $options = []): MfaEnrolment
     {
-        if ($this->isEnabled($user)) {
-            throw new MfaEnrolmentException('Multi-factor authentication is already enabled. Disable it before enrolling again.');
+        // An administrator's second factor must be one that satisfies the mandatory
+        // policy. Allowing them to enrol only SMS would let the accounts we protect
+        // most fall back to the weakest factor available (ADR 0013).
+        if ($user->isAdmin() && ! $type->satisfiesAdministratorPolicy()) {
+            throw new MfaEnrolmentException(
+                "Administrators cannot use [{$type->value}] as their second factor. Enrol an authenticator app instead."
+            );
         }
 
-        return $this->driver($type)->enrol($user);
+        if ($this->hasConfirmedMethod($user, $type)) {
+            throw new MfaEnrolmentException('This multi-factor method is already enabled. Disable it before enrolling again.');
+        }
+
+        return $this->driver($type)->enrol($user, $options);
+    }
+
+    /**
+     * Whether the user has this specific method confirmed.
+     */
+    public function hasConfirmedMethod(User $user, MfaType $type): bool
+    {
+        return MfaMethod::query()
+            ->where('user_id', $user->id)
+            ->where('type', $type->value)
+            ->confirmed()
+            ->exists();
+    }
+
+    /**
+     * Whether the user satisfies the policy that applies to their account type.
+     *
+     * An administrator needs a method strong enough for the mandatory requirement;
+     * anyone else needs any confirmed method at all.
+     */
+    public function satisfiesPolicy(User $user): bool
+    {
+        if (! $user->isAdmin()) {
+            return $this->isEnabled($user);
+        }
+
+        return MfaMethod::query()
+            ->where('user_id', $user->id)
+            ->whereIn('type', array_map(
+                static fn (MfaType $t): string => $t->value,
+                array_filter(MfaType::cases(), static fn (MfaType $t): bool => $t->satisfiesAdministratorPolicy())
+            ))
+            ->confirmed()
+            ->exists();
+    }
+
+    /**
+     * Deliver a code for the user's confirmed delivery-based method, if they have one.
+     *
+     * Returns the masked destination, or null when no method needs delivery — TOTP
+     * users are answered by their authenticator and nothing is sent.
+     *
+     * @throws MfaDeliveryException
+     */
+    public function deliverChallenge(User $user): ?string
+    {
+        $method = MfaMethod::query()
+            ->where('user_id', $user->id)
+            ->confirmed()
+            ->get()
+            ->first(fn (MfaMethod $m): bool => $this->driver($m->type) instanceof DeliversMfaCodes);
+
+        if ($method === null) {
+            return null;
+        }
+
+        /** @var DeliversMfaCodes $driver */
+        $driver = $this->driver($method->type);
+
+        // A cooldown keeps a resend from turning the endpoint into an SMS amplifier
+        // against the number's owner.
+        if ($method->otp_sent_at !== null
+            && $method->otp_sent_at->diffInSeconds(now()) < $driver->resendCooldownSeconds()) {
+            throw new MfaDeliveryException(
+                'A code was sent moments ago. Wait before requesting another.'
+            );
+        }
+
+        return $driver->deliver($user, $method);
     }
 
     /**

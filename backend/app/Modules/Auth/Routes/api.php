@@ -15,6 +15,7 @@ Route::prefix('v1/auth')->group(function () use ($accessAbilities, $enrolAbiliti
     // the security.* settings rather than a fixed middleware limit.
     Route::post('/login', [AuthController::class, 'login'])->name('api.auth.login');
     Route::post('/mfa/challenge', [AuthController::class, 'mfaChallenge'])->name('api.auth.mfa.challenge');
+    Route::post('/mfa/challenge/send', [AuthController::class, 'mfaChallengeSend'])->name('api.auth.mfa.challenge.send');
 
     // A fully signed-in identity. An enrolment token is explicitly not enough here,
     // so an administrator mid-enrolment cannot read or act as themselves yet.

@@ -10,6 +10,7 @@ use App\Modules\Auth\Enums\MfaType;
 use App\Modules\Auth\Enums\TokenAbility;
 use App\Modules\Auth\Exceptions\MfaEnrolmentException;
 use App\Modules\Auth\Requests\MfaCodeRequest;
+use App\Modules\Auth\Requests\MfaEnrolRequest;
 use App\Modules\Auth\Services\MfaManager;
 use App\Modules\Core\Controllers\BaseApiController;
 use Illuminate\Http\JsonResponse;
@@ -33,6 +34,12 @@ class MfaController extends BaseApiController
 
         return $this->successResponse([
             'enabled' => $enabled,
+            'satisfies_policy' => $this->mfa->satisfiesPolicy($user),
+            'methods' => array_values(array_filter(
+                MfaType::values(),
+                fn (string $type): bool => $this->mfa->hasConfirmedMethod($user, MfaType::from($type))
+            )),
+            'available_methods' => $this->availableMethods($request),
             'recovery_codes_remaining' => $enabled && $this->mfa instanceof MfaManager
                 ? $this->mfa->remainingRecoveryCodes($user)
                 : 0,
@@ -40,37 +47,45 @@ class MfaController extends BaseApiController
     }
 
     /**
-     * Begin TOTP enrolment.
+     * Begin enrolment for a method.
      *
-     * The secret and provisioning URI are returned exactly once, here. The method
-     * stays inactive until it is confirmed with a valid code.
+     * TOTP returns a secret and a provisioning URI; SMS returns the masked number a
+     * first code has just been sent to. The response carries only what the chosen
+     * method actually has.
      */
-    public function enrol(Request $request): JsonResponse
+    public function enrol(MfaEnrolRequest $request): JsonResponse
     {
+        $type = MfaType::from((string) ($request->validated('type') ?? MfaType::TOTP->value));
+
         try {
-            $enrolment = $this->mfa->enrol($request->user(), MfaType::TOTP);
+            $enrolment = $this->mfa->enrol($request->user(), $type, [
+                'phone' => $request->validated('phone'),
+            ]);
         } catch (MfaEnrolmentException $e) {
             return $this->errorResponse('MFA_ENROLMENT_INVALID', $e->getMessage(), null, 422);
         }
 
-        return $this->successResponse([
-            'type' => MfaType::TOTP->value,
-            'secret' => $enrolment['secret'],
-            'uri' => $enrolment['uri'],
-        ], 'Scan the URI with an authenticator app, then confirm with a generated code.');
+        return $this->successResponse(
+            $enrolment->toArray(),
+            $type->requiresDelivery()
+                ? 'A verification code has been sent. Enter it to confirm this method.'
+                : 'Scan the URI with an authenticator app, then confirm with a generated code.'
+        );
     }
 
     /**
-     * Confirm the pending enrolment and activate MFA.
+     * Confirm the pending enrolment and activate the method.
      *
      * Returns the recovery codes in plaintext once; only hashes are retained.
      */
     public function verify(MfaCodeRequest $request): JsonResponse
     {
+        $type = MfaType::tryFrom((string) $request->input('type', MfaType::TOTP->value)) ?? MfaType::TOTP;
+
         try {
             $recoveryCodes = $this->mfa->confirm(
                 $request->user(),
-                MfaType::TOTP,
+                $type,
                 (string) $request->validated('code')
             );
         } catch (MfaEnrolmentException $e) {
@@ -143,5 +158,26 @@ class MfaController extends BaseApiController
         }
 
         return $this->successResponse(['enabled' => false], 'Multi-factor authentication has been disabled.');
+    }
+
+    /**
+     * The methods this caller may enrol.
+     *
+     * An administrator is shown only the methods that satisfy the mandatory policy, so
+     * a client does not offer a choice the server will refuse.
+     *
+     * @return array<int, string>
+     */
+    private function availableMethods(Request $request): array
+    {
+        $isAdmin = $request->user()->isAdmin();
+
+        return array_values(array_map(
+            static fn (MfaType $type): string => $type->value,
+            array_filter(
+                MfaType::cases(),
+                static fn (MfaType $type): bool => ! $isAdmin || $type->satisfiesAdministratorPolicy()
+            )
+        ));
     }
 }
