@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace App\Modules\Settings\Enums;
 
+use App\Modules\Core\Concerns\HasDisplayLabel;
+
 enum SettingType: string
 {
+    use HasDisplayLabel;
+
     case STRING = 'string';
     case INTEGER = 'integer';
     case FLOAT = 'float';

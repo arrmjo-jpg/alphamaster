@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Modules\Media\Enums;
 
+use App\Modules\Core\Concerns\HasDisplayLabel;
+
 /**
  * What a malware scanner concluded, if one ran.
  *
@@ -14,6 +16,8 @@ namespace App\Modules\Media\Enums;
  */
 enum ScanStatus: string
 {
+    use HasDisplayLabel;
+
     case NOT_SCANNED = 'not_scanned';
     case PENDING = 'pending';
     case CLEAN = 'clean';

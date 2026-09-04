@@ -30,6 +30,16 @@ class LocaleResolver implements LocaleResolverInterface
     public const CACHE_TTL = 86400; // 24 hours
 
     /**
+     * Distinguishes a cache miss from a cached empty result.
+     *
+     * An empty active-language list is a legitimate cached answer — a platform
+     * with no active language — and `Cache::get()` returns its default for a
+     * missing key, so without a sentinel a stored `[]` and an absent key are the
+     * same value. Only getActiveLanguages() needs this.
+     */
+    private const CACHE_MISS = "\0locale-resolver-cache-miss";
+
+    /**
      * Resolve the active locale for an incoming request according to the deterministic precedence:
      * 1. Explicit request header (X-Locale) or query parameter (?locale=)
      * 2. Authenticated user's preferred locale (if available)
@@ -141,28 +151,38 @@ class LocaleResolver implements LocaleResolverInterface
      */
     public function getActiveLanguages(): Collection
     {
-        $cached = Cache::remember(self::CACHE_KEY_ACTIVE, self::CACHE_TTL, function (): array {
-            try {
-                return Language::query()
-                    ->active()
-                    ->ordered()
-                    ->get(['id', 'code', 'name', 'native_name', 'direction', 'is_default', 'sort_order'])
-                    ->map(fn (Language $lang): array => [
-                        'id' => $lang->id,
-                        'code' => $lang->code,
-                        'name' => $lang->name,
-                        'native_name' => $lang->native_name,
-                        'direction' => $lang->direction->value,
-                        'is_default' => (bool) $lang->is_default,
-                        'sort_order' => (int) $lang->sort_order,
-                    ])
-                    ->all();
-            } catch (\Throwable) {
-                return [];
-            }
-        });
+        $cached = Cache::get(self::CACHE_KEY_ACTIVE, self::CACHE_MISS);
 
-        return collect($cached);
+        if (is_array($cached)) {
+            return collect($cached);
+        }
+
+        try {
+            $languages = Language::query()
+                ->active()
+                ->ordered()
+                ->get(['id', 'code', 'name', 'native_name', 'direction', 'is_default', 'sort_order'])
+                ->map(fn (Language $lang): array => [
+                    'id' => $lang->id,
+                    'code' => $lang->code,
+                    'name' => $lang->name,
+                    'native_name' => $lang->native_name,
+                    'direction' => $lang->direction->value,
+                    'is_default' => (bool) $lang->is_default,
+                    'sort_order' => (int) $lang->sort_order,
+                ])
+                ->all();
+        } catch (\Throwable) {
+            // The safe answer for this request, and only this request. A failed
+            // read is not a result and is never written to the cache.
+            return collect();
+        }
+
+        // An empty list is a legitimate answer — a platform with no active
+        // language — and is cached like any other.
+        Cache::put(self::CACHE_KEY_ACTIVE, $languages, self::CACHE_TTL);
+
+        return collect($languages);
     }
 
     /**

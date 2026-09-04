@@ -43,7 +43,7 @@ class MfaEnrolRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'phone.regex' => 'The phone number must be in international format, for example +15551234567.',
+            'phone.regex' => __('validation.custom.phone.regex'),
         ];
     }
 }

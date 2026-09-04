@@ -38,7 +38,7 @@ class UpdateNotificationTemplateRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'translations.*.locale.exists' => 'Templates may only be translated into a language the platform has configured.',
+            'translations.*.locale.exists' => __('validation.custom.translations.*.locale.exists'),
         ];
     }
 }

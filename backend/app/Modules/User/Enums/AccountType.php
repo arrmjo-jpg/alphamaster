@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Modules\User\Enums;
 
+use App\Modules\Core\Concerns\HasDisplayLabel;
+
 /**
  * The kind of account, and the boundary that separates administration from
  * ordinary application use.
@@ -16,6 +18,8 @@ namespace App\Modules\User\Enums;
  */
 enum AccountType: string
 {
+    use HasDisplayLabel;
+
     case ADMIN = 'admin';
     case USER = 'user';
 

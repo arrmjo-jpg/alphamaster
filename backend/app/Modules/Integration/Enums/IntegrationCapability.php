@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Modules\Integration\Enums;
 
+use App\Modules\Core\Concerns\HasDisplayLabel;
+
 /**
  * A class of external service the platform can consume.
  *
@@ -14,6 +16,8 @@ namespace App\Modules\Integration\Enums;
  */
 enum IntegrationCapability: string
 {
+    use HasDisplayLabel;
+
     case SMS = 'sms';
 
     /**

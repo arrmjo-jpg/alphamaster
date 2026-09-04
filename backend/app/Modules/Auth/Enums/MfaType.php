@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace App\Modules\Auth\Enums;
 
+use App\Modules\Core\Concerns\HasDisplayLabel;
+
 enum MfaType: string
 {
+    use HasDisplayLabel;
+
     case TOTP = 'totp';
     case SMS_OTP = 'sms_otp';
 

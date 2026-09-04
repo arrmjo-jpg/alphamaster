@@ -31,11 +31,18 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Locale negotiation is global, so it runs before routing and before
+        // authentication. As API-group middleware it could not reach a request
+        // that matched no route at all, and Laravel's middleware priority hoists
+        // Authenticate ahead of the group, so 404, 405 and 401 were all answered
+        // in the configuration default with no Content-Language header — a
+        // response declaring a language it had never negotiated (ADR 0015).
+        $middleware->append(SetLocale::class);
+
         // Append core middleware to API group
         $middleware->api(append: [
             ForceJsonResponse::class,
             AttachRequestContext::class,
-            SetLocale::class,
         ]);
 
         // Register route middleware aliases
@@ -57,7 +64,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 'success' => false,
                 'error' => [
                     'code' => 'VALIDATION_ERROR',
-                    'message' => 'The given data was invalid.',
+                    'message' => __('api.error.validation_failed'),
                     'details' => $e->errors(),
                 ],
             ], 422);
@@ -68,7 +75,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 'success' => false,
                 'error' => [
                     'code' => 'UNAUTHENTICATED',
-                    'message' => 'Authentication is required to access this resource.',
+                    'message' => __('api.error.unauthenticated'),
                 ],
             ], 401);
         });
@@ -78,7 +85,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 'success' => false,
                 'error' => [
                     'code' => 'FORBIDDEN',
-                    'message' => $e->getMessage() ?: 'This action is unauthorized.',
+                    'message' => $e->getMessage() ?: __('api.error.forbidden'),
                 ],
             ], 403);
         });
@@ -88,7 +95,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 'success' => false,
                 'error' => [
                     'code' => 'FORBIDDEN',
-                    'message' => 'Token does not possess required administrative abilities.',
+                    'message' => __('api.error.missing_ability'),
                 ],
             ], 403);
         });
@@ -98,7 +105,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 'success' => false,
                 'error' => [
                     'code' => 'NOT_FOUND',
-                    'message' => 'The requested resource was not found.',
+                    'message' => __('api.error.model_not_found'),
                 ],
             ], 404);
         });
@@ -108,7 +115,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 'success' => false,
                 'error' => [
                     'code' => 'NOT_FOUND',
-                    'message' => 'The requested route or resource could not be found.',
+                    'message' => __('api.error.route_not_found'),
                 ],
             ], 404);
         });
@@ -118,7 +125,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 'success' => false,
                 'error' => [
                     'code' => 'METHOD_NOT_ALLOWED',
-                    'message' => 'The HTTP method is not allowed for this route.',
+                    'message' => __('api.error.method_not_allowed'),
                 ],
             ], 405);
         });
@@ -136,7 +143,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 'success' => false,
                 'error' => [
                     'code' => $code,
-                    'message' => $e->getMessage() ?: 'An HTTP error occurred.',
+                    'message' => $e->getMessage() ?: __('api.error.http_error'),
                 ],
             ], $e->getStatusCode());
         });
@@ -148,7 +155,7 @@ return Application::configure(basePath: dirname(__DIR__))
                     'error' => [
                         'code' => 'INTERNAL_SERVER_ERROR',
                         'message' => app()->isProduction()
-                            ? 'An unexpected server error occurred.'
+                            ? __('api.error.server_error')
                             : $e->getMessage(),
                     ],
                 ];

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Modules\Media\Enums;
 
+use App\Modules\Core\Concerns\HasDisplayLabel;
+
 /**
  * Whether a file is reachable without authorization.
  *
@@ -14,6 +16,8 @@ namespace App\Modules\Media\Enums;
  */
 enum MediaVisibility: string
 {
+    use HasDisplayLabel;
+
     case PUBLIC = 'public';
     case PRIVATE = 'private';
 

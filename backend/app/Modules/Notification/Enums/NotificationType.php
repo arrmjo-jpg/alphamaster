@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Modules\Notification\Enums;
 
+use App\Modules\Core\Concerns\HasDisplayLabel;
+
 /**
  * The registry of notifications the platform can raise.
  *
@@ -13,6 +15,8 @@ namespace App\Modules\Notification\Enums;
  */
 enum NotificationType: string
 {
+    use HasDisplayLabel;
+
     case SECURITY_ALERT = 'security.alert';
     case ACCOUNT_UPDATED = 'account.updated';
     case ADMIN_ANNOUNCEMENT = 'admin.announcement';

@@ -4,6 +4,7 @@
 * **Date**: 2026-09-03
 * **Revised**: 2026-09-03 — implemented for database, mail and SMS
 * **Revised**: 2026-09-04 — notification identifiers confirmed as technical; display labels referred to ADR 0030
+* **Revised**: 2026-09-04 — label key examples corrected to the derivation ADR 0030 defines
 
 ## Context
 
@@ -34,8 +35,8 @@ This section adds no new mechanism. It records what this module already demonstr
 These identifiers are code-defined — `NotificationType` and `NotificationChannel` are enums — so by ADR 0030 their labels belong in `lang/{locale}.json` and not in a table:
 
 ```
-"enum.notification.type.security.alert": "تنبيه أمني"
-"enum.notification.channel.sms":         "رسالة نصية"
+"enum.notification.notification_type.security.alert": "تنبيه أمني"
+"enum.notification.notification_channel.sms":         "رسالة نصية"
 ```
 
 The identifiers themselves do not change. `type` is written into `notifications.type`, matched by preference rows and asserted by tests; it is contract. ADR 0031 fixes the payload shape that pairs each with its label.

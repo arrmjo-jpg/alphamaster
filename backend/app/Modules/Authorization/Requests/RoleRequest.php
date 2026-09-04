@@ -42,8 +42,8 @@ class RoleRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'name.regex' => 'A role name must be a lowercase identifier, e.g. content_editor.',
-            'permissions.*.in' => 'Unknown permission. Roles may only carry permissions from the platform catalogue.',
+            'name.regex' => __('validation.custom.name.regex'),
+            'permissions.*.in' => __('validation.custom.permissions.*.in'),
         ];
     }
 }

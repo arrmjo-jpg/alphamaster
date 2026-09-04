@@ -44,7 +44,7 @@ class LanguageAdminController extends BaseApiController
 
         return $this->successResponse(
             data: new LanguageResource($language),
-            message: 'Language created successfully.',
+            message: 'api.language.created',
             statusCode: 201
         );
     }
@@ -83,7 +83,7 @@ class LanguageAdminController extends BaseApiController
 
         return $this->successResponse(
             data: new LanguageResource($language->fresh()),
-            message: 'Language updated successfully.'
+            message: 'api.language.updated'
         );
     }
 
@@ -97,7 +97,7 @@ class LanguageAdminController extends BaseApiController
         if ($language->is_default && $language->is_active) {
             return $this->errorResponse(
                 code: 'CANNOT_DEACTIVATE_DEFAULT_LANGUAGE',
-                message: 'The default application language cannot be deactivated.',
+                message: 'api.language.cannot_deactivate_default',
                 statusCode: 422
             );
         }
@@ -108,7 +108,7 @@ class LanguageAdminController extends BaseApiController
 
         return $this->successResponse(
             data: new LanguageResource($language),
-            message: $language->is_active ? 'Language activated successfully.' : 'Language deactivated successfully.'
+            message: $language->is_active ? 'api.language.activated' : 'api.language.deactivated'
         );
     }
 
@@ -132,7 +132,7 @@ class LanguageAdminController extends BaseApiController
 
         return $this->successResponse(
             data: new LanguageResource($language->fresh()),
-            message: 'Default language updated successfully.'
+            message: 'api.language.default_updated'
         );
     }
 }

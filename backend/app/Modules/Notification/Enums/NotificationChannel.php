@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Modules\Notification\Enums;
 
+use App\Modules\Core\Concerns\HasDisplayLabel;
+
 /**
  * A route a notification can take to a recipient.
  *
@@ -12,6 +14,8 @@ namespace App\Modules\Notification\Enums;
  */
 enum NotificationChannel: string
 {
+    use HasDisplayLabel;
+
     case DATABASE = 'database';
     case MAIL = 'mail';
     case SMS = 'sms';
