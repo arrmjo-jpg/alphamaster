@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\User\Models;
 
+use App\Modules\Core\Contracts\AdminIdentity;
 use App\Modules\User\Enums\AccountType;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Builder;
@@ -30,7 +31,7 @@ use Spatie\Permission\Traits\HasRoles;
  * @method static Builder|User active()
  * @method static Builder|User admins()
  */
-class User extends Authenticatable
+class User extends Authenticatable implements AdminIdentity
 {
     /** @use HasFactory<UserFactory> */
     /**
@@ -66,7 +67,7 @@ class User extends Authenticatable
     /**
      * The attributes that are mass assignable.
      *
-     * @var array<int, string>
+     * @var list<string>
      */
     protected $fillable = [
         'name',
@@ -93,7 +94,7 @@ class User extends Authenticatable
     /**
      * The attributes that should be hidden for serialization.
      *
-     * @var array<int, string>
+     * @var list<string>
      */
     protected $hidden = [
         'password',

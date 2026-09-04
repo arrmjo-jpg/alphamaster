@@ -124,6 +124,11 @@ jobs:
       - name: Architecture rules
         run: bash scripts/gate.sh arch
 
+      # Before the suites, because a type error should be reported in seconds
+      # rather than twelve minutes later.
+      - name: Static analysis
+        run: bash scripts/gate.sh stan
+
       - name: Tests on PostgreSQL
         run: bash scripts/gate.sh test-pgsql
 

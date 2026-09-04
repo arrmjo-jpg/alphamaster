@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Modules\Core\Middleware;
 
+use App\Modules\Core\Contracts\AdminIdentity;
 use Closure;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -18,9 +20,17 @@ class EnsureUserIsAdmin
      */
     public function handle(Request $request, Closure $next): Response
     {
+        // Typed as the framework's own contract rather than the concrete model.
+        // Request::user() returns ?Authenticatable; static analysis narrows that to
+        // whatever config/auth.php currently names, but that file reads
+        // env('AUTH_MODEL', User::class) — so the concrete class is deployment
+        // configuration, not a guarantee this middleware may rely on. A security
+        // boundary that trusts the current configuration stops being a boundary the
+        // day the configuration changes.
+        /** @var Authenticatable|null $user */
         $user = $request->user();
 
-        if (! $user) {
+        if ($user === null) {
             return response()->json([
                 'success' => false,
                 'error' => [
@@ -35,9 +45,11 @@ class EnsureUserIsAdmin
         // a role is what an administrator may do, never what makes them one, so a
         // regular user cannot become an administrator by acquiring a role relation.
         // Permission checks are a separate, later stage (EnsurePermission).
-        $isAdmin = method_exists($user, 'isAdmin') && $user->isAdmin();
-
-        if (! $isAdmin) {
+        //
+        // The identity must declare AdminIdentity, not merely happen to carry a
+        // method named isAdmin: method_exists() accepted any object with a method of
+        // that name, whatever it meant there, which is a weaker claim than it looked.
+        if (! $user instanceof AdminIdentity || ! $user->isAdmin()) {
             return response()->json([
                 'success' => false,
                 'error' => [

@@ -22,13 +22,15 @@ use Illuminate\Support\Collection;
  *
  * An implementing model declares its translation model and the attributes that are
  * translated.
+ *
+ * @template TTranslation of Model
  */
 trait HasTranslations
 {
     /**
      * The model holding this entity's translations.
      *
-     * @return class-string<Model>
+     * @return class-string<TTranslation>
      */
     abstract public function translationModel(): string;
 
@@ -47,6 +49,9 @@ trait HasTranslations
         return $this->getForeignKey();
     }
 
+    /**
+     * @return HasMany<TTranslation, $this>
+     */
     public function translations(): HasMany
     {
         return $this->hasMany($this->translationModel(), $this->translationForeignKey());

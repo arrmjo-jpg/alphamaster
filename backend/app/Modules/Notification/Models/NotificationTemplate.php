@@ -23,6 +23,7 @@ use Illuminate\Support\Carbon;
  */
 class NotificationTemplate extends BaseModel
 {
+    /** @use HasTranslations<NotificationTemplateTranslation> */
     use HasTranslations;
 
     protected $table = 'notification_templates';

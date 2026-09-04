@@ -2,7 +2,7 @@
 
 * **Status**: Accepted
 * **Date**: 2026-09-03
-* **Revised**: 2026-09-04 — implemented; MediaLibrary evaluated and not adopted
+* **Revised**: 2026-09-04 — implemented; MediaLibrary evaluated and not adopted; `HasMediaAttachments` deferred to its first consumer
 
 ## Context
 
@@ -14,7 +14,9 @@ The package was therefore removed and this record revised. The decision it expre
 
 ## Decision
 
-Isolate media behind `MediaServiceContract` and a project-owned `HasMediaAttachments` trait in `Modules/Media`. Business models interact with our internal contracts and see `MediaFile` and nothing else — no storage implementation, no disk, no path. Whatever backs media underneath can be replaced without a single business model changing, which is the property the original record was protecting and the reason it survives the vendor's removal.
+Isolate media behind `MediaServiceContract` in `Modules/Media`. Business models interact with our internal contracts and see `MediaFile` and nothing else — no storage implementation, no disk, no path. Whatever backs media underneath can be replaced without a single business model changing, which is the property the original record was protecting and the reason it survives the vendor's removal.
+
+Attachment reaches a business model through a project-owned `HasMediaAttachments` trait, introduced with the first model that attaches media. Phase 10 shipped it ahead of any consumer, and it sat unused: no model in `app` and no fixture in `tests` referenced it, so static analysis could not even read it. Keeping it to avoid an empty slot in this record would have been the same mistake this ADR was revised to correct — six MediaLibrary packages were installed for a dependency the code never called. It is three trivial morph-relation methods; the decision is what matters, and the decision is that media reaches a model only through AlphaMaster types.
 
 Storage is `MediaStorageContract` over Laravel's filesystem disks rather than a second configuration system: disks are already a driver abstraction, and the disk each file lives on is recorded per row so a migration between backends can proceed file by file. Delivery is `CdnUrlResolverContract`, configured from the Settings module's `cdn` group, naming no vendor and returning the storage URL unchanged when no CDN is configured. Private media is never routed through a CDN, because a shared cache in front of a signed URL is how private files stop being private.
 

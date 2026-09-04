@@ -61,7 +61,7 @@ class MediaFile extends BaseModel
      * disk and path are absent: where bytes live is decided by the storage layer, not
      * by anything that forwards input into a model.
      *
-     * @var array<int, string>
+     * @var list<string>
      */
     protected $fillable = [
         'collection',
@@ -73,7 +73,7 @@ class MediaFile extends BaseModel
      * Never serialised. A client has no use for the disk or the storage key, and
      * exposing them turns every API response into a map of the storage layout.
      *
-     * @var array<int, string>
+     * @var list<string>
      */
     protected $hidden = ['disk', 'path'];
 
@@ -106,6 +106,8 @@ class MediaFile extends BaseModel
 
     /**
      * Who uploaded it. Null once that account is gone; the file record remains.
+     *
+     * @return BelongsTo<User, $this>
      */
     public function uploader(): BelongsTo
     {

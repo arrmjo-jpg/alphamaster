@@ -33,7 +33,9 @@ abstract class ProviderManager extends Manager
      */
     public function getDefaultDriver(): string
     {
-        return $this->defaultProvider()?->driver ?? 'log';
+        // ?? reads the property in isset context, which already short-circuits on a
+        // null left-hand side, so ?-> adds nothing here.
+        return $this->defaultProvider()->driver ?? 'log';
     }
 
     /**

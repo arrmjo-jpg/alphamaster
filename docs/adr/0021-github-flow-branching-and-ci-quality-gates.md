@@ -28,13 +28,13 @@ Live as of Phase 11:
 - **Pint**, style only, rewriting nothing.
 - **Whitespace**, over the pull request's range rather than the working tree.
 - **Secret scan**, versioned in the repository, which proves its own patterns and its own file walk before reporting and fails as `UNPROVEN` rather than clean when it cannot.
+- **Static analysis** — Larastan at level 5, adopted in the follow-up phase after this one. Level 8, which this record originally named, reports 96 errors against this codebase; level 5 reported 31 and every one was fixed rather than baselined. What level 8 still reports stays open in ADR 0029 item 5.
 - **Migrations and seeders from empty.**
 
 Deferred, with the phase that unblocks each:
 
 - **Spectral OpenAPI validation** — Phase 12. There is no OpenAPI document yet (ADR 0010).
 - **TypeScript checks** — Phase 13. There is no frontend yet.
-- **Larastan level 8** — measured during this phase at **96 errors** (level 5: 31). Adopting it is a separate decision, deliberately not folded into this one, because a baseline generated to make the gate green would hide 96 findings behind a check that reports success. Tracked as ADR 0029 item 5.
 
 Branch protection settings are applied by the repository owner, not by the pipeline.
 

@@ -15,6 +15,7 @@ use App\Modules\Auth\Services\MfaManager;
 use App\Modules\Core\Controllers\BaseApiController;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Laravel\Sanctum\Contracts\HasAbilities;
 use Laravel\Sanctum\PersonalAccessToken;
 
 class MfaController extends BaseApiController
@@ -97,12 +98,26 @@ class MfaController extends BaseApiController
             'recovery_codes' => $recoveryCodes,
         ];
 
+        // Typed as Sanctum's own contract rather than the concrete token model.
+        // HasApiTokens declares `@template TToken of HasAbilities = PersonalAccessToken`,
+        // so static analysis reads currentAccessToken() as always being a
+        // PersonalAccessToken and calls the check below redundant. At runtime it is
+        // not: config/sanctum.php sets `guard => ['web']`, and Sanctum's Guard checks
+        // that guard first, attaching a TransientToken to a session-authenticated
+        // user — and TransientToken::can() returns true for every ability without
+        // looking at it.
+        //
+        // So the check is load-bearing. Removing it would read that unconditional
+        // true as proof of an enrolment credential and mint a full access token for a
+        // session that never held one, then call delete() on a token that has no such
+        // method.
+        /** @var HasAbilities|null $current */
+        $current = $request->user()->currentAccessToken();
+
         // An administrator who arrived on an enrolment token has now proved possession
         // of the factor, which together with the password they signed in with is a
         // complete two-factor authentication. Hand them the real token and burn the
         // enrolment credential, rather than making them sign in twice.
-        $current = $request->user()->currentAccessToken();
-
         if ($current instanceof PersonalAccessToken && $current->can(TokenAbility::MFA_ENROL->value)) {
             $current->delete();
             $payload = array_merge($payload, $this->auth->issueToken($request->user())->toArray());

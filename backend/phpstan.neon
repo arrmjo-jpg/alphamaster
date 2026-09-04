@@ -1,0 +1,19 @@
+# Static analysis, held at level 5.
+#
+# ADR 0021 originally named level 8. Measured against this codebase level 8
+# reports 96 errors and level 5 reports 31, and a gate that runs is worth more
+# than one that is aspired to — so 5 is the enforced floor and the remaining
+# errors stay recorded in ADR 0029 item 5 as a later hardening phase.
+#
+# There is deliberately no baseline. A baseline would turn known defects into a
+# green check, which is the failure mode this project has already met twice: an
+# architecture rule guarding a namespace nothing imported, and a secret scan that
+# reported clean because it had stopped looking.
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    level: 5
+
+    paths:
+        - app

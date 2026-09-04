@@ -47,7 +47,7 @@ class IntegrationProvider extends BaseModel
     /**
      * Credentials are never serialised, in any representation.
      *
-     * @var array<int, string>
+     * @var list<string>
      */
     protected $hidden = ['credentials'];
 
