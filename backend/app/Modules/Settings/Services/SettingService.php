@@ -238,6 +238,9 @@ class SettingService implements SettingServiceInterface
     /**
      * Base query for settings safe to expose publicly.
      */
+    /**
+     * @return Builder<Setting>
+     */
     protected function publicQuery(): Builder
     {
         return Setting::query()

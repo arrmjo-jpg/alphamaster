@@ -47,7 +47,7 @@ class MfaMethod extends BaseModel
     /**
      * The secret is never serialised, in any representation.
      *
-     * @var array<int, string>
+     * @var list<string>
      */
     protected $hidden = ['secret', 'destination', 'otp_hash'];
 
