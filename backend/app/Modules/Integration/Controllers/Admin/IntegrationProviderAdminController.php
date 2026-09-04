@@ -69,7 +69,7 @@ class IntegrationProviderAdminController extends BaseApiController
         if (! $provider->is_active) {
             return $this->errorResponse(
                 'PROVIDER_INACTIVE',
-                'An inactive provider cannot be made the default.',
+                'api.error.integration.provider_inactive',
                 null,
                 422
             );

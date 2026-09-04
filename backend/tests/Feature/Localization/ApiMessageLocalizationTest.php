@@ -192,9 +192,16 @@ test('every key this change introduced exists in both dictionaries', function ()
     /** @var array<string, string> $ar */
     $ar = json_decode((string) file_get_contents(base_path('lang/ar.json')), true);
 
+    // The keys this change introduced are the handler and envelope messages:
+    // `api.error.<name>`, `api.language.<name>` and `api.settings.<name>`.
+    // Messages carried by domain exceptions add a module segment
+    // (`api.error.auth.<name>`) and belong to their own test.
     $keys = array_values(array_filter(
         array_keys($en),
-        static fn (string $key): bool => str_starts_with($key, 'api.')
+        static fn (string $key): bool => (bool) preg_match(
+            '/^api\.(error|language|settings)\.[a-z_]+$/',
+            $key
+        )
     ));
 
     expect($keys)->toHaveCount(16);

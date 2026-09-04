@@ -35,7 +35,7 @@ class SettingApiController extends BaseApiController
         try {
             return $this->successResponse($this->settingService->getPublicGroup($group));
         } catch (SettingGroupNotFoundException $e) {
-            return $this->errorResponse('SETTING_GROUP_NOT_FOUND', $e->getMessage(), null, 404);
+            return $this->errorResponse('SETTING_GROUP_NOT_FOUND', $e->translationKey(), null, 404, $e->translationParameters());
         }
     }
 }

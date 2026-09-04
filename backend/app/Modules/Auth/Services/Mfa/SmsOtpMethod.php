@@ -64,7 +64,7 @@ class SmsOtpMethod implements DeliversMfaCodes, MfaMethodContract
         $phone = trim((string) ($options['phone'] ?? ''));
 
         if ($phone === '') {
-            throw new MfaEnrolmentException('A phone number is required to enrol SMS one-time codes.');
+            throw new MfaEnrolmentException('api.error.auth.mfa_phone_required');
         }
 
         $method = MfaMethod::query()->firstOrNew([

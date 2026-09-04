@@ -7,6 +7,7 @@ namespace App\Modules\Notification\Services;
 use App\Modules\Notification\Contracts\PreferenceResolverContract;
 use App\Modules\Notification\Enums\NotificationChannel;
 use App\Modules\Notification\Enums\NotificationType;
+use App\Modules\Notification\Exceptions\PreferenceNotSilenceableException;
 use App\Modules\Notification\Models\NotificationPreference;
 use App\Modules\User\Models\User;
 
@@ -50,9 +51,7 @@ class PreferenceResolver implements PreferenceResolverContract
     public function set(User $user, NotificationType $type, NotificationChannel $channel, bool $enabled): void
     {
         if (! $enabled && ! $this->isSilenceable($type, $channel)) {
-            throw new \InvalidArgumentException(
-                sprintf('[%s] cannot be disabled on the [%s] channel.', $type->value, $channel->value)
-            );
+            throw new PreferenceNotSilenceableException($type, $channel);
         }
 
         NotificationPreference::query()->updateOrCreate(

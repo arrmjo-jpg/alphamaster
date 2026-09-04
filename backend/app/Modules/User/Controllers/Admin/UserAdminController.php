@@ -83,7 +83,7 @@ class UserAdminController extends BaseApiController
         } catch (NotAnAdminAccountException $e) {
             // Admin roles on a regular account would be a contradiction, so this is
             // refused rather than silently written.
-            return $this->errorResponse('NOT_AN_ADMIN_ACCOUNT', $e->getMessage(), null, 422);
+            return $this->errorResponse('NOT_AN_ADMIN_ACCOUNT', $e->translationKey(), null, 422, $e->translationParameters());
         }
 
         return $this->successResponse($this->present($user->refresh()), 'Roles updated.');
