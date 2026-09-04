@@ -39,6 +39,20 @@ test('public languages endpoint lists active languages with direction metadata',
     ]);
 });
 
+test('the public listing serialises direction as a scalar code, not an object', function (): void {
+    // assertJsonStructure only checks that the key is present, so it would pass even
+    // if direction serialised as an object. This asserts the shape a client actually
+    // consumes.
+    $directions = collect($this->getJson('/api/v1/languages')->assertOk()->json('data'))
+        ->pluck('direction');
+
+    expect($directions)->not->toBeEmpty();
+
+    foreach ($directions as $direction) {
+        expect($direction)->toBeString()->toBeIn(['ltr', 'rtl']);
+    }
+});
+
 test('admin languages endpoint denies unauthenticated request with 401', function (): void {
     $response = $this->getJson('/api/v1/admin/languages');
 

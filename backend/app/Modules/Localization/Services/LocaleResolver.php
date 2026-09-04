@@ -10,6 +10,17 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 
+/**
+ * @phpstan-type ActiveLanguage array{
+ *     id: string,
+ *     code: string,
+ *     name: string,
+ *     native_name: string,
+ *     direction: string,
+ *     is_default: bool,
+ *     sort_order: int
+ * }
+ */
 class LocaleResolver implements LocaleResolverInterface
 {
     public const CACHE_KEY_ACTIVE = 'localization:languages:active';
@@ -93,8 +104,11 @@ class LocaleResolver implements LocaleResolverInterface
         $languages = $this->getActiveLanguages();
         $matched = $languages->firstWhere('code', $targetLocale);
 
-        if ($matched && isset($matched['direction'])) {
-            return (string) $matched['direction'];
+        // Only the miss needs guarding: every entry in the cached payload carries a
+        // direction, which the ActiveLanguage shape now states rather than leaving to
+        // be re-checked here.
+        if ($matched !== null) {
+            return $matched['direction'];
         }
 
         return 'ltr';
@@ -123,7 +137,7 @@ class LocaleResolver implements LocaleResolverInterface
     /**
      * Retrieve active languages metadata from Redis cache or database.
      *
-     * @return Collection<int, array<string, mixed>>
+     * @return Collection<int, ActiveLanguage>
      */
     public function getActiveLanguages(): Collection
     {
@@ -138,7 +152,7 @@ class LocaleResolver implements LocaleResolverInterface
                         'code' => $lang->code,
                         'name' => $lang->name,
                         'native_name' => $lang->native_name,
-                        'direction' => is_object($lang->direction) ? $lang->direction->value : (string) $lang->direction,
+                        'direction' => $lang->direction->value,
                         'is_default' => (bool) $lang->is_default,
                         'sort_order' => (int) $lang->sort_order,
                     ])
@@ -216,7 +230,9 @@ class LocaleResolver implements LocaleResolverInterface
 
             if (isset($subParts[1])) {
                 $qParts = explode('=', trim($subParts[1]));
-                if (isset($qParts[0], $qParts[1]) && trim($qParts[0]) === 'q') {
+                // explode() never returns an empty list, so $qParts[0] always exists; only the
+                // value half can be absent.
+                if (isset($qParts[1]) && trim($qParts[0]) === 'q') {
                     $qValue = trim($qParts[1]);
                     if (is_numeric($qValue)) {
                         $parsedWeight = (float) $qValue;

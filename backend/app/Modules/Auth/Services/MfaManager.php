@@ -118,18 +118,29 @@ class MfaManager implements MfaManagerContract
      */
     public function deliverChallenge(User $user): ?string
     {
-        $method = MfaMethod::query()
-            ->where('user_id', $user->id)
-            ->confirmed()
-            ->get()
-            ->first(fn (MfaMethod $m): bool => $this->driver($m->type) instanceof DeliversMfaCodes);
+        // DeliversMfaCodes is a capability interface carried alongside
+        // MfaMethodContract, not beneath it — SmsOtpMethod implements both and TOTP
+        // deliberately implements only the latter. Selecting the method and resolving
+        // its driver in one pass lets the instanceof narrow $driver by control flow,
+        // so the type is proven where it is used rather than asserted in a docblock
+        // three lines from the check that made it true. It also stops driver() being
+        // resolved twice for the method that wins.
+        $method = null;
+        $driver = null;
 
-        if ($method === null) {
-            return null;
+        foreach (MfaMethod::query()->where('user_id', $user->id)->confirmed()->get() as $candidate) {
+            $candidateDriver = $this->driver($candidate->type);
+
+            if ($candidateDriver instanceof DeliversMfaCodes) {
+                $method = $candidate;
+                $driver = $candidateDriver;
+                break;
+            }
         }
 
-        /** @var DeliversMfaCodes $driver */
-        $driver = $this->driver($method->type);
+        if ($method === null || $driver === null) {
+            return null;
+        }
 
         // A cooldown keeps a resend from turning the endpoint into an SMS amplifier
         // against the number's owner.
