@@ -2,12 +2,11 @@
 
 declare(strict_types=1);
 
+use App\Modules\Core\Concerns\HasTranslations;
 use App\Modules\Core\Models\BaseModel;
 use App\Modules\Localization\Database\Seeders\LanguageSeeder;
 use App\Modules\Localization\Models\Language;
-use App\Modules\Localization\Traits\HasTranslations;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -41,29 +40,36 @@ afterEach(function (): void {
 });
 
 test('changing database default language changes translation fallback without changing config app.locale', function (): void {
-    // Define dummy translation model
-    $translationClass = new class extends BaseModel
-    {
-        protected $table = 'dummy_article_translations';
-
-        protected $fillable = ['dummy_article_id', 'locale', 'title'];
-    };
-
-    // Define dummy translatable article model
+    // A translatable entity, declared the way the platform declares one: it names
+    // its translation model, the attributes carried per locale, and the foreign key
+    // the trait cannot derive from an anonymous class.
     $articleClass = new class extends BaseModel
     {
         use HasTranslations;
 
         protected $table = 'dummy_articles';
 
-        public function translations(): HasMany
+        public function translationModel(): string
         {
-            return $this->hasMany(new class extends BaseModel
+            return (new class extends BaseModel
             {
                 protected $table = 'dummy_article_translations';
 
                 protected $fillable = ['dummy_article_id', 'locale', 'title'];
-            }::class, 'dummy_article_id');
+            })::class;
+        }
+
+        /**
+         * @return array<int, string>
+         */
+        public function translatableAttributes(): array
+        {
+            return ['title'];
+        }
+
+        public function translationForeignKey(): string
+        {
+            return 'dummy_article_id';
         }
     };
 
@@ -93,7 +99,7 @@ test('changing database default language changes translation fallback without ch
     expect(config('app.locale'))->toBe('en');
 
     // Requesting an unsupported locale ('fr') falls back to DB default ('en')
-    expect($article->getTranslation('title', 'fr'))->toBe('English Title');
+    expect($article->translate('title', 'fr'))->toBe('English Title');
 
     // 2. Change the DB default language to 'ar' atomically
     DB::transaction(function (): void {
@@ -106,5 +112,5 @@ test('changing database default language changes translation fallback without ch
     expect(config('app.locale'))->toBe('en');
 
     // 3. Requesting unsupported locale ('fr') now falls back to DB default ('ar') without changing config
-    expect($article->getTranslation('title', 'fr'))->toBe('العنوان بالعربية');
+    expect($article->translate('title', 'fr'))->toBe('العنوان بالعربية');
 });
