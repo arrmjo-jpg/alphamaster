@@ -3,6 +3,7 @@
 * **Status**: Accepted
 * **Date**: 2026-09-03
 * **Revised**: 2026-09-04 — implemented; MediaLibrary evaluated and not adopted; `HasMediaAttachments` deferred to its first consumer
+* **Revised**: 2026-09-04 — named variants and watermarking recorded as target architecture, explicitly not implemented
 
 ## Context
 
@@ -27,6 +28,63 @@ Access is two visibilities. Media knows whether a file needs authorization; who 
 Authenticity assessment is `MediaVerifierContract`, defined and unimplemented. There is no consumer and no analyzer is possible without frame extraction, so the contract exists to settle the shape rather than to promise the capability. An implementation returns a risk assessment and never a verdict, because no analyzer can support the claim that a file definitively is or is not machine generated.
 
 Intake is asynchronous on the `media` queue (ADR 0020): validate, store, scan, process, ready. Jobs take an id rather than a model so a retry re-reads current state, and each is idempotent. Deletion is soft; bytes are purged by an explicit retention job, never as a side effect of a row disappearing.
+
+## Extension — 2026-09-04: named variants and watermarking
+
+This section records target architecture. **None of it is implemented**, and the record above is unchanged: `MediaProcessorContract` exists, only processors this environment can run are registered, and image dimensions are read from the file header without decoding. Thumbnailing and video metadata remain contracts without drivers because the container has neither gd, imagick nor ffmpeg — verified again on 2026-09-04 against the built image, whose extension list is `pdo_pgsql, pgsql, pdo_sqlite, redis, pcntl, posix, bcmath, intl, zip, exif, opcache`.
+
+The audit asked that this be stated plainly rather than implied, so: the pipeline is built, the processors are not.
+
+### Variants are named, not dimensioned
+
+A derivative is requested by name, never by pixel size. A caller asks for `thumbnail`; it does not ask for 320×320.
+
+```
+original   the uploaded bytes, never modified
+thumbnail  small, for lists and pickers
+medium     inline display
+large      full-width display, produced only where a project needs it
+social     social sharing
+og         Open Graph, consumed by ADR 0032
+```
+
+Dimensions, fit, crop behaviour, output format and quality belong to configuration, so a project tunes them without a code change and two projects on this foundation can differ. Names are the contract; numbers are settings. A consumer that hard-codes a size is coupling to a value the platform is entitled to change.
+
+A variant that has not been produced resolves to the original rather than to a broken URL. An unoptimised image that loads is better than a correct-looking URL that does not.
+
+### The original is never modified
+
+Whatever arrives is what is stored. Every derivative is a separate stored object recorded against the media row, and regenerating variants — after a configuration change, or when a new variant is introduced — reads the original and writes new derivatives. Nothing overwrites it.
+
+This is what makes variant configuration safe to change: if the original were processed in place, a quality setting would be a destructive migration.
+
+### Watermarking applies to derivatives only
+
+Configuration, held as settings (ADR 0018):
+
+```
+watermark.enabled     watermark.media_id    watermark.position
+watermark.opacity     watermark.scale       watermark.margin_x / margin_y
+watermark.apply_to    the named variants it applies to
+```
+
+`watermark.media_id` references a `MediaFile` like every other branding asset, so the watermark is managed through the same upload, scanning and storage path as any other image.
+
+**The original is never watermarked.** It is the archival copy and the input to every future regeneration; a watermark burned into it could not be removed, and changing the watermark later would be impossible for every file already uploaded. Watermarking is therefore a step in derivative generation, and `apply_to` names which derivatives receive it — a thumbnail in an administrative list rarely should.
+
+### Implementation status
+
+| Element | State |
+| :--- | :--- |
+| Storage, delivery, CDN resolution, signed URLs | Implemented, Phase 10 |
+| Scanning contract, honest `not_scanned` reporting | Implemented, Phase 10 |
+| Header-only image dimension reading | Implemented, Phase 10 |
+| Named variants, generation, regeneration | **Deferred** — requires gd or imagick |
+| Watermarking | **Deferred** — requires the above |
+| Video metadata | **Deferred** — requires ffprobe |
+| `HasMediaAttachments` | **Deferred** to its first consumer |
+
+Tracked in ADR 0029.
 
 ## Consequences
 

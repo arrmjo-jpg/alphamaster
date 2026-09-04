@@ -33,3 +33,7 @@ This directory maintains the architectural decision records for the **alphamaste
 | [0027](0027-postgresql-authoritative-for-test-execution.md) | PostgreSQL Is Authoritative for Test Execution | Accepted |
 | [0028](0028-explicit-account-type-discriminator.md) | Explicit Account Type Discriminator | Accepted |
 | [0029](0029-deferred-technical-hardening-backlog.md) | Deferred Technical Hardening Backlog | Accepted |
+| [0030](0030-human-display-labels-vs-technical-identifiers.md) | Human Display Labels vs Technical Identifiers | Accepted |
+| [0031](0031-unified-api-presentation-contract.md) | Unified API Presentation Contract | Accepted |
+| [0032](0032-seo-foundation-contracts.md) | SEO Foundation Contracts | Accepted |
+| [0033](0033-foundation-versus-project-specific-boundary.md) | Foundation versus Project-Specific Boundary | Accepted |

@@ -3,6 +3,7 @@
 * **Status**: Accepted
 * **Date**: 2026-09-03
 * **Revised**: 2026-09-04 — CI added as item 2 after Phase 9; item 2 closed by Phase 11, item 5 closed at level 5 in its follow-up
+* **Revised**: 2026-09-04 — foundation gap audit items added as a second section, separating decision from implementation
 
 ## Context
 
@@ -15,6 +16,10 @@ Nothing here is a blocker for the phase that deferred it. Each entry states what
 ## Decision
 
 Track the following as deferred hardening. An item leaves this list by being implemented, or by being explicitly reclassified as won't-do with a reason.
+
+*Part One below is the original backlog: issues found during a phase and consciously postponed. Part Two, added 2026-09-04, holds items whose architectural decision is recorded in an ADR and whose implementation alone is outstanding.*
+
+## Part One — deferred hardening
 
 ### 1. Architecture rules do not see route files
 
@@ -108,8 +113,78 @@ The Integration module implements SMS only. Email, WhatsApp, storage and AI were
 
 *Closed by*: fixing ownership or permissions on the mounted `storage` directory in the container image or compose configuration.
 
+## Part Two — decided, implementation pending
+
+Added 2026-09-04, after the foundation gap audit.
+
+Everything in Part One was found during a phase, judged real, and consciously left for later. The items here are different in kind and the distinction matters enough to keep them apart: for each of these the **architectural decision has been made and recorded in an ADR**, and only the implementation is outstanding.
+
+This section exists because of a failure mode the audit exposed. Before it, none of these appeared anywhere: not in this backlog, not in an ADR, not in a phase brief. They were not deferred — nobody had decided anything about them, which is how a foundation ends up shipping `users.update` to an administrator and a `Content-Language: ar` response full of English. "Deferred" is not a substitute for deciding, and an entry here is only valid once the decision above it exists.
+
+### 11. Localization is infrastructure with no consumer
+
+*Decision*: ADR 0015, extended 2026-09-04. *Implementation*: pending.
+
+`__()`, `trans()` and `Lang::` appear zero times in `app/`. The three keys in `lang/en.json` and `lang/ar.json` are referenced by nothing. `lang/en/` and `lang/ar/` do not exist, so validation messages are the framework English defaults. A request carrying `X-Locale: ar` receives `Content-Language: ar` and an English body — verified live during the audit.
+
+*Closed by*: localization applied at the two choke points ADR 0015 names — the `ApiResponse` trait and the exception handlers in `bootstrap/app.php` — plus published validation catalogues per locale, and translated custom FormRequest messages. Not by translating 74 call sites individually.
+
+### 12. Display labels do not exist
+
+*Decision*: ADR 0030, with the RBAC application in ADR 0014. *Implementation*: pending.
+
+Fifteen enums, none with a display method. Raw backed values reach clients: `not_scanned`, `sms_otp`, `security.alert`, `admin`. Permissions and roles reach clients as `users.update` and `super_admin`. `RoleRequest` requires an administrator to type the technical identifier by hand and offers no field for a human name.
+
+*Closed by*: enum and permission labels in `lang/{locale}.json` keyed by identifier; a `role_translations` table; role identifiers generated from the label and immutable thereafter; the paired payload shape of ADR 0031.
+
+### 13. API presentation has drifted into two styles
+
+*Decision*: ADR 0031. *Implementation*: pending.
+
+One API Resource, from Phase 3, and six private `present()` methods written after it. No record ever chose between them, and there is no shared place to add the labels item 12 requires.
+
+*Closed by*: converting the six controllers to Resources, which is also a prerequisite for ADR 0010 — Scramble infers a contract from Resources and infers nothing useful from a hand-built array.
+
+### 14. Settings cannot express a per-locale value
+
+*Decision*: ADR 0018, extended 2026-09-04. *Implementation*: pending.
+
+A setting holds one value. `site_name`, `site_description`, `maintenance_message`, `cookie_message`, `footer_text` and `footer_copyright` are content a visitor reads and need a value per active language. The `description` column holds a single-language English sentence that the admin API returns as if it were a display label.
+
+*Closed by*: an `is_localized` flag with a `setting_translations` table resolving through the ADR 0015 fallback chain; labels and help text moved to language files; the classification of every setting as technical, localized content, or secret.
+
+### 15. Branding assets have no home
+
+*Decision*: ADR 0018, extended 2026-09-04. *Implementation*: pending.
+
+Logos, favicons, application icons, default social images and the watermark image are all platform configuration that points at a file. Nothing supports it today.
+
+*Closed by*: a media-typed setting whose value is a `MediaFile` id, validated as an existing media record. Binary data never enters the settings table.
+
+### 16. Mail configuration is undecided in code
+
+*Decision*: ADR 0018, extended 2026-09-04 — SMTP is platform configuration in Settings, not a provider behind ADR 0017; an API-driven transactional sender would be the reverse. *Implementation*: pending.
+
+*Closed by*: a `mail` settings group with the password as a secret setting, and the deferred capability to verify a configuration and send a test message.
+
+### 17. Media variants and watermarking are contracts without drivers
+
+*Decision*: ADR 0024, extended 2026-09-04. *Implementation*: deferred on an environment dependency.
+
+The processing pipeline exists; no processor can run. The container image has no gd, imagick or ffmpeg, re-verified on 2026-09-04.
+
+*Closed by*: adding the image extensions to the container image, then implementing named variants and watermarking against the existing contracts. The original is never modified and never watermarked.
+
+### 18. SEO has no contracts
+
+*Decision*: ADR 0032. *Implementation*: deliberately unphased.
+
+*Closed by*: implementing the contracts when a consumer exists whose requirements can test them. Building them against no consumer is the speculative surface ADR 0024 has already recorded twice, and ADR 0033 forbids.
+
 ## Consequences
 
 The backlog is reviewable and survives the conversations that produced it. Each item can be scheduled on its merits rather than resurfacing as a fresh discovery in a later review.
 
-The risk this record carries is the ordinary one for any backlog: that listing an item comes to feel like addressing it. Item 2 closed in Phase 11, which is the shape this list is meant to have: an entry leaves by being built, not by being forgotten. Item 5 closed at level 5 in the phase after Phase 11, which leaves item 4 — unlimited public endpoints — as the entry most likely to cost something real if it stays deferred indefinitely.
+The risk this record carries is the ordinary one for any backlog: that listing an item comes to feel like addressing it. Item 2 closed in Phase 11, which is the shape this list is meant to have: an entry leaves by being built, not by being forgotten. Item 5 closed at level 5 in the phase after Phase 11, which leaves item 4 — unlimited public endpoints — as the entry in Part One most likely to cost something real if it stays deferred indefinitely.
+
+Part Two carries a different risk. Its items are not hardening; they are capabilities the platform presents as working. Item 11 is the sharpest: the API advertises a language in a response header it does not honour in the body, so this is a contract being broken rather than a feature being awaited. Items 11, 12 and 13 are also mutually blocking in one direction — labels need a presentation layer to appear in, and both need localization to resolve against — which makes their order a sequencing decision rather than a free choice.
