@@ -2,7 +2,7 @@
 
 * **Status**: Accepted
 * **Date**: 2026-09-03
-* **Revised**: 2026-09-04 — CI added as item 2 after Phase 9; closed by Phase 11
+* **Revised**: 2026-09-04 — CI added as item 2 after Phase 9; item 2 closed by Phase 11, item 5 closed at level 5 in its follow-up
 
 ## Context
 
@@ -52,7 +52,7 @@ ADR 0022 requires composite rate limiting. What exists is endpoint-specific: log
 
 *Closed by*: a Core rate limiter applied to the `api` group, configured through Settings as the auth throttles already are, without weakening the endpoint-specific limits that exist.
 
-### 5. No static analysis
+### 5. No static analysis — CLOSED at level 5 (follow-up to Phase 11)
 
 PHPStan or Larastan is not installed. Two defects that reached review would have been caught by it: the implicit array-to-string conversion in Phase 4's `serializeValue`, and the unused `$type` parameter on `SettingService::set()`.
 
@@ -60,7 +60,13 @@ Measured in Phase 11 against this codebase: **96 errors at level 8**, 31 at leve
 
 *Deferred because*: introducing static analysis to a codebase of this size produces a baseline that wants its own review pass, which is a phase of work rather than an aside.
 
-*Closed by*: adding Larastan, agreeing a level, and either fixing or explicitly baselining what it reports.
+*Closed by*: Larastan v3.11 at **level 5**, enforced by `scripts/gate.sh stan` and required on every pull request. All 31 findings were fixed; no baseline, no `ignoreErrors`, no `@phpstan-ignore`. The gate was proved by planting a lost-model-type regression and confirming it fails.
+
+Two of the 31 were not type noise. `EnsureUserIsAdmin` gated the admin perimeter on `method_exists($user, 'isAdmin')`, which accepts any object carrying a method of that name — and the perimeter tests showed anonymous fixtures walking through it. It now requires a `Core\Contracts\AdminIdentity` implementation, which `config/auth.php` makes meaningful because the user model is resolved from `env('AUTH_MODEL')` rather than fixed. In `MfaController`, an `instanceof PersonalAccessToken` check that analysis called redundant turned out to be load-bearing: `config/sanctum.php` sets `guard => ['web']`, so a session-authenticated caller carries a `TransientToken` whose `can()` returns true for every ability, and without the check the endpoint would have minted a full access token for a session that never held an enrolment credential. Both now have regression tests that fail when the guard is removed.
+
+Three others were genuinely dead defensive code, and a fourth surfaced only once a vague `array<string, mixed>` was replaced with the real shape.
+
+**Still open**: level 8 reports 65 further findings, most of them Eloquent generics and `User|null` where middleware guarantees a user the type system cannot see. Raising the level is its own hardening phase, and this entry stays on the list until it happens.
 
 ### 6. `helpers.php` is loaded by the service provider
 
@@ -106,4 +112,4 @@ The Integration module implements SMS only. Email, WhatsApp, storage and AI were
 
 The backlog is reviewable and survives the conversations that produced it. Each item can be scheduled on its merits rather than resurfacing as a fresh discovery in a later review.
 
-The risk this record carries is the ordinary one for any backlog: that listing an item comes to feel like addressing it. Item 2 closed in Phase 11, which is the shape this list is meant to have: an entry leaves by being built, not by being forgotten. Items 4 and 5 are the ones to watch now — unlimited public endpoints and absent static analysis are the entries most likely to cost something real if they stay deferred indefinitely.
+The risk this record carries is the ordinary one for any backlog: that listing an item comes to feel like addressing it. Item 2 closed in Phase 11, which is the shape this list is meant to have: an entry leaves by being built, not by being forgotten. Item 5 closed at level 5 in the phase after Phase 11, which leaves item 4 — unlimited public endpoints — as the entry most likely to cost something real if it stays deferred indefinitely.

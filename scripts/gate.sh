@@ -29,6 +29,7 @@ scripts/gate.sh <command>
 
   pint            Code style check (no files rewritten)
   arch            Architecture rules only
+  stan            Static analysis (Larastan, level 5)
   test-pgsql      Full suite on PostgreSQL, asserting the engine really was PostgreSQL
   test-sqlite     Full suite on SQLite, asserting the engine really was SQLite
   migrate-fresh   migrate:fresh --seed (DESTRUCTIVE: drops the target database)
@@ -68,6 +69,17 @@ cmd_arch() {
     step "Architecture rules"
     require_stack
     in_backend "$BACKEND_SERVICE" php artisan test --filter=ArchitectureTest
+}
+
+# Level 5 rather than the level 8 ADR 0021 named. Level 8 reports 96 errors against
+# this codebase and level 5 reported 31, all of which were fixed rather than
+# baselined — a gate that runs is worth more than one that is aspired to, and a
+# baseline would have turned 96 known defects into a green check. The remaining
+# level 8 findings stay recorded in ADR 0029 item 5.
+cmd_stan() {
+    step "Static analysis"
+    require_stack
+    in_backend "$BACKEND_SERVICE" ./vendor/bin/phpstan analyse --memory-limit=1G --no-progress
 }
 
 # EXPECTED_DB_DRIVER is not decoration. PHPUnit's <env> entries are not force="true",
@@ -153,6 +165,7 @@ cmd_secrets() {
 cmd_all() {
     cmd_pint
     cmd_arch
+    cmd_stan
     cmd_test_pgsql
     cmd_test_sqlite
 
@@ -173,6 +186,7 @@ cmd_all() {
 case "${1:-}" in
     pint)          cmd_pint ;;
     arch)          cmd_arch ;;
+    stan)          cmd_stan ;;
     test-pgsql)    cmd_test_pgsql ;;
     test-sqlite)   cmd_test_sqlite ;;
     migrate-fresh) cmd_migrate_fresh ;;
