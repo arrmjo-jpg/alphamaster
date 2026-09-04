@@ -4,18 +4,29 @@ declare(strict_types=1);
 
 namespace App\Modules\Settings\Exceptions;
 
+use App\Modules\Core\Concerns\CarriesLocalizableMessage;
+use App\Modules\Core\Contracts\LocalizableException;
 use RuntimeException;
 
 /**
- * Raised when an update targets a setting key that is not provisioned.
- *
- * Settings are provisioned by migrations/seeders, never created on the fly by the
- * admin API, so an unknown key is a "not found" condition rather than a bad value.
+ * Raised when an update names a setting key that does not exist in its group.
  */
-class UnknownSettingKeyException extends RuntimeException
+class UnknownSettingKeyException extends RuntimeException implements LocalizableException
 {
+    use CarriesLocalizableMessage;
+
     public function __construct(public readonly string $group, public readonly string $key)
     {
-        parent::__construct("Setting [{$group}.{$key}] does not exist. Cannot update an unknown setting.");
+        parent::__construct(self::englishMessage($this->translationKey(), $this->translationParameters()));
+    }
+
+    public function translationKey(): string
+    {
+        return 'api.error.settings.unknown_key';
+    }
+
+    public function translationParameters(): array
+    {
+        return ['group' => $this->group, 'key' => $this->key];
     }
 }

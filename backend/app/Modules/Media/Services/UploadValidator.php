@@ -59,19 +59,20 @@ class UploadValidator
     public function validate(UploadedFile $file): string
     {
         if (! $file->isValid()) {
-            throw new MediaValidationException('upload_failed', 'The file did not upload correctly.');
+            throw new MediaValidationException('upload_failed', 'api.error.media.upload_failed');
         }
 
         $size = $file->getSize();
 
         if ($size === false || $size <= 0) {
-            throw new MediaValidationException('empty_file', 'The file is empty.');
+            throw new MediaValidationException('empty_file', 'api.error.media.empty_file');
         }
 
         if ($size > self::MAX_BYTES) {
             throw new MediaValidationException(
                 'too_large',
-                sprintf('The file exceeds the maximum size of %d bytes.', self::MAX_BYTES)
+                'api.error.media.too_large',
+                ['bytes' => self::MAX_BYTES]
             );
         }
 
@@ -98,7 +99,7 @@ class UploadValidator
     private function assertFilenameIsSafe(string $name): void
     {
         if ($name === '' || mb_strlen($name) > self::MAX_FILENAME_LENGTH) {
-            throw new MediaValidationException('bad_filename', 'The filename is missing or too long.');
+            throw new MediaValidationException('bad_filename', 'api.error.media.filename_invalid');
         }
 
         if (str_contains($name, '..')
@@ -107,7 +108,7 @@ class UploadValidator
             || str_contains($name, "\0")
             || preg_match('/[\x00-\x1F\x7F]/', $name) === 1
         ) {
-            throw new MediaValidationException('bad_filename', 'The filename contains characters that are not allowed.');
+            throw new MediaValidationException('bad_filename', 'api.error.media.filename_forbidden_characters');
         }
     }
 
@@ -117,7 +118,7 @@ class UploadValidator
     private function assertExtensionIsPermitted(string $extension): void
     {
         if (in_array($extension, self::FORBIDDEN_EXTENSIONS, true)) {
-            throw new MediaValidationException('forbidden_extension', 'That kind of file cannot be uploaded.');
+            throw new MediaValidationException('forbidden_extension', 'api.error.media.forbidden_extension');
         }
     }
 
@@ -132,7 +133,7 @@ class UploadValidator
             }
         }
 
-        throw new MediaValidationException('unsupported_type', 'That file type is not supported.');
+        throw new MediaValidationException('unsupported_type', 'api.error.media.unsupported_type');
     }
 
     /**
@@ -177,7 +178,7 @@ class UploadValidator
     private function assertExtensionAgreesWithContent(string $extension, string $detected): void
     {
         if ($extension === '') {
-            throw new MediaValidationException('bad_filename', 'The file must have an extension.');
+            throw new MediaValidationException('bad_filename', 'api.error.media.extension_missing');
         }
 
         $permitted = self::EXTENSION_CONTENT_TYPES[$extension] ?? null;
@@ -185,7 +186,7 @@ class UploadValidator
         if ($permitted === null || ! in_array($detected, $permitted, true)) {
             throw new MediaValidationException(
                 'extension_mismatch',
-                'The file extension does not match its contents.'
+                'api.error.media.extension_mismatch'
             );
         }
     }

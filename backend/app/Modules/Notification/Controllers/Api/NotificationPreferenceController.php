@@ -8,6 +8,7 @@ use App\Modules\Core\Controllers\BaseApiController;
 use App\Modules\Notification\Contracts\PreferenceResolverContract;
 use App\Modules\Notification\Enums\NotificationChannel;
 use App\Modules\Notification\Enums\NotificationType;
+use App\Modules\Notification\Exceptions\PreferenceNotSilenceableException;
 use App\Modules\Notification\Requests\UpdateNotificationPreferencesRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -57,8 +58,8 @@ class NotificationPreferenceController extends BaseApiController
                     );
                 }
             });
-        } catch (\InvalidArgumentException $e) {
-            return $this->errorResponse('PREFERENCE_NOT_SILENCEABLE', $e->getMessage(), null, 422);
+        } catch (PreferenceNotSilenceableException $e) {
+            return $this->errorResponse('PREFERENCE_NOT_SILENCEABLE', $e->translationKey(), null, 422, $e->translationParameters());
         }
 
         return $this->successResponse($this->preferences->describe($user), 'Preferences updated.');

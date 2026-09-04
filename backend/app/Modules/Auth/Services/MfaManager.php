@@ -39,7 +39,7 @@ class MfaManager implements MfaManagerContract
         $driver = $this->methods[$type->value] ?? null;
 
         if ($driver === null) {
-            throw new MfaEnrolmentException("No MFA driver is registered for [{$type->value}].");
+            throw new MfaEnrolmentException('api.error.auth.mfa_driver_missing', ['type' => $type->value]);
         }
 
         return $driver;
@@ -63,12 +63,13 @@ class MfaManager implements MfaManagerContract
         // most fall back to the weakest factor available (ADR 0013).
         if ($user->isAdmin() && ! $type->satisfiesAdministratorPolicy()) {
             throw new MfaEnrolmentException(
-                "Administrators cannot use [{$type->value}] as their second factor. Enrol an authenticator app instead."
+                'api.error.auth.mfa_admin_policy',
+                ['type' => $type->value]
             );
         }
 
         if ($this->hasConfirmedMethod($user, $type)) {
-            throw new MfaEnrolmentException('This multi-factor method is already enabled. Disable it before enrolling again.');
+            throw new MfaEnrolmentException('api.error.auth.mfa_already_enabled');
         }
 
         return $this->driver($type)->enrol($user, $options);
@@ -146,9 +147,7 @@ class MfaManager implements MfaManagerContract
         // against the number's owner.
         if ($method->otp_sent_at !== null
             && $method->otp_sent_at->diffInSeconds(now()) < $driver->resendCooldownSeconds()) {
-            throw new MfaDeliveryException(
-                'A code was sent moments ago. Wait before requesting another.'
-            );
+            throw new MfaDeliveryException('api.error.auth.mfa_delivery_throttled');
         }
 
         return $driver->deliver($user, $method);
@@ -165,15 +164,15 @@ class MfaManager implements MfaManagerContract
             ->first();
 
         if ($method === null) {
-            throw new MfaEnrolmentException('There is no pending enrolment to confirm. Start enrolment first.');
+            throw new MfaEnrolmentException('api.error.auth.mfa_no_pending_enrolment');
         }
 
         if ($method->isConfirmed()) {
-            throw new MfaEnrolmentException('This multi-factor method is already confirmed.');
+            throw new MfaEnrolmentException('api.error.auth.mfa_already_confirmed');
         }
 
         if (! $this->driver($type)->verify($user, $code)) {
-            throw new MfaEnrolmentException('The provided code is not valid for this enrolment.');
+            throw new MfaEnrolmentException('api.error.auth.mfa_enrolment_code_invalid');
         }
 
         return DB::transaction(function () use ($user, $method): array {

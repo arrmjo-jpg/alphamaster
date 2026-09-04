@@ -47,15 +47,15 @@ class AuthController extends BaseApiController
         } catch (InvalidCredentialsException $e) {
             $this->throttle->recordFailure($key);
 
-            return $this->errorResponse('INVALID_CREDENTIALS', $e->getMessage(), [
+            return $this->errorResponse('INVALID_CREDENTIALS', $e->translationKey(), [
                 'attempts_remaining' => $this->throttle->remaining($key),
-            ], 401);
+            ], 401, $e->translationParameters());
         } catch (AccountInactiveException $e) {
             // A suspended account still counts as a failed attempt, so the endpoint
             // cannot be used to probe which accounts exist but are merely disabled.
             $this->throttle->recordFailure($key);
 
-            return $this->errorResponse('ACCOUNT_SUSPENDED', $e->getMessage(), null, 403);
+            return $this->errorResponse('ACCOUNT_SUSPENDED', $e->translationKey(), null, 403, $e->translationParameters());
         }
 
         $this->throttle->clear($key);
@@ -106,13 +106,13 @@ class AuthController extends BaseApiController
         } catch (TooManyAttemptsException $e) {
             return $this->throttledResponse($e);
         } catch (AccountInactiveException $e) {
-            return $this->errorResponse('ACCOUNT_SUSPENDED', $e->getMessage(), null, 403);
+            return $this->errorResponse('ACCOUNT_SUSPENDED', $e->translationKey(), null, 403, $e->translationParameters());
         } catch (MfaChallengeException $e) {
             $this->throttle->recordFailure($key);
 
-            return $this->errorResponse('MFA_CHALLENGE_FAILED', $e->getMessage(), [
+            return $this->errorResponse('MFA_CHALLENGE_FAILED', $e->translationKey(), [
                 'attempts_remaining' => $this->throttle->remaining($key),
-            ], 401);
+            ], 401, $e->translationParameters());
         }
 
         $this->throttle->clear($key);
@@ -141,13 +141,13 @@ class AuthController extends BaseApiController
         } catch (TooManyAttemptsException $e) {
             return $this->throttledResponse($e);
         } catch (AccountInactiveException $e) {
-            return $this->errorResponse('ACCOUNT_SUSPENDED', $e->getMessage(), null, 403);
+            return $this->errorResponse('ACCOUNT_SUSPENDED', $e->translationKey(), null, 403, $e->translationParameters());
         } catch (MfaChallengeException $e) {
             $this->throttle->recordFailure($key);
 
-            return $this->errorResponse('MFA_CHALLENGE_FAILED', $e->getMessage(), null, 401);
+            return $this->errorResponse('MFA_CHALLENGE_FAILED', $e->translationKey(), null, 401, $e->translationParameters());
         } catch (MfaDeliveryException $e) {
-            return $this->errorResponse('MFA_DELIVERY_THROTTLED', $e->getMessage(), null, 429);
+            return $this->errorResponse('MFA_DELIVERY_THROTTLED', $e->translationKey(), null, 429, $e->translationParameters());
         }
 
         $this->throttle->recordFailure($key);
@@ -155,7 +155,7 @@ class AuthController extends BaseApiController
         if ($destination === null) {
             return $this->errorResponse(
                 'MFA_DELIVERY_NOT_APPLICABLE',
-                'This account uses an authenticator app; no code needs to be sent.',
+                'api.error.auth.mfa_delivery_not_applicable',
                 null,
                 422
             );
@@ -206,9 +206,10 @@ class AuthController extends BaseApiController
     {
         return $this->errorResponse(
             'TOO_MANY_ATTEMPTS',
-            $e->getMessage(),
+            $e->translationKey(),
             ['retry_after' => $e->retryAfterSeconds],
-            429
+            429,
+            $e->translationParameters()
         )->header('Retry-After', (string) $e->retryAfterSeconds);
     }
 }

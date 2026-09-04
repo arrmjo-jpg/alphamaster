@@ -63,7 +63,7 @@ class MfaController extends BaseApiController
                 'phone' => $request->validated('phone'),
             ]);
         } catch (MfaEnrolmentException $e) {
-            return $this->errorResponse('MFA_ENROLMENT_INVALID', $e->getMessage(), null, 422);
+            return $this->errorResponse('MFA_ENROLMENT_INVALID', $e->translationKey(), null, 422, $e->translationParameters());
         }
 
         return $this->successResponse(
@@ -90,7 +90,7 @@ class MfaController extends BaseApiController
                 (string) $request->validated('code')
             );
         } catch (MfaEnrolmentException $e) {
-            return $this->errorResponse('MFA_ENROLMENT_INVALID', $e->getMessage(), null, 422);
+            return $this->errorResponse('MFA_ENROLMENT_INVALID', $e->translationKey(), null, 422, $e->translationParameters());
         }
 
         $payload = [
@@ -142,7 +142,7 @@ class MfaController extends BaseApiController
         if (! $this->mfa->isEnabled($user)) {
             return $this->errorResponse(
                 'MFA_NOT_ENABLED',
-                'Multi-factor authentication is not enabled for this account.',
+                'api.error.auth.mfa_not_enabled',
                 null,
                 422
             );
@@ -151,7 +151,7 @@ class MfaController extends BaseApiController
         if (! $this->mfa->verifyChallenge($user, (string) $request->validated('code'))) {
             return $this->errorResponse(
                 'MFA_CHALLENGE_FAILED',
-                'The provided multi-factor code is not valid.',
+                'api.error.auth.mfa_code_invalid',
                 null,
                 401
             );

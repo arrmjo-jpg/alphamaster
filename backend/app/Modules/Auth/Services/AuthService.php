@@ -142,13 +142,13 @@ class AuthService implements AuthServiceContract
         $userId = Cache::get(self::MFA_CHALLENGE_PREFIX.hash('sha256', $token));
 
         if (! is_string($userId)) {
-            throw new MfaChallengeException('The multi-factor challenge is invalid or has expired.');
+            throw new MfaChallengeException('api.error.auth.mfa_challenge_expired');
         }
 
         $user = User::query()->find($userId);
 
         if ($user === null) {
-            throw new MfaChallengeException('The multi-factor challenge is invalid or has expired.');
+            throw new MfaChallengeException('api.error.auth.mfa_challenge_expired');
         }
 
         if (! $user->is_active) {
@@ -178,7 +178,7 @@ class AuthService implements AuthServiceContract
         $user = $this->resolveMfaChallenge($token);
 
         if (! $this->mfa->verifyChallenge($user, $code)) {
-            throw new MfaChallengeException('The provided multi-factor code is not valid.');
+            throw new MfaChallengeException('api.error.auth.mfa_code_invalid');
         }
 
         // Single use: a cleared challenge cannot be replayed even within its TTL.

@@ -48,7 +48,7 @@ class MediaController extends BaseApiController
         } catch (MediaValidationException $e) {
             // The reason is machine readable so a client can react to it; the message
             // stays human. Neither discloses anything about storage.
-            return $this->errorResponse('MEDIA_REJECTED', $e->getMessage(), ['reason' => $e->reason], 422);
+            return $this->errorResponse('MEDIA_REJECTED', $e->translationKey(), ['reason' => $e->reason], 422, $e->translationParameters());
         }
 
         return $this->successResponse(
@@ -67,7 +67,7 @@ class MediaController extends BaseApiController
     public function show(Request $request, MediaFile $media): JsonResponse
     {
         if (! $this->access->allows($media, $request->user()) && ! $this->ownsUnready($media, $request)) {
-            return $this->errorResponse('NOT_FOUND', 'The requested resource was not found.', null, 404);
+            return $this->errorResponse('NOT_FOUND', 'api.error.model_not_found', null, 404);
         }
 
         return $this->successResponse($this->present($media, $request->user()));

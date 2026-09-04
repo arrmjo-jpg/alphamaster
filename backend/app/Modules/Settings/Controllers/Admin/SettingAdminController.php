@@ -34,7 +34,7 @@ class SettingAdminController extends BaseApiController
         try {
             return $this->successResponse($this->settingService->getAdminGroup($group));
         } catch (SettingGroupNotFoundException $e) {
-            return $this->errorResponse('SETTING_GROUP_NOT_FOUND', $e->getMessage(), null, 404);
+            return $this->errorResponse('SETTING_GROUP_NOT_FOUND', $e->translationKey(), null, 404, $e->translationParameters());
         }
     }
 
@@ -53,9 +53,9 @@ class SettingAdminController extends BaseApiController
         try {
             $updated = $this->settingService->updateGroup($group, $payload);
         } catch (SettingGroupNotFoundException $e) {
-            return $this->errorResponse('SETTING_GROUP_NOT_FOUND', $e->getMessage(), null, 404);
+            return $this->errorResponse('SETTING_GROUP_NOT_FOUND', $e->translationKey(), null, 404, $e->translationParameters());
         } catch (UnknownSettingKeyException $e) {
-            return $this->errorResponse('SETTING_KEY_NOT_FOUND', $e->getMessage(), null, 404);
+            return $this->errorResponse('SETTING_KEY_NOT_FOUND', $e->translationKey(), null, 404, $e->translationParameters());
         } catch (InvalidArgumentException $e) {
             return $this->errorResponse('INVALID_SETTING_VALUE', $e->getMessage(), null, 422);
         }
