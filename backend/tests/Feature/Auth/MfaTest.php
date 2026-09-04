@@ -413,3 +413,29 @@ test('the model hides the secret and the code hash from serialisation', function
         ->and($recovery->toArray())->not->toHaveKey('code_hash')
         ->and(json_encode($method))->not->toContain($method->getSecret());
 });
+
+test('a session-authenticated identity completing enrolment is not handed an access token', function (): void {
+    // Sanctum's Guard checks config('sanctum.guard') — ['web'] here — before it looks
+    // for a bearer token, and attaches a TransientToken to a session-authenticated
+    // user. TransientToken::can() returns true for every ability without inspecting
+    // it, so the ability test in MfaController cannot distinguish this caller from
+    // one holding a genuine enrolment credential.
+    //
+    // The instanceof PersonalAccessToken check is what makes that distinction. Without
+    // it, a session that never held an enrolment token would be issued a full access
+    // token, and delete() would be called on a token class that has no such method.
+    $secret = $this->actingAs($this->user)
+        ->postJson('/api/v1/auth/mfa/enrol')
+        ->assertOk()
+        ->json('data.secret');
+
+    $response = $this->actingAs($this->user)
+        ->postJson('/api/v1/auth/mfa/verify', [
+            'code' => $this->google2fa->getCurrentOtp($secret),
+        ]);
+
+    $response->assertOk()->assertJsonPath('data.enabled', true);
+
+    expect($response->json('data'))->not->toHaveKey('token')
+        ->and($response->json('data'))->not->toHaveKey('abilities');
+});
