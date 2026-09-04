@@ -4,6 +4,7 @@ services:
     build:
       context: .
       dockerfile: docker/nginx/Dockerfile
+    image: ${ALPHAMASTER_IMAGE_NAMESPACE:-alphamaster}/nginx:${ALPHAMASTER_IMAGE_TAG:-latest}
     container_name: alphamaster-nginx
     ports:
       - "80:80"
@@ -27,6 +28,7 @@ services:
     build:
       context: .
       dockerfile: docker/backend/Dockerfile
+    image: ${ALPHAMASTER_IMAGE_NAMESPACE:-alphamaster}/backend:${ALPHAMASTER_IMAGE_TAG:-latest}
     container_name: alphamaster-backend
     volumes:
       - ./backend:/var/www/html
@@ -52,6 +54,7 @@ services:
     build:
       context: .
       dockerfile: docker/backend/Dockerfile
+    image: ${ALPHAMASTER_IMAGE_NAMESPACE:-alphamaster}/horizon:${ALPHAMASTER_IMAGE_TAG:-latest}
     container_name: alphamaster-horizon
     command: php artisan horizon
     volumes:
@@ -80,6 +83,7 @@ services:
     build:
       context: .
       dockerfile: docker/backend/Dockerfile
+    image: ${ALPHAMASTER_IMAGE_NAMESPACE:-alphamaster}/scheduler:${ALPHAMASTER_IMAGE_TAG:-latest}
     container_name: alphamaster-scheduler
     command: php artisan schedule:work
     volumes:
