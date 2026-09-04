@@ -65,7 +65,8 @@ class SettingAdminController extends BaseApiController
                 'group' => $group,
                 'updated' => $updated,
             ],
-            message: "Settings for group [{$group}] successfully updated.",
+            message: 'api.settings.group_updated',
+            replace: ['group' => $group],
         );
     }
 }
