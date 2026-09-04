@@ -83,9 +83,9 @@ class UpdateGroupSettingsRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'settings.required' => 'A settings object is required.',
-            'settings.array' => 'The settings field must be an object of key/value pairs.',
-            'settings.max' => 'A batch update may contain at most '.self::MAX_KEYS.' settings.',
+            'settings.required' => __('validation.custom.settings.required'),
+            'settings.array' => __('validation.custom.settings.array'),
+            'settings.max' => __('validation.custom.settings.max'),
         ];
     }
 

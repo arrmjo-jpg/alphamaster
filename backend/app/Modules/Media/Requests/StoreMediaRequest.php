@@ -38,8 +38,8 @@ class StoreMediaRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'collection.regex' => 'A collection name must be a lowercase identifier.',
-            'file.max' => 'The file exceeds the maximum upload size.',
+            'collection.regex' => __('validation.custom.collection.regex'),
+            'file.max' => __('validation.custom.file.max'),
         ];
     }
 }
