@@ -4,11 +4,15 @@ declare(strict_types=1);
 
 namespace App\Modules\Media\Enums;
 
+use App\Modules\Core\Concerns\HasDisplayLabel;
+
 /**
  * The broad kind of a file, derived from its detected content type.
  */
 enum MediaType: string
 {
+    use HasDisplayLabel;
+
     case IMAGE = 'image';
     case VIDEO = 'video';
     case AUDIO = 'audio';

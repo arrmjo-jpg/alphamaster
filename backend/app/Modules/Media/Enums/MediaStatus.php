@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Modules\Media\Enums;
 
+use App\Modules\Core\Concerns\HasDisplayLabel;
+
 /**
  * Where a file is in its intake lifecycle.
  *
@@ -13,6 +15,8 @@ namespace App\Modules\Media\Enums;
  */
 enum MediaStatus: string
 {
+    use HasDisplayLabel;
+
     case UPLOADED = 'uploaded';
     case SCANNING = 'scanning';
     case PROCESSING = 'processing';
