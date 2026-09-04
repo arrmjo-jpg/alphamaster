@@ -1,4 +1,4 @@
-﻿.PHONY: up down restart build logs ps gate test test-sqlite shell artisan migrate seed
+﻿.PHONY: up down restart build logs ps gate test test-sqlite shell artisan migrate seed adminer adminer-down
 
 # Start all services in the background
 up:
@@ -43,6 +43,14 @@ shell:
 # Run an artisan command (usage: make artisan cmd="route:list")
 artisan:
 	docker compose exec backend php artisan $(cmd)
+
+# Start the optional Adminer database web client on http://localhost:8080
+adminer:
+	docker compose --profile tools up -d adminer
+
+# Stop and remove the Adminer container
+adminer-down:
+	docker compose --profile tools rm -sf adminer
 
 # Run database migrations
 migrate:

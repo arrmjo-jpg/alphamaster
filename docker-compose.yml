@@ -4,6 +4,7 @@ services:
     build:
       context: .
       dockerfile: docker/nginx/Dockerfile
+    image: ${ALPHAMASTER_IMAGE_NAMESPACE:-alphamaster}/nginx:${ALPHAMASTER_IMAGE_TAG:-latest}
     container_name: alphamaster-nginx
     ports:
       - "80:80"
@@ -27,6 +28,7 @@ services:
     build:
       context: .
       dockerfile: docker/backend/Dockerfile
+    image: ${ALPHAMASTER_IMAGE_NAMESPACE:-alphamaster}/backend:${ALPHAMASTER_IMAGE_TAG:-latest}
     container_name: alphamaster-backend
     volumes:
       - ./backend:/var/www/html
@@ -52,6 +54,7 @@ services:
     build:
       context: .
       dockerfile: docker/backend/Dockerfile
+    image: ${ALPHAMASTER_IMAGE_NAMESPACE:-alphamaster}/horizon:${ALPHAMASTER_IMAGE_TAG:-latest}
     container_name: alphamaster-horizon
     command: php artisan horizon
     volumes:
@@ -80,6 +83,7 @@ services:
     build:
       context: .
       dockerfile: docker/backend/Dockerfile
+    image: ${ALPHAMASTER_IMAGE_NAMESPACE:-alphamaster}/scheduler:${ALPHAMASTER_IMAGE_TAG:-latest}
     container_name: alphamaster-scheduler
     command: php artisan schedule:work
     volumes:
@@ -141,6 +145,29 @@ services:
       timeout: 3s
       retries: 5
       start_period: 3s
+    restart: unless-stopped
+
+  # ─── Database Web Client (Adminer) — optional, profile: tools ───
+  adminer:
+    image: adminer:5-standalone
+    container_name: alphamaster-adminer
+    profiles:
+      - tools
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - alphamaster_network
+    healthcheck:
+      test: ["CMD-SHELL", "php -r \"exit(@file_get_contents('http://127.0.0.1:8080/') ? 0 : 1);\""]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
     restart: unless-stopped
 
 volumes:
