@@ -23,9 +23,13 @@ class IntegrationProviderResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        // The label sits beside the value it describes and never replaces it
+        // (ADR 0030/0031). The value stays the identifier a client matches on;
+        // the label is resolved from the request locale each time it is read.
         return [
             'id' => $this->resource->id,
             'capability' => $this->resource->capability->value,
+            'capability_label' => $this->resource->capability->label(),
             'driver' => $this->resource->driver,
             'label' => $this->resource->label,
             'settings' => $this->resource->settings,

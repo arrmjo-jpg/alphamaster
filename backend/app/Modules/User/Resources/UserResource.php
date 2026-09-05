@@ -37,11 +37,15 @@ class UserResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        // The label sits beside the value it describes and never replaces it
+        // (ADR 0030/0031). The value stays the identifier a client matches on;
+        // the label is resolved from the request locale each time it is read.
         return [
             'id' => $this->resource->id,
             'name' => $this->resource->name,
             'email' => $this->resource->email,
             'account_type' => $this->resource->account_type->value,
+            'account_type_label' => $this->resource->account_type->label(),
             'is_active' => $this->resource->is_active,
             'roles' => $this->roles,
             'permissions' => $this->permissions,
