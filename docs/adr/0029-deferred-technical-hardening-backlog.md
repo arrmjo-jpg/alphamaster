@@ -4,6 +4,7 @@
 * **Date**: 2026-09-03
 * **Revised**: 2026-09-04 — CI added as item 2 after Phase 9; item 2 closed by Phase 11, item 5 closed at level 5 in its follow-up
 * **Revised**: 2026-09-04 — foundation gap audit items added as a second section, separating decision from implementation
+* **Revised**: 2026-09-05 — items 11 and 13 closed by Phase 13, item 12 partially; item 19 recorded from the stranded Phase 12 branch; items 20 and 21 added
 
 ## Context
 
@@ -121,25 +122,27 @@ Everything in Part One was found during a phase, judged real, and consciously le
 
 This section exists because of a failure mode the audit exposed. Before it, none of these appeared anywhere: not in this backlog, not in an ADR, not in a phase brief. They were not deferred — nobody had decided anything about them, which is how a foundation ends up shipping `users.update` to an administrator and a `Content-Language: ar` response full of English. "Deferred" is not a substitute for deciding, and an entry here is only valid once the decision above it exists.
 
-### 11. Localization is infrastructure with no consumer
+### 11. Localization is infrastructure with no consumer — CLOSED (Phase 13)
 
-*Decision*: ADR 0015, extended 2026-09-04. *Implementation*: pending.
+*Decision*: ADR 0015, extended 2026-09-04. *Implementation*: **complete** — Phase 13, PRs #14 and #15.
 
 `__()`, `trans()` and `Lang::` appear zero times in `app/`. The three keys in `lang/en.json` and `lang/ar.json` are referenced by nothing. `lang/en/` and `lang/ar/` do not exist, so validation messages are the framework English defaults. A request carrying `X-Locale: ar` receives `Content-Language: ar` and an English body — verified live during the audit.
 
 *Closed by*: localization applied at the two choke points ADR 0015 names — the `ApiResponse` trait and the exception handlers in `bootstrap/app.php` — plus published validation catalogues per locale, and translated custom FormRequest messages. Not by translating 74 call sites individually.
 
-### 12. Display labels do not exist
+### 12. Display labels do not exist — PARTIALLY CLOSED (Phase 13)
 
-*Decision*: ADR 0030, with the RBAC application in ADR 0014. *Implementation*: pending.
+*Decision*: ADR 0030, with the RBAC application in ADR 0014. *Implementation*: **partial** — enum labels complete in Phase 13 (PRs #14 and #16); permission and role labels outstanding.
 
 Fifteen enums, none with a display method. Raw backed values reach clients: `not_scanned`, `sms_otp`, `security.alert`, `admin`. Permissions and roles reach clients as `users.update` and `super_admin`. `RoleRequest` requires an administrator to type the technical identifier by hand and offers no field for a human name.
 
 *Closed by*: enum and permission labels in `lang/{locale}.json` keyed by identifier; a `role_translations` table; role identifiers generated from the label and immutable thereafter; the paired payload shape of ADR 0031.
 
-### 13. API presentation has drifted into two styles
+*Remaining after Phase 13*: the enum third is done — eleven enums carry a display method, their labels are in both catalogues, and the payload shape ADR 0031 fixes is implemented. Permission labels do not exist (`permission.*` appears zero times in `lang/en.json`), there is no `role_translations` table, and `RoleRequest` still requires the identifier to be typed by hand with no field for a human name.
 
-*Decision*: ADR 0031. *Implementation*: pending.
+### 13. API presentation has drifted into two styles — CLOSED (Phase 13)
+
+*Decision*: ADR 0031. *Implementation*: **complete** — Phase 13 Scope D, PR #16.
 
 One API Resource, from Phase 3, and six private `present()` methods written after it. No record ever chose between them, and there is no shared place to add the labels item 12 requires.
 
@@ -181,6 +184,52 @@ The processing pipeline exists; no processor can run. The container image has no
 
 *Closed by*: implementing the contracts when a consumer exists whose requirements can test them. Building them against no consumer is the speculative surface ADR 0024 has already recorded twice, and ADR 0033 forbids.
 
+### 19. Scramble emits a keyword OpenAPI 3.1 does not allow — upstream blocker
+
+*Decision*: ADR 0010, unchanged. *Implementation*: **blocked upstream**, not deferred by project choice.
+
+This entry is a different kind from everything above it. Items 1 to 18 are work this project chose to postpone and can start whenever it decides to. This one cannot be started at all: the defect is in a dependency, and no amount of work here fixes it.
+
+Scramble `v0.13.42` generates a valid-looking 3.1 document that fails validation. For a fixed-length array literal it emits a tuple using `prefixItems`, which is correct, and alongside it `additionalItems: false`, which was removed in JSON Schema draft 2020-12 — the dialect OpenAPI 3.1 uses. Redocly reports `Property additionalItems is not expected here` at five nodes. Spectral flags the same nodes for a different reason, its `array-items` rule not accounting for `prefixItems`; that part is a limitation of the rule rather than a second defect.
+
+The keyword is set in `TypeTransformer.php:235` via `setAdditionalItems(false)` on the tuple branch, and serialised by `ArrayType.php:101`. It appears zero times in `app/`. The valid 3.1 form is `items: false` in its place, or nothing at all, since `minItems` and `maxItems` already constrain the length — so the upstream change is expected to be small.
+
+It cannot be avoided from application code. Annotating the source DTO with a precise array shape produces a **byte-identical** document, because the inference comes from the array literal rather than from the docblock. That was tested, not assumed.
+
+Three constraints hold while this is open, recorded here so that none of them is quietly decided later by someone reading "blocked" as "deferred":
+
+* **The application is not changed to work around it.** Editing a DTO or a controller so a third-party serialiser emits valid output would hide a defect in that serialiser behind a change to our own contract.
+* **No linter rule is disabled and no ignore file is added.** A suppressed rule is a validator that has stopped validating, which this project has already learned to distrust twice — an architecture rule guarding a namespace nothing imported, and a secret scan reporting clean because it had stopped looking.
+* **`vendor/` is not patched.** A local patch would make the document valid on one machine and leave the next `composer install` producing an invalid one.
+
+*Closed by*: an upstream release that emits `items`, or nothing, in place of `additionalItems` for 3.1 documents. Until then the contract can be generated and read but **cannot be validated**, so the Spectral gate ADR 0021 lists for Phase 12 stays off, and nothing is built on the assumption that the document validates.
+
+The 83 style warnings the same run reports are unrelated and are not part of this blocker: absent operation descriptions and undeclared tags, which is metadata Phase 12 has not written yet.
+
+*Recorded 2026-09-05.* Scramble was installed and this defect found on a Phase 12 branch that was never merged; the finding existed only in one working copy until now, which is the failure mode this record was created to prevent. Scramble itself is **not** installed on `main`.
+
+### 20. The admin media index has no test for its paginated shape
+
+*Decision*: none required. *Implementation*: pending.
+
+Phase 13 converted `MediaAdminController::index` to a Resource inside a paginator. The envelope, the `meta.pagination` block and the row shape were verified by hand twice during that phase and match what the controller returned before, but the only automated assertion on that endpoint is that the request succeeds. A change to the paginated envelope would pass CI.
+
+*Deferred because*: it was found during a phase whose commits were not permitted to modify tests, and adding it later is cheaper than widening that phase.
+
+*Closed by*: a test asserting the top-level keys, the five `meta.pagination` keys, and the admin row field list against the endpoint rather than against the Resource in isolation.
+
+### 21. The development and test environments share Redis
+
+*Decision*: none required. *Implementation*: pending.
+
+Both use the same Redis database, so a test run leaves entries behind in the cache the development application reads. Observed repeatedly during Phase 13: after a suite run, `localization:languages:active` holds an empty array while the table holds two active languages, and a manual probe of `X-Locale: ar` resolves to `en` until the cache is cleared or its 24-hour TTL expires.
+
+This is an environment concern rather than an application one. The automated tests are unaffected — they flush the cache per test — and the poisoning is invisible until someone probes the running application by hand and is misled by it, which happened more than once.
+
+*Deferred because*: it belongs to test and container configuration, and Phase 13 was scoped to localization and presentation.
+
+*Closed by*: a separate Redis database index for the test environment, so a suite run cannot reach the development cache.
+
 ## Consequences
 
 The backlog is reviewable and survives the conversations that produced it. Each item can be scheduled on its merits rather than resurfacing as a fresh discovery in a later review.
@@ -188,3 +237,7 @@ The backlog is reviewable and survives the conversations that produced it. Each 
 The risk this record carries is the ordinary one for any backlog: that listing an item comes to feel like addressing it. Item 2 closed in Phase 11, which is the shape this list is meant to have: an entry leaves by being built, not by being forgotten. Item 5 closed at level 5 in the phase after Phase 11, which leaves item 4 — unlimited public endpoints — as the entry in Part One most likely to cost something real if it stays deferred indefinitely.
 
 Part Two carries a different risk. Its items are not hardening; they are capabilities the platform presents as working. Item 11 is the sharpest: the API advertises a language in a response header it does not honour in the body, so this is a contract being broken rather than a feature being awaited. Items 11, 12 and 13 are also mutually blocking in one direction — labels need a presentation layer to appear in, and both need localization to resolve against — which makes their order a sequencing decision rather than a free choice.
+
+That sequencing was settled by Phase 13, which took them in the only order that works: localization first, then the presentation layer, then the labels that needed both. Items 11 and 13 closed and item 12 lost its enum third.
+
+Item 19 is different again: it is the only entry on this list that no decision of ours can close, which is why it says blocked rather than deferred. Items 20 and 21 are ordinary deferrals of the Part One kind, recorded here rather than in that section only because they were found after it was written.
