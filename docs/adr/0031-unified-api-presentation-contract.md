@@ -2,6 +2,7 @@
 
 * **Status**: Accepted
 * **Date**: 2026-09-04
+* **Revised**: 2026-09-05 — `_options` naming fixed for a catalogue that accompanies an existing field
 * **Implementation**: Not started. This record establishes the decision; the work is tracked in ADR 0029.
 
 ## Context
@@ -50,6 +51,8 @@ and where the technical identifier is itself a key with structure — a permissi
 { "key": "users.update", "label": "تعديل المستخدم" }
 { "name": "content_editor", "label": "محرر المحتوى" }
 ```
+
+Where a catalogue accompanies an existing field rather than replacing it, the catalogue field keeps that field's name and gains the suffix `_options`: `available_methods` is joined by `available_methods_options`. The source field keeps its type and contents, and the catalogue holds one `{value, label}` entry per member, in the same order.
 
 Three rules govern all of it:
 
