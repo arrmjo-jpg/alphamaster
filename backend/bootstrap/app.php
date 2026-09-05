@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Modules\Authorization\Middleware\EnsurePermission;
+use App\Modules\Core\Middleware\ApplyRateLimit;
 use App\Modules\Core\Middleware\AttachRequestContext;
 use App\Modules\Core\Middleware\EnsureAccountActive;
 use App\Modules\Core\Middleware\EnsureUserIsAdmin;
@@ -40,10 +41,13 @@ return Application::configure(basePath: dirname(__DIR__))
         // response declaring a language it had never negotiated (ADR 0015).
         $middleware->append(SetLocale::class);
 
-        // Append core middleware to API group
+        // Append core middleware to API group. The limiter is last: it needs the
+        // resolved route to choose a class, and the resolved user to choose an
+        // identity.
         $middleware->api(append: [
             ForceJsonResponse::class,
             AttachRequestContext::class,
+            ApplyRateLimit::class,
         ]);
 
         // Register route middleware aliases
