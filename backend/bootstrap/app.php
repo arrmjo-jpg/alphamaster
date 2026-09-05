@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -128,6 +129,23 @@ return Application::configure(basePath: dirname(__DIR__))
                     'message' => __('api.error.method_not_allowed'),
                 ],
             ], 405);
+        });
+
+        // Registered before the generic HttpException handler, which would otherwise
+        // answer a 429 with HTTP_ERROR, the framework's English sentence, and none of
+        // the headers the limiter produced.
+        $exceptions->render(function (ThrottleRequestsException $e, Request $request): JsonResponse {
+            $headers = $e->getHeaders();
+            $retryAfter = (int) ($headers['Retry-After'] ?? 0);
+
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'TOO_MANY_ATTEMPTS',
+                    'message' => __('api.error.too_many_attempts', ['seconds' => $retryAfter]),
+                    'details' => ['retry_after' => $retryAfter],
+                ],
+            ], 429, $headers);
         });
 
         $exceptions->render(function (HttpException $e, Request $request): JsonResponse {
