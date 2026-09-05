@@ -74,8 +74,13 @@ class PreferenceResolver implements PreferenceResolverContract
 
             foreach (NotificationChannel::cases() as $channel) {
                 $described[] = [
+                    // Each label sits beside its value and never replaces it
+                    // (ADR 0030/0031). Nothing here is cached, so both follow
+                    // the caller's locale.
                     'type' => $type->value,
+                    'type_label' => $type->label(),
                     'channel' => $channel->value,
+                    'channel_label' => $channel->label(),
                     'enabled' => $this->allows($type, $channel, $overrides),
                     'silenceable' => $this->isSilenceable($type, $channel),
                 ];

@@ -330,6 +330,10 @@ class SettingService implements SettingServiceInterface
                 ? ($setting->value === null ? null : Setting::SECRET_MASK)
                 : $setting->getTypedValue(),
             'type' => $setting->type->value,
+            // Beside the value, never instead of it (ADR 0030/0031). This payload
+            // is built per request and is not cached, so the label follows the
+            // caller's locale rather than whoever asked first.
+            'type_label' => $setting->type->label(),
             'is_secret' => $setting->is_secret,
             'is_public' => $setting->is_public,
             'description' => $setting->description,
