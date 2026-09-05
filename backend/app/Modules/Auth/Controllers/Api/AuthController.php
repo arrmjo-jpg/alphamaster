@@ -15,6 +15,7 @@ use App\Modules\Auth\Exceptions\TooManyAttemptsException;
 use App\Modules\Auth\Requests\LoginRequest;
 use App\Modules\Auth\Requests\MfaChallengeRequest;
 use App\Modules\Auth\Requests\MfaChallengeSendRequest;
+use App\Modules\Auth\Resources\AuthenticatedUserResource;
 use App\Modules\Auth\Services\AuthService;
 use App\Modules\Auth\Services\LoginThrottle;
 use App\Modules\Core\Controllers\BaseApiController;
@@ -189,14 +190,10 @@ class AuthController extends BaseApiController
         $user = $request->user();
         $token = $user?->currentAccessToken();
 
-        return $this->successResponse([
-            'id' => $user?->id,
-            'name' => $user?->name,
-            'email' => $user?->email,
-            'account_type' => $user?->account_type->value,
-            'is_active' => (bool) $user?->is_active,
-            'abilities' => $token instanceof PersonalAccessToken ? $token->abilities : [],
-        ]);
+        return $this->successResponse(new AuthenticatedUserResource(
+            $user,
+            $token instanceof PersonalAccessToken ? $token->abilities : [],
+        ));
     }
 
     /**
