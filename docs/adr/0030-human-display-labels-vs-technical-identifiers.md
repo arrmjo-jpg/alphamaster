@@ -2,7 +2,7 @@
 
 * **Status**: Accepted
 * **Date**: 2026-09-04
-* **Implementation**: Not started. This record establishes the decision; the work is tracked in ADR 0029.
+* **Implementation**: Partial. Enum labels implemented in Phase 13; permission and role labels outstanding, tracked as item 12 in ADR 0029.
 
 ## Context
 

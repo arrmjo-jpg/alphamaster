@@ -3,7 +3,8 @@
 * **Status**: Accepted
 * **Date**: 2026-09-04
 * **Revised**: 2026-09-05 — `_options` naming fixed for a catalogue that accompanies an existing field
-* **Implementation**: Not started. This record establishes the decision; the work is tracked in ADR 0029.
+* **Revised**: 2026-09-05 — media references: how a variant is asked for and how the one actually served is reported
+* **Implementation**: Implemented in Phase 13 Scope D. The six `present()` methods are gone and every payload named here is produced by an API Resource.
 
 ## Context
 
@@ -60,6 +61,44 @@ Three rules govern all of it:
 2. **A label is always derived from the request locale**, through the chain ADR 0015 defines. The same endpoint returns a different label and an identical value to two clients asking in different languages.
 3. **A label is never an input.** Requests are addressed by identifier. Nothing is looked up, matched, or authorized by its label, because a label is not unique, not stable, and not language-independent.
 
+### Media references name the variant they carry
+
+ADR 0024 decided that a request for a variant an asset does not have is answered with the original, and that the response must state which variant was actually served. That is a presentation question, and this record answers it.
+
+**`url` stays a plain string on the media resource.** `GET /api/v1/media/{id}` is served by `MediaResource`, where `url` is a nullable string meaning the asset itself. Rule 1 above applies to it like anything else: it does not become an object. Phase 13 added `_label` siblings to that resource and split the administrative view into `MediaAdminResource`, which carries no `url` at all — neither change touches the type of this field, and neither is affected by what follows.
+
+**A media reference is how one payload points at a file it does not own** — an image on a content record, `og_image` in SEO metadata (ADR 0032), a logo behind a branding setting (ADR 0018). A reference is an object, and it names the variant it carries:
+
+```json
+{
+  "media_id": "01J...",
+  "url": "https://cdn.example/…",
+  "variant": "original",
+  "requested_variant": "thumbnail"
+}
+```
+
+`variant` is what this URL actually is. `requested_variant` is what was asked for. When they differ, a substitution happened and the consumer can see it without comparing against a request it may no longer hold — which matters because these payloads travel: an SEO document is cached, an admin screen renders a list it fetched earlier, a client stores a response. A consumer that must remember its own question to notice it got a different answer is a consumer that will stop noticing.
+
+Both fields are always present. When no variant was asked for, both name the default, so nothing branches on a key being absent.
+
+Neither field is ever localized. Variant names are technical identifiers under ADR 0030 — `thumbnail` and `og` are contract, not wording — and a screen that needs to say *Thumbnail* in Arabic resolves that label from the identifier through the same mechanism every other label uses. Storage paths and disks continue to appear nowhere, as Phase 10 established.
+
+### Asking for a variant
+
+A caller names a variant by its technical identifier. Names are the contract; dimensions are not, and a caller that asks in pixels is coupling to configuration ADR 0024 reserves the right to change.
+
+Three outcomes, and the first is the one ADR 0024 does not cover:
+
+| Request | Result |
+| :--- | :--- |
+| A name the platform does not define | `422`, `VALIDATION_ERROR`. A caller bug, reported as one. |
+| A defined name, in this asset's set, not yet produced | Original served, `variant` says `original`. |
+| A defined name, not in this asset's set | Original served, `variant` says `original`. |
+
+The first row is a real distinction rather than a formality. Asking for `thumbnial` is a typo in the caller; asking for `thumbnail` on a favicon is a correct request the platform has deliberately chosen not to satisfy. Answering both with the original would erase the difference and let a misspelling look like a working integration forever.
+
+The second and third rows are deliberately indistinguishable in the payload. A consumer can do nothing useful with the difference — both mean *this is the original, use it* — and reporting it would leak internal pipeline state into a contract that has no business carrying it.
 ### The envelope is unchanged
 
 `ApiResponse` keeps `{success, message?, data?, meta?}` and the error shape `{success:false, error:{code, message, details?}}`. `error.code` remains a technical identifier and is never localized (ADR 0015). Resources shape `data`; they do not touch the envelope.
@@ -72,6 +111,13 @@ Three rules govern all of it:
 
 **Localize the label inside the model** as an accessor. Rejected: it puts request-scoped locale state on a model that may be serialised in a queued job, where the request locale is not the recipient's locale — the distinction ADR 0019 already had to make for notifications.
 
+**Report the served variant only when it differs from the request.** Smaller payloads, and the common case says nothing. Rejected: every consumer would branch on whether a key exists, and the absent key is indistinguishable from an older server that never sent it.
+
+**A boolean such as `is_fallback`.** Rejected: it is derived from the two names and carries less — it says a substitution happened without saying what arrived, which is exactly the question a caller needs answered.
+
+**Making `url` an object on the media resource itself.** The tidiest shape on paper. Rejected because it changes the type of a field that already ships, which rule 1 forbids and every current consumer would feel.
+
+**Returning a map of every variant to its URL.** Rejected: a private asset’s URL is signed with a short TTL, so building all of them means minting credentials for files the caller did not ask for and may not be entitled to.
 ## Consequences
 
 One place per module decides what a client sees, so adding a label is one edit rather than six, and a new module has an existing shape to follow instead of a choice to re-make.
