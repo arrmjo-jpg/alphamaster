@@ -33,14 +33,20 @@ class MfaController extends BaseApiController
         $user = $request->user();
         $enabled = $this->mfa->isEnabled($user);
 
+        $confirmed = array_values(array_filter(
+            MfaType::values(),
+            fn (string $type): bool => $this->mfa->hasConfirmedMethod($user, MfaType::from($type))
+        ));
+
+        $available = $this->availableMethods($request);
+
         return $this->successResponse([
             'enabled' => $enabled,
             'satisfies_policy' => $this->mfa->satisfiesPolicy($user),
-            'methods' => array_values(array_filter(
-                MfaType::values(),
-                fn (string $type): bool => $this->mfa->hasConfirmedMethod($user, MfaType::from($type))
-            )),
-            'available_methods' => $this->availableMethods($request),
+            'methods' => $confirmed,
+            'methods_options' => $this->methodOptions($confirmed),
+            'available_methods' => $available,
+            'available_methods_options' => $this->methodOptions($available),
             'recovery_codes_remaining' => $enabled && $this->mfa instanceof MfaManager
                 ? $this->mfa->remainingRecoveryCodes($user)
                 : 0,
@@ -194,5 +200,28 @@ class MfaController extends BaseApiController
                 static fn (MfaType $type): bool => ! $isAdmin || $type->satisfiesAdministratorPolicy()
             )
         ));
+    }
+
+    /**
+     * The catalogue for a list of method values that has already been filtered.
+     *
+     * Built from the list it accompanies rather than from `MfaType::options()`,
+     * which returns every case: an administrator's payload would then offer
+     * `sms_otp`, the one factor ADR 0013 refuses them. Order and membership come
+     * from the source array, so the catalogue cannot drift from the field it
+     * describes (ADR 0031).
+     *
+     * @param  array<int, string>  $values
+     * @return array<int, array{value: string, label: string}>
+     */
+    private function methodOptions(array $values): array
+    {
+        return array_map(
+            static fn (string $value): array => [
+                'value' => $value,
+                'label' => MfaType::from($value)->label(),
+            ],
+            $values
+        );
     }
 }
