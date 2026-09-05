@@ -82,5 +82,21 @@
     "enum.settings.setting_type.json": "Structured Data",
     "enum.settings.setting_type.string": "Text",
     "enum.user.account_type.admin": "Administrator",
-    "enum.user.account_type.user": "User"
+    "enum.user.account_type.user": "User",
+    "permission.integrations.update": "Update integrations",
+    "permission.integrations.view": "View integrations",
+    "permission.media.delete": "Delete media",
+    "permission.media.view": "View media",
+    "permission.notifications.update": "Update notifications",
+    "permission.notifications.view": "View notifications",
+    "permission.permissions.update": "Update permissions",
+    "permission.permissions.view": "View permissions",
+    "permission.roles.update": "Update roles",
+    "permission.roles.view": "View roles",
+    "permission.settings.update": "Update settings",
+    "permission.settings.view": "View settings",
+    "permission.users.create": "Create users",
+    "permission.users.delete": "Delete users",
+    "permission.users.update": "Update users",
+    "permission.users.view": "View users"
 }

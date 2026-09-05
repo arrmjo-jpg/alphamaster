@@ -82,5 +82,21 @@
     "enum.settings.setting_type.json": "بيانات مركّبة",
     "enum.settings.setting_type.string": "نص",
     "enum.user.account_type.admin": "مدير",
-    "enum.user.account_type.user": "مستخدم"
+    "enum.user.account_type.user": "مستخدم",
+    "permission.integrations.update": "تعديل التكاملات",
+    "permission.integrations.view": "عرض التكاملات",
+    "permission.media.delete": "حذف الوسائط",
+    "permission.media.view": "عرض الوسائط",
+    "permission.notifications.update": "تعديل الإشعارات",
+    "permission.notifications.view": "عرض الإشعارات",
+    "permission.permissions.update": "تعديل الصلاحيات",
+    "permission.permissions.view": "عرض الصلاحيات",
+    "permission.roles.update": "تعديل الأدوار",
+    "permission.roles.view": "عرض الأدوار",
+    "permission.settings.update": "تعديل الإعدادات",
+    "permission.settings.view": "عرض الإعدادات",
+    "permission.users.create": "إنشاء المستخدمين",
+    "permission.users.delete": "حذف المستخدمين",
+    "permission.users.update": "تعديل المستخدمين",
+    "permission.users.view": "عرض المستخدمين"
 }

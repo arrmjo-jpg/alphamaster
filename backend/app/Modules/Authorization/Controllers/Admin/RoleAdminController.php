@@ -8,6 +8,7 @@ use App\Modules\Authorization\Contracts\AdminRbacContract;
 use App\Modules\Authorization\Models\Permission;
 use App\Modules\Authorization\Models\Role;
 use App\Modules\Authorization\Requests\RoleRequest;
+use App\Modules\Authorization\Resources\PermissionResource;
 use App\Modules\Authorization\Resources\RoleResource;
 use App\Modules\Core\Controllers\BaseApiController;
 use Illuminate\Http\JsonResponse;
@@ -69,12 +70,15 @@ class RoleAdminController extends BaseApiController
      */
     public function permissions(): JsonResponse
     {
+        // The module grouping is unchanged; each entry gains its label beside the
+        // identifier rather than replacing it, so an administrator choosing
+        // permissions reads words instead of `users.update` (ADR 0030/0031).
         $grouped = Permission::query()
             ->orderBy('module')
             ->orderBy('name')
             ->get()
             ->groupBy('module')
-            ->map(fn ($permissions) => $permissions->pluck('name')->all())
+            ->map(fn ($permissions) => PermissionResource::collection($permissions)->resolve())
             ->all();
 
         return $this->successResponse($grouped);
