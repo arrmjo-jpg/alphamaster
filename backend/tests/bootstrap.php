@@ -47,6 +47,39 @@ $writeEnv = static function (string $key, string $value): void {
     $_SERVER[$key] = $value;
 };
 
+/*
+|--------------------------------------------------------------------------
+| Redis Isolation
+|--------------------------------------------------------------------------
+|
+| The same override applies to CACHE_STORE, QUEUE_CONNECTION and SESSION_DRIVER:
+| the container exports all three as `redis`, so phpunit.xml's `array` loses and
+| a test run shares the development Redis. That is not merely untidy. The cache
+| store's flush() empties the whole logical database, so a single test calling
+| Cache::flush() wiped every development cache entry; a dispatched job landed on
+| the queue Horizon is watching, to be executed for real against development
+| data.
+|
+| Running against a real Redis is deliberate (ADR 0027) — the rate limiter and
+| the localization cache are only meaningfully covered there — so the fix is the
+| same as for the database: keep the real service and point the run at its own
+| logical databases. Redis provides sixteen; development uses 0 and 1.
+|
+| This runs before the SQLite check below, because a SQLite run inside the
+| container still reaches Redis for its cache.
+|
+| The indexes belong to a run's configuration, not to a process: two suites
+| running at the same time still share them, and because flush() empties the
+| whole database one will empty the other's cache mid-test. The gate runs its
+| suites in sequence, so this only bites someone running a second suite by hand
+| alongside the first — which is what REDIS_TEST_DB and REDIS_TEST_CACHE_DB are
+| for.
+|
+*/
+
+$writeEnv('REDIS_DB', $readEnv('REDIS_TEST_DB', '10'));
+$writeEnv('REDIS_CACHE_DB', $readEnv('REDIS_TEST_CACHE_DB', '11'));
+
 $connection = $readEnv('DB_CONNECTION', 'sqlite');
 
 // SQLite runs use the in-memory database configured in phpunit.xml and have nothing
