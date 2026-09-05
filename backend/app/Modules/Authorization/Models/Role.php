@@ -6,6 +6,7 @@ namespace App\Modules\Authorization\Models;
 
 use App\Modules\Core\Concerns\HasTranslations;
 use Illuminate\Support\Str;
+use RuntimeException;
 use Spatie\Permission\Models\Role as SpatieRole;
 
 /**
@@ -24,6 +25,27 @@ class Role extends SpatieRole
         'name',
         'guard_name',
     ];
+
+    /**
+     * The identifier is generated once and never changes.
+     *
+     * Enforced here rather than only in the request, so no path — a service, a
+     * console command, a future controller — can rename a role that permissions
+     * and assignments already reference by name. Renaming is what the label is
+     * for.
+     */
+    protected static function booted(): void
+    {
+        static::updating(function (self $role): void {
+            if ($role->isDirty('name')) {
+                throw new RuntimeException(sprintf(
+                    'A role identifier is immutable; [%s] cannot become [%s]. Change its label instead.',
+                    (string) $role->getOriginal('name'),
+                    (string) $role->name
+                ));
+            }
+        });
+    }
 
     public function translationModel(): string
     {

@@ -18,6 +18,7 @@
     "api.error.auth.mfa_phone_required": "يلزم رقم هاتف لتفعيل رموز التحقق عبر الرسائل النصية.",
     "api.error.auth.too_many_attempts": "عدد المحاولات كبير. أعد المحاولة بعد :seconds ثانية.",
     "api.error.authorization.not_an_admin": "الحساب [:id] ليس حساب مدير ولا يمكن أن يحمل أدوارًا أو صلاحيات إدارية.",
+    "api.error.authorization.role_identifier_unavailable": "تعذّر توليد معرّف صالح لاسم الدور هذا.",
     "api.error.forbidden": "هذا الإجراء غير مصرّح به.",
     "api.error.http_error": "حدث خطأ أثناء معالجة الطلب.",
     "api.error.integration.provider_inactive": "لا يمكن جعل مزوّد غير نشط هو المزوّد الافتراضي.",
