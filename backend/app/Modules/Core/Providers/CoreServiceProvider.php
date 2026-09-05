@@ -61,8 +61,11 @@ class CoreServiceProvider extends ServiceProvider
      * The bucket is the class, never the URI. `/media/{id}` therefore cannot
      * create one bucket per resource, which would let a caller with many ids
      * spend an unbounded total.
+     *
+     * Public so a test that rebuilds the limiter singleton can re-register the
+     * definitions without also re-registering routes.
      */
-    protected function registerRateLimiters(): void
+    public function registerRateLimiters(): void
     {
         $policy = $this->app->make(RateLimitPolicy::class);
 
