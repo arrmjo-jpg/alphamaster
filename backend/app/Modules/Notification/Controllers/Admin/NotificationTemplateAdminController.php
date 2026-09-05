@@ -7,6 +7,7 @@ namespace App\Modules\Notification\Controllers\Admin;
 use App\Modules\Core\Controllers\BaseApiController;
 use App\Modules\Notification\Models\NotificationTemplate;
 use App\Modules\Notification\Requests\UpdateNotificationTemplateRequest;
+use App\Modules\Notification\Resources\NotificationTemplateResource;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 
@@ -21,10 +22,9 @@ class NotificationTemplateAdminController extends BaseApiController
             ->with('translations')
             ->orderBy('type')
             ->get()
-            ->map(fn (NotificationTemplate $t): array => $this->present($t))
             ->all();
 
-        return $this->successResponse($templates);
+        return $this->successResponse(NotificationTemplateResource::collection($templates));
     }
 
     /**
@@ -32,7 +32,7 @@ class NotificationTemplateAdminController extends BaseApiController
      */
     public function show(NotificationTemplate $template): JsonResponse
     {
-        return $this->successResponse($this->present($template->loadMissing('translations')));
+        return $this->successResponse(new NotificationTemplateResource($template->loadMissing('translations')));
     }
 
     /**
@@ -57,29 +57,8 @@ class NotificationTemplateAdminController extends BaseApiController
         });
 
         return $this->successResponse(
-            $this->present($template->refresh()->loadMissing('translations')),
+            new NotificationTemplateResource($template->refresh()->loadMissing('translations')),
             'Template updated.'
         );
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function present(NotificationTemplate $template): array
-    {
-        return [
-            'id' => $template->id,
-            'type' => $template->type->value,
-            'is_active' => $template->is_active,
-            'translations' => $template->translations
-                ->map(fn ($t): array => [
-                    'locale' => $t->locale,
-                    'subject' => $t->subject,
-                    'body' => $t->body,
-                ])
-                ->values()
-                ->all(),
-            'updated_at' => $template->updated_at?->toIso8601String(),
-        ];
     }
 }

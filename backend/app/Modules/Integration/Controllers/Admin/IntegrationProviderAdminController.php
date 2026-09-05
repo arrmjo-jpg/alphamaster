@@ -8,6 +8,7 @@ use App\Modules\Core\Controllers\BaseApiController;
 use App\Modules\Integration\Models\IntegrationProvider;
 use App\Modules\Integration\Models\IntegrationUsageLog;
 use App\Modules\Integration\Requests\UpdateIntegrationProviderRequest;
+use App\Modules\Integration\Resources\IntegrationProviderResource;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 
@@ -19,13 +20,13 @@ class IntegrationProviderAdminController extends BaseApiController
     public function index(): JsonResponse
     {
         return $this->successResponse(
-            IntegrationProvider::query()
-                ->orderBy('capability')
-                ->orderByDesc('is_default')
-                ->orderBy('priority')
-                ->get()
-                ->map(fn (IntegrationProvider $p): array => $this->present($p))
-                ->all()
+            IntegrationProviderResource::collection(
+                IntegrationProvider::query()
+                    ->orderBy('capability')
+                    ->orderByDesc('is_default')
+                    ->orderBy('priority')
+                    ->get()
+            )
         );
     }
 
@@ -53,7 +54,7 @@ class IntegrationProviderAdminController extends BaseApiController
 
             $provider->save();
 
-            return $this->successResponse($this->present($provider->refresh()), 'Provider updated.');
+            return $this->successResponse(new IntegrationProviderResource($provider->refresh()), 'Provider updated.');
         });
     }
 
@@ -84,7 +85,7 @@ class IntegrationProviderAdminController extends BaseApiController
             $provider->forceFill(['is_default' => true])->save();
         });
 
-        return $this->successResponse($this->present($provider->refresh()), 'Default provider updated.');
+        return $this->successResponse(new IntegrationProviderResource($provider->refresh()), 'Default provider updated.');
     }
 
     /**
@@ -110,29 +111,5 @@ class IntegrationProviderAdminController extends BaseApiController
             ->all();
 
         return $this->successResponse($logs);
-    }
-
-    /**
-     * Provider representation.
-     *
-     * Credentials are reported only as present or absent. The values never leave the
-     * server once stored, so a compromised admin session cannot read them back.
-     *
-     * @return array<string, mixed>
-     */
-    private function present(IntegrationProvider $provider): array
-    {
-        return [
-            'id' => $provider->id,
-            'capability' => $provider->capability->value,
-            'driver' => $provider->driver,
-            'label' => $provider->label,
-            'settings' => $provider->settings,
-            'has_credentials' => $provider->hasCredentials(),
-            'is_active' => $provider->is_active,
-            'is_default' => $provider->is_default,
-            'priority' => $provider->priority,
-            'updated_at' => $provider->updated_at?->toIso8601String(),
-        ];
     }
 }

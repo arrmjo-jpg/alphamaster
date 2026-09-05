@@ -10,6 +10,7 @@ use App\Modules\Core\Controllers\BaseApiController;
 use App\Modules\User\Contracts\AccountTypeManagerContract;
 use App\Modules\User\Models\User;
 use App\Modules\User\Requests\SyncUserRolesRequest;
+use App\Modules\User\Resources\UserResource;
 use Illuminate\Http\JsonResponse;
 
 class UserAdminController extends BaseApiController
@@ -31,7 +32,7 @@ class UserAdminController extends BaseApiController
             ->with(['roles.permissions', 'permissions'])
             ->orderBy('email')
             ->get()
-            ->map(fn (User $user): array => $this->present($user))
+            ->map(fn (User $user): UserResource => $this->resource($user))
             ->all();
 
         return $this->successResponse($users);
@@ -42,7 +43,7 @@ class UserAdminController extends BaseApiController
      */
     public function show(User $user): JsonResponse
     {
-        return $this->successResponse($this->present($user));
+        return $this->successResponse($this->resource($user));
     }
 
     /**
@@ -54,7 +55,7 @@ class UserAdminController extends BaseApiController
     public function promote(User $user): JsonResponse
     {
         return $this->successResponse(
-            $this->present($this->accountTypes->promote($user)),
+            $this->resource($this->accountTypes->promote($user)),
             'Account promoted to administrator. Existing sessions were revoked and MFA enrolment is required at next sign-in.'
         );
     }
@@ -65,7 +66,7 @@ class UserAdminController extends BaseApiController
     public function demote(User $user): JsonResponse
     {
         return $this->successResponse(
-            $this->present($this->accountTypes->demote($user)),
+            $this->resource($this->accountTypes->demote($user)),
             'Account demoted. Existing sessions were revoked and admin roles were removed.'
         );
     }
@@ -86,29 +87,25 @@ class UserAdminController extends BaseApiController
             return $this->errorResponse('NOT_AN_ADMIN_ACCOUNT', $e->translationKey(), null, 422, $e->translationParameters());
         }
 
-        return $this->successResponse($this->present($user->refresh()), 'Roles updated.');
+        return $this->successResponse($this->resource($user->refresh()), 'Roles updated.');
     }
 
     /**
      * Account representation for the admin API.
      *
-     * Roles and permissions read as empty for a regular account even if rows existed,
-     * because they are resolved through the boundary rather than off the model.
-     *
-     * @return array<string, mixed>
+     * Roles and permissions are resolved here rather than inside the Resource:
+     * they come from the Authorization boundary, which reports them as empty for
+     * a regular account even if rows existed, and crossing that boundary is the
+     * application layer's job rather than presentation's.
      */
-    private function present(User $user): array
+    private function resource(User $user): UserResource
     {
         $user->loadMissing(['roles.permissions', 'permissions']);
 
-        return [
-            'id' => $user->id,
-            'name' => $user->name,
-            'email' => $user->email,
-            'account_type' => $user->account_type->value,
-            'is_active' => $user->is_active,
-            'roles' => $this->rbac->rolesFor($user),
-            'permissions' => $this->rbac->permissionsFor($user),
-        ];
+        return new UserResource(
+            $user,
+            $this->rbac->rolesFor($user),
+            $this->rbac->permissionsFor($user),
+        );
     }
 }

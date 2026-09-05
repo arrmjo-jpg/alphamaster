@@ -11,6 +11,7 @@ use App\Modules\Media\Enums\MediaVisibility;
 use App\Modules\Media\Exceptions\MediaValidationException;
 use App\Modules\Media\Models\MediaFile;
 use App\Modules\Media\Requests\StoreMediaRequest;
+use App\Modules\Media\Resources\MediaResource;
 use App\Modules\Media\Services\MediaAccessResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -52,7 +53,7 @@ class MediaController extends BaseApiController
         }
 
         return $this->successResponse(
-            $this->present($media, $request->user()),
+            new MediaResource($media, $this->media->urlFor($media, $request->user())),
             'The file was accepted and is being processed.',
             201
         );
@@ -70,7 +71,7 @@ class MediaController extends BaseApiController
             return $this->errorResponse('NOT_FOUND', 'api.error.model_not_found', null, 404);
         }
 
-        return $this->successResponse($this->present($media, $request->user()));
+        return $this->successResponse(new MediaResource($media, $this->media->urlFor($media, $request->user())));
     }
 
     /**
@@ -81,34 +82,5 @@ class MediaController extends BaseApiController
     {
         return $media->uploaded_by !== null
             && $request->user()?->id === $media->uploaded_by;
-    }
-
-    /**
-     * The public shape of a media record.
-     *
-     * Disk and path are absent by construction: the model hides them, and the URL is
-     * resolved rather than exposed, so a response never describes the storage layout.
-     *
-     * @return array<string, mixed>
-     */
-    private function present(MediaFile $media, ?object $viewer): array
-    {
-        return [
-            'id' => $media->id,
-            'collection' => $media->collection,
-            'original_filename' => $media->original_filename,
-            'mime_type' => $media->mime_type,
-            'type' => $media->type->value,
-            'size_bytes' => $media->size_bytes,
-            'checksum' => $media->checksum,
-            'visibility' => $media->visibility->value,
-            'status' => $media->status->value,
-            'scan_status' => $media->scan_status->value,
-            'width' => $media->width,
-            'height' => $media->height,
-            'duration_seconds' => $media->duration_seconds,
-            'url' => $this->media->urlFor($media, $viewer),
-            'created_at' => $media->created_at?->toIso8601String(),
-        ];
     }
 }

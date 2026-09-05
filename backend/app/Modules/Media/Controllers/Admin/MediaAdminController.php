@@ -7,6 +7,7 @@ namespace App\Modules\Media\Controllers\Admin;
 use App\Modules\Core\Controllers\BaseApiController;
 use App\Modules\Media\Contracts\MediaServiceContract;
 use App\Modules\Media\Models\MediaFile;
+use App\Modules\Media\Resources\MediaAdminResource;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -39,7 +40,7 @@ class MediaAdminController extends BaseApiController
         }
 
         return $this->paginatedResponse($query->paginate(25)->through(
-            fn (MediaFile $file): array => $this->present($file)
+            fn (MediaFile $file): MediaAdminResource => new MediaAdminResource($file)
         ));
     }
 
@@ -48,7 +49,7 @@ class MediaAdminController extends BaseApiController
      */
     public function show(MediaFile $media): JsonResponse
     {
-        return $this->successResponse($this->present($media->loadMissing('uploader')));
+        return $this->successResponse(new MediaAdminResource($media->loadMissing('uploader')));
     }
 
     /**
@@ -63,34 +64,5 @@ class MediaAdminController extends BaseApiController
             null,
             'The media was removed. Stored files are purged by the retention job.'
         );
-    }
-
-    /**
-     * Administrative view of a record.
-     *
-     * Includes the uploader and the failure reason, which an ordinary caller has no
-     * need for, but still not the disk or the storage path.
-     *
-     * @return array<string, mixed>
-     */
-    private function present(MediaFile $media): array
-    {
-        return [
-            'id' => $media->id,
-            'collection' => $media->collection,
-            'original_filename' => $media->original_filename,
-            'mime_type' => $media->mime_type,
-            'type' => $media->type->value,
-            'size_bytes' => $media->size_bytes,
-            'checksum' => $media->checksum,
-            'visibility' => $media->visibility->value,
-            'status' => $media->status->value,
-            'scan_status' => $media->scan_status->value,
-            'failure_reason' => $media->failure_reason,
-            'attachable_type' => $media->attachable_type,
-            'attachable_id' => $media->attachable_id,
-            'uploaded_by' => $media->uploader?->email,
-            'created_at' => $media->created_at?->toIso8601String(),
-        ];
     }
 }
