@@ -98,5 +98,9 @@
     "permission.users.create": "إنشاء المستخدمين",
     "permission.users.delete": "حذف المستخدمين",
     "permission.users.update": "تعديل المستخدمين",
-    "permission.users.view": "عرض المستخدمين"
+    "permission.users.view": "عرض المستخدمين",
+    "role.administrator": "مدير",
+    "role.editor": "محرر",
+    "role.super_admin": "مدير عام",
+    "role.support": "الدعم"
 }

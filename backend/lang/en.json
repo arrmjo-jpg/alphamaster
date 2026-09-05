@@ -98,5 +98,9 @@
     "permission.users.create": "Create users",
     "permission.users.delete": "Delete users",
     "permission.users.update": "Update users",
-    "permission.users.view": "View users"
+    "permission.users.view": "View users",
+    "role.administrator": "Administrator",
+    "role.editor": "Editor",
+    "role.super_admin": "Super Administrator",
+    "role.support": "Support"
 }
