@@ -38,6 +38,7 @@
     "api.error.server_error": "حدث خطأ غير متوقع في الخادم.",
     "api.error.settings.group_not_found": "مجموعة الإعدادات [:group] غير موجودة.",
     "api.error.settings.unknown_key": "الإعداد [:group.:key] غير موجود. لا يمكن تحديث إعداد غير معروف.",
+    "api.error.too_many_attempts": "عدد الطلبات كبير. أعد المحاولة بعد :seconds ثانية.",
     "api.error.unauthenticated": "يلزم تسجيل الدخول للوصول إلى هذا المورد.",
     "api.error.validation_failed": "البيانات المُرسلة غير صالحة.",
     "api.language.activated": "تم تفعيل اللغة بنجاح.",

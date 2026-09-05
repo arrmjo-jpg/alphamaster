@@ -38,6 +38,7 @@
     "api.error.server_error": "An unexpected server error occurred.",
     "api.error.settings.group_not_found": "Settings group [:group] does not exist.",
     "api.error.settings.unknown_key": "Setting [:group.:key] does not exist. Cannot update an unknown setting.",
+    "api.error.too_many_attempts": "Too many requests. Please retry in :seconds seconds.",
     "api.error.unauthenticated": "Authentication is required to access this resource.",
     "api.error.validation_failed": "The given data was invalid.",
     "api.language.activated": "Language activated successfully.",
