@@ -42,6 +42,7 @@
     "api.error.settings.mail_test_failed": "تعذّر إرسال الرسالة الاختبارية بالإعدادات الحالية.",
     "api.error.settings.permission_required": "تعديل :setting يتطلب صلاحية :permission.",
     "api.error.settings.precondition_required": "يجب أن يحدد هذا الطلب نسخة المجموعة التي يعدّلها. أعد قراءة المجموعة وأرسل نسختها.",
+    "api.error.settings.revision_not_found": "النسخة [:revision] لا تنتمي إلى مجموعة الإعدادات [:group].",
     "api.error.settings.unknown_key": "الإعداد [:group.:key] غير موجود. لا يمكن تحديث إعداد غير معروف.",
     "api.error.settings.version_conflict": "تغيّرت هذه الإعدادات بعد تحميلها. راجع القيم الحالية ثم أعد المحاولة.",
     "api.error.too_many_attempts": "عدد الطلبات كبير. أعد المحاولة بعد :seconds ثانية.",
@@ -53,6 +54,7 @@
     "api.language.deactivated": "تم إلغاء تفعيل اللغة بنجاح.",
     "api.language.default_updated": "تم تحديث اللغة الافتراضية بنجاح.",
     "api.language.updated": "تم تحديث اللغة بنجاح.",
+    "api.settings.group_rolled_back": "تمت استعادة إعدادات المجموعة [:group] إلى حالة سابقة.",
     "api.settings.group_updated": "تم تحديث إعدادات المجموعة [:group] بنجاح.",
     "api.settings.mail_test_sent": "تم إرسال رسالة اختبارية.",
     "enum.auth.mfa_type.sms_otp": "رمز عبر رسالة نصية",
@@ -104,6 +106,7 @@
     "permission.permissions.view": "عرض الصلاحيات",
     "permission.roles.update": "تعديل الأدوار",
     "permission.roles.view": "عرض الأدوار",
+    "permission.settings.rollback": "استرجاع الإعدادات",
     "permission.settings.secrets.manage": "إدارة الأسرار",
     "permission.settings.security.update": "تعديل إعدادات الأمان",
     "permission.settings.update": "تعديل الإعدادات",
@@ -115,5 +118,11 @@
     "role.administrator": "مدير",
     "role.editor": "محرر",
     "role.super_admin": "مدير عام",
-    "role.support": "الدعم"
+    "role.support": "الدعم",
+    "settings.rollback.skipped.dependency_unsatisfied": "استعادتها ستُفعّل ميزة لم يعد شرطها المسبق متوفراً.",
+    "settings.rollback.skipped.invalid_today": "القيمة المخزَّنة لم تعد تحقق قواعد هذا الإعداد الحالية.",
+    "settings.rollback.skipped.not_editable": "لا يمكن تغيير هذا الإعداد عبر واجهة الإدارة.",
+    "settings.rollback.skipped.secret": "هذا سر مخزَّن. لا يوجد له سجل يمكن الاستعادة منه، ويجب إدخاله من جديد.",
+    "settings.rollback.skipped.type_changed": "القيمة المخزَّنة لم تعد تتوافق مع نوع هذا الإعداد الحالي.",
+    "settings.rollback.skipped.undeclared": "لم يعد هذا الإعداد معرَّفاً في المنصة."
 }
