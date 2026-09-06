@@ -37,3 +37,8 @@ This directory maintains the architectural decision records for the **alphamaste
 | [0031](0031-unified-api-presentation-contract.md) | Unified API Presentation Contract | Accepted |
 | [0032](0032-seo-foundation-contracts.md) | SEO Foundation Contracts | Accepted |
 | [0033](0033-foundation-versus-project-specific-boundary.md) | Foundation versus Project-Specific Boundary | Accepted |
+| [0034](0034-single-tenant-deployment-model.md) | Single-Tenant Deployment Model | Accepted |
+| [0035](0035-centralized-application-cache-architecture.md) | Centralized Application Cache Architecture | Accepted |
+| [0036](0036-http-cache-semantics-and-the-cdn-boundary.md) | HTTP Cache Semantics and the CDN Boundary | Accepted |
+| [0037](0037-administrative-audit-trail.md) | Administrative Audit Trail | Accepted |
+| [0038](0038-configuration-concurrency-and-atomicity.md) | Configuration Concurrency and Atomicity | Accepted |

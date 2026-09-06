@@ -4,6 +4,7 @@
 * **Date**: 2026-09-03
 * **Revised**: 2026-09-03 — aligned with the implemented Phase 4 contract
 * **Revised**: 2026-09-04 — extended after the foundation gap audit: setting classification, localized values, branding, mail, and site content settings
+* **Revised**: 2026-09-06 — a definition registry supersedes seeder provisioning; single-tenancy recorded in ADR 0034 removes scope from this engine
 
 ## Context
 
@@ -156,6 +157,64 @@ mail.from_address  mail.from_name     mail.reply_to
 ### Implementation status
 
 Everything in this extension is decided and **none of it is implemented**. The existing engine, encryption, caching and public API are unchanged and remain as described above. Tracked in ADR 0029.
+
+## Extension — 2026-09-06: the definition registry supersedes seeder provisioning
+
+This section changes a decision the original record made, rather than adding to it. It is written here, above the text it supersedes rather than over it, so the two remain comparable.
+
+### What is superseded, and what is not
+
+The Administration paragraph above says:
+
+> Settings are provisioned by migrations and seeders; the admin API updates existing settings but never creates them, so an unknown group or key is a `404` rather than a validation error.
+
+**The first clause is superseded. The second is reaffirmed.**
+
+Provisioning by seeder is replaced by a **definition registry**. The admin API still updates existing settings and still never creates them, and an unknown group or key is still a `404` — that half is not weakened, and it is what keeps an arbitrary key from minting a row or a cache entry.
+
+### Why the seeder is no longer the right place
+
+The engine has one definition of a setting spread across four places. Its `type`, `is_secret` and `is_public` live as columns on a seeder row. Its validation lives partly in `UpdateGroupSettingsRequest` and partly in `SettingType`'s strict conversion. Its label and help text are headed for the language catalogues under ADR 0030. Its default is indistinguishable from its current value, because the seeder writes one into the other.
+
+The 2026-09-04 extension above adds three more attributes to that spread — the technical/localized/secret classification, `is_localized`, and a media-typed value — which is what turned a tolerable scatter into a reason to decide.
+
+Nothing can answer *what settings exist and what are the rules for each* without reading all four. A future administrative interface needs exactly that answer, and so does a typed client.
+
+### The decision
+
+**A definition registry is the sole declaration of what a setting is.** Key, group, type, default, classification, `is_secret`, `is_public`, `is_localized`, validation, and the permission required to change it are declared once, in code, in one place.
+
+**An idempotent synchroniser materialises the rows.** Definitions do not read themselves into the database. One command creates rows that are missing and updates the declared attributes of rows that exist, and it may be run repeatedly with the same result. Values are not part of a definition: the synchroniser writes a value only when creating a row that has none, and never overwrites a value an operator has configured.
+
+**Per-setting seeder declarations are removed once the registry is authoritative.** This is the point of the decision. Two declaration sources would be worse than the one imperfect source there is today, so the seeder entries go rather than being left as a second opinion.
+
+### Schema migrations and definition provisioning are different things
+
+They are separated deliberately, and the registry does not blur them.
+
+A **schema migration** changes the shape of the `settings` table or its constraints — adding `is_localized`, creating `setting_translations`, adding an invariant. It is versioned, ordered, runs once, and belongs in `Database/Migrations` exactly as it does today.
+
+**Definition provisioning** decides which settings exist and what their rules are. It is declarative, unordered, converges rather than accumulates, and is re-run whenever definitions change.
+
+Conflating them is how a platform ends up needing a migration to add a setting. The invariants ADR 0027 requires at engine level — that a secret is never public, that `type` holds a known `SettingType` — remain database constraints written by migrations, because they must survive a raw query-builder write and the registry cannot enforce them.
+
+### Removed definitions are orphans, never deletions
+
+The synchroniser **never deletes a settings row** because its definition disappeared from the registry.
+
+A definition can vanish for reasons that have nothing to do with intent: a bad merge, a module removed from a build, a refactor that renamed a key without migrating it, a branch deployed out of order. Every one of those would, under a deleting synchroniser, silently destroy configured production values — and the more valuable the setting, the more likely it was configured rather than left at its default.
+
+So a row whose definition no longer exists is **reported as an orphan** and left exactly as it is. The operator decides whether it is obsolete, and removing it is an explicit act.
+
+**A configured secret is never destroyed because a definition was removed.** This is the same rule, stated separately because it is the case with no recovery: a deleted encrypted credential cannot be reconstructed from anything the platform still holds, and the operator who would notice is the one who finds an integration broken later. An orphaned secret is reported like any other orphan, and its ciphertext is left untouched — never logged, never decrypted, and never included in the report in any form beyond its key.
+
+### Not implemented
+
+Everything in this section is decided and none of it is built. It is scoped to Phase 16A and tracked in ADR 0029.
+
+### Scope, after ADR 0034
+
+The 2026-09-04 extension and this one both describe a settings engine with **no tenant dimension**. ADR 0034 records that AlphaMaster is single-tenant, so a definition declares no scope, there is no override table, and the effective value of a setting is the stored value once validated and cast. Nothing in this record should be read as leaving room for a workspace scope to be added quietly; adding one means superseding ADR 0034 first.
 
 ## Consequences
 
