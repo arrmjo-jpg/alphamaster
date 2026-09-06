@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Modules\Authorization\Database\Seeders\AdminPermissionSeeder;
 use App\Modules\Settings\Contracts\SettingServiceInterface;
 use App\Modules\Settings\Database\Seeders\SettingSeeder;
 use App\Modules\Settings\Models\Setting;
@@ -12,6 +13,7 @@ uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
     $this->seed(SettingSeeder::class);
+    $this->seed(AdminPermissionSeeder::class);
 });
 
 test('public settings index returns only public settings without metadata leakage', function (): void {
@@ -114,7 +116,7 @@ test('admin with admin:access can list all settings with secrets properly masked
     app(SettingServiceInterface::class)
         ->set('security', 'api_secret_key', 'provisioned-secret');
 
-    $response = $this->withToken(adminToken())->getJson('/api/v1/admin/settings');
+    $response = $this->withToken(adminToken(roles: ['administrator']))->getJson('/api/v1/admin/settings');
 
     $response->assertOk();
     $response->assertJsonPath('success', true);
@@ -129,14 +131,14 @@ test('admin with admin:access can list all settings with secrets properly masked
 });
 
 test('admin settings show returns 404 for an unknown group', function (): void {
-    $this->withToken(adminToken())
+    $this->withToken(adminToken(roles: ['administrator']))
         ->getJson('/api/v1/admin/settings/no_such_group')
         ->assertStatus(404)
         ->assertJsonPath('error.code', 'SETTING_GROUP_NOT_FOUND');
 });
 
 test('admin can batch update settings within a group atomically', function (): void {
-    $response = $this->withToken(adminToken())->putJson('/api/v1/admin/settings/general', [
+    $response = $this->withToken(adminToken(roles: ['administrator']))->putJson('/api/v1/admin/settings/general', [
         'settings' => [
             'site_name' => 'New Platform Name',
             'maintenance_mode' => true,
@@ -160,7 +162,7 @@ test('admin can batch update settings within a group atomically', function (): v
 });
 
 test('admin batch update rejects invalid type casting strictly', function (): void {
-    $this->withToken(adminToken())
+    $this->withToken(adminToken(roles: ['administrator']))
         ->putJson('/api/v1/admin/settings/auth', [
             'settings' => ['password_min_length' => 'not-an-int'],
         ])
@@ -171,7 +173,7 @@ test('admin batch update rejects invalid type casting strictly', function (): vo
 });
 
 test('admin batch update rejects an array for a string setting instead of storing "Array"', function (): void {
-    $this->withToken(adminToken())
+    $this->withToken(adminToken(roles: ['administrator']))
         ->putJson('/api/v1/admin/settings/general', [
             'settings' => ['site_name' => ['nested' => 'payload']],
         ])
@@ -182,7 +184,7 @@ test('admin batch update rejects an array for a string setting instead of storin
 });
 
 test('admin batch update reports an unknown key as 404 rather than an invalid value', function (): void {
-    $this->withToken(adminToken())
+    $this->withToken(adminToken(roles: ['administrator']))
         ->putJson('/api/v1/admin/settings/general', [
             'settings' => ['no_such_key' => 'value'],
         ])
@@ -191,7 +193,7 @@ test('admin batch update reports an unknown key as 404 rather than an invalid va
 });
 
 test('admin batch update reports an unknown group as 404', function (): void {
-    $this->withToken(adminToken())
+    $this->withToken(adminToken(roles: ['administrator']))
         ->putJson('/api/v1/admin/settings/no_such_group', [
             'settings' => ['anything' => 'value'],
         ])
@@ -200,7 +202,7 @@ test('admin batch update reports an unknown group as 404', function (): void {
 });
 
 test('a batch update that fails partway leaves the whole group untouched', function (): void {
-    $this->withToken(adminToken())
+    $this->withToken(adminToken(roles: ['administrator']))
         ->putJson('/api/v1/admin/settings/general', [
             'settings' => [
                 'site_name' => 'Committed Before Failure',

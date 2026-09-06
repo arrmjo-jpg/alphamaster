@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use App\Modules\Auth\Enums\TokenAbility;
+use App\Modules\Authorization\Contracts\AdminRbacContract;
+use App\Modules\Authorization\Database\Seeders\AdminPermissionSeeder;
 use App\Modules\Settings\Database\Seeders\SettingSeeder;
 use App\Modules\User\Enums\AccountType;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -18,6 +20,8 @@ beforeEach(function (): void {
     Cache::flush();
     $this->seed(SettingSeeder::class);
 
+    $this->seed(AdminPermissionSeeder::class);
+
     $this->admin = makeAccount([
         'name' => 'Mandatory Admin',
         'email' => 'mandatory@example.com',
@@ -25,6 +29,11 @@ beforeEach(function (): void {
         'account_type' => AccountType::ADMIN,
         'is_active' => true,
     ]);
+
+    // These tests probe an admin endpoint to show the perimeter admitted the token.
+    // The endpoint also requires a permission, so the admin holds one — otherwise a
+    // refusal at the authorization stage would read as a perimeter failure.
+    app(AdminRbacContract::class)->syncRoles($this->admin, ['administrator']);
 });
 
 /**

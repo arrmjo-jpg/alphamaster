@@ -85,7 +85,7 @@ function makeAccount(array $attributes = []): User
  *
  * @param  array<int, string>  $abilities
  */
-function adminToken(array $abilities = ['admin:access'], bool $isAdmin = true): string
+function adminToken(array $abilities = ['admin:access'], bool $isAdmin = true, array $roles = []): string
 {
     static $sequence = 0;
     $sequence++;
@@ -96,6 +96,13 @@ function adminToken(array $abilities = ['admin:access'], bool $isAdmin = true): 
         'password' => bcrypt('secret'),
         'account_type' => $isAdmin ? AccountType::ADMIN : AccountType::USER,
     ]);
+
+    // Roles are opt-in: clearing the admin perimeter and holding a permission are
+    // separate stages, and a helper that granted both would make it impossible to
+    // test the second. A caller passing roles must have seeded the catalogue.
+    if ($roles !== []) {
+        app(AdminRbacContract::class)->syncRoles($admin, $roles);
+    }
 
     return $admin->createToken('test-token', $abilities)->plainTextToken;
 }
