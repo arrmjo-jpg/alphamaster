@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Settings\Providers;
 
+use App\Modules\Core\Contracts\RetentionPolicyContract;
 use App\Modules\Settings\Console\SynchroniseSettingsCommand;
 use App\Modules\Settings\Contracts\SettingServiceInterface;
 use App\Modules\Settings\Definitions\Catalogues\AuthCatalogue;
@@ -19,6 +20,7 @@ use App\Modules\Settings\Definitions\SettingRegistry;
 use App\Modules\Settings\Secrets\MailPasswordVerifier;
 use App\Modules\Settings\Secrets\SecretVerifierRegistry;
 use App\Modules\Settings\Services\SettingService;
+use App\Modules\Settings\Services\SettingsRetentionPolicy;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 
@@ -37,6 +39,11 @@ class SettingsServiceProvider extends ServiceProvider
 
         // Bind contract to singleton implementation
         $this->app->singleton(SettingServiceInterface::class, SettingService::class);
+
+        // Core asks how long the trail is kept and may not depend on Settings to find
+        // out (ADR 0037). Settings owns the answer, so Settings binds it — the same
+        // direction LocaleResolverInterface already runs in.
+        $this->app->singleton(RetentionPolicyContract::class, SettingsRetentionPolicy::class);
 
         // The registry is a singleton because it is the catalogue, not a query: it is
         // populated once at boot and read many times per request.

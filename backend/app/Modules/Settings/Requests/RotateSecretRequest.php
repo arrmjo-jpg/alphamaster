@@ -29,6 +29,10 @@ class RotateSecretRequest extends FormRequest
     }
 
     /**
+     * The rules are also chosen so that none of their messages interpolates the value
+     * itself: `required`, `string`, `min` and `max` each report the constraint and never
+     * the input, so a rejected credential is not echoed back in the response body.
+     *
      * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
@@ -39,22 +43,7 @@ class RotateSecretRequest extends FormRequest
             // and ADR 0038 is explicit that a failed rotation must never leave the
             // field empty — the surest way to honour that is to have no path here that
             // could empty it.
-            'value' => ['required', 'string', 'min:1', 'max:'.self::MAX_BYTES],
+            'credential' => ['required', 'string', 'min:1', 'max:'.self::MAX_BYTES],
         ];
-    }
-
-    /**
-     * Name the field for a human without naming what is in it.
-     *
-     * The rules above are chosen so that none of their messages interpolate the value
-     * itself — `required`, `string`, `min` and `max` all report the constraint and not
-     * the input. That is the actual protection; this only makes the resulting message
-     * read as something other than "value".
-     *
-     * @return array<string, string>
-     */
-    public function attributes(): array
-    {
-        return ['value' => 'credential'];
     }
 }

@@ -210,6 +210,7 @@ return [
     'attributes' => [
         'code' => 'الرمز',
         'collection' => 'المجموعة',
+        'credential' => 'بيانات الاعتماد',
         'credentials' => 'بيانات الاعتماد',
         'direction' => 'الاتجاه',
         'email' => 'البريد الإلكتروني',

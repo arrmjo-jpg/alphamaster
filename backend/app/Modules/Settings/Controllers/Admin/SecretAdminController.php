@@ -43,7 +43,7 @@ class SecretAdminController extends BaseApiController
     public function rotate(RotateSecretRequest $request, string $group, string $key): JsonResponse
     {
         /** @var string $candidate */
-        $candidate = $request->validated()['value'];
+        $candidate = $request->validated()['credential'];
 
         $precondition = $this->assertPrecondition($request, $group);
 

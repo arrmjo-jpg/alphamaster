@@ -368,9 +368,9 @@ test('every key this scope introduced exists in both dictionaries', function ():
         )
     ));
 
-    // 30 through Phase 15; Phase 16A added the two precondition messages, and
-    // Phase 16B-2 the unknown-revision one.
-    expect($keys)->toHaveCount(36);
+    // 30 through Phase 15; Phase 16A added the two precondition messages,
+    // Phase 16B-2 the unknown-revision one, and Phase 16B-3 the failed-verification one.
+    expect($keys)->toHaveCount(37);
 
     foreach ($keys as $key) {
         expect($ar)->toHaveKey($key)

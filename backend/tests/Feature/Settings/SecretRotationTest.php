@@ -43,7 +43,7 @@ function rotate(mixed $test, string $group, string $key, string $value = CANDIDA
 
     return $test->withToken($token)
         ->withHeader('If-Match', '"'.$ifMatch.'"')
-        ->postJson('/api/v1/admin/settings/'.$group.'/secrets/'.$key.'/rotate', ['value' => $value]);
+        ->postJson('/api/v1/admin/settings/'.$group.'/secrets/'.$key.'/rotate', ['credential' => $value]);
 }
 
 /**
@@ -238,7 +238,7 @@ test('the trail distinguishes a confirmed rotation from an unconfirmed one', fun
 
 test('a rotation without a precondition is refused', function (): void {
     $this->withToken(adminToken(roles: ['super_admin']))
-        ->postJson('/api/v1/admin/settings/security/secrets/api_secret_key/rotate', ['value' => CANDIDATE])
+        ->postJson('/api/v1/admin/settings/security/secrets/api_secret_key/rotate', ['credential' => CANDIDATE])
         ->assertStatus(428);
 
     expect(storedCipher('security', 'api_secret_key'))->toBeNull();
@@ -286,6 +286,6 @@ test('the seeded administrator cannot rotate a credential', function (): void {
 });
 
 test('the rotation endpoint is behind the admin perimeter', function (): void {
-    $this->postJson('/api/v1/admin/settings/security/secrets/api_secret_key/rotate', ['value' => CANDIDATE])
+    $this->postJson('/api/v1/admin/settings/security/secrets/api_secret_key/rotate', ['credential' => CANDIDATE])
         ->assertStatus(401);
 });

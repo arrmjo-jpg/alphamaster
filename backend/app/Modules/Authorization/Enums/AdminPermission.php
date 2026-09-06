@@ -44,6 +44,17 @@ enum AdminPermission: string
      */
     case AUDIT_VIEW = 'audit.view';
 
+    /**
+     * Run an archival operation (ADR 0037, as extended).
+     *
+     * Reading the trail and removing from it are different powers, and holding the
+     * first is not a reason to hold the second — the accounts most interested in
+     * removal are the ones being recorded. Held by super_admin only, because
+     * super_admin holds every permission explicitly by design; no other seeded role
+     * carries it.
+     */
+    case AUDIT_MANAGE = 'audit.manage';
+
     case ROLES_VIEW = 'roles.view';
     case ROLES_UPDATE = 'roles.update';
 
@@ -69,7 +80,7 @@ enum AdminPermission: string
             self::SETTINGS_VIEW, self::SETTINGS_UPDATE,
             self::SETTINGS_ROLLBACK, self::SETTINGS_SECURITY_UPDATE,
             self::SETTINGS_SECRETS_MANAGE => 'settings',
-            self::AUDIT_VIEW => 'core',
+            self::AUDIT_VIEW, self::AUDIT_MANAGE => 'core',
             self::ROLES_VIEW, self::ROLES_UPDATE,
             self::PERMISSIONS_VIEW, self::PERMISSIONS_UPDATE => 'authorization',
             self::INTEGRATIONS_VIEW, self::INTEGRATIONS_UPDATE => 'integration',

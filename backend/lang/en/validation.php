@@ -210,6 +210,7 @@ return [
     'attributes' => [
         'code' => 'Code',
         'collection' => 'Collection',
+        'credential' => 'Credential',
         'credentials' => 'Credentials',
         'direction' => 'Direction',
         'email' => 'Email Address',
