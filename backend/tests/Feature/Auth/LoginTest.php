@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use App\Modules\Auth\Enums\TokenAbility;
+use App\Modules\Authorization\Contracts\AdminRbacContract;
+use App\Modules\Authorization\Database\Seeders\AdminPermissionSeeder;
 use App\Modules\Settings\Database\Seeders\SettingSeeder;
 use App\Modules\User\Enums\AccountType;
 use App\Modules\User\Models\User;
@@ -18,6 +20,7 @@ beforeEach(function (): void {
     Cache::flush();
 
     $this->seed(SettingSeeder::class);
+    $this->seed(AdminPermissionSeeder::class);
 });
 
 /**
@@ -91,7 +94,11 @@ test('a regular user token is refused at the admin perimeter', function (): void
 });
 
 test('an administrator token is accepted at the admin perimeter', function (): void {
-    makeUser(['email' => 'boss3@example.com', 'account_type' => AccountType::ADMIN]);
+    $admin = makeUser(['email' => 'boss3@example.com', 'account_type' => AccountType::ADMIN]);
+
+    // The probe endpoint requires a permission as well as the perimeter, so the
+    // admin holds one; without it a 403 here would not distinguish the two stages.
+    app(AdminRbacContract::class)->syncRoles($admin, ['administrator']);
 
     $token = signInAdminWithMfa($this, 'boss3@example.com', 'correct-horse-battery')['token'];
 

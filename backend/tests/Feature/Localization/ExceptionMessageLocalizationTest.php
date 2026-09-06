@@ -9,6 +9,7 @@ use App\Modules\Auth\Exceptions\MfaDeliveryException;
 use App\Modules\Auth\Exceptions\MfaEnrolmentException;
 use App\Modules\Auth\Exceptions\MfaSecretDecryptionException;
 use App\Modules\Auth\Exceptions\TooManyAttemptsException;
+use App\Modules\Authorization\Database\Seeders\AdminPermissionSeeder;
 use App\Modules\Authorization\Exceptions\NotAnAdminAccountException;
 use App\Modules\Core\Contracts\LocalizableException;
 use App\Modules\Integration\Enums\IntegrationCapability;
@@ -33,6 +34,7 @@ beforeEach(function (): void {
     Cache::flush();
 
     $this->seed(LanguageSeeder::class);
+    $this->seed(AdminPermissionSeeder::class);
 });
 
 /**
@@ -297,7 +299,7 @@ test('a suspended account is told so in its own language', function (): void {
 });
 
 test('a settings group error carries its group name in Arabic', function (): void {
-    $response = $this->withHeaders(['Authorization' => 'Bearer '.adminToken(), 'X-Locale' => 'ar'])
+    $response = $this->withHeaders(['Authorization' => 'Bearer '.adminToken(roles: ['administrator']), 'X-Locale' => 'ar'])
         ->getJson('/api/v1/admin/settings/no_such_group');
 
     expect($response->status())->toBe(404)

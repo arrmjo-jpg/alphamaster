@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Modules\Authorization\Database\Seeders\AdminPermissionSeeder;
 use App\Modules\Settings\Contracts\SettingServiceInterface;
 use App\Modules\Settings\Database\Seeders\SettingSeeder;
 use App\Modules\Settings\Enums\SettingType;
@@ -13,8 +14,9 @@ uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
     $this->seed(SettingSeeder::class);
+    $this->seed(AdminPermissionSeeder::class);
     $this->service = app(SettingServiceInterface::class);
-    $this->token = adminToken();
+    $this->token = adminToken(roles: ['administrator']);
 });
 
 /**

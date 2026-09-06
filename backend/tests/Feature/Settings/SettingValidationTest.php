@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Modules\Authorization\Database\Seeders\AdminPermissionSeeder;
 use App\Modules\Settings\Database\Seeders\SettingSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Testing\TestResponse;
@@ -10,7 +11,8 @@ uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
     $this->seed(SettingSeeder::class);
-    $this->token = adminToken();
+    $this->seed(AdminPermissionSeeder::class);
+    $this->token = adminToken(roles: ['administrator']);
 });
 
 /**
