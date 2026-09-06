@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Modules\Settings\Contracts;
 
 use App\Modules\Settings\Exceptions\SettingGroupNotFoundException;
+use App\Modules\Settings\Exceptions\UnknownRevisionException;
+use App\Modules\Settings\Rollback\RollbackPlan;
 
 interface SettingServiceInterface
 {
@@ -83,6 +85,25 @@ interface SettingServiceInterface
     public function groupHistory(string $group, ?string $key = null, int $limit = 100): array;
 
     public function groupVersion(string $group): string;
+
+    /**
+     * Decide what rolling a group back to a point in its history would do (ADR 0040).
+     *
+     * Writes nothing. The target names a revision rather than a version, because a
+     * version counts writes to a single row and a group has one counter per setting.
+     *
+     * @throws SettingGroupNotFoundException
+     * @throws UnknownRevisionException when the target is unknown or belongs elsewhere
+     */
+    public function planRollback(string $group, string $revisionId): RollbackPlan;
+
+    /**
+     * Apply a plan, transactionally, as a new change rather than a rewrite (ADR 0040).
+     *
+     * Takes the plan it was given rather than recomputing one, because the caller
+     * authorized that plan and re-deriving it would apply something nobody approved.
+     */
+    public function applyRollback(RollbackPlan $plan): void;
 
     public function clearCache(?string $group = null): void;
 }
