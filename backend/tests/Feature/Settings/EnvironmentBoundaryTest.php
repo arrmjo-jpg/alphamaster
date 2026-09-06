@@ -134,16 +134,36 @@ test('a warm cache answers a settings read even with the database gone', functio
 });
 
 test('a settings read has no catch that could substitute a default for the source', function (): void {
-    // Asserted against the source rather than by simulating an outage: RefreshDatabase
-    // holds the test inside its own transaction on an already-resolved connection, so
-    // a "database is gone" this test could stage would not be one the read actually
-    // meets. What is checkable, and is the property that matters, is that the read
-    // path contains nothing that turns a database failure into a value.
-    //
-    // Fail-open belongs to the cache (ADR 0035). The database is the source of truth,
-    // and a silent default in its place would let a security setting read as whatever
-    // the caller passed — a safe default must never stand in for a security-critical
-    // value.
+    /*
+     * KNOWN LIMITATION — this is a source-level assertion, not a live outage.
+     *
+     * The property being defended is real: fail-open belongs to the cache (ADR 0035)
+     * and never to the source. A silent default standing in for the database would
+     * let a security setting read as whatever the caller passed as a fallback.
+     *
+     * Two attempts were made to assert it against a genuinely unreachable database,
+     * and both were abandoned for concrete reasons rather than difficulty:
+     *
+     *   1. Under RefreshDatabase the test runs inside an open transaction on an
+     *      already-resolved connection, so a severed connection is not one the read
+     *      meets. That version passed while proving nothing.
+     *
+     *   2. Under DatabaseMigrations there is no wrapping transaction and the outage is
+     *      real — but the trait rolls every migration back on teardown, and
+     *      `widen_setting_type_constraint` deliberately refuses to narrow the type
+     *      constraint while rows still use `url`, `email` or `media`. That refusal is
+     *      correct and protects real data; weakening it to make a test tear down would
+     *      be trading a production guarantee for a green check.
+     *
+     * A third option — seeding committed rows with no trait — was rejected because the
+     * residue would be visible to every other test in the run.
+     *
+     * So the assertion is narrower than the property: it proves the read path contains
+     * nothing that could swallow a database failure, which is the mechanism by which
+     * the property could be lost. It would not catch a caller that wrapped a read in
+     * its own try/catch. Revisit if the test harness gains a way to isolate a
+     * connection without a full rollback.
+     */
     $source = (string) file_get_contents(
         app_path('Modules/Settings/Services/SettingService.php')
     );
