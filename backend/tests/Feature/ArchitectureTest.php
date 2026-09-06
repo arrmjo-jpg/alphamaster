@@ -12,6 +12,10 @@ arch('Core module never depends on application domain modules')
         'App\Modules\Integration',
         'App\Modules\Notification',
         'App\Modules\Media',
+        // Added in Phase 16B-6. Authorization is a domain module and was absent
+        // from every one of these lists, so the rule stating that a module
+        // depends on no domain module did not in fact cover one of them.
+        'App\Modules\Authorization',
     ]);
 
 arch('Core controllers extend BaseApiController')
@@ -41,6 +45,7 @@ arch('Localization module only depends on Core and Framework')
         'App\Modules\Integration',
         'App\Modules\Notification',
         'App\Modules\Media',
+        'App\Modules\Authorization',
     ]);
 
 arch('Settings controllers extend BaseApiController')
@@ -61,6 +66,7 @@ arch('Settings module only depends on Core and Framework')
         'App\Modules\Integration',
         'App\Modules\Notification',
         'App\Modules\Media',
+        'App\Modules\Authorization',
     ]);
 
 arch('Auth controllers extend BaseApiController')

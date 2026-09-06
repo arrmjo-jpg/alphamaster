@@ -94,7 +94,7 @@ test('the retention setting describes eligibility and never triggers a run', fun
     // Shortening the window makes more records *eligible* and moves none of them.
     // Only an operator's request does that (ADR 0037): a setting that could cause a
     // removal would be a scheduled cleanup wearing a configuration field's clothes.
-    app(SettingServiceInterface::class)->set('operations', 'audit_retention_days', 1);
+    app(SettingServiceInterface::class)->set('operations', 'audit_retention_days', 30);
 
     expect(app(AuditArchivist::class)->eligible(1)->get()->pluck('subject'))->toContain('aged')
         ->and(AuditRecord::query()->where('subject', 'aged')->exists())->toBeTrue()

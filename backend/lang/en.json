@@ -52,6 +52,7 @@
     "api.error.settings.revision_not_found": "Revision [:revision] does not belong to the [:group] settings group.",
     "api.error.settings.secret_verification_failed": "The new credential was not accepted, so nothing was changed.",
     "api.error.settings.unknown_key": "Setting [:group.:key] does not exist. Cannot update an unknown setting.",
+    "api.error.settings.value_rejected": "That value is not allowed by the setting’s own rules.",
     "api.error.settings.version_conflict": "These settings changed since you loaded them. Review the current values and try again.",
     "api.error.too_many_attempts": "Too many requests. Please retry in :seconds seconds.",
     "api.error.unauthenticated": "Authentication is required to access this resource.",

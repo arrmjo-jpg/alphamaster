@@ -8,6 +8,7 @@ use App\Modules\Settings\Database\Seeders\SettingSeeder;
 use App\Modules\Settings\Models\Setting;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 uses(RefreshDatabase::class);
 
@@ -111,8 +112,17 @@ test('a changed multiplier moves every per-IP ceiling', function (): void {
 test('a zero or negative limit falls back to the default', function (): void {
     // Zero would reject every request; a negative one is meaningless. Neither is
     // a limit an operator can set by accident and then not understand.
+    // Planted directly rather than written through the service, which refuses them
+    // now that declared rules are enforced (Phase 16B-6). The policy's fallback still
+    // matters: it is what stands between a value that arrived some other way — a
+    // restore under an older declaration, a hand-edited row — and an endpoint that
+    // rejects every request.
     foreach ([0, -1] as $bad) {
-        $this->settings->set('rate_limit', 'write_per_minute', $bad);
+        DB::table('settings')
+            ->where('group', 'rate_limit')->where('key', 'write_per_minute')
+            ->update(['value' => (string) $bad]);
+
+        app(SettingServiceInterface::class)->clearCache();
 
         expect($this->policy->maxAttempts(RateLimitPolicy::WRITE))->toBe(30, 'value '.$bad);
     }

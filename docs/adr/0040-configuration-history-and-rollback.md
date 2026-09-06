@@ -2,7 +2,7 @@
 
 * **Status**: Accepted
 * **Date**: 2026-09-06
-* **Extended**: 2026-09-07 — declared validation rules were never enforced on any write path; rollback enforces them, ordinary writes still do not
+* **Extended**: 2026-09-07 — declared validation rules were never enforced on any write path; rollback enforced them first, and the ordinary write path followed in Phase 16B-6
 
 ## Context
 
@@ -125,6 +125,35 @@ deliberately not resolved in the same change:
 The gap is open and belongs to the security-hardening slice, not to this one. Until it
 closes, the difference is stated in `SettingService::violatesDeclaredRules` so the next
 reader meets it in the code as well as in this record.
+
+### Closed — Phase 16B-6
+
+The ordinary write path now enforces them too, so the inconsistency above no longer
+exists. Three writers — an update, a rollback and a configuration restore — share one
+`DefinitionValidator`, because three copies of a validation rule are three chances for
+one of them to be the lenient one.
+
+The audit this record asked for was done before enforcement was switched on, and is kept
+as two permanent tests: every declared default, and every value the seeder provisions,
+must satisfy its own rules. A rule that has never run has never been proven to accept the
+values already stored under it, and discovering otherwise on an operator's next save
+looks like the platform breaking rather than like a declaration being wrong.
+
+Three existing behaviours were examined and deliberately left alone:
+
+* **`nullable` is still not enforced.** Null is an explicit unset throughout this engine,
+  `serializeValue` treats it that way, and tests assert a non-nullable setting can be
+  cleared. Enforcing it is a behaviour change in its own right and not a consequence of
+  running the declared rules.
+* **A secret is not rule-checked.** Its stored form is ciphertext; applying rules to the
+  plaintext would mean holding it in order to do so.
+* **A refused write still fails the whole batch**, as it already did for an unknown key
+  or an unrepresentable type.
+
+What changed for a caller: a value inside its type and outside its declaration is now a
+`422` naming the setting and the rule, where it was previously accepted. Two values in
+the platform's own tests turned out to be exactly that, and both were writing what the
+declaration forbids — one of them to set a retention window of a single day.
 
 ## Alternatives considered
 

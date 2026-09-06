@@ -3,6 +3,7 @@
 * **Status**: Accepted
 * **Date**: 2026-09-06
 * **Revised**: 2026-09-06 — retention settled: archival, as the single permitted removal path
+* **Built**: 2026-09-07 — Phase 16B-4 implements the archival operation, its permission, and the trail's first read endpoint
 
 ## Context
 

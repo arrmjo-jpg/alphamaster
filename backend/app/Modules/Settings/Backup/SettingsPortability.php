@@ -6,6 +6,7 @@ namespace App\Modules\Settings\Backup;
 
 use App\Modules\Core\Backup\RestoreReport;
 use App\Modules\Core\Contracts\ConfigurationPortabilityContract;
+use App\Modules\Settings\Definitions\DefinitionValidator;
 use App\Modules\Settings\Definitions\SettingDefinition;
 use App\Modules\Settings\Definitions\SettingRegistry;
 use App\Modules\Settings\Definitions\SettingSynchronizer;
@@ -28,6 +29,7 @@ class SettingsPortability implements ConfigurationPortabilityContract
     public function __construct(
         private readonly SettingRegistry $registry,
         private readonly SettingSynchronizer $synchronizer,
+        private readonly DefinitionValidator $validator,
     ) {}
 
     public function section(): string
@@ -184,14 +186,17 @@ class SettingsPortability implements ConfigurationPortabilityContract
         }
 
         try {
-            Setting::castValue($value, $definition->type);
+            $typed = Setting::castValue($value, $definition->type);
         } catch (InvalidArgumentException) {
             // A value that no longer fits its declared type is reported and skipped,
             // never coerced. A coerced restore is a corruption nobody notices.
             return 'type_changed';
         }
 
-        return null;
+        // And the rules, as of Phase 16B-6. ADR 0039 asked only for the type, which was
+        // the strongest check available when it was written; leaving it there now would
+        // let a restore install a value the ordinary write path refuses.
+        return $this->validator->violates($definition, $typed) ? 'invalid_today' : null;
     }
 
     /**

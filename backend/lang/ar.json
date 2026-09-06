@@ -52,6 +52,7 @@
     "api.error.settings.revision_not_found": "النسخة [:revision] لا تنتمي إلى مجموعة الإعدادات [:group].",
     "api.error.settings.secret_verification_failed": "لم يتم قبول بيانات الاعتماد الجديدة، ولم يُغيَّر أي شيء.",
     "api.error.settings.unknown_key": "الإعداد [:group.:key] غير موجود. لا يمكن تحديث إعداد غير معروف.",
+    "api.error.settings.value_rejected": "هذه القيمة لا تسمح بها قواعد الإعداد نفسه.",
     "api.error.settings.version_conflict": "تغيّرت هذه الإعدادات بعد تحميلها. راجع القيم الحالية ثم أعد المحاولة.",
     "api.error.too_many_attempts": "عدد الطلبات كبير. أعد المحاولة بعد :seconds ثانية.",
     "api.error.unauthenticated": "يلزم تسجيل الدخول للوصول إلى هذا المورد.",
