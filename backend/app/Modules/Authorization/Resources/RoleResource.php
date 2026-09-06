@@ -22,7 +22,11 @@ class RoleResource extends JsonResource
     {
         return [
             'id' => $this->resource->id,
+            // `name` is the immutable machine identifier and does not move.
+            // `name_label` sits beside it (ADR 0031) so a client never has to
+            // infer a human label from the identifier.
             'name' => $this->resource->name,
+            'name_label' => $this->resource->displayLabel(),
             'permissions' => $this->resource->permissions->pluck('name')->all(),
         ];
     }

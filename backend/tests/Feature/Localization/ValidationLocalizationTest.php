@@ -114,6 +114,7 @@ test('every custom key resolves in both locales and never leaks a raw key', func
     $keys = [
         'validation.custom.phone.regex',
         'validation.custom.name.regex',
+        'validation.custom.label.unusable',
         'validation.custom.permissions.*.in',
         'validation.custom.collection.regex',
         'validation.custom.file.max',
@@ -123,7 +124,7 @@ test('every custom key resolves in both locales and never leaks a raw key', func
         'validation.custom.settings.max',
     ];
 
-    expect($keys)->toHaveCount(9);
+    expect($keys)->toHaveCount(10);
 
     foreach (['en', 'ar'] as $locale) {
         app()->setLocale($locale);
@@ -269,7 +270,9 @@ test('all fourteen FormRequests still validate', function (): void {
 test('the five requests with custom messages still declare them', function (): void {
     $expected = [
         'MfaEnrolRequest.php' => 1,
-        'RoleRequest.php' => 2,
+        // RoleRequest declares one here; its second custom message belongs to a
+        // closure rule and is asserted separately below.
+        'RoleRequest.php' => 1,
         'StoreMediaRequest.php' => 2,
         'UpdateNotificationTemplateRequest.php' => 1,
         'UpdateGroupSettingsRequest.php' => 3,
@@ -292,6 +295,12 @@ test('the five requests with custom messages still declare them', function (): v
     ksort($expected);
 
     expect($found)->toBe($expected);
+
+    // The role label rule cannot express itself through messages(), because a
+    // closure rule names its own message. It is still a custom key and still has
+    // to resolve, so it is checked here rather than going uncounted.
+    expect((string) file_get_contents(app_path('Modules/Authorization/Requests/RoleRequest.php')))
+        ->toContain("__('validation.custom.label.unusable')");
 });
 
 test('custom messages and attributes are complete in both locales', function (): void {

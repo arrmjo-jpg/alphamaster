@@ -4,6 +4,7 @@
 * **Date**: 2026-09-03
 * **Revised**: 2026-09-03 — permission key format fixed at two segments; admin-only scope recorded
 * **Revised**: 2026-09-04 — display labels for permissions and roles added after the foundation gap audit
+* **Revised**: 2026-09-06 — implementation status reconciled with Phase 15; the labelled-array part of the decision recorded as still open
 
 ## Context
 
@@ -88,6 +89,12 @@ A label is never an input to authorization: nothing is granted, revoked or evalu
 ### Implementation status
 
 Decided here; **not implemented**. `role_translations` does not exist, `RoleRequest` still requires a hand-typed identifier, and no permission labels exist. Tracked in ADR 0029.
+
+*Updated 2026-09-06.* The paragraph above records the position when this decision was made. Phase 15 built it, and all three of its statements are now out of date.
+
+`role_translations` exists and holds one label per locale, keyed `UNIQUE(role_id, locale)` as ADR 0015 §5 requires. Permission labels live in `lang/{locale}.json` under `permission.*`, which is what ADR 0030 specifies for a code-defined set, and the catalogue endpoint returns `{key, label}` entries — the shape ADR 0031 names for a technical identifier that is itself a structured key. A role's machine identifier is generated from its label by the server, once, and is immutable afterwards; `RoleRequest` accordingly takes `label` and no longer accepts a client-supplied identifier, so the hand-typed key this record described is gone.
+
+**One part of the decision remains open.** `UserResource` still exposes `roles` and `permissions` as arrays of bare identifiers — `["super_admin"]`, `["users.update"]` — which is the display problem ADR 0030 opens with. That is unimplemented rather than overlooked: ADR 0031 defines a `_label` sibling for a single field and a `{value, label}` catalogue entry, with `_options` where a catalogue accompanies an existing field, and neither covers a field that is itself an array of identifiers. No shape is invented here. The decision is tracked as ADR 0029 item 12 and belongs in ADR 0030 and ADR 0031 before anything is built against it.
 
 ## Consequences
 

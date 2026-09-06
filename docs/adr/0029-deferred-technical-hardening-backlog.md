@@ -5,6 +5,8 @@
 * **Revised**: 2026-09-04 — CI added as item 2 after Phase 9; item 2 closed by Phase 11, item 5 closed at level 5 in its follow-up
 * **Revised**: 2026-09-04 — foundation gap audit items added as a second section, separating decision from implementation
 * **Revised**: 2026-09-05 — items 11 and 13 closed by Phase 13, item 12 partially; item 19 recorded from the stranded Phase 12 branch; items 20 and 21 added
+* **Revised**: 2026-09-05 — item 4 closed by Phase 14; items 7, 12, 20 and 21 closed by Phase 15, with items 7 and 21 corrected where they described the problem inaccurately; item 22 added
+* **Revised**: 2026-09-06 — item 12 reopened as partial on API-contract review: the permission catalogue and the role request were corrected to ADR 0031, and the labelled arrays on the user payload were found to have no contract to be built against
 
 ## Context
 
@@ -50,13 +52,17 @@ Every send attempt writes a row, permanently. There is no pruning, retention win
 
 *Closed by*: a retention policy with a scheduled prune, sized against what the usage endpoint and any future reporting actually need.
 
-### 4. Central API rate limiting
+### 4. Central API rate limiting — CLOSED (Phase 14)
 
 ADR 0022 requires composite rate limiting. What exists is endpoint-specific: login, MFA challenge, and MFA delivery are throttled from the Settings module. The `api` middleware group itself has no throttle, so every other endpoint — including the public settings and language endpoints — is unlimited.
 
 *Deferred because*: it belongs in Core as a platform concern, and patching it into whichever module happened to be under review would have put it in the wrong place.
 
 *Closed by*: a Core rate limiter applied to the `api` group, configured through Settings as the auth throttles already are, without weakening the endpoint-specific limits that exist.
+
+*Closed by*: `App\Modules\Core\Middleware\ApplyRateLimit` on the `api` group in PR #18. Limits are read from Settings, as the auth throttles already are, and a request is classed by its resolved route and identified by its authenticated user where there is one. The endpoint-specific limits were left intact and still apply on top.
+
+*Not closed by it*: unauthenticated requests that fail authentication. Laravel's middleware priority hoists `Authenticate` ahead of the `api` group, so a 401 is answered before the limiter runs. That is recorded separately as item 22 rather than left inside a closed entry.
 
 ### 5. No static analysis — CLOSED at level 5 (follow-up to Phase 11)
 
@@ -82,13 +88,17 @@ The Settings module loads its `setting()` helper with `require_once` inside `reg
 
 *Closed by*: a decision on which coupling is preferable, recorded wherever the module structure is described.
 
-### 7. Timestamp type inconsistency
+### 7. Timestamp type inconsistency — CLOSED (Phase 15)
 
 `users`, `settings`, `mfa_methods`, `languages`, `integration_*` and `notification_*` use `timestampsTz`. Spatie's `permissions` and `roles` tables use `timestamps`, because they came from a published vendor migration.
+
+*Correction (Phase 15)*: this entry listed `languages` among the tables that were already correct. It was not — `2026_09_03_000001_create_languages_table` calls `timestamps()`, and the table is ours rather than a vendor's. The item was therefore larger than recorded, and its framing as a vendor-only wart was wrong. Three tables were affected, not two.
 
 *Deferred because*: the two tables carry no time-sensitive logic, and changing a vendor migration to fix a cosmetic inconsistency is a poor trade on its own.
 
 *Closed by*: a migration altering both columns, most sensibly bundled with other work touching those tables.
+
+*Closed by*: one migration per owning module in Phase 15 — Authorization converts `permissions` and `roles`, Localization converts `languages` — each reading existing values as UTC, which is what Eloquent wrote, so no row moves. The conversion was verified in both directions against populated tables. SQLite has no timezone-aware timestamp type, so both builders emit `datetime` there and the migrations are a no-op. The accompanying test asserts the rule across the whole schema rather than for these three tables alone, so a future table cannot reintroduce the gap.
 
 ### 8. Application-level authorization for regular users
 
@@ -130,15 +140,25 @@ This section exists because of a failure mode the audit exposed. Before it, none
 
 *Closed by*: localization applied at the two choke points ADR 0015 names — the `ApiResponse` trait and the exception handlers in `bootstrap/app.php` — plus published validation catalogues per locale, and translated custom FormRequest messages. Not by translating 74 call sites individually.
 
-### 12. Display labels do not exist — PARTIALLY CLOSED (Phase 13)
+### 12. Display labels do not exist — PARTIALLY CLOSED (Phase 15)
 
-*Decision*: ADR 0030, with the RBAC application in ADR 0014. *Implementation*: **partial** — enum labels complete in Phase 13 (PRs #14 and #16); permission and role labels outstanding.
+*Decision*: ADR 0030, with the RBAC application in ADR 0014. *Implementation*: **partial** — enum labels in Phase 13 (PRs #14 and #16), permission and role labels in Phase 15; the labelled arrays on the user payload remain.
 
 Fifteen enums, none with a display method. Raw backed values reach clients: `not_scanned`, `sms_otp`, `security.alert`, `admin`. Permissions and roles reach clients as `users.update` and `super_admin`. `RoleRequest` requires an administrator to type the technical identifier by hand and offers no field for a human name.
 
 *Closed by*: enum and permission labels in `lang/{locale}.json` keyed by identifier; a `role_translations` table; role identifiers generated from the label and immutable thereafter; the paired payload shape of ADR 0031.
 
 *Remaining after Phase 13*: the enum third is done — eleven enums carry a display method, their labels are in both catalogues, and the payload shape ADR 0031 fixes is implemented. Permission labels do not exist (`permission.*` appears zero times in `lang/en.json`), there is no `role_translations` table, and `RoleRequest` still requires the identifier to be typed by hand with no field for a human name.
+
+*Closed by*: Phase 15. Permissions resolve a label from `permission.*` in both catalogues, falling back to a humanised identifier rather than to blank, and the catalogue endpoint returns `{key, label}` entries in place of bare strings while keeping its module grouping. Roles read a label from a `role_translations` table when one exists, then from `role.*` for the built-in roles that a deployment defines in code, then from a humanised identifier — the three sources ADR 0030 distinguishes. `RoleResource` carries `name_label` beside the unchanged `name`, and the request that creates a role names its field `label` — the response's `name` is the machine identifier, so one word could not mean both across the same resource.
+
+The identifier is no longer typed by hand: `RoleIdentifier` derives it from the label once at creation, in the grammar `RoleRequest` already enforced, suffixing `_2`, `_3` on collision so two roles may read alike while staying distinct underneath. It is immutable thereafter, refused on the model rather than only in request validation, because permissions and assignments reference a role by name.
+
+*Remaining after Phase 15*: `UserResource` still exposes `roles` and `permissions` as arrays of raw identifiers — `["super_admin"]`, `["users.update"]` — with no labels beside them. This is the case ADR 0030's own problem statement opens with, so it belongs to this item rather than to a new one.
+
+It was not implemented in Phase 15 because there is no contract to implement it against. ADR 0031 defines two shapes: a `_label` sibling for a single field, and a `{value, label}` catalogue entry, with `_options` where a catalogue accompanies an existing field. Neither covers a field that is itself an array of identifiers the record already holds — it is not one value, and it is not a set the client is choosing from. Inventing a third shape here would reintroduce exactly the presentation drift item 13 closed, and it would do so in the payload every administrative screen reads first.
+
+*Closed by*: a decision recorded in ADR 0030 and ADR 0031 on how a labelled array is presented, and then its application to `UserResource`. The decision comes first; this item stays open until it exists.
 
 ### 13. API presentation has drifted into two styles — CLOSED (Phase 13)
 
@@ -208,9 +228,9 @@ The 83 style warnings the same run reports are unrelated and are not part of thi
 
 *Recorded 2026-09-05.* Scramble was installed and this defect found on a Phase 12 branch that was never merged; the finding existed only in one working copy until now, which is the failure mode this record was created to prevent. Scramble itself is **not** installed on `main`.
 
-### 20. The admin media index has no test for its paginated shape
+### 20. The admin media index has no test for its paginated shape — CLOSED (Phase 15)
 
-*Decision*: none required. *Implementation*: pending.
+*Decision*: none required. *Implementation*: complete in Phase 15.
 
 Phase 13 converted `MediaAdminController::index` to a Resource inside a paginator. The envelope, the `meta.pagination` block and the row shape were verified by hand twice during that phase and match what the controller returned before, but the only automated assertion on that endpoint is that the request succeeds. A change to the paginated envelope would pass CI.
 
@@ -218,26 +238,46 @@ Phase 13 converted `MediaAdminController::index` to a Resource inside a paginato
 
 *Closed by*: a test asserting the top-level keys, the five `meta.pagination` keys, and the admin row field list against the endpoint rather than against the Resource in isolation.
 
-### 21. The development and test environments share Redis
+*Closed by*: `tests/Feature/Media/MediaAdminPaginationTest.php`, which crosses the page boundary with twenty-six records rather than asserting a shape against one. The first page stops at the page size and reports what remains, the second carries only the rest, the two neither overlap nor skip, the newest-first order continues across them, a page past the end is empty rather than an error, and a filter narrows the reported total and not merely the page. Each assertion was checked against a deliberately broken controller before being trusted.
 
-*Decision*: none required. *Implementation*: pending.
+### 21. The development and test environments share Redis — CLOSED (Phase 15)
+
+*Decision*: none required. *Implementation*: complete in Phase 15.
 
 Both use the same Redis database, so a test run leaves entries behind in the cache the development application reads. Observed repeatedly during Phase 13: after a suite run, `localization:languages:active` holds an empty array while the table holds two active languages, and a manual probe of `X-Locale: ar` resolves to `en` until the cache is cleared or its 24-hour TTL expires.
 
 This is an environment concern rather than an application one. The automated tests are unaffected — they flush the cache per test — and the poisoning is invisible until someone probes the running application by hand and is misled by it, which happened more than once.
 
+*Correction (Phase 15)*: the entry understated this in two ways, both established by experiment rather than by reading. First, the per-test flush is not a containment measure but the mechanism of the damage: the Redis cache store's `flush()` empties the entire logical database, so a single test run destroyed every development cache entry rather than leaving stale ones behind. A sentinel key written to the development cache did not survive one filtered test. Second, the sharing was never limited to the cache — the container exports `QUEUE_CONNECTION` and `SESSION_DRIVER` as `redis` too, both on the connection Horizon watches, so a job dispatched by a test could have been executed for real against development data.
+
 *Deferred because*: it belongs to test and container configuration, and Phase 13 was scoped to localization and presentation.
 
 *Closed by*: a separate Redis database index for the test environment, so a suite run cannot reach the development cache.
+
+*Closed by*: `tests/bootstrap.php` in Phase 15, which points a run at its own logical databases before Laravel reads the environment — the same mechanism, and for the same reason, as the database redirection already there. Real Redis is kept, because the rate limiter and the localization cache are only meaningfully covered against it (ADR 0027). `REDIS_TEST_DB` and `REDIS_TEST_CACHE_DB` override the defaults where a caller needs a different index — necessary because the indexes belong to a run's configuration rather than to a process, so two suites started at the same time still share them. The gate runs its suites in sequence; the collision was reproduced by running a filtered suite by hand alongside a full one, and it fails a cache test rather than passing quietly. The same sentinel experiment that demonstrated the loss now survives a test run, and `tests/Feature/Core/RedisIsolationTest.php` asserts the redirection took effect rather than trusting that the bootstrap ran.
+
+### 22. A failed authentication is not rate limited — OPEN
+
+*Decision*: none yet. *Implementation*: not designed.
+
+The central limiter of item 4 is `api`-group middleware, and Laravel's middleware priority hoists `Authenticate` ahead of the group. A request carrying an invalid or expired bearer token is therefore answered 401 before the limiter is reached, so those requests are unlimited. The endpoint-specific throttles do not cover the gap either: they guard login, MFA challenge and MFA delivery, not every authenticated route rejected at the door.
+
+Found while building item 4 and confirmed during its review, where the same priority ordering was verified to be the cause. It was deliberately left out of that phase rather than patched, because the fix is a design question and not a configuration one: a limiter that runs before authentication cannot identify a user, so it has only the address to key on, and choosing what to do with that — and where such a limiter belongs relative to the routing that decides which limits apply — is the decision this item is waiting on.
+
+*Deferred because*: Phase 14 was scoped to the central limiter, and answering this properly means deciding how the platform treats pre-authentication traffic in general, including the requests that match no route at all.
+
+*Closed by*: a decision on pre-authentication limiting, recorded as an ADR, and an implementation that keys on something available before `Authenticate` runs without giving an attacker a way to exhaust a shared bucket on another caller's behalf.
 
 ## Consequences
 
 The backlog is reviewable and survives the conversations that produced it. Each item can be scheduled on its merits rather than resurfacing as a fresh discovery in a later review.
 
-The risk this record carries is the ordinary one for any backlog: that listing an item comes to feel like addressing it. Item 2 closed in Phase 11, which is the shape this list is meant to have: an entry leaves by being built, not by being forgotten. Item 5 closed at level 5 in the phase after Phase 11, which leaves item 4 — unlimited public endpoints — as the entry in Part One most likely to cost something real if it stays deferred indefinitely.
+The risk this record carries is the ordinary one for any backlog: that listing an item comes to feel like addressing it. Item 2 closed in Phase 11, which is the shape this list is meant to have: an entry leaves by being built, not by being forgotten. Item 5 closed at level 5 in the phase after Phase 11, item 4 in Phase 14, and item 7 in Phase 15. Of what remains in Part One, item 3 — an unbounded log table — is now the entry most likely to cost something real if it stays deferred indefinitely.
+
+Two of the closures were larger than this record said they were, and in both cases the discrepancy was found by building the thing rather than by rereading the entry. Item 7 named two vendor tables and turned out to name three tables, one of them ours. Item 21 described stale cache entries and turned out to describe the wholesale destruction of the development cache on every suite run, plus a shared queue nobody had noticed. An entry written at the moment of deferral records what was understood then, and this is the second revision to find that it was less than what was there; the corrections are kept inline rather than rewritten over, so the gap between the two remains visible.
 
 Part Two carries a different risk. Its items are not hardening; they are capabilities the platform presents as working. Item 11 is the sharpest: the API advertises a language in a response header it does not honour in the body, so this is a contract being broken rather than a feature being awaited. Items 11, 12 and 13 are also mutually blocking in one direction — labels need a presentation layer to appear in, and both need localization to resolve against — which makes their order a sequencing decision rather than a free choice.
 
-That sequencing was settled by Phase 13, which took them in the only order that works: localization first, then the presentation layer, then the labels that needed both. Items 11 and 13 closed and item 12 lost its enum third.
+That sequencing was settled by Phase 13, which took them in the only order that works: localization first, then the presentation layer, then the labels that needed both. Items 11 and 13 closed and item 12 lost its enum third; Phase 15 took its permission and role thirds. What is left of item 12 is there because the presentation layer it depends on does not yet answer the question — a labelled array has no shape in ADR 0031 — which is the same dependency in the same direction, surfacing once more at the end rather than at the start.
 
-Item 19 is different again: it is the only entry on this list that no decision of ours can close, which is why it says blocked rather than deferred. Items 20 and 21 are ordinary deferrals of the Part One kind, recorded here rather than in that section only because they were found after it was written.
+Item 19 is different again: it is the only entry on this list that no decision of ours can close, which is why it says blocked rather than deferred. Items 20 and 21 were ordinary deferrals of the Part One kind, recorded here rather than in that section only because they were found after it was written; both closed in Phase 15. Item 22 is the newest entry and the only one on the list that is open rather than deferred: it has no decision behind it yet, and says so.

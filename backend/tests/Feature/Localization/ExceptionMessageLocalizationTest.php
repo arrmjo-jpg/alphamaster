@@ -366,7 +366,7 @@ test('every key this scope introduced exists in both dictionaries', function ():
         )
     ));
 
-    expect($keys)->toHaveCount(29);
+    expect($keys)->toHaveCount(30);
 
     foreach ($keys as $key) {
         expect($ar)->toHaveKey($key)
