@@ -452,10 +452,10 @@ test('the permission catalogue endpoint groups by module', function (): void {
         ->assertOk()
         ->json('data');
 
-    // Each entry is now {name, label} rather than a bare identifier, so the
-    // permission is matched on `name`; the grouping itself is unchanged.
+    // Each entry is now {key, label} rather than a bare identifier, so the
+    // permission is matched on `key`; the grouping itself is unchanged.
     expect($data)->toHaveKeys(['authorization', 'settings', 'user'])
-        ->and(array_column($data['user'], 'name'))->toContain(AdminPermission::USERS_VIEW->value);
+        ->and(array_column($data['user'], 'key'))->toContain(AdminPermission::USERS_VIEW->value);
 });
 
 test('listing users resolves roles for every row without lazy loading', function (): void {

@@ -24,16 +24,18 @@ class RoleRequest extends FormRequest
     public function rules(): array
     {
         return [
-            // `name` is the human label an administrator types. The machine
-            // identifier is derived from it server-side and is immutable
-            // afterwards (ADR 0029 item 12), so this no longer carries the
-            // identifier grammar and no longer has to be unique — two roles may
-            // read the same in a list while remaining distinct underneath.
-            'name' => [
+            // `label` is what an administrator types, and it is named for what it
+            // is: the response's `name` is the machine identifier, so reusing that
+            // word here would give one field two meanings across the same
+            // resource. The identifier is derived from this server-side and is
+            // immutable afterwards (ADR 0029 item 12), so this carries no
+            // identifier grammar and no uniqueness rule — two roles may read the
+            // same in a list while remaining distinct underneath.
+            'label' => [
                 'required', 'string', 'max:100',
                 function (string $attribute, mixed $value, Closure $fail): void {
                     if (! is_string($value) || app(RoleIdentifier::class)->fromLabel($value) === null) {
-                        $fail(__('validation.custom.name.unusable'));
+                        $fail(__('validation.custom.label.unusable'));
                     }
                 },
             ],

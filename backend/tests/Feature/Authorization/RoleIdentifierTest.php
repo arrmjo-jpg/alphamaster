@@ -130,7 +130,7 @@ test('creating a role derives the identifier from the label', function (): void 
     resetClient($this);
     $response = $this->withHeaders(['Authorization' => 'Bearer '.$token])
         ->postJson('/api/v1/admin/roles', [
-            'name' => 'Content Editor',
+            'label' => 'Content Editor',
             'permissions' => ['users.view'],
         ]);
 
@@ -147,7 +147,7 @@ test('a client cannot choose the identifier independently of the label', functio
     resetClient($this);
     $response = $this->withHeaders(['Authorization' => 'Bearer '.$token])
         ->postJson('/api/v1/admin/roles', [
-            'name' => 'Totally Different Label',
+            'label' => 'Totally Different Label',
             'permissions' => [],
         ]);
 
@@ -162,12 +162,12 @@ test('updating a role changes the label and never the identifier', function (): 
 
     resetClient($this);
     $created = $this->withHeaders(['Authorization' => 'Bearer '.$token])
-        ->postJson('/api/v1/admin/roles', ['name' => 'Content Editor', 'permissions' => []])
+        ->postJson('/api/v1/admin/roles', ['label' => 'Content Editor', 'permissions' => []])
         ->assertStatus(201)->json('data');
 
     resetClient($this);
     $updated = $this->withHeaders(['Authorization' => 'Bearer '.$token])
-        ->putJson('/api/v1/admin/roles/'.$created['id'], ['name' => 'Content Lead', 'permissions' => ['users.view']])
+        ->putJson('/api/v1/admin/roles/'.$created['id'], ['label' => 'Content Lead', 'permissions' => ['users.view']])
         ->assertOk()->json('data');
 
     expect($updated['name'])->toBe($created['name'])
@@ -184,7 +184,7 @@ test('two roles created from the same label are distinct', function (): void {
     foreach ([1, 2] as $i) {
         resetClient($this);
         $identifiers[] = $this->withHeaders(['Authorization' => 'Bearer '.$token])
-            ->postJson('/api/v1/admin/roles', ['name' => 'Content Editor', 'permissions' => []])
+            ->postJson('/api/v1/admin/roles', ['label' => 'Content Editor', 'permissions' => []])
             ->assertStatus(201)->json('data.name');
     }
 
@@ -196,13 +196,13 @@ test('a label that yields no identifier is refused through the validation contra
 
     resetClient($this);
     $response = $this->withHeaders(['Authorization' => 'Bearer '.$token])
-        ->postJson('/api/v1/admin/roles', ['name' => '!!!', 'permissions' => []]);
+        ->postJson('/api/v1/admin/roles', ['label' => '!!!', 'permissions' => []]);
 
     $response->assertStatus(422);
 
     expect($response->json('error.code'))->toBe('VALIDATION_ERROR')
-        ->and($response->json('error.details.name.0'))->toBeString()
-        ->and($response->json('error.details.name.0'))->not->toStartWith('validation.');
+        ->and($response->json('error.details.label.0'))->toBeString()
+        ->and($response->json('error.details.label.0'))->not->toStartWith('validation.');
 });
 
 test('the refusal is localized like every other validation message', function (): void {
@@ -210,13 +210,13 @@ test('the refusal is localized like every other validation message', function ()
 
     resetClient($this);
     $arabic = $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Locale' => 'ar'])
-        ->postJson('/api/v1/admin/roles', ['name' => '!!!', 'permissions' => []])
-        ->assertStatus(422)->json('error.details.name.0');
+        ->postJson('/api/v1/admin/roles', ['label' => '!!!', 'permissions' => []])
+        ->assertStatus(422)->json('error.details.label.0');
 
     resetClient($this);
     $english = $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Locale' => 'en'])
-        ->postJson('/api/v1/admin/roles', ['name' => '!!!', 'permissions' => []])
-        ->assertStatus(422)->json('error.details.name.0');
+        ->postJson('/api/v1/admin/roles', ['label' => '!!!', 'permissions' => []])
+        ->assertStatus(422)->json('error.details.label.0');
 
     expect($arabic)->not->toBe($english)
         ->and($arabic)->toContain('معرّف');
@@ -229,8 +229,26 @@ test('a human label with spaces and capitals is accepted where it once was refus
 
     resetClient($this);
     $this->withHeaders(['Authorization' => 'Bearer '.$token])
-        ->postJson('/api/v1/admin/roles', ['name' => 'Regional Support Lead', 'permissions' => []])
+        ->postJson('/api/v1/admin/roles', ['label' => 'Regional Support Lead', 'permissions' => []])
         ->assertStatus(201)
         ->assertJsonPath('data.name', 'regional_support_lead')
         ->assertJsonPath('data.name_label', 'Regional Support Lead');
+});
+
+test('the request names the label, and the old identifier field is not accepted', function (): void {
+    // The break is deliberate and recorded (ADR 0031): the response's `name` is
+    // the machine identifier, so the request cannot use that word for the human
+    // label. A client still sending the old field is told what is missing rather
+    // than having a role created from nothing.
+    $token = adminWithRoles($this, ['super_admin'], 'role-old-field@example.test')['token'];
+
+    resetClient($this);
+    $response = $this->withHeaders(['Authorization' => 'Bearer '.$token])
+        ->postJson('/api/v1/admin/roles', ['name' => 'content_editor', 'permissions' => []]);
+
+    $response->assertStatus(422);
+
+    expect($response->json('error.details'))->toHaveKey('label')
+        ->and($response->json('error.details'))->not->toHaveKey('name')
+        ->and(Role::query()->where('name', 'content_editor')->exists())->toBeFalse();
 });

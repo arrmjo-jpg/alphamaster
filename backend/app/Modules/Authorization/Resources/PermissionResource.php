@@ -12,9 +12,9 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * One entry in the permission catalogue.
  *
  * A catalogue entry whose technical member is itself a structured key is an
- * object of `name` and `label` (ADR 0031). `name` keeps the identifier every
- * client already matches on; `label` is resolved from the request locale each
- * time it is read.
+ * object of `key` and `label` (ADR 0031, which names this case with a permission
+ * as its example). `key` carries the identifier every client matches on; `label`
+ * is resolved from the request locale each time it is read.
  *
  * @property-read Permission $resource
  */
@@ -26,7 +26,7 @@ class PermissionResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'name' => $this->resource->name,
+            'key' => $this->resource->name,
             'label' => $this->resource->displayLabel(),
         ];
     }

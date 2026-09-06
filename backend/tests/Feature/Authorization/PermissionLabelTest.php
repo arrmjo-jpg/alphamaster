@@ -106,9 +106,9 @@ test('the catalogue keeps its module grouping and gains labels', function (): vo
 
     foreach ($data as $module => $entries) {
         foreach ($entries as $entry) {
-            expect(array_keys($entry))->toBe(['name', 'label'], $module.' entry is not {name, label}')
-                ->and($entry['name'])->toBeString()
-                ->and($entry['label'])->not->toBe($entry['name']);
+            expect(array_keys($entry))->toBe(['key', 'label'], $module.' entry is not {key, label}')
+                ->and($entry['key'])->toBeString()
+                ->and($entry['label'])->not->toBe($entry['key']);
         }
     }
 });
@@ -124,7 +124,7 @@ test('the catalogue still lists every permission it listed before', function ():
 
     foreach ($data as $entries) {
         foreach ($entries as $entry) {
-            $names[] = $entry['name'];
+            $names[] = $entry['key'];
         }
     }
 
@@ -146,7 +146,7 @@ test('the catalogue labels follow X-Locale', function (): void {
         $data = $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Locale' => $locale])
             ->getJson('/api/v1/admin/permissions')->assertOk()->json('data');
 
-        $entry = collect($data['user'])->firstWhere('name', 'users.update');
+        $entry = collect($data['user'])->firstWhere('key', 'users.update');
 
         expect($entry)->not->toBeNull();
         $labels[$locale] = $entry['label'];

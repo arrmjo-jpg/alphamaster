@@ -36,7 +36,7 @@ class RoleAdminController extends BaseApiController
      */
     public function store(RoleRequest $request): JsonResponse
     {
-        $label = (string) $request->validated('name');
+        $label = (string) $request->validated('label');
 
         // The identifier is derived from the label once, here, and never again.
         // Validation has already established that the label yields one.
@@ -58,13 +58,13 @@ class RoleAdminController extends BaseApiController
     }
 
     /**
-     * Replace a role's name and permissions.
+     * Replace a role's label and permissions.
      */
     public function update(RoleRequest $request, Role $role): JsonResponse
     {
         // The label changes; the identifier does not. Permissions and assignments
         // reference a role by name, so renaming one would silently detach them.
-        $role->setTranslation(app()->getLocale(), ['label' => (string) $request->validated('name')]);
+        $role->setTranslation(app()->getLocale(), ['label' => (string) $request->validated('label')]);
         $role->syncPermissions($request->validated('permissions'));
 
         return $this->successResponse(new RoleResource($role->refresh()), 'Role updated.');

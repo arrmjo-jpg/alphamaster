@@ -177,8 +177,10 @@ return [
         'phone' => [
             'regex' => 'The phone number must be in international format, for example +15551234567.',
         ],
+        'label' => [
+            'unusable' => 'The role label must contain at least one letter that can be used to build an identifier.',
+        ],
         'name' => [
-            'unusable' => 'The role name must contain at least one letter that can be used to build an identifier.',
             'regex' => 'A role name must be a lowercase identifier, e.g. content_editor.',
         ],
         'permissions' => [

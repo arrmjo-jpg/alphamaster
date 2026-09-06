@@ -114,7 +114,7 @@ test('every custom key resolves in both locales and never leaks a raw key', func
     $keys = [
         'validation.custom.phone.regex',
         'validation.custom.name.regex',
-        'validation.custom.name.unusable',
+        'validation.custom.label.unusable',
         'validation.custom.permissions.*.in',
         'validation.custom.collection.regex',
         'validation.custom.file.max',
@@ -300,7 +300,7 @@ test('the five requests with custom messages still declare them', function (): v
     // closure rule names its own message. It is still a custom key and still has
     // to resolve, so it is checked here rather than going uncounted.
     expect((string) file_get_contents(app_path('Modules/Authorization/Requests/RoleRequest.php')))
-        ->toContain("__('validation.custom.name.unusable')");
+        ->toContain("__('validation.custom.label.unusable')");
 });
 
 test('custom messages and attributes are complete in both locales', function (): void {
