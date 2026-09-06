@@ -43,6 +43,7 @@
     "api.error.settings.permission_required": "Changing :setting requires the :permission permission.",
     "api.error.settings.precondition_required": "This request must state which version of the group it is changing. Read the group again and send its version.",
     "api.error.settings.revision_not_found": "Revision [:revision] does not belong to the [:group] settings group.",
+    "api.error.settings.secret_verification_failed": "The new credential was not accepted, so nothing was changed.",
     "api.error.settings.unknown_key": "Setting [:group.:key] does not exist. Cannot update an unknown setting.",
     "api.error.settings.version_conflict": "These settings changed since you loaded them. Review the current values and try again.",
     "api.error.too_many_attempts": "Too many requests. Please retry in :seconds seconds.",
@@ -57,6 +58,7 @@
     "api.settings.group_rolled_back": "Settings for group [:group] were restored to an earlier state.",
     "api.settings.group_updated": "Settings for group [:group] successfully updated.",
     "api.settings.mail_test_sent": "A test message was sent.",
+    "api.settings.secret_rotated": "The credential for :key was replaced.",
     "enum.auth.mfa_type.sms_otp": "SMS Code",
     "enum.auth.mfa_type.totp": "Authenticator App",
     "enum.integration.integration_capability.sms": "SMS",
@@ -124,5 +126,8 @@
     "settings.rollback.skipped.not_editable": "This setting cannot be changed through the admin API.",
     "settings.rollback.skipped.secret": "This is a credential. It has no history to restore from and must be re-supplied.",
     "settings.rollback.skipped.type_changed": "The stored value no longer fits the type this setting is declared with.",
-    "settings.rollback.skipped.undeclared": "This setting is no longer declared by the platform."
+    "settings.rollback.skipped.undeclared": "This setting is no longer declared by the platform.",
+    "settings.secret.verification.failed": "The service did not accept it.",
+    "settings.secret.verification.unavailable": "Stored without checking — nothing can verify this credential.",
+    "settings.secret.verification.verified": "Confirmed with the service before it was stored."
 }

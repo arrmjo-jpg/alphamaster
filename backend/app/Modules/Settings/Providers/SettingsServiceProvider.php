@@ -16,6 +16,8 @@ use App\Modules\Settings\Definitions\Catalogues\RateLimitCatalogue;
 use App\Modules\Settings\Definitions\Catalogues\SecurityCatalogue;
 use App\Modules\Settings\Definitions\SettingCatalogue;
 use App\Modules\Settings\Definitions\SettingRegistry;
+use App\Modules\Settings\Secrets\MailPasswordVerifier;
+use App\Modules\Settings\Secrets\SecretVerifierRegistry;
 use App\Modules\Settings\Services\SettingService;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
@@ -46,6 +48,18 @@ class SettingsServiceProvider extends ServiceProvider
             }
 
             return $registry;
+        });
+
+        // Which credentials can be checked before they are committed (ADR 0038). A
+        // singleton for the same reason the catalogue is one, and deliberately sparse:
+        // most secrets have nothing to call, and an empty entry here is the expected
+        // case rather than an omission.
+        $this->app->singleton(SecretVerifierRegistry::class, function (): SecretVerifierRegistry {
+            $verifiers = new SecretVerifierRegistry;
+
+            $verifiers->register($this->app->make(MailPasswordVerifier::class));
+
+            return $verifiers;
         });
     }
 

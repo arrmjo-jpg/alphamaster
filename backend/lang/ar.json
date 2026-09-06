@@ -43,6 +43,7 @@
     "api.error.settings.permission_required": "تعديل :setting يتطلب صلاحية :permission.",
     "api.error.settings.precondition_required": "يجب أن يحدد هذا الطلب نسخة المجموعة التي يعدّلها. أعد قراءة المجموعة وأرسل نسختها.",
     "api.error.settings.revision_not_found": "النسخة [:revision] لا تنتمي إلى مجموعة الإعدادات [:group].",
+    "api.error.settings.secret_verification_failed": "لم يتم قبول بيانات الاعتماد الجديدة، ولم يُغيَّر أي شيء.",
     "api.error.settings.unknown_key": "الإعداد [:group.:key] غير موجود. لا يمكن تحديث إعداد غير معروف.",
     "api.error.settings.version_conflict": "تغيّرت هذه الإعدادات بعد تحميلها. راجع القيم الحالية ثم أعد المحاولة.",
     "api.error.too_many_attempts": "عدد الطلبات كبير. أعد المحاولة بعد :seconds ثانية.",
@@ -57,6 +58,7 @@
     "api.settings.group_rolled_back": "تمت استعادة إعدادات المجموعة [:group] إلى حالة سابقة.",
     "api.settings.group_updated": "تم تحديث إعدادات المجموعة [:group] بنجاح.",
     "api.settings.mail_test_sent": "تم إرسال رسالة اختبارية.",
+    "api.settings.secret_rotated": "تم استبدال بيانات الاعتماد الخاصة بـ :key.",
     "enum.auth.mfa_type.sms_otp": "رمز عبر رسالة نصية",
     "enum.auth.mfa_type.totp": "تطبيق المصادقة",
     "enum.integration.integration_capability.sms": "الرسائل النصية",
@@ -124,5 +126,8 @@
     "settings.rollback.skipped.not_editable": "لا يمكن تغيير هذا الإعداد عبر واجهة الإدارة.",
     "settings.rollback.skipped.secret": "هذا سر مخزَّن. لا يوجد له سجل يمكن الاستعادة منه، ويجب إدخاله من جديد.",
     "settings.rollback.skipped.type_changed": "القيمة المخزَّنة لم تعد تتوافق مع نوع هذا الإعداد الحالي.",
-    "settings.rollback.skipped.undeclared": "لم يعد هذا الإعداد معرَّفاً في المنصة."
+    "settings.rollback.skipped.undeclared": "لم يعد هذا الإعداد معرَّفاً في المنصة.",
+    "settings.secret.verification.failed": "لم تقبلها الخدمة.",
+    "settings.secret.verification.unavailable": "خُزّنت دون تحقق — لا توجد وسيلة للتحقق من بيانات الاعتماد هذه.",
+    "settings.secret.verification.verified": "تم التحقق منها لدى الخدمة قبل تخزينها."
 }

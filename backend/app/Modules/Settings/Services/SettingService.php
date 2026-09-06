@@ -314,6 +314,63 @@ class SettingService implements SettingServiceInterface
     }
 
     /**
+     * Replace a stored credential, once something has decided it may be replaced.
+     *
+     * Separate from `updateGroup` because a rotation is a different operation with a
+     * different contract (ADR 0038, as extended): the candidate has already been tried
+     * against the vendor where one exists, and the outcome of that travels into the
+     * audit record so the trail distinguishes a rotation that was confirmed from one
+     * that nobody could confirm.
+     *
+     * What it does not do is decide. The verification is performed before this is
+     * called, by a service that owns verifiers, and a failed one never reaches here —
+     * so there is no branch in the write path that could commit an unverified
+     * credential by taking the wrong turn.
+     *
+     * No revision is written, here or anywhere: a secret has no history by design
+     * (ADR 0040), so a rotated credential is unrecoverable, which is the property that
+     * makes the revision store safe to keep.
+     *
+     * @throws UnknownSettingKeyException when nothing by that name is a secret here
+     */
+    public function rotateSecret(string $group, string $key, string $candidate, string $verification): void
+    {
+        DB::transaction(function () use ($group, $key, $candidate, $verification): void {
+            $setting = Setting::query()->where('group', $group)->where('key', $key)->first();
+
+            if ($setting === null || ! $setting->is_secret) {
+                // A non-secret answers the same way a missing one does. Rotation is
+                // defined for credentials, and telling a caller that some key exists
+                // but is not secret is a fact about the catalogue they can already
+                // read through the definitions endpoint.
+                throw new UnknownSettingKeyException($group, $key);
+            }
+
+            // Whether it held anything before, which is the whole of what the trail is
+            // allowed to know about a credential's previous state.
+            $held = $setting->value !== null;
+
+            $setting->version = $setting->version + 1;
+            $setting->setRawValue($candidate);
+            $setting->save();
+
+            // Key, outcome, and nothing else. No plaintext, no ciphertext, no hash, no
+            // length: a rotation record that carried any of those would be a second
+            // copy of the credential under weaker access control than the settings
+            // table it came from (ADR 0037).
+            $this->audit->succeeded(
+                $held ? AuditAction::SECRET_ROTATED : AuditAction::SECRET_SET,
+                $group.'.'.$key,
+                ['verification' => $verification],
+            );
+
+            DB::afterCommit(function () use ($group): void {
+                $this->clearCache($group);
+            });
+        });
+    }
+
+    /**
      * Decide what rolling a group back to a point in its history would do (ADR 0040).
      *
      * The target is a revision rather than a version number, because `settings.version`
