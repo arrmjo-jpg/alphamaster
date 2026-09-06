@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Settings\Models;
 
+use App\Modules\Core\Concerns\HasTranslations;
 use App\Modules\Core\Models\BaseModel;
 use App\Modules\Settings\Enums\SettingType;
 use App\Modules\Settings\Exceptions\SettingDecryptionException;
@@ -31,6 +32,9 @@ use InvalidArgumentException;
  */
 class Setting extends BaseModel
 {
+    /** @use HasTranslations<SettingTranslation> */
+    use HasTranslations;
+
     /**
      * Placeholder returned instead of a secret value, and accepted on write to mean
      * "leave the stored secret untouched".
@@ -157,17 +161,68 @@ class Setting extends BaseModel
     /**
      * Cast the stored value to its strict typed PHP representation.
      *
+     * For a localized setting this resolves the caller's locale first; see
+     * getLocalizedRawValue for the chain.
+     *
      * @throws SettingDecryptionException
      */
-    public function getTypedValue(): mixed
+    public function getTypedValue(?string $locale = null): mixed
     {
-        $raw = $this->getRawValue();
+        $raw = $this->is_localized
+            ? $this->getLocalizedRawValue($locale)
+            : $this->getRawValue();
 
         if ($raw === null) {
             return null;
         }
 
         return self::castValue($raw, $this->type);
+    }
+
+    /**
+     * The raw value for one locale, falling back the way ADR 0015 defines.
+     *
+     * Requested locale, then the platform default, then any translation that exists,
+     * then the base column. The base column is the last step rather than the first so
+     * that a setting nobody has translated is still readable, and a setting somebody
+     * has translated is never shadowed by the value it was provisioned with.
+     */
+    public function getLocalizedRawValue(?string $locale = null): ?string
+    {
+        $translated = $this->translate('value', $locale);
+
+        if (is_string($translated) && $translated !== '') {
+            return $translated;
+        }
+
+        return $this->getRawValue();
+    }
+
+    /**
+     * Store this setting's value for one locale.
+     *
+     * Only ever reached for a localized setting, which by construction is never a
+     * secret — so nothing written here is encrypted, and nothing here needs to be.
+     */
+    public function setLocalizedValue(string $locale, ?string $value): void
+    {
+        $this->setTranslation($locale, ['value' => $value]);
+    }
+
+    /**
+     * The model holding this setting's per-locale values.
+     */
+    public function translationModel(): string
+    {
+        return SettingTranslation::class;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function translatableAttributes(): array
+    {
+        return ['value'];
     }
 
     /**

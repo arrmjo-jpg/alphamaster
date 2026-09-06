@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Settings\Services;
 
+use App\Modules\Core\Contracts\LocaleResolverInterface;
 use App\Modules\Settings\Contracts\SettingServiceInterface;
 use App\Modules\Settings\Exceptions\SettingGroupNotFoundException;
 use App\Modules\Settings\Exceptions\UnknownSettingKeyException;
@@ -100,8 +101,16 @@ class SettingService implements SettingServiceInterface
                 // serializeValue maps null to null (explicitly unset) and rejects every
                 // value it cannot represent exactly, rather than coercing it.
                 $serialized = Setting::serializeValue($val, $setting->type);
-                $setting->setRawValue($serialized);
-                $setting->save();
+
+                if ($setting->is_localized) {
+                    // A localized write lands in the caller's locale and leaves every
+                    // other language alone. Writing it to the base column instead would
+                    // silently change what every other locale falls back to.
+                    $setting->setLocalizedValue($this->locale(), $serialized);
+                } else {
+                    $setting->setRawValue($serialized);
+                    $setting->save();
+                }
 
                 $updatedValues[$key] = match (true) {
                     $serialized === null => null,
@@ -129,11 +138,13 @@ class SettingService implements SettingServiceInterface
      */
     public function getPublicSettings(): array
     {
-        return Cache::remember(self::CACHE_PREFIX.'public', self::CACHE_TTL, function (): array {
+        $locale = $this->locale();
+
+        return Cache::remember(self::CACHE_PREFIX.'public:'.$locale, self::CACHE_TTL, function () use ($locale): array {
             $result = [];
 
-            foreach ($this->publicQuery()->get() as $record) {
-                $result[$record->group][$record->key] = $record->getTypedValue();
+            foreach ($this->publicQuery()->with('translations')->get() as $record) {
+                $result[$record->group][$record->key] = $record->getTypedValue($locale);
             }
 
             return $result;
@@ -153,11 +164,13 @@ class SettingService implements SettingServiceInterface
             throw new SettingGroupNotFoundException($group);
         }
 
-        return Cache::remember(self::CACHE_PREFIX.'group:'.$group.':public', self::CACHE_TTL, function () use ($group): array {
+        $locale = $this->locale();
+
+        return Cache::remember(self::CACHE_PREFIX.'group:'.$group.':public:'.$locale, self::CACHE_TTL, function () use ($group, $locale): array {
             $result = [];
 
-            foreach ($this->publicQuery()->where('group', $group)->get() as $record) {
-                $result[$record->key] = $record->getTypedValue();
+            foreach ($this->publicQuery()->where('group', $group)->with('translations')->get() as $record) {
+                $result[$record->key] = $record->getTypedValue($locale);
             }
 
             return $result;
@@ -206,17 +219,54 @@ class SettingService implements SettingServiceInterface
      */
     public function clearCache(?string $group = null): void
     {
-        Cache::forget(self::CACHE_PREFIX.'public');
         Cache::forget(self::PUBLIC_GROUPS_KEY);
 
         $groups = $group !== null
             ? [$group]
             : Setting::query()->distinct()->pluck('group')->all();
 
-        foreach ($groups as $name) {
-            Cache::forget(self::CACHE_PREFIX.'group:'.$name.':public');
-            Cache::forget(self::CACHE_PREFIX.'internal:group:'.$name);
+        // Every locale variant, not only the caller's. A stale entry in a language
+        // nobody happened to request is exactly the one that will be served next
+        // (ADR 0018), and the caller's own locale is rarely the one at risk.
+        foreach ($this->cacheLocales() as $locale) {
+            Cache::forget(self::CACHE_PREFIX.'public:'.$locale);
+
+            foreach ($groups as $name) {
+                Cache::forget(self::CACHE_PREFIX.'group:'.$name.':public:'.$locale);
+                Cache::forget(self::CACHE_PREFIX.'internal:group:'.$name.':'.$locale);
+            }
         }
+    }
+
+    /**
+     * The locale a read resolves against.
+     *
+     * Read from the application rather than the resolver so that a caller which has
+     * already negotiated a locale — every request has, through SetLocale — is not
+     * made to negotiate it again per setting lookup.
+     */
+    protected function locale(): string
+    {
+        return app()->getLocale();
+    }
+
+    /**
+     * Every locale a cache entry may exist under.
+     *
+     * The active set plus the current and default locales: a language deactivated
+     * between a write and this call still has entries, and forgetting a key that was
+     * never written costs nothing while missing one serves a stale value.
+     *
+     * @return array<int, string>
+     */
+    protected function cacheLocales(): array
+    {
+        $resolver = app(LocaleResolverInterface::class);
+
+        return array_values(array_unique(array_merge(
+            $resolver->getActiveLanguageCodes(),
+            [$resolver->getDefaultLocale(), app()->getLocale(), (string) config('app.fallback_locale')],
+        )));
     }
 
     /**
@@ -270,7 +320,8 @@ class SettingService implements SettingServiceInterface
      */
     protected function getGroupIndex(string $group): array
     {
-        $cacheKey = self::CACHE_PREFIX.'internal:group:'.$group;
+        $locale = $this->locale();
+        $cacheKey = self::CACHE_PREFIX.'internal:group:'.$group.':'.$locale;
         $cached = Cache::get($cacheKey);
 
         // A cache entry written by an older revision can have a different shape. Treat
@@ -283,14 +334,14 @@ class SettingService implements SettingServiceInterface
         $values = [];
         $secrets = [];
 
-        foreach (Setting::query()->where('group', $group)->get() as $record) {
+        foreach (Setting::query()->where('group', $group)->with('translations')->get() as $record) {
             if ($record->is_secret) {
                 $secrets[] = $record->key;
 
                 continue;
             }
 
-            $values[$record->key] = $record->getTypedValue();
+            $values[$record->key] = $record->getTypedValue($locale);
         }
 
         $index = ['values' => $values, 'secrets' => $secrets];
@@ -329,6 +380,10 @@ class SettingService implements SettingServiceInterface
             'value' => $setting->is_secret
                 ? ($setting->value === null ? null : Setting::SECRET_MASK)
                 : $setting->getTypedValue(),
+            // Present for every setting rather than only localized ones, so a client
+            // never has to branch on the flag to know what it is looking at.
+            'is_localized' => $setting->is_localized,
+            'locale' => $setting->is_localized ? app()->getLocale() : null,
             'type' => $setting->type->value,
             // Beside the value, never instead of it (ADR 0030/0031). This payload
             // is built per request and is not cached, so the label follows the

@@ -49,20 +49,34 @@ test('re-running the seeder never rotates a provisioned secret nor reverts custo
         ->and(Setting::query()->where('group', 'general')->where('key', 'site_name')->count())->toBe(1);
 });
 
-test('writing null stores SQL NULL instead of an empty string', function (): void {
-    $this->service->set('general', 'site_description', null);
+// These two assert what null means in the base column. Their subject is a
+// non-localized setting: `general.site_description` became localized in Phase 16A,
+// where a null write clears one locale and correctly falls back rather than
+// emptying the column — asserted separately below.
 
-    expect(storedValue('general', 'site_description'))->toBeNull()
-        ->and($this->service->get('general.site_description'))->toBeNull();
+test('writing null stores SQL NULL instead of an empty string', function (): void {
+    $this->service->set('localization', 'date_format', null);
+
+    expect(storedValue('localization', 'date_format'))->toBeNull()
+        ->and($this->service->get('localization.date_format'))->toBeNull();
 });
 
 test('null is distinguishable from a default for a provisioned key', function (): void {
-    $this->service->set('general', 'site_description', null);
+    $this->service->set('localization', 'date_format', null);
 
     // Provisioned but unset resolves to null, never to the caller's fallback.
-    expect($this->service->get('general.site_description', 'FALLBACK'))->toBeNull()
+    expect($this->service->get('localization.date_format', 'FALLBACK'))->toBeNull()
         // A key that does not exist at all is what the fallback is for.
         ->and($this->service->get('general.not_provisioned', 'FALLBACK'))->toBe('FALLBACK');
+});
+
+test('clearing a localized value falls back rather than emptying the setting', function (): void {
+    // ADR 0015's chain ends at the base column, so clearing one locale leaves the
+    // setting readable instead of blanking it for everyone.
+    $this->service->set('general', 'site_description', null);
+
+    expect(storedValue('general', 'site_description'))->not->toBeNull()
+        ->and($this->service->get('general.site_description'))->not->toBeNull();
 });
 
 test('an unset typed setting round-trips as null rather than a coerced zero', function (): void {

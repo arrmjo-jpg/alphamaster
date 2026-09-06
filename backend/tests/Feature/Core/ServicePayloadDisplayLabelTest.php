@@ -175,11 +175,15 @@ test('every case of all three enums resolves in both locales', function (): void
 
 // ── The shapes ───────────────────────────────────────────────────────────────
 
-test('the admin setting row gains one field and nothing else', function (): void {
+test('the admin setting row carries exactly its declared fields', function (): void {
+    // Phase 13 added `type_label`; Phase 16A added `is_localized` and `locale`, so an
+    // interface can tell a localized setting from a plain one and know which language
+    // the value it received belongs to. The list is exhaustive on purpose: a field
+    // appearing here unannounced is how a payload starts leaking.
     app()->setLocale('en');
 
     expect(array_keys(adminSettingRows($this)[0]))->toBe([
-        'id', 'group', 'key', 'value', 'type', 'type_label',
+        'id', 'group', 'key', 'value', 'is_localized', 'locale', 'type', 'type_label',
         'is_secret', 'is_public', 'description', 'updated_at',
     ]);
 });
