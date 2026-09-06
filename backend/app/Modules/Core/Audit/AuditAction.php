@@ -34,6 +34,13 @@ final class AuditAction
      */
     public const SETTINGS_ORPHANED = 'settings.orphaned';
 
+    /**
+     * A group restored to an earlier state (ADR 0040). Recorded once for the whole
+     * operation rather than per setting: a rollback is one decision, and a trail that
+     * splits it into twenty rows makes it harder to see that it happened, not easier.
+     */
+    public const SETTINGS_ROLLED_BACK = 'settings.rolled_back';
+
     public const MAIL_TEST_SENT = 'mail.test_sent';
 
     private function __construct() {}
