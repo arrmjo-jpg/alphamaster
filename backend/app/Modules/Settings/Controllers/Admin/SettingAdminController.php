@@ -232,12 +232,10 @@ class SettingAdminController extends BaseApiController
                 return $forbidden;
             }
 
-            // A rollback to a state the group is already in writes nothing. Advancing
-            // the version would invalidate every client's cached read to store values
-            // that were already there.
-            if (! $plan->isEmpty()) {
-                $this->settingService->applyRollback($plan);
-            }
+            // Always called, even when the plan restores nothing: the service
+            // decides what a plan with no changes writes, and it writes the record of
+            // having been run without touching a value or a version.
+            $this->settingService->applyRollback($plan);
         } catch (SettingGroupNotFoundException $e) {
             return $this->errorResponse('SETTING_GROUP_NOT_FOUND', $e->translationKey(), null, 404, $e->translationParameters());
         } catch (UnknownRevisionException $e) {

@@ -415,6 +415,16 @@ class SettingService implements SettingServiceInterface
         DB::transaction(function () use ($plan): void {
             $settings = $this->groupSettings($plan->group)->keyBy('key');
 
+            // A plan with nothing to write still records that it was run and why it
+            // restored nothing — the case where the reasons are most worth having.
+            // What it must not do is advance the version, which would invalidate every
+            // client's cached read to store values that were already there.
+            if ($plan->isEmpty()) {
+                $this->recordRollback($plan);
+
+                return;
+            }
+
             foreach ($plan->keys() as $key) {
                 /** @var Setting|null $setting */
                 $setting = $settings->get($key);
@@ -645,7 +655,13 @@ class SettingService implements SettingServiceInterface
                     $dropped = $this->plannedChangeFor($changes, $definition->key)
                         ?? $this->plannedChangeFor($changes, $this->keyOf($dependency));
 
-                    break 2;
+                    // A violation this rollback did not cause and cannot fix — the
+                    // group was already in that state — is left alone rather than
+                    // blamed on the operator. Scanning continues, so a pre-existing
+                    // one does not mask a violation this rollback would introduce.
+                    if ($dropped !== null) {
+                        break 2;
+                    }
                 }
             }
 

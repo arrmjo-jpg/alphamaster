@@ -15,6 +15,7 @@ use App\Modules\Settings\Models\SettingRevision;
 use App\Modules\User\Enums\AccountType;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 uses(RefreshDatabase::class);
 
@@ -205,6 +206,7 @@ test('a rollback to the state a group is already in writes nothing', function ()
 
     $versionBefore = settingsVersion('localization');
     $revisionsBefore = SettingRevision::query()->count();
+    AuditRecord::query()->getQuery()->delete();
 
     $response = rollback($this, 'localization', (string) $target);
 
@@ -213,7 +215,10 @@ test('a rollback to the state a group is already in writes nothing', function ()
     // A version that moves without a value moving invalidates every client's cached
     // read to store what was already there.
     expect(settingsVersion('localization'))->toBe($versionBefore)
-        ->and(SettingRevision::query()->count())->toBe($revisionsBefore);
+        ->and(SettingRevision::query()->count())->toBe($revisionsBefore)
+        // It still happened, so it is still recorded. An operation that restored
+        // nothing is exactly the one whose reasons are worth having (ADR 0037).
+        ->and(AuditRecord::query()->where('action', 'settings.rolled_back')->count())->toBe(1);
 });
 
 // ── Locales ──────────────────────────────────────────────────────────────────
@@ -511,6 +516,35 @@ test('a rollback is one audit record naming keys and reasons and no values', fun
         ->and($context)->not->toContain('a-real-credential')
         ->and($context)->not->toContain('smtp.one.test')
         ->and($context)->not->toContain('smtp.two.test');
+});
+
+test('a revision range scan orders identifiers the way ULIDs are generated', function (): void {
+    // The whole targeting design rests on "at or after the target" being a range scan
+    // over the identifier. ULIDs are Crockford base32 — [0-9A-Z] — and a column
+    // collation that sorted letters before digits would make that scan select the
+    // wrong revisions, with no error and no visible symptom. Asserted against the
+    // engine actually running, because it is a property of the database rather than
+    // of the application.
+    $setting = Setting::query()->where('group', 'localization')->where('key', 'date_format')->firstOrFail();
+
+    $ids = ['0AAAAAAAAAAAAAAAAAAAAAAAAA', '9AAAAAAAAAAAAAAAAAAAAAAAAA', 'AAAAAAAAAAAAAAAAAAAAAAAAAA'];
+
+    // Written through the query builder: the identifier is not fillable, and it must
+    // not become fillable to make a test convenient.
+    foreach ($ids as $index => $id) {
+        DB::table('setting_revisions')->insert([
+            'id' => $id,
+            'setting_id' => $setting->id,
+            'version' => $index,
+            'locale' => null,
+            'value' => 'v'.$index,
+            'actor_id' => null,
+            'created_at' => now(),
+        ]);
+    }
+
+    expect(SettingRevision::query()->where('id', '>=', $ids[1])->orderBy('id')->pluck('id')->all())
+        ->toBe([$ids[1], $ids[2]]);
 });
 
 // ── Adversarial ──────────────────────────────────────────────────────────────
