@@ -32,6 +32,7 @@ class AdminPermissionSeeder extends Seeder
                 AdminPermission::USERS_UPDATE,
                 AdminPermission::SETTINGS_VIEW,
                 AdminPermission::SETTINGS_UPDATE,
+                AdminPermission::AUDIT_VIEW,
                 AdminPermission::ROLES_VIEW,
                 AdminPermission::PERMISSIONS_VIEW,
                 AdminPermission::INTEGRATIONS_VIEW,

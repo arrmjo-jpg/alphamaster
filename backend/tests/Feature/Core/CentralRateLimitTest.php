@@ -318,14 +318,16 @@ test('a real rejection is never mistaken for an outage', function (): void {
         ->and($blocked->json('error.code'))->toBe('TOO_MANY_ATTEMPTS');
 });
 
-test('the limiter is not what takes the API down when Redis is unreachable', function (): void {
-    // Recorded rather than hidden. With Redis unreachable the whole API returns
-    // 500 today, and the limiter is not the cause: /api/v1/health is exempt from
-    // it and fails identically. SetLocale runs globally and resolves the locale
-    // through the cache, and setting() reads through it too — both raise. Making
-    // the platform survive a cache outage end to end is a separate concern from
-    // this phase, which owns only the limiter's own behaviour.
+test('an unreachable Redis degrades the API rather than taking it down', function (): void {
+    // Phase 14 recorded the opposite here: with Redis unreachable the whole API
+    // returned 500, because SetLocale resolves the locale through the cache and
+    // setting() reads through it, and both raised. That test asked to be revisited
+    // if the platform-wide cache dependency ever changed — Phase 16A is that change.
+    //
+    // The settings and localization namespaces are fail-open (ADR 0035), so a
+    // request whose cache is unreachable reads its source instead and answers. The
+    // limiter still is not the cause of anything: /api/v1/health is exempt from it.
     $exempt = withRedisUnavailable(fn () => $this->getJson('/api/v1/health'));
 
-    expect($exempt->status())->toBe(500, 'the platform-wide cache dependency has changed; revisit this test');
+    expect($exempt->status())->toBe(200, 'a fail-open namespace stopped degrading gracefully');
 });

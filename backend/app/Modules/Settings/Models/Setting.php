@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Settings\Models;
 
+use App\Modules\Core\Concerns\HasTranslations;
 use App\Modules\Core\Models\BaseModel;
 use App\Modules\Settings\Enums\SettingType;
 use App\Modules\Settings\Exceptions\SettingDecryptionException;
@@ -21,6 +22,8 @@ use InvalidArgumentException;
  * @property SettingType $type
  * @property bool $is_secret
  * @property bool $is_public
+ * @property bool $is_localized
+ * @property int $version
  * @property string|null $description
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -30,6 +33,9 @@ use InvalidArgumentException;
  */
 class Setting extends BaseModel
 {
+    /** @use HasTranslations<SettingTranslation> */
+    use HasTranslations;
+
     /**
      * Placeholder returned instead of a secret value, and accepted on write to mean
      * "leave the stored secret untouched".
@@ -55,6 +61,7 @@ class Setting extends BaseModel
         'type',
         'is_secret',
         'is_public',
+        'is_localized',
         'description',
     ];
 
@@ -69,6 +76,7 @@ class Setting extends BaseModel
             'type' => SettingType::class,
             'is_secret' => 'boolean',
             'is_public' => 'boolean',
+            'is_localized' => 'boolean',
         ]);
     }
 
@@ -85,6 +93,11 @@ class Setting extends BaseModel
         static::saving(function (Setting $setting): void {
             if ($setting->is_secret && $setting->is_public) {
                 throw new InvalidArgumentException("Setting [{$setting->group}.{$setting->key}] cannot be both secret and public.");
+            }
+
+            // A credential has no language (ADR 0018). Enforced in the database too.
+            if ($setting->is_secret && $setting->is_localized) {
+                throw new InvalidArgumentException("Setting [{$setting->group}.{$setting->key}] cannot be both secret and localized.");
             }
         });
     }
@@ -149,17 +162,68 @@ class Setting extends BaseModel
     /**
      * Cast the stored value to its strict typed PHP representation.
      *
+     * For a localized setting this resolves the caller's locale first; see
+     * getLocalizedRawValue for the chain.
+     *
      * @throws SettingDecryptionException
      */
-    public function getTypedValue(): mixed
+    public function getTypedValue(?string $locale = null): mixed
     {
-        $raw = $this->getRawValue();
+        $raw = $this->is_localized
+            ? $this->getLocalizedRawValue($locale)
+            : $this->getRawValue();
 
         if ($raw === null) {
             return null;
         }
 
         return self::castValue($raw, $this->type);
+    }
+
+    /**
+     * The raw value for one locale, falling back the way ADR 0015 defines.
+     *
+     * Requested locale, then the platform default, then any translation that exists,
+     * then the base column. The base column is the last step rather than the first so
+     * that a setting nobody has translated is still readable, and a setting somebody
+     * has translated is never shadowed by the value it was provisioned with.
+     */
+    public function getLocalizedRawValue(?string $locale = null): ?string
+    {
+        $translated = $this->translate('value', $locale);
+
+        if (is_string($translated) && $translated !== '') {
+            return $translated;
+        }
+
+        return $this->getRawValue();
+    }
+
+    /**
+     * Store this setting's value for one locale.
+     *
+     * Only ever reached for a localized setting, which by construction is never a
+     * secret — so nothing written here is encrypted, and nothing here needs to be.
+     */
+    public function setLocalizedValue(string $locale, ?string $value): void
+    {
+        $this->setTranslation($locale, ['value' => $value]);
+    }
+
+    /**
+     * The model holding this setting's per-locale values.
+     */
+    public function translationModel(): string
+    {
+        return SettingTranslation::class;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function translatableAttributes(): array
+    {
+        return ['value'];
     }
 
     /**
@@ -172,7 +236,9 @@ class Setting extends BaseModel
             SettingType::INTEGER => self::strictCastInteger($raw),
             SettingType::FLOAT => self::strictCastFloat($raw),
             SettingType::JSON => self::strictCastJson($raw),
-            SettingType::STRING => $raw,
+            // A url, email or media id is a string once stored; what makes it one of
+            // those is the rule applied on the way in, not the conversion.
+            SettingType::STRING, SettingType::URL, SettingType::EMAIL, SettingType::MEDIA => $raw,
         };
     }
 
@@ -194,7 +260,7 @@ class Setting extends BaseModel
             SettingType::INTEGER => (string) self::strictCastInteger($val),
             SettingType::FLOAT => self::encodeFloat(self::strictCastFloat($val)),
             SettingType::JSON => self::encodeJson(self::strictCastJson($val)),
-            SettingType::STRING => self::strictCastString($val),
+            SettingType::STRING, SettingType::URL, SettingType::EMAIL, SettingType::MEDIA => self::strictCastString($val),
         };
     }
 

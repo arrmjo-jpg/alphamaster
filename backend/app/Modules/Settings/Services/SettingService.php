@@ -4,28 +4,37 @@ declare(strict_types=1);
 
 namespace App\Modules\Settings\Services;
 
+use App\Modules\Core\Audit\AuditAction;
+use App\Modules\Core\Cache\CacheNamespace;
+use App\Modules\Core\Contracts\AuditRecorderContract;
+use App\Modules\Core\Contracts\LocaleResolverInterface;
+use App\Modules\Core\Contracts\PlatformCacheContract;
 use App\Modules\Settings\Contracts\SettingServiceInterface;
 use App\Modules\Settings\Exceptions\SettingGroupNotFoundException;
 use App\Modules\Settings\Exceptions\UnknownSettingKeyException;
 use App\Modules\Settings\Models\Setting;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
 class SettingService implements SettingServiceInterface
 {
-    public const CACHE_PREFIX = 'settings:';
-
-    public const CACHE_TTL = 86400; // 24 hours
-
     /**
-     * Cache key holding the list of groups that expose at least one public setting.
-     *
-     * Consulted before any per-group cache write so that an unknown (attacker supplied)
-     * group name can never mint a cache entry of its own.
+     * The resources this service caches, named rather than spelled out at each call
+     * site. The platform cache composes the key and owns the TTL (ADR 0035).
      */
-    public const PUBLIC_GROUPS_KEY = self::CACHE_PREFIX.'public:groups';
+    public const RESOURCE_PUBLIC = 'public';
+
+    public const RESOURCE_PUBLIC_GROUP = 'public_group';
+
+    public const RESOURCE_PUBLIC_GROUPS = 'public_groups';
+
+    public const RESOURCE_GROUP_INDEX = 'group_index';
+
+    public function __construct(
+        private readonly PlatformCacheContract $cache,
+        private readonly AuditRecorderContract $audit,
+    ) {}
 
     /**
      * Get a typed setting value by key formatted as 'group.key'.
@@ -97,17 +106,37 @@ class SettingService implements SettingServiceInterface
                     continue;
                 }
 
+                // Whether the setting held anything before, which is all the audit
+                // trail is allowed to know about a secret's previous state.
+                $previousValue = $setting->value;
+
                 // serializeValue maps null to null (explicitly unset) and rejects every
                 // value it cannot represent exactly, rather than coercing it.
                 $serialized = Setting::serializeValue($val, $setting->type);
-                $setting->setRawValue($serialized);
-                $setting->save();
+
+                // The counter advances on every write, localized or not. A timestamp
+                // would not: `timestampsTz` stores whole seconds, so two saves a moment
+                // apart would look identical (ADR 0038).
+                $setting->version = $setting->version + 1;
+
+                if ($setting->is_localized) {
+                    // A localized write lands in the caller's locale and leaves every
+                    // other language alone. Writing it to the base column instead would
+                    // silently change what every other locale falls back to.
+                    $setting->setLocalizedValue($this->locale(), $serialized);
+                    $setting->save();
+                } else {
+                    $setting->setRawValue($serialized);
+                    $setting->save();
+                }
 
                 $updatedValues[$key] = match (true) {
                     $serialized === null => null,
                     $setting->is_secret => Setting::SECRET_MASK,
                     default => Setting::castValue($serialized, $setting->type),
                 };
+
+                $this->recordChange($setting, $serialized, $previousValue);
             }
 
             // Invalidate only once the transaction has actually committed. Clearing
@@ -129,11 +158,13 @@ class SettingService implements SettingServiceInterface
      */
     public function getPublicSettings(): array
     {
-        return Cache::remember(self::CACHE_PREFIX.'public', self::CACHE_TTL, function (): array {
+        $locale = $this->locale();
+
+        return $this->cache->remember(CacheNamespace::SETTINGS, self::RESOURCE_PUBLIC, ['locale' => $locale], function () use ($locale): array {
             $result = [];
 
-            foreach ($this->publicQuery()->get() as $record) {
-                $result[$record->group][$record->key] = $record->getTypedValue();
+            foreach ($this->publicQuery()->with('translations')->get() as $record) {
+                $result[$record->group][$record->key] = $record->getTypedValue($locale);
             }
 
             return $result;
@@ -153,11 +184,13 @@ class SettingService implements SettingServiceInterface
             throw new SettingGroupNotFoundException($group);
         }
 
-        return Cache::remember(self::CACHE_PREFIX.'group:'.$group.':public', self::CACHE_TTL, function () use ($group): array {
+        $locale = $this->locale();
+
+        return $this->cache->remember(CacheNamespace::SETTINGS, self::RESOURCE_PUBLIC_GROUP, ['group' => $group, 'locale' => $locale], function () use ($group, $locale): array {
             $result = [];
 
-            foreach ($this->publicQuery()->where('group', $group)->get() as $record) {
-                $result[$record->key] = $record->getTypedValue();
+            foreach ($this->publicQuery()->where('group', $group)->with('translations')->get() as $record) {
+                $result[$record->key] = $record->getTypedValue($locale);
             }
 
             return $result;
@@ -202,21 +235,101 @@ class SettingService implements SettingServiceInterface
     }
 
     /**
+     * An opaque validator for a group's current state (ADR 0038).
+     *
+     * A client reads it with the group and returns it with an update; a write built
+     * on a stale read is refused rather than applied. Opaque on purpose — the
+     * contract is *return what you were given*, so how it is computed can change
+     * without every client changing with it.
+     *
+     * It covers the translations as well as the rows. A localized write touches only
+     * `setting_translations` and leaves `settings.updated_at` alone, so a version
+     * derived from the rows would let two administrators edit the same Arabic site
+     * name and never conflict — the exact loss this exists to prevent.
+     *
+     * @throws SettingGroupNotFoundException
+     */
+    public function groupVersion(string $group): string
+    {
+        // The query builder rather than Eloquent: this is an aggregate, not a model,
+        // and asking Eloquent for one means describing columns Setting does not have.
+        $rows = DB::table('settings')
+            ->where('group', $group)
+            ->selectRaw('count(*) as row_count, coalesce(sum(version), 0) as version_sum')
+            ->first();
+
+        if ($rows === null || (int) $rows->row_count === 0) {
+            throw new SettingGroupNotFoundException($group);
+        }
+
+        // Counted rather than timed, and carrying no value: the sum moves whenever any
+        // row in the group is written, the count moves when the group's shape changes,
+        // and neither exposes anything about what is stored.
+        return substr(hash('sha256', implode('|', [
+            $group,
+            (string) $rows->row_count,
+            (string) $rows->version_sum,
+        ])), 0, 32);
+    }
+
+    /**
      * Invalidate cached settings.
      */
     public function clearCache(?string $group = null): void
     {
-        Cache::forget(self::CACHE_PREFIX.'public');
-        Cache::forget(self::PUBLIC_GROUPS_KEY);
+        // A change with no named group is a bulk one — a synchronisation, a language
+        // activated, a restore. Bumping the namespace generation invalidates every
+        // settings entry at once without enumerating anything and without reaching a
+        // key outside this namespace, which is what ADR 0035 puts in place of a flush.
+        if ($group === null) {
+            $this->cache->flushNamespace(CacheNamespace::SETTINGS);
 
-        $groups = $group !== null
-            ? [$group]
-            : Setting::query()->distinct()->pluck('group')->all();
-
-        foreach ($groups as $name) {
-            Cache::forget(self::CACHE_PREFIX.'group:'.$name.':public');
-            Cache::forget(self::CACHE_PREFIX.'internal:group:'.$name);
+            return;
         }
+
+        // One group changed, so the affected entries are known and few: forget them
+        // precisely rather than discarding the rest of the namespace with them.
+        $this->cache->forget(CacheNamespace::SETTINGS, self::RESOURCE_PUBLIC_GROUPS);
+
+        // Every locale variant, not only the caller's. A stale entry in a language
+        // nobody happened to request is exactly the one that will be served next
+        // (ADR 0018), and the caller's own locale is rarely the one at risk.
+        foreach ($this->cacheLocales() as $locale) {
+            $this->cache->forget(CacheNamespace::SETTINGS, self::RESOURCE_PUBLIC, ['locale' => $locale]);
+            $this->cache->forget(CacheNamespace::SETTINGS, self::RESOURCE_PUBLIC_GROUP, ['group' => $group, 'locale' => $locale]);
+            $this->cache->forget(CacheNamespace::SETTINGS, self::RESOURCE_GROUP_INDEX, ['group' => $group, 'locale' => $locale]);
+        }
+    }
+
+    /**
+     * The locale a read resolves against.
+     *
+     * Read from the application rather than the resolver so that a caller which has
+     * already negotiated a locale — every request has, through SetLocale — is not
+     * made to negotiate it again per setting lookup.
+     */
+    protected function locale(): string
+    {
+        return app()->getLocale();
+    }
+
+    /**
+     * Every locale a cache entry may exist under.
+     *
+     * The active set plus the current and default locales: a language deactivated
+     * between a write and this call still has entries, and forgetting a key that was
+     * never written costs nothing while missing one serves a stale value.
+     *
+     * @return array<int, string>
+     */
+    protected function cacheLocales(): array
+    {
+        $resolver = app(LocaleResolverInterface::class);
+
+        return array_values(array_unique(array_merge(
+            $resolver->getActiveLanguageCodes(),
+            [$resolver->getDefaultLocale(), app()->getLocale(), (string) config('app.fallback_locale')],
+        )));
     }
 
     /**
@@ -255,7 +368,7 @@ class SettingService implements SettingServiceInterface
      */
     protected function getPublicGroupNames(): array
     {
-        return Cache::remember(self::PUBLIC_GROUPS_KEY, self::CACHE_TTL, function (): array {
+        return $this->cache->remember(CacheNamespace::SETTINGS, self::RESOURCE_PUBLIC_GROUPS, [], function (): array {
             return $this->publicQuery()->distinct()->orderBy('group')->pluck('group')->all();
         });
     }
@@ -270,8 +383,9 @@ class SettingService implements SettingServiceInterface
      */
     protected function getGroupIndex(string $group): array
     {
-        $cacheKey = self::CACHE_PREFIX.'internal:group:'.$group;
-        $cached = Cache::get($cacheKey);
+        $locale = $this->locale();
+        $discriminators = ['group' => $group, 'locale' => $locale];
+        $cached = $this->cache->get(CacheNamespace::SETTINGS, self::RESOURCE_GROUP_INDEX, $discriminators);
 
         // A cache entry written by an older revision can have a different shape. Treat
         // anything that does not match the current contract as a miss and rebuild it,
@@ -283,19 +397,19 @@ class SettingService implements SettingServiceInterface
         $values = [];
         $secrets = [];
 
-        foreach (Setting::query()->where('group', $group)->get() as $record) {
+        foreach (Setting::query()->where('group', $group)->with('translations')->get() as $record) {
             if ($record->is_secret) {
                 $secrets[] = $record->key;
 
                 continue;
             }
 
-            $values[$record->key] = $record->getTypedValue();
+            $values[$record->key] = $record->getTypedValue($locale);
         }
 
         $index = ['values' => $values, 'secrets' => $secrets];
 
-        Cache::put($cacheKey, $index, self::CACHE_TTL);
+        $this->cache->put(CacheNamespace::SETTINGS, self::RESOURCE_GROUP_INDEX, $discriminators, $index);
 
         return $index;
     }
@@ -314,6 +428,44 @@ class SettingService implements SettingServiceInterface
     }
 
     /**
+     * Record one setting change, without the trail ever seeing a secret.
+     *
+     * The redaction is structural rather than a filter applied afterwards. For a
+     * secret this method has no branch that can reach a value: it decides between
+     * set, rotated and cleared from whether the column was null before and after,
+     * and passes the key alone. There is nothing to forget to omit.
+     *
+     * A non-secret setting records that it changed, not what to — the previous value
+     * of a public setting is recoverable from the row's own history and is not what
+     * the trail exists to answer. What it answers is who changed what, and when.
+     */
+    private function recordChange(Setting $setting, ?string $serialized, ?string $previousValue): void
+    {
+        $reference = $setting->group.'.'.$setting->key;
+
+        if ($setting->is_secret) {
+            $action = match (true) {
+                $serialized === null => AuditAction::SECRET_CLEARED,
+                $previousValue === null => AuditAction::SECRET_SET,
+                default => AuditAction::SECRET_ROTATED,
+            };
+
+            // Key only. No plaintext, no ciphertext, no hash, no length — a ciphertext
+            // here would be a second copy of the credential under weaker access
+            // control than the settings table itself (ADR 0037).
+            $this->audit->succeeded($action, $reference);
+
+            return;
+        }
+
+        $this->audit->succeeded(
+            $serialized === null ? AuditAction::SETTING_CLEARED : AuditAction::SETTING_UPDATED,
+            $reference,
+            ['type' => $setting->type->value, 'localized' => $setting->is_localized],
+        );
+    }
+
+    /**
      * Format a setting record for Admin API presentation.
      *
      * @return array<string, mixed>
@@ -329,6 +481,10 @@ class SettingService implements SettingServiceInterface
             'value' => $setting->is_secret
                 ? ($setting->value === null ? null : Setting::SECRET_MASK)
                 : $setting->getTypedValue(),
+            // Present for every setting rather than only localized ones, so a client
+            // never has to branch on the flag to know what it is looking at.
+            'is_localized' => $setting->is_localized,
+            'locale' => $setting->is_localized ? app()->getLocale() : null,
             'type' => $setting->type->value,
             // Beside the value, never instead of it (ADR 0030/0031). This payload
             // is built per request and is not cached, so the label follows the

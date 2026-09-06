@@ -11,8 +11,9 @@ use App\Modules\Auth\Enums\TokenAbility;
 use App\Modules\Auth\Exceptions\AccountInactiveException;
 use App\Modules\Auth\Exceptions\InvalidCredentialsException;
 use App\Modules\Auth\Exceptions\MfaChallengeException;
+use App\Modules\Core\Cache\CacheNamespace;
+use App\Modules\Core\Contracts\PlatformCacheContract;
 use App\Modules\User\Models\User;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
@@ -21,7 +22,13 @@ class AuthService implements AuthServiceContract
     /**
      * Prefix for the temporary MFA challenge entries.
      */
-    private const MFA_CHALLENGE_PREFIX = 'auth:mfa:challenge:';
+    /**
+     * The challenge resource, in the platform's only fail-closed namespace: here the
+     * cache *is* the source of truth for whether a challenge was issued, so a store
+     * that cannot be read must raise rather than read as "no challenge outstanding"
+     * (ADR 0035).
+     */
+    private const MFA_CHALLENGE_RESOURCE = 'mfa_challenge';
 
     /**
      * How long a half-authenticated challenge stays valid.
@@ -29,7 +36,8 @@ class AuthService implements AuthServiceContract
     public const MFA_CHALLENGE_TTL = 300; // 5 minutes
 
     public function __construct(
-        private readonly MfaManagerContract $mfa
+        private readonly MfaManagerContract $mfa,
+        private readonly PlatformCacheContract $cache,
     ) {}
 
     /**
@@ -123,10 +131,12 @@ class AuthService implements AuthServiceContract
     {
         $token = Str::random(64);
 
-        Cache::put(
-            self::MFA_CHALLENGE_PREFIX.hash('sha256', $token),
+        $this->cache->put(
+            CacheNamespace::AUTH,
+            self::MFA_CHALLENGE_RESOURCE,
+            [hash('sha256', $token)],
             $user->id,
-            self::MFA_CHALLENGE_TTL
+            self::MFA_CHALLENGE_TTL,
         );
 
         return $token;
@@ -139,7 +149,7 @@ class AuthService implements AuthServiceContract
      */
     public function resolveMfaChallenge(string $token): User
     {
-        $userId = Cache::get(self::MFA_CHALLENGE_PREFIX.hash('sha256', $token));
+        $userId = $this->cache->get(CacheNamespace::AUTH, self::MFA_CHALLENGE_RESOURCE, [hash('sha256', $token)]);
 
         if (! is_string($userId)) {
             throw new MfaChallengeException('api.error.auth.mfa_challenge_expired');
@@ -165,7 +175,7 @@ class AuthService implements AuthServiceContract
      */
     public function forgetMfaChallenge(string $token): void
     {
-        Cache::forget(self::MFA_CHALLENGE_PREFIX.hash('sha256', $token));
+        $this->cache->forget(CacheNamespace::AUTH, self::MFA_CHALLENGE_RESOURCE, [hash('sha256', $token)]);
     }
 
     /**

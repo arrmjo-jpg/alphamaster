@@ -66,5 +66,13 @@ interface SettingServiceInterface
     /**
      * Invalidate cached settings.
      */
+    /**
+     * An opaque validator for a group's current state (ADR 0038).
+     *
+     * Returned with a read and required on a write, so an update built on a stale
+     * read is refused rather than silently discarding someone else's change.
+     */
+    public function groupVersion(string $group): string;
+
     public function clearCache(?string $group = null): void;
 }

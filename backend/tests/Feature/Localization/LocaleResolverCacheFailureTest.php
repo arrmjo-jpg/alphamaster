@@ -48,12 +48,12 @@ function withDatabaseUnavailable(callable $callback): mixed
 // ── The defect ────────────────────────────────────────────────────────────────
 
 test('a failed read is never written to the cache', function (): void {
-    expect(Cache::has(LocaleResolver::CACHE_KEY_ACTIVE))->toBeFalse();
+    expect(Cache::has(localizationKey(LocaleResolver::RESOURCE_ACTIVE)))->toBeFalse();
 
     $languages = withDatabaseUnavailable(fn () => $this->resolver->getActiveLanguages());
 
     expect($languages)->toBeEmpty()
-        ->and(Cache::has(LocaleResolver::CACHE_KEY_ACTIVE))->toBeFalse(
+        ->and(Cache::has(localizationKey(LocaleResolver::RESOURCE_ACTIVE)))->toBeFalse(
             'a query that raised must not leave a cached result behind'
         );
 });
@@ -77,7 +77,7 @@ test('a later successful read recovers the active languages', function (): void 
 
     expect($codes)->toContain('en')
         ->and($codes)->toContain('ar')
-        ->and(Cache::has(LocaleResolver::CACHE_KEY_ACTIVE))->toBeTrue();
+        ->and(Cache::has(localizationKey(LocaleResolver::RESOURCE_ACTIVE)))->toBeTrue();
 });
 
 test('a failure does not degrade locale negotiation beyond the request it happened in', function (): void {
@@ -98,7 +98,7 @@ test('a failure does not degrade locale negotiation beyond the request it happen
 test('a successful read still caches, and the second read does not query again', function (): void {
     $first = $this->resolver->getActiveLanguages();
 
-    expect(Cache::has(LocaleResolver::CACHE_KEY_ACTIVE))->toBeTrue();
+    expect(Cache::has(localizationKey(LocaleResolver::RESOURCE_ACTIVE)))->toBeTrue();
 
     // With the database unreachable, a second call can only come from the cache.
     $second = withDatabaseUnavailable(fn () => $this->resolver->getActiveLanguages());
@@ -114,8 +114,8 @@ test('an empty result is a legitimate answer and is still cached', function (): 
     Language::query()->update(['is_active' => false]);
 
     expect($this->resolver->getActiveLanguages())->toBeEmpty()
-        ->and(Cache::has(LocaleResolver::CACHE_KEY_ACTIVE))->toBeTrue()
-        ->and(Cache::get(LocaleResolver::CACHE_KEY_ACTIVE))->toBe([]);
+        ->and(Cache::has(localizationKey(LocaleResolver::RESOURCE_ACTIVE)))->toBeTrue()
+        ->and(Cache::get(localizationKey(LocaleResolver::RESOURCE_ACTIVE)))->toBe([]);
 });
 
 test('the resolution precedence is unchanged', function (): void {
@@ -150,11 +150,11 @@ test('clearing the cache still empties both keys', function (): void {
     $this->resolver->getActiveLanguages();
     $this->resolver->getDefaultLanguageCode();
 
-    expect(Cache::has(LocaleResolver::CACHE_KEY_ACTIVE))->toBeTrue()
-        ->and(Cache::has(LocaleResolver::CACHE_KEY_DEFAULT))->toBeTrue();
+    expect(Cache::has(localizationKey(LocaleResolver::RESOURCE_ACTIVE)))->toBeTrue()
+        ->and(Cache::has(localizationKey(LocaleResolver::RESOURCE_DEFAULT)))->toBeTrue();
 
     $this->resolver->clearCache();
 
-    expect(Cache::has(LocaleResolver::CACHE_KEY_ACTIVE))->toBeFalse()
-        ->and(Cache::has(LocaleResolver::CACHE_KEY_DEFAULT))->toBeFalse();
+    expect(Cache::has(localizationKey(LocaleResolver::RESOURCE_ACTIVE)))->toBeFalse()
+        ->and(Cache::has(localizationKey(LocaleResolver::RESOURCE_DEFAULT)))->toBeFalse();
 });

@@ -16,7 +16,8 @@ beforeEach(function (): void {
     $this->seed(SettingSeeder::class);
     $this->seed(AdminPermissionSeeder::class);
     $this->service = app(SettingServiceInterface::class);
-    $this->token = adminToken(roles: ['administrator']);
+    // These exercise secret handling, which needs settings.secrets.manage.
+    $this->token = adminToken(roles: ['super_admin']);
 });
 
 /**
@@ -49,20 +50,34 @@ test('re-running the seeder never rotates a provisioned secret nor reverts custo
         ->and(Setting::query()->where('group', 'general')->where('key', 'site_name')->count())->toBe(1);
 });
 
-test('writing null stores SQL NULL instead of an empty string', function (): void {
-    $this->service->set('general', 'site_description', null);
+// These two assert what null means in the base column. Their subject is a
+// non-localized setting: `general.site_description` became localized in Phase 16A,
+// where a null write clears one locale and correctly falls back rather than
+// emptying the column — asserted separately below.
 
-    expect(storedValue('general', 'site_description'))->toBeNull()
-        ->and($this->service->get('general.site_description'))->toBeNull();
+test('writing null stores SQL NULL instead of an empty string', function (): void {
+    $this->service->set('localization', 'date_format', null);
+
+    expect(storedValue('localization', 'date_format'))->toBeNull()
+        ->and($this->service->get('localization.date_format'))->toBeNull();
 });
 
 test('null is distinguishable from a default for a provisioned key', function (): void {
-    $this->service->set('general', 'site_description', null);
+    $this->service->set('localization', 'date_format', null);
 
     // Provisioned but unset resolves to null, never to the caller's fallback.
-    expect($this->service->get('general.site_description', 'FALLBACK'))->toBeNull()
+    expect($this->service->get('localization.date_format', 'FALLBACK'))->toBeNull()
         // A key that does not exist at all is what the fallback is for.
         ->and($this->service->get('general.not_provisioned', 'FALLBACK'))->toBe('FALLBACK');
+});
+
+test('clearing a localized value falls back rather than emptying the setting', function (): void {
+    // ADR 0015's chain ends at the base column, so clearing one locale leaves the
+    // setting readable instead of blanking it for everyone.
+    $this->service->set('general', 'site_description', null);
+
+    expect(storedValue('general', 'site_description'))->not->toBeNull()
+        ->and($this->service->get('general.site_description'))->not->toBeNull();
 });
 
 test('an unset typed setting round-trips as null rather than a coerced zero', function (): void {
@@ -88,7 +103,7 @@ test('secret lifecycle: an omitted secret is left untouched', function (): void 
     $this->service->set('security', 'api_secret_key', 'original-secret');
     $ciphertext = storedValue('security', 'api_secret_key');
 
-    $this->withToken($this->token)->putJson('/api/v1/admin/settings/security', [
+    $this->withToken($this->token)->withHeaders(['If-Match' => settingsVersion('security')])->putJson('/api/v1/admin/settings/security', [
         'settings' => ['max_login_attempts' => 9], // api_secret_key omitted entirely
     ])->assertOk();
 
@@ -101,7 +116,7 @@ test('secret lifecycle: submitting the mask preserves the stored secret', functi
     $this->service->set('security', 'api_secret_key', 'original-secret');
     $ciphertext = storedValue('security', 'api_secret_key');
 
-    $response = $this->withToken($this->token)->putJson('/api/v1/admin/settings/security', [
+    $response = $this->withToken($this->token)->withHeaders(['If-Match' => settingsVersion('security')])->putJson('/api/v1/admin/settings/security', [
         'settings' => [
             'max_login_attempts' => 10,
             'api_secret_key' => Setting::SECRET_MASK,
@@ -119,7 +134,7 @@ test('secret lifecycle: submitting the mask preserves the stored secret', functi
 test('secret lifecycle: submitting null clears the secret', function (): void {
     $this->service->set('security', 'api_secret_key', 'original-secret');
 
-    $response = $this->withToken($this->token)->putJson('/api/v1/admin/settings/security', [
+    $response = $this->withToken($this->token)->withHeaders(['If-Match' => settingsVersion('security')])->putJson('/api/v1/admin/settings/security', [
         'settings' => ['api_secret_key' => null],
     ]);
 
@@ -132,7 +147,7 @@ test('secret lifecycle: submitting null clears the secret', function (): void {
 });
 
 test('secret lifecycle: submitting the mask for a cleared secret leaves it cleared', function (): void {
-    $this->withToken($this->token)->putJson('/api/v1/admin/settings/security', [
+    $this->withToken($this->token)->withHeaders(['If-Match' => settingsVersion('security')])->putJson('/api/v1/admin/settings/security', [
         'settings' => ['api_secret_key' => Setting::SECRET_MASK],
     ])->assertOk()->assertJsonPath('data.updated.api_secret_key', null);
 
@@ -140,7 +155,7 @@ test('secret lifecycle: submitting the mask for a cleared secret leaves it clear
 });
 
 test('secret lifecycle: submitting a new value encrypts it and reports only the mask', function (): void {
-    $response = $this->withToken($this->token)->putJson('/api/v1/admin/settings/security', [
+    $response = $this->withToken($this->token)->withHeaders(['If-Match' => settingsVersion('security')])->putJson('/api/v1/admin/settings/security', [
         'settings' => ['api_secret_key' => 'brand-new-secret'],
     ]);
 
