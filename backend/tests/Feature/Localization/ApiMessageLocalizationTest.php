@@ -206,7 +206,8 @@ test('every key this change introduced exists in both dictionaries', function ()
 
     // 16 from Scope B, plus `api.error.too_many_attempts` added with the central
     // rate limiter in Phase 14 — a handler message of exactly the same kind.
-    expect($keys)->toHaveCount(17);
+    // Phase 16A added the mail-test success message.
+    expect($keys)->toHaveCount(18);
 
     foreach ($keys as $key) {
         expect($ar)->toHaveKey($key)

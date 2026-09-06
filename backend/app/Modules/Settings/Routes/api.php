@@ -38,6 +38,13 @@ Route::prefix('v1')->group(function () use ($groupPattern): void {
             Route::get('/definitions', [SettingAdminController::class, 'definitions'])
                 ->middleware('permission:'.AdminPermission::SETTINGS_VIEW->value)
                 ->name('admin.settings.definitions');
+
+            // An operational action rather than a read, and it sends real mail, so it
+            // needs the permission that changes configuration rather than the one that
+            // looks at it.
+            Route::post('/mail/test', [SettingAdminController::class, 'testMail'])
+                ->middleware('permission:'.AdminPermission::SETTINGS_UPDATE->value)
+                ->name('admin.settings.mail.test');
             Route::get('/{group}', [SettingAdminController::class, 'show'])
                 ->middleware('permission:'.AdminPermission::SETTINGS_VIEW->value)
                 ->where('group', $groupPattern)

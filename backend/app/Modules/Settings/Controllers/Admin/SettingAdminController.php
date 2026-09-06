@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Modules\Settings\Controllers\Admin;
 
+use App\Modules\Core\Audit\AuditAction;
+use App\Modules\Core\Contracts\AuditRecorderContract;
 use App\Modules\Core\Controllers\BaseApiController;
 use App\Modules\Settings\Contracts\SettingServiceInterface;
 use App\Modules\Settings\Definitions\SettingRegistry;
@@ -11,6 +13,7 @@ use App\Modules\Settings\Exceptions\SettingGroupNotFoundException;
 use App\Modules\Settings\Exceptions\UnknownSettingKeyException;
 use App\Modules\Settings\Requests\UpdateGroupSettingsRequest;
 use App\Modules\Settings\Resources\SettingDefinitionResource;
+use App\Modules\Settings\Services\MailConfigurationTester;
 use Illuminate\Contracts\Auth\Access\Authorizable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -21,7 +24,43 @@ class SettingAdminController extends BaseApiController
     public function __construct(
         protected SettingServiceInterface $settingService,
         protected SettingRegistry $registry,
+        protected AuditRecorderContract $audit,
     ) {}
+
+    /**
+     * Verify the stored mail configuration by using it.
+     *
+     * It really sends. A test reporting success without attempting delivery would be
+     * worse than none: an operator would read it as proof and stop looking.
+     *
+     * The recipient comes from settings rather than the request, so this cannot be
+     * turned into sending mail to an address the caller chose. Every attempt is
+     * recorded with its outcome (ADR 0037), and no credential appears in the
+     * response, the record, or the failure.
+     */
+    public function testMail(MailConfigurationTester $tester): JsonResponse
+    {
+        $result = $tester->test();
+
+        $this->audit->{$result->succeeded ? 'succeeded' : 'failed'}(
+            AuditAction::MAIL_TEST_SENT,
+            'mail',
+            $result->toArray(),
+        );
+
+        if ($result->succeeded) {
+            return $this->successResponse($result->toArray(), 'api.settings.mail_test_sent');
+        }
+
+        // 422 rather than 500: an unreachable host or an unfinished configuration is
+        // an answer about the configuration, not a fault in the platform.
+        return $this->errorResponse(
+            $result->status === 'incomplete' ? 'MAIL_CONFIGURATION_INCOMPLETE' : 'MAIL_TEST_FAILED',
+            $result->status === 'incomplete' ? 'api.error.settings.mail_incomplete' : 'api.error.settings.mail_test_failed',
+            $result->toArray(),
+            422,
+        );
+    }
 
     /**
      * The catalogue: what settings exist and what the rules are for each.
