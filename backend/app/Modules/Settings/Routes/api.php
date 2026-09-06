@@ -59,6 +59,17 @@ Route::prefix('v1')->group(function () use ($groupPattern): void {
                 ->where('group', $groupPattern)
                 ->name('admin.settings.history');
 
+            // Its own permission, not `settings.update`: a rollback changes many
+            // values at once, from a state the operator may not have inspected, and it
+            // is the operation most likely to be run under pressure (ADR 0040). The
+            // settings it may actually touch are checked per key against the computed
+            // plan, so this route cannot be used to change a guarded value without the
+            // permission that guards it.
+            Route::post('/{group}/rollback', [SettingAdminController::class, 'rollback'])
+                ->middleware('permission:'.AdminPermission::SETTINGS_ROLLBACK->value)
+                ->where('group', $groupPattern)
+                ->name('admin.settings.rollback');
+
             Route::put('/{group}', [SettingAdminController::class, 'update'])
                 ->middleware('permission:'.AdminPermission::SETTINGS_UPDATE->value)
                 ->where('group', $groupPattern)
