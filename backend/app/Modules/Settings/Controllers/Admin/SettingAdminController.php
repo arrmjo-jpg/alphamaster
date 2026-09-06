@@ -111,6 +111,35 @@ class SettingAdminController extends BaseApiController
     }
 
     /**
+     * What the settings in this group used to be (ADR 0040).
+     *
+     * Reading history is `settings.view`, the same as reading the values themselves:
+     * seeing what something was is no more privileged than seeing what it is, and
+     * making it harder would only push an operator toward reading the database.
+     *
+     * Secrets are absent because they have no revisions, not because they are filtered
+     * here — there is nothing to filter.
+     */
+    public function history(Request $request, string $group): JsonResponse
+    {
+        $key = $request->query('key');
+        $key = is_string($key) && $key !== '' ? $key : null;
+
+        $limit = (int) $request->query('limit', '100');
+        $limit = max(1, min($limit, 500));
+
+        try {
+            $history = $this->settingService->groupHistory($group, $key, $limit);
+        } catch (SettingGroupNotFoundException $e) {
+            return $this->errorResponse('SETTING_GROUP_NOT_FOUND', $e->translationKey(), null, 404, $e->translationParameters());
+        } catch (UnknownSettingKeyException $e) {
+            return $this->errorResponse('SETTING_KEY_NOT_FOUND', $e->translationKey(), null, 404, $e->translationParameters());
+        }
+
+        return $this->successResponse($history, meta: ['group' => $group, 'count' => count($history)]);
+    }
+
+    /**
      * Batch update an array of settings within a group atomically.
      * Expected contract: { "settings": { "key1": "val1", "key2": val2 } }
      *

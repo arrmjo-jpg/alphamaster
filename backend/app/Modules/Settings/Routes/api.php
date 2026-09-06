@@ -53,6 +53,12 @@ Route::prefix('v1')->group(function () use ($groupPattern): void {
             // change a value can necessarily read the group they are changing, and
             // requiring both would let a role hold `settings.update` and still be
             // refused, which is not a state the seeded roles can express.
+            // A deeper path than /{group}, so the group pattern does not swallow it.
+            Route::get('/{group}/history', [SettingAdminController::class, 'history'])
+                ->middleware('permission:'.AdminPermission::SETTINGS_VIEW->value)
+                ->where('group', $groupPattern)
+                ->name('admin.settings.history');
+
             Route::put('/{group}', [SettingAdminController::class, 'update'])
                 ->middleware('permission:'.AdminPermission::SETTINGS_UPDATE->value)
                 ->where('group', $groupPattern)

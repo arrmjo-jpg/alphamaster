@@ -13,7 +13,9 @@ use App\Modules\Settings\Contracts\SettingServiceInterface;
 use App\Modules\Settings\Exceptions\SettingGroupNotFoundException;
 use App\Modules\Settings\Exceptions\UnknownSettingKeyException;
 use App\Modules\Settings\Models\Setting;
+use App\Modules\Settings\Models\SettingRevision;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
@@ -81,7 +83,15 @@ class SettingService implements SettingServiceInterface
     public function updateGroup(string $group, array $settings): array
     {
         return DB::transaction(function () use ($group, $settings): array {
-            $existing = Setting::query()->where('group', $group)->get()->keyBy('key');
+            // Translations come with them: a localized write reads the value it is
+            // superseding for the caller's locale (ADR 0040), and lazy loading is
+            // disabled platform-wide — which caught this rather than letting it become
+            // a query per setting.
+            $existing = Setting::query()
+                ->where('group', $group)
+                ->with('translations')
+                ->get()
+                ->keyBy('key');
 
             if ($existing->isEmpty()) {
                 throw new SettingGroupNotFoundException($group);
@@ -113,6 +123,10 @@ class SettingService implements SettingServiceInterface
                 // serializeValue maps null to null (explicitly unset) and rejects every
                 // value it cannot represent exactly, rather than coercing it.
                 $serialized = Setting::serializeValue($val, $setting->type);
+
+                // Captured before the version advances, so the revision carries the
+                // version its value actually belonged to (ADR 0040).
+                $this->recordRevision($setting, $serialized);
 
                 // The counter advances on every write, localized or not. A timestamp
                 // would not: `timestampsTz` stores whole seconds, so two saves a moment
@@ -235,6 +249,62 @@ class SettingService implements SettingServiceInterface
     }
 
     /**
+     * What the settings in a group used to be, newest first (ADR 0040).
+     *
+     * Secrets contribute nothing, because they have no revisions — an interface
+     * reading this sees the non-secret history and nothing that hints at what a
+     * credential was.
+     *
+     * @return array<int, array<string, mixed>>
+     *
+     * @throws SettingGroupNotFoundException
+     */
+    public function groupHistory(string $group, ?string $key = null, int $limit = 100): array
+    {
+        $settings = Setting::query()
+            ->where('group', $group)
+            ->when($key !== null, fn ($query) => $query->where('key', $key))
+            ->get();
+
+        if ($settings->isEmpty()) {
+            // An unknown group and an unknown key answer the same way the rest of the
+            // admin API does, rather than returning an empty list that reads as
+            // "nothing ever changed".
+            $key === null
+                ? throw new SettingGroupNotFoundException($group)
+                : throw new UnknownSettingKeyException($group, $key);
+        }
+
+        $byId = $settings->keyBy('id');
+
+        $revisions = SettingRevision::query()
+            ->whereIn('setting_id', $byId->keys())
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->limit($limit)
+            ->get();
+
+        return $revisions->map(function (SettingRevision $revision) use ($byId): array {
+            /** @var Setting $setting */
+            $setting = $byId->get($revision->setting_id);
+
+            return [
+                'key' => $setting->key,
+                'locale' => $revision->locale,
+                'version' => $revision->version,
+                // Cast through the setting's declared type, so history reads the way
+                // the value itself reads rather than as the raw stored string.
+                'value' => $revision->value === null
+                    ? null
+                    : Setting::castValue($revision->value, $setting->type),
+                'actor_id' => $revision->actor_id,
+                'recorded_at' => $revision->created_at->toIso8601String(),
+            ];
+        })->all();
+    }
+
+    /**
+     * An opaque validator for a group's current state (ADR 0038).    /**
      * An opaque validator for a group's current state (ADR 0038).
      *
      * A client reads it with the group and returns it with an update; a write built
@@ -425,6 +495,73 @@ class SettingService implements SettingServiceInterface
             ->first();
 
         return $setting?->getTypedValue();
+    }
+
+    /**
+     * Keep what a non-secret setting was, before it stops being that (ADR 0040).
+     *
+     * A secret returns before a row is constructed. That is the same structural shape
+     * the audit redaction uses and for the same reason: there is no path here that
+     * could carry credential material, so there is nothing to remember to omit.
+     *
+     * A write that changes nothing writes no revision. History is read to answer what
+     * a value used to be, and filling it with entries where the answer is "the same"
+     * makes that question harder to answer, not easier.
+     */
+    private function recordRevision(Setting $setting, ?string $incoming): void
+    {
+        if ($setting->is_secret) {
+            return;
+        }
+
+        $locale = $setting->is_localized ? $this->locale() : null;
+        $previous = $this->previousStoredValue($setting, $locale);
+
+        if ($previous === $incoming) {
+            return;
+        }
+
+        SettingRevision::query()->create([
+            'setting_id' => $setting->id,
+            'version' => $setting->version,
+            'locale' => $locale,
+            'value' => $previous,
+            'actor_id' => $this->actorId(),
+        ]);
+    }
+
+    /**
+     * The value being superseded, for the locale being written.
+     *
+     * For a localized setting this is the translation for that locale and not the
+     * fallback: a locale with no translation of its own was holding nothing, and
+     * recording the base value would let a later rollback create a translation that
+     * never existed.
+     */
+    private function previousStoredValue(Setting $setting, ?string $locale): ?string
+    {
+        if ($locale === null) {
+            return $setting->getRawValue();
+        }
+
+        $translation = $setting->translations->firstWhere('locale', $locale);
+
+        $value = $translation?->getAttribute('value');
+
+        return is_string($value) ? $value : null;
+    }
+
+    /**
+     * The acting user's identifier, where a request has one.
+     *
+     * The id rather than the model, resolved now rather than by later lookup, so a
+     * revision survives the account being deleted.
+     */
+    private function actorId(): ?string
+    {
+        $id = Auth::id();
+
+        return is_string($id) ? $id : null;
     }
 
     /**

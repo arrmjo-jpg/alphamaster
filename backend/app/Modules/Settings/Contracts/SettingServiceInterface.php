@@ -72,6 +72,16 @@ interface SettingServiceInterface
      * Returned with a read and required on a write, so an update built on a stale
      * read is refused rather than silently discarding someone else's change.
      */
+    /**
+     * What the settings in a group used to be, newest first (ADR 0040).
+     *
+     * Secrets contribute nothing: they have no revisions, so nothing here hints at
+     * what a credential was.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function groupHistory(string $group, ?string $key = null, int $limit = 100): array;
+
     public function groupVersion(string $group): string;
 
     public function clearCache(?string $group = null): void;
