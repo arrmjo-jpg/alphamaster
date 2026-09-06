@@ -88,6 +88,7 @@ test('an admin with no roles at all is refused, not admitted by default', functi
 
 test('an admin holding settings.update can update a group', function (): void {
     $this->withToken(adminToken(roles: ['administrator']))
+        ->withHeaders(['If-Match' => settingsVersion('general')])
         ->putJson('/api/v1/admin/settings/general', settingsPayload())
         ->assertOk();
 

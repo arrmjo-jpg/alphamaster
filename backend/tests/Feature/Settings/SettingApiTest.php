@@ -138,7 +138,7 @@ test('admin settings show returns 404 for an unknown group', function (): void {
 });
 
 test('admin can batch update settings within a group atomically', function (): void {
-    $response = $this->withToken(adminToken(roles: ['administrator']))->putJson('/api/v1/admin/settings/general', [
+    $response = $this->withToken(adminToken(roles: ['administrator']))->withHeaders(['If-Match' => settingsVersion('general')])->putJson('/api/v1/admin/settings/general', [
         'settings' => [
             'site_name' => 'New Platform Name',
             'maintenance_mode' => true,
@@ -163,6 +163,7 @@ test('admin can batch update settings within a group atomically', function (): v
 
 test('admin batch update rejects invalid type casting strictly', function (): void {
     $this->withToken(adminToken(roles: ['administrator']))
+        ->withHeaders(['If-Match' => settingsVersion('auth')])
         ->putJson('/api/v1/admin/settings/auth', [
             'settings' => ['password_min_length' => 'not-an-int'],
         ])
@@ -174,6 +175,7 @@ test('admin batch update rejects invalid type casting strictly', function (): vo
 
 test('admin batch update rejects an array for a string setting instead of storing "Array"', function (): void {
     $this->withToken(adminToken(roles: ['administrator']))
+        ->withHeaders(['If-Match' => settingsVersion('general')])
         ->putJson('/api/v1/admin/settings/general', [
             'settings' => ['site_name' => ['nested' => 'payload']],
         ])
@@ -185,6 +187,7 @@ test('admin batch update rejects an array for a string setting instead of storin
 
 test('admin batch update reports an unknown key as 404 rather than an invalid value', function (): void {
     $this->withToken(adminToken(roles: ['administrator']))
+        ->withHeaders(['If-Match' => settingsVersion('general')])
         ->putJson('/api/v1/admin/settings/general', [
             'settings' => ['no_such_key' => 'value'],
         ])
@@ -194,6 +197,9 @@ test('admin batch update reports an unknown key as 404 rather than an invalid va
 
 test('admin batch update reports an unknown group as 404', function (): void {
     $this->withToken(adminToken(roles: ['administrator']))
+        // A group that does not exist has no version to read, so the request carries
+        // an arbitrary one: the answer must still be 404, not a precondition error.
+        ->withHeaders(['If-Match' => 'any-value-at-all'])
         ->putJson('/api/v1/admin/settings/no_such_group', [
             'settings' => ['anything' => 'value'],
         ])
@@ -203,6 +209,7 @@ test('admin batch update reports an unknown group as 404', function (): void {
 
 test('a batch update that fails partway leaves the whole group untouched', function (): void {
     $this->withToken(adminToken(roles: ['administrator']))
+        ->withHeaders(['If-Match' => settingsVersion('general')])
         ->putJson('/api/v1/admin/settings/general', [
             'settings' => [
                 'site_name' => 'Committed Before Failure',

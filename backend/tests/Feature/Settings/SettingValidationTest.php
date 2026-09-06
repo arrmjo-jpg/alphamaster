@@ -20,7 +20,11 @@ beforeEach(function (): void {
  */
 function putSettings(mixed $test, array $payload, string $group = 'general'): TestResponse
 {
-    return $test->withToken($test->token)->putJson('/api/v1/admin/settings/'.$group, $payload);
+    // An admin write states which version it changes (ADR 0038); these tests are
+    // about the structural layer, so the precondition is simply satisfied.
+    return $test->withToken($test->token)
+        ->withHeaders(['If-Match' => settingsVersion($group)])
+        ->putJson('/api/v1/admin/settings/'.$group, $payload);
 }
 
 test('batch update requires a non-empty settings object', function (): void {

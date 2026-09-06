@@ -3,6 +3,7 @@
 use App\Modules\Authorization\Contracts\AdminRbacContract;
 use App\Modules\Core\Cache\CacheNamespace;
 use App\Modules\Core\Contracts\PlatformCacheContract;
+use App\Modules\Settings\Contracts\SettingServiceInterface;
 use App\Modules\User\Enums\AccountType;
 use App\Modules\User\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -214,4 +215,15 @@ function regularWithToken(mixed $test, string $email = 'rbac-user@example.com'):
 function localizationKey(string $resource): string
 {
     return app(PlatformCacheContract::class)->key(CacheNamespace::LOCALIZATION, $resource);
+}
+
+/**
+ * The current validator for a settings group (ADR 0038).
+ *
+ * An admin write must state which version it is changing, so a test that updates
+ * settings reads the version the same way a client would.
+ */
+function settingsVersion(string $group): string
+{
+    return app(SettingServiceInterface::class)->groupVersion($group);
 }

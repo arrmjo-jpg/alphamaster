@@ -114,11 +114,17 @@ class SettingService implements SettingServiceInterface
                 // value it cannot represent exactly, rather than coercing it.
                 $serialized = Setting::serializeValue($val, $setting->type);
 
+                // The counter advances on every write, localized or not. A timestamp
+                // would not: `timestampsTz` stores whole seconds, so two saves a moment
+                // apart would look identical (ADR 0038).
+                $setting->version = $setting->version + 1;
+
                 if ($setting->is_localized) {
                     // A localized write lands in the caller's locale and leaves every
                     // other language alone. Writing it to the base column instead would
                     // silently change what every other locale falls back to.
                     $setting->setLocalizedValue($this->locale(), $serialized);
+                    $setting->save();
                 } else {
                     $setting->setRawValue($serialized);
                     $setting->save();
@@ -226,6 +232,44 @@ class SettingService implements SettingServiceInterface
         }
 
         return $grouped;
+    }
+
+    /**
+     * An opaque validator for a group's current state (ADR 0038).
+     *
+     * A client reads it with the group and returns it with an update; a write built
+     * on a stale read is refused rather than applied. Opaque on purpose — the
+     * contract is *return what you were given*, so how it is computed can change
+     * without every client changing with it.
+     *
+     * It covers the translations as well as the rows. A localized write touches only
+     * `setting_translations` and leaves `settings.updated_at` alone, so a version
+     * derived from the rows would let two administrators edit the same Arabic site
+     * name and never conflict — the exact loss this exists to prevent.
+     *
+     * @throws SettingGroupNotFoundException
+     */
+    public function groupVersion(string $group): string
+    {
+        // The query builder rather than Eloquent: this is an aggregate, not a model,
+        // and asking Eloquent for one means describing columns Setting does not have.
+        $rows = DB::table('settings')
+            ->where('group', $group)
+            ->selectRaw('count(*) as row_count, coalesce(sum(version), 0) as version_sum')
+            ->first();
+
+        if ($rows === null || (int) $rows->row_count === 0) {
+            throw new SettingGroupNotFoundException($group);
+        }
+
+        // Counted rather than timed, and carrying no value: the sum moves whenever any
+        // row in the group is written, the count moves when the group's shape changes,
+        // and neither exposes anything about what is stored.
+        return substr(hash('sha256', implode('|', [
+            $group,
+            (string) $rows->row_count,
+            (string) $rows->version_sum,
+        ])), 0, 32);
     }
 
     /**

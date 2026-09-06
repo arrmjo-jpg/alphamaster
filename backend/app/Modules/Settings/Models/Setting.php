@@ -23,6 +23,7 @@ use InvalidArgumentException;
  * @property bool $is_secret
  * @property bool $is_public
  * @property bool $is_localized
+ * @property int $version
  * @property string|null $description
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at

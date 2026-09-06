@@ -10,6 +10,7 @@ use App\Modules\Settings\Exceptions\SettingGroupNotFoundException;
 use App\Modules\Settings\Exceptions\UnknownSettingKeyException;
 use App\Modules\Settings\Requests\UpdateGroupSettingsRequest;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use InvalidArgumentException;
 
 class SettingAdminController extends BaseApiController
@@ -32,7 +33,13 @@ class SettingAdminController extends BaseApiController
     public function show(string $group): JsonResponse
     {
         try {
-            return $this->successResponse($this->settingService->getAdminGroup($group));
+            $settings = $this->settingService->getAdminGroup($group);
+            $version = $this->settingService->groupVersion($group);
+
+            // Handed back both ways: as an ETag for a client that speaks HTTP
+            // conditional requests, and in meta for one that does not (ADR 0038).
+            return $this->successResponse($settings, meta: ['version' => $version])
+                ->header('ETag', '"'.$version.'"');
         } catch (SettingGroupNotFoundException $e) {
             return $this->errorResponse('SETTING_GROUP_NOT_FOUND', $e->translationKey(), null, 404, $e->translationParameters());
         }
@@ -51,6 +58,12 @@ class SettingAdminController extends BaseApiController
         $payload = $request->validated()['settings'];
 
         try {
+            $precondition = $this->assertPrecondition($request, $group);
+
+            if ($precondition !== null) {
+                return $precondition;
+            }
+
             $updated = $this->settingService->updateGroup($group, $payload);
         } catch (SettingGroupNotFoundException $e) {
             return $this->errorResponse('SETTING_GROUP_NOT_FOUND', $e->translationKey(), null, 404, $e->translationParameters());
@@ -60,6 +73,8 @@ class SettingAdminController extends BaseApiController
             return $this->errorResponse('INVALID_SETTING_VALUE', $e->getMessage(), null, 422);
         }
 
+        $version = $this->settingService->groupVersion($group);
+
         return $this->successResponse(
             data: [
                 'group' => $group,
@@ -67,6 +82,46 @@ class SettingAdminController extends BaseApiController
             ],
             message: 'api.settings.group_updated',
             replace: ['group' => $group],
-        );
+            meta: ['version' => $version],
+        )->header('ETag', '"'.$version.'"');
+    }
+
+    /**
+     * Refuse a write that was not built on the group's current state (ADR 0038).
+     *
+     * Returns a response to send, or null when the write may proceed.
+     *
+     * A missing precondition is refused rather than waved through. Accepting one
+     * would leave every client that had not been updated silently overwriting, which
+     * is the behaviour this exists to end — reachable by omitting a header. 428 says
+     * the request needs a precondition; 412 says the one it carried is stale.
+     */
+    private function assertPrecondition(Request $request, string $group): ?JsonResponse
+    {
+        $presented = trim((string) $request->header('If-Match'), '"');
+
+        if ($presented === '') {
+            return $this->errorResponse(
+                'PRECONDITION_REQUIRED',
+                'api.error.settings.precondition_required',
+                null,
+                428,
+            );
+        }
+
+        $current = $this->settingService->groupVersion($group);
+
+        if (! hash_equals($current, $presented)) {
+            // The current state travels with the refusal, so a client can show what
+            // changed rather than only reporting that it failed.
+            return $this->errorResponse(
+                'SETTING_VERSION_CONFLICT',
+                'api.error.settings.version_conflict',
+                ['current_version' => $current],
+                412,
+            );
+        }
+
+        return null;
     }
 }

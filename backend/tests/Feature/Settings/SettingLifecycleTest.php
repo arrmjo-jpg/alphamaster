@@ -102,7 +102,7 @@ test('secret lifecycle: an omitted secret is left untouched', function (): void 
     $this->service->set('security', 'api_secret_key', 'original-secret');
     $ciphertext = storedValue('security', 'api_secret_key');
 
-    $this->withToken($this->token)->putJson('/api/v1/admin/settings/security', [
+    $this->withToken($this->token)->withHeaders(['If-Match' => settingsVersion('security')])->putJson('/api/v1/admin/settings/security', [
         'settings' => ['max_login_attempts' => 9], // api_secret_key omitted entirely
     ])->assertOk();
 
@@ -115,7 +115,7 @@ test('secret lifecycle: submitting the mask preserves the stored secret', functi
     $this->service->set('security', 'api_secret_key', 'original-secret');
     $ciphertext = storedValue('security', 'api_secret_key');
 
-    $response = $this->withToken($this->token)->putJson('/api/v1/admin/settings/security', [
+    $response = $this->withToken($this->token)->withHeaders(['If-Match' => settingsVersion('security')])->putJson('/api/v1/admin/settings/security', [
         'settings' => [
             'max_login_attempts' => 10,
             'api_secret_key' => Setting::SECRET_MASK,
@@ -133,7 +133,7 @@ test('secret lifecycle: submitting the mask preserves the stored secret', functi
 test('secret lifecycle: submitting null clears the secret', function (): void {
     $this->service->set('security', 'api_secret_key', 'original-secret');
 
-    $response = $this->withToken($this->token)->putJson('/api/v1/admin/settings/security', [
+    $response = $this->withToken($this->token)->withHeaders(['If-Match' => settingsVersion('security')])->putJson('/api/v1/admin/settings/security', [
         'settings' => ['api_secret_key' => null],
     ]);
 
@@ -146,7 +146,7 @@ test('secret lifecycle: submitting null clears the secret', function (): void {
 });
 
 test('secret lifecycle: submitting the mask for a cleared secret leaves it cleared', function (): void {
-    $this->withToken($this->token)->putJson('/api/v1/admin/settings/security', [
+    $this->withToken($this->token)->withHeaders(['If-Match' => settingsVersion('security')])->putJson('/api/v1/admin/settings/security', [
         'settings' => ['api_secret_key' => Setting::SECRET_MASK],
     ])->assertOk()->assertJsonPath('data.updated.api_secret_key', null);
 
@@ -154,7 +154,7 @@ test('secret lifecycle: submitting the mask for a cleared secret leaves it clear
 });
 
 test('secret lifecycle: submitting a new value encrypts it and reports only the mask', function (): void {
-    $response = $this->withToken($this->token)->putJson('/api/v1/admin/settings/security', [
+    $response = $this->withToken($this->token)->withHeaders(['If-Match' => settingsVersion('security')])->putJson('/api/v1/admin/settings/security', [
         'settings' => ['api_secret_key' => 'brand-new-secret'],
     ]);
 
