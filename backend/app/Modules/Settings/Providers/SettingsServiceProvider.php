@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Modules\Settings\Providers;
 
+use App\Modules\Core\Backup\ConfigurationPortability;
 use App\Modules\Core\Contracts\RetentionPolicyContract;
+use App\Modules\Settings\Backup\SettingsPortability;
 use App\Modules\Settings\Console\SynchroniseSettingsCommand;
 use App\Modules\Settings\Contracts\SettingServiceInterface;
 use App\Modules\Settings\Definitions\Catalogues\AuthCatalogue;
@@ -75,6 +77,11 @@ class SettingsServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // This module's share of a portable configuration export (ADR 0039). Registered
+        // here rather than listed centrally, because Core may not import a domain module
+        // and a central list would have to.
+        $this->app->make(ConfigurationPortability::class)
+            ->register($this->app->make(SettingsPortability::class));
         // Load module migrations
         $this->loadMigrationsFrom(dirname(__DIR__).'/Database/Migrations');
 

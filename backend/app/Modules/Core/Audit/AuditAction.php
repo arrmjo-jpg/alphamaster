@@ -50,6 +50,16 @@ final class AuditAction
      */
     public const AUDIT_ARCHIVED = 'audit.archived';
 
+    /**
+     * Configuration written to a portable artefact, or read back from one (ADR 0039).
+     *
+     * Both are recorded because both move the platform's configuration across a
+     * boundary: one out to a file that will be copied, one in over what is running.
+     */
+    public const CONFIGURATION_EXPORTED = 'configuration.exported';
+
+    public const CONFIGURATION_RESTORED = 'configuration.restored';
+
     public const MAIL_TEST_SENT = 'mail.test_sent';
 
     private function __construct() {}

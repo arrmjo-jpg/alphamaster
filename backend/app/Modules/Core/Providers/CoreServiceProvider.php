@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Core\Providers;
 
 use App\Modules\Core\Audit\AuditRecorder;
+use App\Modules\Core\Backup\ConfigurationPortability;
 use App\Modules\Core\Cache\PlatformCache;
 use App\Modules\Core\Contracts\AuditRecorderContract;
 use App\Modules\Core\Contracts\PlatformCacheContract;
@@ -22,6 +23,11 @@ class CoreServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        // The registry of who contributes to a configuration export. Core owns the
+        // envelope; each module registers its own section, because no module may reach
+        // into another's store and no single place is allowed to import them all.
+        $this->app->singleton(ConfigurationPortability::class);
+
         // One cache entry point for the whole platform (ADR 0035). A singleton
         // because the key builder is stateless and the generation lookup benefits
         // from not being reconstructed per call.

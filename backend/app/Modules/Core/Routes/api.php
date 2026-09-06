@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Modules\Authorization\Enums\AdminPermission;
 use App\Modules\Core\Controllers\Admin\AuditAdminController;
+use App\Modules\Core\Controllers\Admin\ConfigurationBackupController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function (): void {
@@ -36,5 +37,21 @@ Route::prefix('v1')->group(function (): void {
             Route::post('/archive', [AuditAdminController::class, 'archive'])
                 ->middleware('permission:'.AdminPermission::AUDIT_MANAGE->value)
                 ->name('admin.audit.archive');
+        });
+
+    // Moving configuration in and out of this deployment (ADR 0039).
+    //
+    // One permission for both directions, and deliberately not settings.update: an
+    // export reads every non-secret value and names every secret, and a restore
+    // rewrites configuration wholesale.
+    Route::prefix('admin/configuration')
+        ->middleware(['auth:sanctum', 'ability:admin:access', 'active', 'admin',
+            'permission:'.AdminPermission::SETTINGS_BACKUP_MANAGE->value])
+        ->group(function (): void {
+            Route::post('/export', [ConfigurationBackupController::class, 'export'])
+                ->name('admin.configuration.export');
+
+            Route::post('/restore', [ConfigurationBackupController::class, 'restore'])
+                ->name('admin.configuration.restore');
         });
 });
