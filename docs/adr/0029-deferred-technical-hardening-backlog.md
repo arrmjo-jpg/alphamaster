@@ -6,6 +6,7 @@
 * **Revised**: 2026-09-04 — foundation gap audit items added as a second section, separating decision from implementation
 * **Revised**: 2026-09-05 — items 11 and 13 closed by Phase 13, item 12 partially; item 19 recorded from the stranded Phase 12 branch; items 20 and 21 added
 * **Revised**: 2026-09-05 — item 4 closed by Phase 14; items 7, 12, 20 and 21 closed by Phase 15, with items 7 and 21 corrected where they described the problem inaccurately; item 22 added
+* **Revised**: 2026-09-06 — item 12 reopened as partial on API-contract review: the permission catalogue and the role request were corrected to ADR 0031, and the labelled arrays on the user payload were found to have no contract to be built against
 
 ## Context
 
@@ -139,9 +140,9 @@ This section exists because of a failure mode the audit exposed. Before it, none
 
 *Closed by*: localization applied at the two choke points ADR 0015 names — the `ApiResponse` trait and the exception handlers in `bootstrap/app.php` — plus published validation catalogues per locale, and translated custom FormRequest messages. Not by translating 74 call sites individually.
 
-### 12. Display labels do not exist — CLOSED (Phase 15)
+### 12. Display labels do not exist — PARTIALLY CLOSED (Phase 15)
 
-*Decision*: ADR 0030, with the RBAC application in ADR 0014. *Implementation*: complete — enum labels in Phase 13 (PRs #14 and #16), permission and role labels in Phase 15.
+*Decision*: ADR 0030, with the RBAC application in ADR 0014. *Implementation*: **partial** — enum labels in Phase 13 (PRs #14 and #16), permission and role labels in Phase 15; the labelled arrays on the user payload remain.
 
 Fifteen enums, none with a display method. Raw backed values reach clients: `not_scanned`, `sms_otp`, `security.alert`, `admin`. Permissions and roles reach clients as `users.update` and `super_admin`. `RoleRequest` requires an administrator to type the technical identifier by hand and offers no field for a human name.
 
@@ -149,9 +150,15 @@ Fifteen enums, none with a display method. Raw backed values reach clients: `not
 
 *Remaining after Phase 13*: the enum third is done — eleven enums carry a display method, their labels are in both catalogues, and the payload shape ADR 0031 fixes is implemented. Permission labels do not exist (`permission.*` appears zero times in `lang/en.json`), there is no `role_translations` table, and `RoleRequest` still requires the identifier to be typed by hand with no field for a human name.
 
-*Closed by*: Phase 15. Permissions resolve a label from `permission.*` in both catalogues, falling back to a humanised identifier rather than to blank, and the catalogue endpoint returns `{name, label}` entries in place of bare strings while keeping its module grouping. Roles read a label from a `role_translations` table when one exists, then from `role.*` for the built-in roles that a deployment defines in code, then from a humanised identifier — the three sources ADR 0030 distinguishes. `RoleResource` carries `name_label` beside the unchanged `name`.
+*Closed by*: Phase 15. Permissions resolve a label from `permission.*` in both catalogues, falling back to a humanised identifier rather than to blank, and the catalogue endpoint returns `{key, label}` entries in place of bare strings while keeping its module grouping. Roles read a label from a `role_translations` table when one exists, then from `role.*` for the built-in roles that a deployment defines in code, then from a humanised identifier — the three sources ADR 0030 distinguishes. `RoleResource` carries `name_label` beside the unchanged `name`, and the request that creates a role names its field `label` — the response's `name` is the machine identifier, so one word could not mean both across the same resource.
 
 The identifier is no longer typed by hand: `RoleIdentifier` derives it from the label once at creation, in the grammar `RoleRequest` already enforced, suffixing `_2`, `_3` on collision so two roles may read alike while staying distinct underneath. It is immutable thereafter, refused on the model rather than only in request validation, because permissions and assignments reference a role by name.
+
+*Remaining after Phase 15*: `UserResource` still exposes `roles` and `permissions` as arrays of raw identifiers — `["super_admin"]`, `["users.update"]` — with no labels beside them. This is the case ADR 0030's own problem statement opens with, so it belongs to this item rather than to a new one.
+
+It was not implemented in Phase 15 because there is no contract to implement it against. ADR 0031 defines two shapes: a `_label` sibling for a single field, and a `{value, label}` catalogue entry, with `_options` where a catalogue accompanies an existing field. Neither covers a field that is itself an array of identifiers the record already holds — it is not one value, and it is not a set the client is choosing from. Inventing a third shape here would reintroduce exactly the presentation drift item 13 closed, and it would do so in the payload every administrative screen reads first.
+
+*Closed by*: a decision recorded in ADR 0030 and ADR 0031 on how a labelled array is presented, and then its application to `UserResource`. The decision comes first; this item stays open until it exists.
 
 ### 13. API presentation has drifted into two styles — CLOSED (Phase 13)
 
@@ -271,6 +278,6 @@ Two of the closures were larger than this record said they were, and in both cas
 
 Part Two carries a different risk. Its items are not hardening; they are capabilities the platform presents as working. Item 11 is the sharpest: the API advertises a language in a response header it does not honour in the body, so this is a contract being broken rather than a feature being awaited. Items 11, 12 and 13 are also mutually blocking in one direction — labels need a presentation layer to appear in, and both need localization to resolve against — which makes their order a sequencing decision rather than a free choice.
 
-That sequencing was settled by Phase 13, which took them in the only order that works: localization first, then the presentation layer, then the labels that needed both. Items 11 and 13 closed and item 12 lost its enum third; Phase 15 closed the rest of item 12, so all three are now built.
+That sequencing was settled by Phase 13, which took them in the only order that works: localization first, then the presentation layer, then the labels that needed both. Items 11 and 13 closed and item 12 lost its enum third; Phase 15 took its permission and role thirds. What is left of item 12 is there because the presentation layer it depends on does not yet answer the question — a labelled array has no shape in ADR 0031 — which is the same dependency in the same direction, surfacing once more at the end rather than at the start.
 
 Item 19 is different again: it is the only entry on this list that no decision of ours can close, which is why it says blocked rather than deferred. Items 20 and 21 were ordinary deferrals of the Part One kind, recorded here rather than in that section only because they were found after it was written; both closed in Phase 15. Item 22 is the newest entry and the only one on the list that is open rather than deferred: it has no decision behind it yet, and says so.
