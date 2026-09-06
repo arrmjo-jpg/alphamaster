@@ -168,7 +168,9 @@ test('every case of all three enums resolves in both locales', function (): void
         }
     }
 
-    expect($checked)->toBe(22);
+    // Three enums across two locales. SettingType gained url, email and media in
+    // Phase 16A, which is six more checks than before.
+    expect($checked)->toBe(28);
 });
 
 // ── The shapes ───────────────────────────────────────────────────────────────

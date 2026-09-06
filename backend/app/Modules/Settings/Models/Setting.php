@@ -21,6 +21,7 @@ use InvalidArgumentException;
  * @property SettingType $type
  * @property bool $is_secret
  * @property bool $is_public
+ * @property bool $is_localized
  * @property string|null $description
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -55,6 +56,7 @@ class Setting extends BaseModel
         'type',
         'is_secret',
         'is_public',
+        'is_localized',
         'description',
     ];
 
@@ -69,6 +71,7 @@ class Setting extends BaseModel
             'type' => SettingType::class,
             'is_secret' => 'boolean',
             'is_public' => 'boolean',
+            'is_localized' => 'boolean',
         ]);
     }
 
@@ -85,6 +88,11 @@ class Setting extends BaseModel
         static::saving(function (Setting $setting): void {
             if ($setting->is_secret && $setting->is_public) {
                 throw new InvalidArgumentException("Setting [{$setting->group}.{$setting->key}] cannot be both secret and public.");
+            }
+
+            // A credential has no language (ADR 0018). Enforced in the database too.
+            if ($setting->is_secret && $setting->is_localized) {
+                throw new InvalidArgumentException("Setting [{$setting->group}.{$setting->key}] cannot be both secret and localized.");
             }
         });
     }
