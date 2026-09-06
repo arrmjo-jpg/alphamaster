@@ -4,29 +4,32 @@ declare(strict_types=1);
 
 namespace App\Modules\Settings\Services;
 
+use App\Modules\Core\Cache\CacheNamespace;
 use App\Modules\Core\Contracts\LocaleResolverInterface;
+use App\Modules\Core\Contracts\PlatformCacheContract;
 use App\Modules\Settings\Contracts\SettingServiceInterface;
 use App\Modules\Settings\Exceptions\SettingGroupNotFoundException;
 use App\Modules\Settings\Exceptions\UnknownSettingKeyException;
 use App\Modules\Settings\Models\Setting;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
 class SettingService implements SettingServiceInterface
 {
-    public const CACHE_PREFIX = 'settings:';
-
-    public const CACHE_TTL = 86400; // 24 hours
-
     /**
-     * Cache key holding the list of groups that expose at least one public setting.
-     *
-     * Consulted before any per-group cache write so that an unknown (attacker supplied)
-     * group name can never mint a cache entry of its own.
+     * The resources this service caches, named rather than spelled out at each call
+     * site. The platform cache composes the key and owns the TTL (ADR 0035).
      */
-    public const PUBLIC_GROUPS_KEY = self::CACHE_PREFIX.'public:groups';
+    public const RESOURCE_PUBLIC = 'public';
+
+    public const RESOURCE_PUBLIC_GROUP = 'public_group';
+
+    public const RESOURCE_PUBLIC_GROUPS = 'public_groups';
+
+    public const RESOURCE_GROUP_INDEX = 'group_index';
+
+    public function __construct(private readonly PlatformCacheContract $cache) {}
 
     /**
      * Get a typed setting value by key formatted as 'group.key'.
@@ -140,7 +143,7 @@ class SettingService implements SettingServiceInterface
     {
         $locale = $this->locale();
 
-        return Cache::remember(self::CACHE_PREFIX.'public:'.$locale, self::CACHE_TTL, function () use ($locale): array {
+        return $this->cache->remember(CacheNamespace::SETTINGS, self::RESOURCE_PUBLIC, ['locale' => $locale], function () use ($locale): array {
             $result = [];
 
             foreach ($this->publicQuery()->with('translations')->get() as $record) {
@@ -166,7 +169,7 @@ class SettingService implements SettingServiceInterface
 
         $locale = $this->locale();
 
-        return Cache::remember(self::CACHE_PREFIX.'group:'.$group.':public:'.$locale, self::CACHE_TTL, function () use ($group, $locale): array {
+        return $this->cache->remember(CacheNamespace::SETTINGS, self::RESOURCE_PUBLIC_GROUP, ['group' => $group, 'locale' => $locale], function () use ($group, $locale): array {
             $result = [];
 
             foreach ($this->publicQuery()->where('group', $group)->with('translations')->get() as $record) {
@@ -219,22 +222,27 @@ class SettingService implements SettingServiceInterface
      */
     public function clearCache(?string $group = null): void
     {
-        Cache::forget(self::PUBLIC_GROUPS_KEY);
+        // A change with no named group is a bulk one — a synchronisation, a language
+        // activated, a restore. Bumping the namespace generation invalidates every
+        // settings entry at once without enumerating anything and without reaching a
+        // key outside this namespace, which is what ADR 0035 puts in place of a flush.
+        if ($group === null) {
+            $this->cache->flushNamespace(CacheNamespace::SETTINGS);
 
-        $groups = $group !== null
-            ? [$group]
-            : Setting::query()->distinct()->pluck('group')->all();
+            return;
+        }
+
+        // One group changed, so the affected entries are known and few: forget them
+        // precisely rather than discarding the rest of the namespace with them.
+        $this->cache->forget(CacheNamespace::SETTINGS, self::RESOURCE_PUBLIC_GROUPS);
 
         // Every locale variant, not only the caller's. A stale entry in a language
         // nobody happened to request is exactly the one that will be served next
         // (ADR 0018), and the caller's own locale is rarely the one at risk.
         foreach ($this->cacheLocales() as $locale) {
-            Cache::forget(self::CACHE_PREFIX.'public:'.$locale);
-
-            foreach ($groups as $name) {
-                Cache::forget(self::CACHE_PREFIX.'group:'.$name.':public:'.$locale);
-                Cache::forget(self::CACHE_PREFIX.'internal:group:'.$name.':'.$locale);
-            }
+            $this->cache->forget(CacheNamespace::SETTINGS, self::RESOURCE_PUBLIC, ['locale' => $locale]);
+            $this->cache->forget(CacheNamespace::SETTINGS, self::RESOURCE_PUBLIC_GROUP, ['group' => $group, 'locale' => $locale]);
+            $this->cache->forget(CacheNamespace::SETTINGS, self::RESOURCE_GROUP_INDEX, ['group' => $group, 'locale' => $locale]);
         }
     }
 
@@ -305,7 +313,7 @@ class SettingService implements SettingServiceInterface
      */
     protected function getPublicGroupNames(): array
     {
-        return Cache::remember(self::PUBLIC_GROUPS_KEY, self::CACHE_TTL, function (): array {
+        return $this->cache->remember(CacheNamespace::SETTINGS, self::RESOURCE_PUBLIC_GROUPS, [], function (): array {
             return $this->publicQuery()->distinct()->orderBy('group')->pluck('group')->all();
         });
     }
@@ -321,8 +329,8 @@ class SettingService implements SettingServiceInterface
     protected function getGroupIndex(string $group): array
     {
         $locale = $this->locale();
-        $cacheKey = self::CACHE_PREFIX.'internal:group:'.$group.':'.$locale;
-        $cached = Cache::get($cacheKey);
+        $discriminators = ['group' => $group, 'locale' => $locale];
+        $cached = $this->cache->get(CacheNamespace::SETTINGS, self::RESOURCE_GROUP_INDEX, $discriminators);
 
         // A cache entry written by an older revision can have a different shape. Treat
         // anything that does not match the current contract as a miss and rebuild it,
@@ -346,7 +354,7 @@ class SettingService implements SettingServiceInterface
 
         $index = ['values' => $values, 'secrets' => $secrets];
 
-        Cache::put($cacheKey, $index, self::CACHE_TTL);
+        $this->cache->put(CacheNamespace::SETTINGS, self::RESOURCE_GROUP_INDEX, $discriminators, $index);
 
         return $index;
     }

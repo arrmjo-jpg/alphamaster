@@ -204,3 +204,11 @@ arch('Filesystem internals are reachable only from the Media storage layer')
     // storage contract to the filesystem implementation beneath it.
     ->expect('League\Flysystem')
     ->toOnlyBeUsedIn('App\Modules\Media\Services\Storage');
+
+arch('The cache facade is reached only through the platform cache')
+    // ADR 0035: no module composes a cache key or passes a TTL. A module reaching the
+    // facade directly is how four independently invented key conventions become
+    // forty, and how a namespace ends up with entries nothing can invalidate.
+    // PlatformCache is the one implementation allowed to touch the store.
+    ->expect('Illuminate\Support\Facades\Cache')
+    ->toOnlyBeUsedIn('App\Modules\Core\Cache');

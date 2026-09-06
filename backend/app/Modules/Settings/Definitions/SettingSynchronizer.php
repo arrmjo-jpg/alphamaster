@@ -64,10 +64,14 @@ class SettingSynchronizer
         // Definitions can change what a payload contains — a setting becoming public,
         // or a type changing how it casts — so the cache is dropped once the run has
         // committed, never inside it (ADR 0035).
+        //
+        // After the transaction returns rather than through DB::afterCommit(). This is
+        // a top-level operation, so the work is committed by the time control gets
+        // here; afterCommit() would additionally defer to an *enclosing* transaction,
+        // and under a test's wrapping transaction that never commits it would never
+        // run at all — leaving the cache holding the previous run's catalogue.
         if ($report->changedAnything()) {
-            DB::afterCommit(function (): void {
-                $this->settings->clearCache();
-            });
+            $this->settings->clearCache();
         }
 
         return $report;

@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace App\Modules\Localization\Services;
 
+use App\Modules\Core\Cache\CacheNamespace;
 use App\Modules\Core\Contracts\LocaleResolverInterface;
+use App\Modules\Core\Contracts\PlatformCacheContract;
 use App\Modules\Localization\Models\Language;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Cache;
 
 /**
  * @phpstan-type ActiveLanguage array{
@@ -23,11 +24,11 @@ use Illuminate\Support\Facades\Cache;
  */
 class LocaleResolver implements LocaleResolverInterface
 {
-    public const CACHE_KEY_ACTIVE = 'localization:languages:active';
+    public const RESOURCE_ACTIVE = 'languages_active';
 
-    public const CACHE_KEY_DEFAULT = 'localization:languages:default';
+    public const RESOURCE_DEFAULT = 'languages_default';
 
-    public const CACHE_TTL = 86400; // 24 hours
+    // TTL and failure behaviour belong to the namespace now (ADR 0035).
 
     /**
      * Distinguishes a cache miss from a cached empty result.
@@ -38,6 +39,8 @@ class LocaleResolver implements LocaleResolverInterface
      * same value. Only getActiveLanguages() needs this.
      */
     private const CACHE_MISS = "\0locale-resolver-cache-miss";
+
+    public function __construct(private readonly PlatformCacheContract $cache) {}
 
     /**
      * Resolve the active locale for an incoming request according to the deterministic precedence:
@@ -151,7 +154,7 @@ class LocaleResolver implements LocaleResolverInterface
      */
     public function getActiveLanguages(): Collection
     {
-        $cached = Cache::get(self::CACHE_KEY_ACTIVE, self::CACHE_MISS);
+        $cached = $this->cache->get(CacheNamespace::LOCALIZATION, self::RESOURCE_ACTIVE, [], self::CACHE_MISS);
 
         if (is_array($cached)) {
             return collect($cached);
@@ -180,7 +183,7 @@ class LocaleResolver implements LocaleResolverInterface
 
         // An empty list is a legitimate answer — a platform with no active
         // language — and is cached like any other.
-        Cache::put(self::CACHE_KEY_ACTIVE, $languages, self::CACHE_TTL);
+        $this->cache->put(CacheNamespace::LOCALIZATION, self::RESOURCE_ACTIVE, [], $languages);
 
         return collect($languages);
     }
@@ -190,7 +193,7 @@ class LocaleResolver implements LocaleResolverInterface
      */
     public function getDefaultLanguageCode(): ?string
     {
-        return Cache::remember(self::CACHE_KEY_DEFAULT, self::CACHE_TTL, function (): ?string {
+        return $this->cache->remember(CacheNamespace::LOCALIZATION, self::RESOURCE_DEFAULT, [], function (): ?string {
             try {
                 return Language::query()
                     ->default()
@@ -206,8 +209,8 @@ class LocaleResolver implements LocaleResolverInterface
      */
     public function clearCache(): void
     {
-        Cache::forget(self::CACHE_KEY_ACTIVE);
-        Cache::forget(self::CACHE_KEY_DEFAULT);
+        $this->cache->forget(CacheNamespace::LOCALIZATION, self::RESOURCE_ACTIVE);
+        $this->cache->forget(CacheNamespace::LOCALIZATION, self::RESOURCE_DEFAULT);
     }
 
     /**
