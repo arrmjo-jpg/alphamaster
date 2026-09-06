@@ -2,6 +2,7 @@
 
 * **Status**: Accepted
 * **Date**: 2026-09-06
+* **Revised**: 2026-09-06 — the revert substrate named here was wrong and is corrected; rotation may verify before committing
 
 ## Context
 
@@ -61,6 +62,83 @@ Rotating a secret writes the new value and retires the old one in a single datab
 The version and the audit trail together record that a change happened and what it changed. Nothing here implements revert, and no approval workflow is introduced. What this record guarantees is that revert stays *possible*: a versioned write plus an audit record of the change is the substrate a later phase would need, and neither is being designed in a way that forecloses it.
 
 **Any future revert obeys ADR 0037's redaction rule.** History holds no secret values, so a revert can restore a configuration but never a credential — the credential must be re-supplied. That is a deliberate limit, not an oversight, and it is preferable to a history table full of recoverable secrets.
+
+## Extension — 2026-09-06: a correction, and a rotation contract
+
+Two changes. The first is a mistake in this record, found by trying to build on it. The
+second is a decision it deliberately left for later.
+
+### The revert substrate named above does not exist
+
+The section above says revert stays possible because *"a versioned write plus an audit
+record of the change is the substrate a later phase would need"*.
+
+That is wrong, and it is wrong because ADR 0037 is right. An audit record for a
+non-secret setting carries the fact of the change and not its value:
+
+```php
+['type' => $setting->type->value, 'localized' => $setting->is_localized]
+```
+
+Which is exactly what an audit trail should hold — and means **a configuration cannot be
+restored from it**. The version counter says a change happened; the audit record says who
+made it; neither says what the value was. Two correct records, jointly insufficient, and
+the gap stayed invisible until something needed to read it.
+
+The guarantee this record made — that revert stays possible — is honoured by **ADR 0040**,
+which builds a revision store for the purpose and keeps it separate from the trail. The
+claim about the substrate is withdrawn. Everything else in this record stands.
+
+The wording is left above rather than edited away, because a decision that named a
+mechanism which could not work is worth being able to find later.
+
+### Rotation may verify with the vendor before committing
+
+The section above draws a firm line: *validation is local, testing is a separate explicit
+operation, and storing a credential does not require the vendor to accept it.* That line
+was drawn to keep configuration usable when a vendor is slow, and to keep it testable
+without credentials.
+
+It is now narrowed for one operation only. **Rotating a secret may verify the new
+credential with the vendor before committing it**, where a verifier exists.
+
+The reason is that rotation is the one write whose failure is silent and delayed. An
+ordinary setting saved wrongly is visible on the next screen; a credential saved wrongly
+looks identical to one saved correctly and surfaces later as an integration that stopped
+working, frequently to somebody who was not the person who changed it.
+
+The contract:
+
+* **A verifier is optional, and most secrets have none.** `security.api_secret_key` is
+  internal — there is nothing to call. Where a capability declares a verifier, rotation
+  verifies; where none exists, rotation is local and **the result says explicitly that
+  live verification was unavailable**, rather than implying it passed.
+* **The new credential is never persisted mid-flight.** It is held for the duration of
+  the request, sent to the vendor, and then either committed or discarded. There is no
+  pending state, no second column, and no row holding a credential that is not yet in
+  use.
+* **A failed verification leaves the stored credential exactly as it was.** Not cleared,
+  not replaced, not partially applied. The section above already requires that a failed
+  rotation never leaves the field empty; verification does not weaken it.
+* **No secret material enters history or the audit trail**, old or new. ADR 0037's
+  redaction and ADR 0040's exclusion both apply unchanged: the trail records that a
+  rotation happened, and nothing about what was rotated to.
+* **Rotation requires `settings.secrets.manage`**, as any write to a secret does.
+
+### What this costs, said plainly
+
+Rotation now depends on vendor availability. A correct credential cannot be rotated in
+while the vendor is unreachable, because the platform will not commit what it could not
+verify.
+
+That is a real operational limit and it is accepted deliberately: an operator blocked by
+an outage knows they are blocked, whereas an operator who committed an unverified
+credential finds out days later. Where the trade is unwanted, the answer is a capability
+that declares no verifier, not a flag that skips one.
+
+### Not implemented
+
+Decided here, built in Phase 16B.
 
 ## Alternatives considered
 
