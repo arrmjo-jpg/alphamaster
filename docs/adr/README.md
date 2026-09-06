@@ -42,3 +42,5 @@ This directory maintains the architectural decision records for the **alphamaste
 | [0036](0036-http-cache-semantics-and-the-cdn-boundary.md) | HTTP Cache Semantics and the CDN Boundary | Accepted |
 | [0037](0037-administrative-audit-trail.md) | Administrative Audit Trail | Accepted |
 | [0038](0038-configuration-concurrency-and-atomicity.md) | Configuration Concurrency and Atomicity | Accepted |
+| [0039](0039-backup-recovery-and-encryption-key-custody.md) | Backup, Recovery and Encryption-Key Custody | Accepted |
+| [0040](0040-configuration-history-and-rollback.md) | Configuration History and Rollback | Accepted |

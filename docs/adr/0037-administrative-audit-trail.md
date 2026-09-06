@@ -2,6 +2,7 @@
 
 * **Status**: Accepted
 * **Date**: 2026-09-06
+* **Revised**: 2026-09-06 — retention settled: archival, as the single permitted removal path
 
 ## Context
 
@@ -68,6 +69,94 @@ An audit record names who did what and when, and taken together the trail descri
 ### What this is not
 
 It is not versioning, and not a rollback mechanism. It records that a change happened and enough context to understand it; reconstructing a previous configuration is ADR 0038's concern. It is not application logging: logs are diagnostic, rotated and sampled, while this is a durable record of administrative intent. And it is not an approval workflow — nothing here gates an action on another person's consent.
+
+## Extension — 2026-09-06: retention is archival, and it is the only way a record leaves
+
+The rule above says an audit record is never updated and never deleted through the
+application, and that retention is an operational decision taken against the database.
+That was the right place to stop while nothing needed to act on it. Phase 16A then
+declared `operations.audit_retention_days` with a 365-day default and deliberately
+built nothing to enforce it, which leaves a setting that describes an intention the
+platform ignores — worse than having no setting at all.
+
+This section decides how retention is enforced. It grants exactly one way for a record
+to leave the active store, and closes every other.
+
+### Archival, not deletion
+
+A record leaves the active store only as part of an **archival operation**, in this
+order and no other:
+
+```
+active trail  →  export  →  integrity verification  →  removal from active store
+```
+
+Each step gates the next. Nothing is removed that has not first been exported and then
+verified as readable from the archive. An export that cannot be verified removes
+nothing, and says so.
+
+The intent is that retention bounds what the *active* store carries, not what the
+platform can still answer. A record that has aged out has moved, not vanished.
+
+### It is triggered, never scheduled
+
+An operator runs it. There is no scheduled job, no queue worker, and no synchronisation
+side effect that removes an audit record.
+
+This is the specific thing the rule above forbids and it stays forbidden. A silent
+periodic cleanup is indistinguishable, from the outside, from evidence disappearing —
+and the moment it matters is exactly the moment nobody can prove which it was. Requiring
+a person to ask makes the removal an act with an author.
+
+`operations.audit_retention_days` therefore describes **eligibility**, not automation:
+it says which records an archival operation may take, and never causes one to run.
+
+### The archival is itself audited, and that record does not age out
+
+An archival operation writes its own audit record: who ran it, the window taken, how
+many records moved, where the archive was written, and the outcome.
+
+**A record describing an archival is never itself eligible for archival.** Otherwise a
+sufficiently patient sequence of operations erases the evidence that any of them
+happened, one window at a time, and the trail ends up complete-looking and false.
+
+### It has its own permission
+
+Reading the trail and removing from it are different powers, and holding the first is
+not a reason to hold the second — the accounts most interested in removal are the ones
+being recorded.
+
+* **`audit.view`** — read the trail. Unchanged.
+* **`audit.manage`** — run an archival operation. New, and granted to nobody by default.
+
+### The archive is a file on a configured disk, not a download
+
+The export is written to a configured storage disk and its location is recorded in the
+operation's audit record.
+
+Not returned as a download: an endpoint that streams the security trail to whoever
+called it is an exfiltration path with an access log entry that looks like maintenance.
+Writing to a disk an operator has configured keeps the artefact where the deployment's
+own access controls apply, and leaves a reference behind rather than a copy in a browser.
+
+### The archive holds no secret, because the trail never did
+
+Nothing changes here — the archive is a faithful copy of records that already contain
+no plaintext, ciphertext, hash or length. It is stated because an archive is a file that
+travels, and a reader deciding where to put it should not have to re-derive whether it
+is safe to move.
+
+### What is still forbidden
+
+* No scheduled or automatic removal, under any name.
+* No endpoint that edits or deletes an individual record.
+* No removal that has not been exported and verified first.
+* No archival of an archival record.
+* No secret entering the archive, by the same rule that keeps it out of the trail.
+
+### Not implemented
+
+Decided here, built in Phase 16B. The retention setting stays advisory until it is.
 
 ## Alternatives considered
 
