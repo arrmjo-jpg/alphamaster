@@ -10,7 +10,9 @@ use App\Modules\Core\Controllers\BaseApiController;
 use App\Modules\Settings\Contracts\SettingServiceInterface;
 use App\Modules\Settings\Definitions\SettingRegistry;
 use App\Modules\Settings\Exceptions\SettingGroupNotFoundException;
+use App\Modules\Settings\Exceptions\UnknownRevisionException;
 use App\Modules\Settings\Exceptions\UnknownSettingKeyException;
+use App\Modules\Settings\Requests\RollbackGroupSettingsRequest;
 use App\Modules\Settings\Requests\UpdateGroupSettingsRequest;
 use App\Modules\Settings\Resources\SettingDefinitionResource;
 use App\Modules\Settings\Services\MailConfigurationTester;
@@ -181,6 +183,72 @@ class SettingAdminController extends BaseApiController
                 'updated' => $updated,
             ],
             message: 'api.settings.group_updated',
+            replace: ['group' => $group],
+            meta: ['version' => $version],
+        )->header('ETag', '"'.$version.'"');
+    }
+
+    /**
+     * Restore a group to the state it held at a point in its history (ADR 0040).
+     *
+     * The order is deliberate and each step exists for a reason:
+     *
+     * 1. the precondition, so a rollback cannot be run from a page left open — the
+     *    operation most likely to be attempted from one (ADR 0038);
+     * 2. the plan, computed without writing, because the keys a rollback touches are
+     *    derived from history rather than submitted, and nothing can be authorized
+     *    until they are known;
+     * 3. the same per-key permission check an ordinary write performs, which is what
+     *    stops rollback becoming a way to change a guarded value without holding the
+     *    permission that guards it;
+     * 4. the write, applying the plan that was authorized rather than a fresh one.
+     *
+     * It reports what it restored and what it did not. A group containing a credential
+     * is rolled back successfully and names that credential as unrestorable, because a
+     * secret has no history to restore from — an operator gets a checklist rather than
+     * a failure or a silence.
+     */
+    public function rollback(RollbackGroupSettingsRequest $request, string $group): JsonResponse
+    {
+        /** @var string $revisionId */
+        $revisionId = $request->validated()['revision_id'];
+
+        try {
+            $precondition = $this->assertPrecondition($request, $group);
+
+            if ($precondition !== null) {
+                return $precondition;
+            }
+
+            $plan = $this->settingService->planRollback($group, $revisionId);
+
+            // Checked against the plan, and through the same method an ordinary write
+            // uses, so a setting that needs its own permission needs it here too. A
+            // plan mixing a permitted key with a forbidden one applies neither, which
+            // is how batch updates already behave.
+            $forbidden = $this->assertKeyPermissions($request, $group, array_flip($plan->keys()));
+
+            if ($forbidden !== null) {
+                return $forbidden;
+            }
+
+            // Always called, even when the plan restores nothing: the service
+            // decides what a plan with no changes writes, and it writes the record of
+            // having been run without touching a value or a version.
+            $this->settingService->applyRollback($plan);
+        } catch (SettingGroupNotFoundException $e) {
+            return $this->errorResponse('SETTING_GROUP_NOT_FOUND', $e->translationKey(), null, 404, $e->translationParameters());
+        } catch (UnknownRevisionException $e) {
+            return $this->errorResponse('SETTING_REVISION_NOT_FOUND', $e->translationKey(), null, 404, $e->translationParameters());
+        } catch (UnknownSettingKeyException $e) {
+            return $this->errorResponse('SETTING_KEY_NOT_FOUND', $e->translationKey(), null, 404, $e->translationParameters());
+        }
+
+        $version = $this->settingService->groupVersion($group);
+
+        return $this->successResponse(
+            data: $plan->toArray(),
+            message: 'api.settings.group_rolled_back',
             replace: ['group' => $group],
             meta: ['version' => $version],
         )->header('ETag', '"'.$version.'"');

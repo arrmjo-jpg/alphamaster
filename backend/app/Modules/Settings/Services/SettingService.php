@@ -10,13 +10,22 @@ use App\Modules\Core\Contracts\AuditRecorderContract;
 use App\Modules\Core\Contracts\LocaleResolverInterface;
 use App\Modules\Core\Contracts\PlatformCacheContract;
 use App\Modules\Settings\Contracts\SettingServiceInterface;
+use App\Modules\Settings\Definitions\SettingDefinition;
+use App\Modules\Settings\Definitions\SettingRegistry;
 use App\Modules\Settings\Exceptions\SettingGroupNotFoundException;
+use App\Modules\Settings\Exceptions\UnknownRevisionException;
 use App\Modules\Settings\Exceptions\UnknownSettingKeyException;
 use App\Modules\Settings\Models\Setting;
 use App\Modules\Settings\Models\SettingRevision;
+use App\Modules\Settings\Rollback\RollbackChange;
+use App\Modules\Settings\Rollback\RollbackPlan;
+use App\Modules\Settings\Rollback\RollbackSkip;
+use App\Modules\Settings\Rollback\RollbackSkipReason;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 use InvalidArgumentException;
 
 class SettingService implements SettingServiceInterface
@@ -36,6 +45,7 @@ class SettingService implements SettingServiceInterface
     public function __construct(
         private readonly PlatformCacheContract $cache,
         private readonly AuditRecorderContract $audit,
+        private readonly SettingRegistry $registry,
     ) {}
 
     /**
@@ -304,6 +314,485 @@ class SettingService implements SettingServiceInterface
     }
 
     /**
+     * Decide what rolling a group back to a point in its history would do (ADR 0040).
+     *
+     * The target is a revision rather than a version number, because `settings.version`
+     * counts writes to one row and a group has as many counters as it has settings —
+     * "roll the group back to version 4" names four different states. A revision
+     * identifier is a ULID, so it is both unique and totally ordered, and ordering is
+     * exactly what a point in time needs. It also cannot collide the way a timestamp
+     * can: `timestampTz` stores whole seconds, which already produced one wrong answer
+     * in this module (ADR 0038).
+     *
+     * The result is *the state the group held immediately before that revision was
+     * recorded*. A revision holds the value its write superseded, so for each setting
+     * the earliest revision at or after the target carries the value that setting had
+     * at that moment; a setting with no revision since then has not changed and is
+     * left alone rather than rewritten with the value it already has.
+     *
+     * Nothing is written here. Planning is separated from applying because the caller
+     * cannot authorize a rollback until it knows which settings it touches, and a
+     * rollback names a point in time rather than a list of keys — the keys are derived
+     * from history. It also keeps the fallible part, which reads history and
+     * revalidates against today's declarations, outside the write transaction.
+     *
+     * @throws SettingGroupNotFoundException when the group has no settings
+     * @throws UnknownRevisionException when the target is unknown or belongs elsewhere
+     */
+    public function planRollback(string $group, string $revisionId): RollbackPlan
+    {
+        $settings = $this->groupSettings($group);
+        $byId = $settings->keyBy('id');
+
+        // Both "no such revision" and "a revision from another group" answer the same
+        // way, so holding rollback on one group cannot be used to probe which
+        // identifiers exist in another.
+        $target = SettingRevision::query()->whereKey($revisionId)->first();
+
+        if ($target === null || ! $byId->has($target->setting_id)) {
+            throw new UnknownRevisionException($group, $revisionId);
+        }
+
+        $changes = [];
+        $skipped = [];
+
+        foreach ($this->stateAt($byId->keys()->all(), $revisionId) as [$settingId, $locale, $value]) {
+            /** @var Setting $setting */
+            $setting = $byId->get($settingId);
+
+            // Already holding it. Not a skip and not a change: reporting it would pad
+            // the response, and writing it would advance the version — invalidating
+            // every client's cached read to store the value that was already there.
+            if ($this->previousStoredValue($setting, $locale) === $value) {
+                continue;
+            }
+
+            $reason = $this->rollbackRefusal($setting, $value);
+
+            if ($reason !== null) {
+                $skipped[] = new RollbackSkip($setting->key, $locale, $reason);
+
+                continue;
+            }
+
+            $changes[] = new RollbackChange(
+                $setting->key,
+                $locale,
+                $value,
+                $value === null ? null : Setting::castValue($value, $setting->type),
+            );
+        }
+
+        // Every credential in the group, whether or not it moved. A secret has no
+        // revision to be restored from and never will (ADR 0040), and an operator
+        // needs that as a checklist rather than as a surprise — so it is reported by
+        // key here rather than being absent because nothing selected it.
+        foreach ($settings as $setting) {
+            if ($setting->is_secret) {
+                $skipped[] = new RollbackSkip($setting->key, null, RollbackSkipReason::SECRET);
+            }
+        }
+
+        [$changes, $skipped] = $this->withSatisfiedDependencies($settings, $changes, $skipped);
+
+        return new RollbackPlan($group, $revisionId, $changes, $skipped);
+    }
+
+    /**
+     * Apply a plan, as one transaction and as a new change (ADR 0040).
+     *
+     * A rollback does not rewrite history: it writes the old values as a *new* version,
+     * recording revisions of its own along the way, so rolling a rollback back is an
+     * ordinary rollback and an operator can see that one happened at all.
+     *
+     * The plan is applied exactly as it was decided. It is not recomputed here, because
+     * the caller authorized the plan it was given, and re-deriving it inside the
+     * transaction would apply something nobody approved. What keeps the plan current is
+     * the ordinary precondition the caller checks first (ADR 0038).
+     */
+    public function applyRollback(RollbackPlan $plan): void
+    {
+        DB::transaction(function () use ($plan): void {
+            $settings = $this->groupSettings($plan->group)->keyBy('key');
+
+            // A plan with nothing to write still records that it was run and why it
+            // restored nothing — the case where the reasons are most worth having.
+            // What it must not do is advance the version, which would invalidate every
+            // client's cached read to store values that were already there.
+            if ($plan->isEmpty()) {
+                $this->recordRollback($plan);
+
+                return;
+            }
+
+            foreach ($plan->keys() as $key) {
+                /** @var Setting|null $setting */
+                $setting = $settings->get($key);
+
+                if ($setting === null) {
+                    // The group changed shape between planning and applying. Refusing
+                    // is the only honest answer: the plan describes a setting that is
+                    // no longer there, and the transaction takes the rest with it.
+                    throw new UnknownSettingKeyException($plan->group, $key);
+                }
+
+                // Captured once per setting, before its counter advances, so every
+                // locale written in this rollback records the version it superseded.
+                $version = $setting->version;
+                $setting->version = $version + 1;
+
+                foreach ($plan->changes as $change) {
+                    if ($change->key !== $key) {
+                        continue;
+                    }
+
+                    $this->recordRevisionAt($setting, $change->locale, $change->value, $version);
+
+                    $change->locale === null
+                        ? $setting->setRawValue($change->value)
+                        : $setting->setLocalizedValue($change->locale, $change->value);
+                }
+
+                $setting->save();
+            }
+
+            $this->recordRollback($plan);
+
+            // After the commit, never inside it: clearing early lets a concurrent
+            // reader repopulate from pre-commit state and pin it for a full TTL.
+            DB::afterCommit(function () use ($plan): void {
+                $this->clearCache($plan->group);
+            });
+        });
+    }
+
+    /**
+     * The settings in a group, with their translations.
+     *
+     * Eager-loaded because every caller here reads per-locale values and lazy loading
+     * is disabled platform-wide — which is how that was caught rather than becoming a
+     * query per setting.
+     *
+     * @return EloquentCollection<int, Setting>
+     *
+     * @throws SettingGroupNotFoundException
+     */
+    private function groupSettings(string $group): EloquentCollection
+    {
+        /** @var EloquentCollection<int, Setting> $settings */
+        $settings = Setting::query()->where('group', $group)->with('translations')->get();
+
+        if ($settings->isEmpty()) {
+            throw new SettingGroupNotFoundException($group);
+        }
+
+        return $settings;
+    }
+
+    /**
+     * What each setting held at the moment a revision was recorded.
+     *
+     * One query rather than one per setting. ULIDs sort lexicographically in the same
+     * order they were generated, so "at or after the target" is a plain range scan, and
+     * the earliest row for each setting-and-locale pair is the value that pair held at
+     * that moment — because a revision stores the value its write superseded.
+     *
+     * A pair with no revision at or after the target does not appear, which is correct:
+     * nothing has changed it since, so there is nothing to restore.
+     *
+     * @param  array<int, mixed>  $settingIds
+     * @return list<array{0: string, 1: string|null, 2: string|null}>
+     */
+    private function stateAt(array $settingIds, string $revisionId): array
+    {
+        $revisions = SettingRevision::query()
+            ->whereIn('setting_id', $settingIds)
+            ->where('id', '>=', $revisionId)
+            ->orderBy('id')
+            ->get();
+
+        $state = [];
+
+        foreach ($revisions as $revision) {
+            // Keyed by setting and locale: a localized write replaces one language and
+            // leaves the others, so each language has a history of its own.
+            $pair = $revision->setting_id.'|'.($revision->locale ?? '');
+
+            // Earliest wins. The rows arrive in order, so the first one seen for a pair
+            // is the state at the target, and every later one describes a change made
+            // after it.
+            if (! array_key_exists($pair, $state)) {
+                $state[$pair] = [$revision->setting_id, $revision->locale, $revision->value];
+            }
+        }
+
+        return array_values($state);
+    }
+
+    /**
+     * Why a stored value cannot be put back, or null when it can (ADR 0040).
+     *
+     * Validated against the declaration **as it exists today**, not as it existed when
+     * the value was written. A setting may have been retyped, its bounds tightened, or
+     * the media it points at deleted; restoring a value the running platform would
+     * reject produces a configuration nothing can read, which is a worse outcome than
+     * declining to restore it and saying so.
+     */
+    private function rollbackRefusal(Setting $setting, ?string $value): ?RollbackSkipReason
+    {
+        // Belt and braces: a secret has no revisions, so nothing should reach here with
+        // one. If that ever stops being true, this refuses rather than writing it.
+        if ($setting->is_secret) {
+            return RollbackSkipReason::SECRET;
+        }
+
+        $definition = $this->definitionFor($setting);
+
+        // A row with no declaration is an orphan the synchroniser reports and keeps
+        // (ADR 0018). Reading it is fine; putting an old value back into something
+        // nothing describes is not.
+        if ($definition === null) {
+            return RollbackSkipReason::UNDECLARED;
+        }
+
+        if (! $definition->editable) {
+            return RollbackSkipReason::NOT_EDITABLE;
+        }
+
+        if ($value === null) {
+            return $definition->nullable ? null : RollbackSkipReason::INVALID_TODAY;
+        }
+
+        try {
+            $typed = Setting::castValue($value, $definition->type);
+        } catch (InvalidArgumentException) {
+            return RollbackSkipReason::TYPE_CHANGED;
+        }
+
+        return $this->violatesDeclaredRules($definition, $typed)
+            ? RollbackSkipReason::INVALID_TODAY
+            : null;
+    }
+
+    /**
+     * The declaration for a setting row, or null when nothing declares it.
+     *
+     * The registry raises for an unknown reference, which is right for the admin API —
+     * a setting nobody declared cannot be created through it (ADR 0018) — and wrong
+     * here, where an orphaned row is a case to report rather than an error to raise.
+     */
+    private function definitionFor(Setting $setting): ?SettingDefinition
+    {
+        $reference = $setting->group.'.'.$setting->key;
+
+        return $this->registry->has($reference) ? $this->registry->get($reference) : null;
+    }
+
+    /**
+     * Whether a value fails the rules its definition declares.
+     *
+     * These rules are checked here and not on the ordinary write path, which is a
+     * difference worth naming rather than leaving to be discovered: an ordinary write
+     * carries a value an operator is looking at as they submit it, while a rollback
+     * writes values from a state nobody has inspected, recorded under declarations that
+     * may no longer hold. ADR 0040 requires the second to be revalidated; extending the
+     * same enforcement to the first changes a shipped contract and belongs to a slice
+     * that can be reviewed as one.
+     */
+    private function violatesDeclaredRules(SettingDefinition $definition, mixed $typed): bool
+    {
+        if ($definition->rules === []) {
+            return false;
+        }
+
+        return Validator::make(['value' => $typed], ['value' => $definition->rules])->fails();
+    }
+
+    /**
+     * Drop restorations that would switch something on without its prerequisite.
+     *
+     * Checked against the state the rollback would produce rather than the state it
+     * starts from, which is what ADR 0040 means by validating dependencies after the
+     * restored values are applied — reached here without writing anything first.
+     *
+     * Where a dependent setting is itself being restored, that restoration is the one
+     * dropped: it is the thing being switched on. Where it is not, the change that
+     * empties its prerequisite is dropped instead, which leaves the prerequisite as it
+     * is and satisfies the dependency. Repeated until stable, because dropping one
+     * change can expose another, and bounded so a cyclic declaration cannot spin here.
+     *
+     * @param  EloquentCollection<int, Setting>  $settings
+     * @param  list<RollbackChange>  $changes
+     * @param  list<RollbackSkip>  $skipped
+     * @return array{0: list<RollbackChange>, 1: list<RollbackSkip>}
+     */
+    private function withSatisfiedDependencies(EloquentCollection $settings, array $changes, array $skipped): array
+    {
+        $guard = count($changes) + 1;
+
+        while ($guard-- > 0) {
+            $resulting = $this->resultingValues($settings, $changes);
+            $dropped = null;
+
+            foreach ($settings as $setting) {
+                $definition = $this->definitionFor($setting);
+
+                if ($definition === null || $definition->dependsOn === []) {
+                    continue;
+                }
+
+                // A setting that is not in effect has no prerequisites to satisfy — a
+                // disabled watermark does not need an image.
+                if (! $this->isInEffect($resulting[$definition->reference()] ?? null)) {
+                    continue;
+                }
+
+                foreach ($definition->dependsOn as $dependency) {
+                    if ($this->isInEffect($resulting[$dependency] ?? $this->currentValueOf($dependency))) {
+                        continue;
+                    }
+
+                    $dropped = $this->plannedChangeFor($changes, $definition->key)
+                        ?? $this->plannedChangeFor($changes, $this->keyOf($dependency));
+
+                    // A violation this rollback did not cause and cannot fix — the
+                    // group was already in that state — is left alone rather than
+                    // blamed on the operator. Scanning continues, so a pre-existing
+                    // one does not mask a violation this rollback would introduce.
+                    if ($dropped !== null) {
+                        break 2;
+                    }
+                }
+            }
+
+            if ($dropped === null) {
+                return [$changes, $skipped];
+            }
+
+            $changes = array_values(array_filter(
+                $changes,
+                static fn (RollbackChange $change): bool => $change !== $dropped,
+            ));
+
+            $skipped[] = new RollbackSkip($dropped->key, $dropped->locale, RollbackSkipReason::DEPENDENCY_UNSATISFIED);
+        }
+
+        return [$changes, $skipped];
+    }
+
+    /**
+     * The group's values as they would be once a set of changes is applied.
+     *
+     * Evaluated in the acting locale for a localized setting: a dependency asks whether
+     * a capability is usable, and a capability is usable in the language it is being
+     * configured in.
+     *
+     * @param  EloquentCollection<int, Setting>  $settings
+     * @param  list<RollbackChange>  $changes
+     * @return array<string, string|null>
+     */
+    private function resultingValues(EloquentCollection $settings, array $changes): array
+    {
+        $locale = $this->locale();
+        $values = [];
+        $groups = [];
+
+        foreach ($settings as $setting) {
+            $values[$setting->group.'.'.$setting->key] = $setting->is_localized
+                ? $setting->getLocalizedRawValue($locale)
+                : $setting->getRawValue();
+
+            $groups[$setting->key] = $setting->group;
+        }
+
+        foreach ($changes as $change) {
+            if ($change->locale === null || $change->locale === $locale) {
+                $values[$groups[$change->key].'.'.$change->key] = $change->value;
+            }
+        }
+
+        return $values;
+    }
+
+    /**
+     * Whether a stored value counts as holding something usable.
+     *
+     * Null, the empty string and a stored `false` all mean "not set up", which is what
+     * a prerequisite is asking about. Anything else is a value.
+     */
+    private function isInEffect(?string $value): bool
+    {
+        return $value !== null && $value !== '' && $value !== 'false';
+    }
+
+    /**
+     * The current stored value of a reference outside the group being rolled back.
+     *
+     * A dependency may point anywhere, and one in another group is unaffected by this
+     * rollback, so its value is read as it stands.
+     */
+    private function currentValueOf(string $reference): ?string
+    {
+        [$group, $key] = $this->splitKey($reference);
+
+        $setting = Setting::query()->where('group', $group)->where('key', $key)->first();
+
+        return $setting?->getLocalizedRawValue($this->locale());
+    }
+
+    /**
+     * The key half of a 'group.key' reference.
+     */
+    private function keyOf(string $reference): string
+    {
+        return $this->splitKey($reference)[1];
+    }
+
+    /**
+     * The first planned change for a key, or null when the key is not being changed.
+     *
+     * @param  list<RollbackChange>  $changes
+     */
+    private function plannedChangeFor(array $changes, string $key): ?RollbackChange
+    {
+        foreach ($changes as $change) {
+            if ($change->key === $key) {
+                return $change;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Record the rollback as one event (ADR 0037).
+     *
+     * One record rather than one per setting: a rollback is a single decision, and a
+     * trail that splits it into twenty rows makes it harder to see that it happened.
+     *
+     * It carries what was restored and what was not, by key and by reason, and no
+     * values at all — the audit trail holds none, and the revision store already
+     * answers what the values were.
+     */
+    private function recordRollback(RollbackPlan $plan): void
+    {
+        $this->audit->succeeded(AuditAction::SETTINGS_ROLLED_BACK, $plan->group, [
+            'target_revision_id' => $plan->targetRevisionId,
+            'restored' => array_map(
+                static fn (RollbackChange $change): string => $change->locale === null
+                    ? $change->key
+                    : $change->key.'@'.$change->locale,
+                $plan->changes,
+            ),
+            'skipped' => array_map(
+                static fn (RollbackSkip $skip): array => ['key' => $skip->key, 'reason' => $skip->reason->value],
+                $plan->skipped,
+            ),
+            'version' => $this->groupVersion($plan->group),
+        ]);
+    }
+
+    /**
      * An opaque validator for a group's current state (ADR 0038).    /**
      * An opaque validator for a group's current state (ADR 0038).
      *
@@ -514,7 +1003,28 @@ class SettingService implements SettingServiceInterface
             return;
         }
 
-        $locale = $setting->is_localized ? $this->locale() : null;
+        $this->recordRevisionAt(
+            $setting,
+            $setting->is_localized ? $this->locale() : null,
+            $incoming,
+            $setting->version,
+        );
+    }
+
+    /**
+     * The same, for a named locale and a named version.
+     *
+     * A rollback restores several languages of one setting in a single write, so it
+     * cannot take the locale from the request the way an ordinary write does, and it
+     * bumps the row's counter once for all of them — so the version each revision
+     * belongs to is passed in rather than read back off a model that has already moved.
+     */
+    private function recordRevisionAt(Setting $setting, ?string $locale, ?string $incoming, int $version): void
+    {
+        if ($setting->is_secret) {
+            return;
+        }
+
         $previous = $this->previousStoredValue($setting, $locale);
 
         if ($previous === $incoming) {
@@ -523,7 +1033,7 @@ class SettingService implements SettingServiceInterface
 
         SettingRevision::query()->create([
             'setting_id' => $setting->id,
-            'version' => $setting->version,
+            'version' => $version,
             'locale' => $locale,
             'value' => $previous,
             'actor_id' => $this->actorId(),

@@ -2,6 +2,7 @@
 
 * **Status**: Accepted
 * **Date**: 2026-09-06
+* **Extended**: 2026-09-07 — declared validation rules were never enforced on any write path; rollback enforces them, ordinary writes still do not
 
 ## Context
 
@@ -81,6 +82,49 @@ Where a group contains a setting whose declaration names a permission of its own
 A revision belongs to its setting. When a setting is deleted, its revisions go with it, by foreign key.
 
 Revisions are otherwise kept. They are small, they hold no secret, and the question they answer — what was this before — is asked most often about changes made long enough ago that nobody remembers. A deployment that needs to bound the table can prune by age against the database; unlike the audit trail, nothing here is evidence, so pruning it needs no ceremony.
+
+## Extension — 2026-09-07: what "revalidate against the current declarations" turned out to require
+
+Building rollback surfaced a fact this record assumed and the codebase did not
+support: **`SettingDefinition::$rules` has never been enforced on any write path.**
+
+`UpdateGroupSettingsRequest` validates the shape of the payload — that `settings` is an
+array within size limits, with identifier-shaped keys and bounded nesting. The service
+enforces the declared *type*, strictly, through `Setting::serializeValue`. Between the
+two, nothing runs the rules a definition declares: not `['integer','between:1,100']` on
+a watermark opacity, not `['email:rfc','max:255']` on a contact address, not
+`['string','ulid','exists:media_files,id']` on a branding image. They are declared, they
+are published through the definitions endpoint, and they are inert.
+
+Point 3 of the decision above requires a rollback to validate every restored value
+against the definition as it exists today. That cannot mean "the same checks an ordinary
+write performs", because those checks do not include the rules.
+
+**Decision: rollback enforces the declared rules; the ordinary write path is left as it
+is, for now.**
+
+Rollback is the case the requirement was written for, and it is the case where the risk
+is real: an ordinary write carries a value an operator is looking at as they submit it,
+while a rollback writes values from a state nobody has inspected, recorded under
+declarations that may since have changed. Enforcing the rules there is what stops a
+rollback producing a configuration the running platform would reject.
+
+This leaves rollback validating more strictly than an ordinary write. That is an
+inconsistency, it is recorded here rather than left to be discovered, and it is
+deliberately not resolved in the same change:
+
+* enforcing declared rules on `PUT /admin/settings/{group}` changes the behaviour of a
+  shipped endpoint. Values that are accepted today would start being refused — which is
+  the correct outcome and still a breaking change, and one that deserves to be reviewed
+  as itself rather than as a side effect of adding rollback;
+* the blast radius is different. A rollback that refuses a value reports it and carries
+  on; an ordinary write that starts refusing values breaks whatever was writing them;
+* several declarations would need auditing before the switch is safe, because a rule
+  that has never run has never been proven to accept the values already stored under it.
+
+The gap is open and belongs to the security-hardening slice, not to this one. Until it
+closes, the difference is stated in `SettingService::violatesDeclaredRules` so the next
+reader meets it in the code as well as in this record.
 
 ## Alternatives considered
 

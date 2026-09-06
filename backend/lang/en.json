@@ -42,6 +42,7 @@
     "api.error.settings.mail_test_failed": "The test message could not be sent with the current configuration.",
     "api.error.settings.permission_required": "Changing :setting requires the :permission permission.",
     "api.error.settings.precondition_required": "This request must state which version of the group it is changing. Read the group again and send its version.",
+    "api.error.settings.revision_not_found": "Revision [:revision] does not belong to the [:group] settings group.",
     "api.error.settings.unknown_key": "Setting [:group.:key] does not exist. Cannot update an unknown setting.",
     "api.error.settings.version_conflict": "These settings changed since you loaded them. Review the current values and try again.",
     "api.error.too_many_attempts": "Too many requests. Please retry in :seconds seconds.",
@@ -53,6 +54,7 @@
     "api.language.deactivated": "Language deactivated successfully.",
     "api.language.default_updated": "Default language updated successfully.",
     "api.language.updated": "Language updated successfully.",
+    "api.settings.group_rolled_back": "Settings for group [:group] were restored to an earlier state.",
     "api.settings.group_updated": "Settings for group [:group] successfully updated.",
     "api.settings.mail_test_sent": "A test message was sent.",
     "enum.auth.mfa_type.sms_otp": "SMS Code",
@@ -104,6 +106,7 @@
     "permission.permissions.view": "View permissions",
     "permission.roles.update": "Update roles",
     "permission.roles.view": "View roles",
+    "permission.settings.rollback": "Roll back settings",
     "permission.settings.secrets.manage": "Manage secrets",
     "permission.settings.security.update": "Change security settings",
     "permission.settings.update": "Update settings",
@@ -115,5 +118,11 @@
     "role.administrator": "Administrator",
     "role.editor": "Editor",
     "role.super_admin": "Super Administrator",
-    "role.support": "Support"
+    "role.support": "Support",
+    "settings.rollback.skipped.dependency_unsatisfied": "Restoring it would enable something whose prerequisite is no longer set.",
+    "settings.rollback.skipped.invalid_today": "The stored value no longer satisfies this setting’s current rules.",
+    "settings.rollback.skipped.not_editable": "This setting cannot be changed through the admin API.",
+    "settings.rollback.skipped.secret": "This is a credential. It has no history to restore from and must be re-supplied.",
+    "settings.rollback.skipped.type_changed": "The stored value no longer fits the type this setting is declared with.",
+    "settings.rollback.skipped.undeclared": "This setting is no longer declared by the platform."
 }

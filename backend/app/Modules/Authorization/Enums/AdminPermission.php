@@ -26,6 +26,13 @@ enum AdminPermission: string
      * Separate from settings.update because an administrator who may rename the site
      * is not thereby entitled to widen the login throttle or replace an API key.
      */
+    /**
+     * Restoring a group to an earlier state. Distinct from settings.update because it
+     * changes many values at once, from a state the operator may not have inspected,
+     * and it is the operation most likely to be run under pressure (ADR 0040).
+     */
+    case SETTINGS_ROLLBACK = 'settings.rollback';
+
     case SETTINGS_SECURITY_UPDATE = 'settings.security.update';
     case SETTINGS_SECRETS_MANAGE = 'settings.secrets.manage';
 
@@ -60,7 +67,8 @@ enum AdminPermission: string
         return match ($this) {
             self::USERS_VIEW, self::USERS_CREATE, self::USERS_UPDATE, self::USERS_DELETE => 'user',
             self::SETTINGS_VIEW, self::SETTINGS_UPDATE,
-            self::SETTINGS_SECURITY_UPDATE, self::SETTINGS_SECRETS_MANAGE => 'settings',
+            self::SETTINGS_ROLLBACK, self::SETTINGS_SECURITY_UPDATE,
+            self::SETTINGS_SECRETS_MANAGE => 'settings',
             self::AUDIT_VIEW => 'core',
             self::ROLES_VIEW, self::ROLES_UPDATE,
             self::PERMISSIONS_VIEW, self::PERMISSIONS_UPDATE => 'authorization',
