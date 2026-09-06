@@ -11,6 +11,7 @@ use App\Modules\Settings\Definitions\Catalogues\BrandingCatalogue;
 use App\Modules\Settings\Definitions\Catalogues\GeneralCatalogue;
 use App\Modules\Settings\Definitions\Catalogues\LocalizationCatalogue;
 use App\Modules\Settings\Definitions\Catalogues\MailCatalogue;
+use App\Modules\Settings\Definitions\Catalogues\OperationsCatalogue;
 use App\Modules\Settings\Definitions\Catalogues\RateLimitCatalogue;
 use App\Modules\Settings\Definitions\Catalogues\SecurityCatalogue;
 use App\Modules\Settings\Definitions\SettingCatalogue;
@@ -81,6 +82,7 @@ class SettingsServiceProvider extends ServiceProvider
             LocalizationCatalogue::class,
             BrandingCatalogue::class,
             MailCatalogue::class,
+            OperationsCatalogue::class,
             AuthCatalogue::class,
             SecurityCatalogue::class,
             RateLimitCatalogue::class,

@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Modules\Settings\Services;
 
+use App\Modules\Core\Audit\AuditAction;
 use App\Modules\Core\Cache\CacheNamespace;
+use App\Modules\Core\Contracts\AuditRecorderContract;
 use App\Modules\Core\Contracts\LocaleResolverInterface;
 use App\Modules\Core\Contracts\PlatformCacheContract;
 use App\Modules\Settings\Contracts\SettingServiceInterface;
@@ -29,7 +31,10 @@ class SettingService implements SettingServiceInterface
 
     public const RESOURCE_GROUP_INDEX = 'group_index';
 
-    public function __construct(private readonly PlatformCacheContract $cache) {}
+    public function __construct(
+        private readonly PlatformCacheContract $cache,
+        private readonly AuditRecorderContract $audit,
+    ) {}
 
     /**
      * Get a typed setting value by key formatted as 'group.key'.
@@ -101,6 +106,10 @@ class SettingService implements SettingServiceInterface
                     continue;
                 }
 
+                // Whether the setting held anything before, which is all the audit
+                // trail is allowed to know about a secret's previous state.
+                $previousValue = $setting->value;
+
                 // serializeValue maps null to null (explicitly unset) and rejects every
                 // value it cannot represent exactly, rather than coercing it.
                 $serialized = Setting::serializeValue($val, $setting->type);
@@ -120,6 +129,8 @@ class SettingService implements SettingServiceInterface
                     $setting->is_secret => Setting::SECRET_MASK,
                     default => Setting::castValue($serialized, $setting->type),
                 };
+
+                $this->recordChange($setting, $serialized, $previousValue);
             }
 
             // Invalidate only once the transaction has actually committed. Clearing
@@ -370,6 +381,44 @@ class SettingService implements SettingServiceInterface
             ->first();
 
         return $setting?->getTypedValue();
+    }
+
+    /**
+     * Record one setting change, without the trail ever seeing a secret.
+     *
+     * The redaction is structural rather than a filter applied afterwards. For a
+     * secret this method has no branch that can reach a value: it decides between
+     * set, rotated and cleared from whether the column was null before and after,
+     * and passes the key alone. There is nothing to forget to omit.
+     *
+     * A non-secret setting records that it changed, not what to — the previous value
+     * of a public setting is recoverable from the row's own history and is not what
+     * the trail exists to answer. What it answers is who changed what, and when.
+     */
+    private function recordChange(Setting $setting, ?string $serialized, ?string $previousValue): void
+    {
+        $reference = $setting->group.'.'.$setting->key;
+
+        if ($setting->is_secret) {
+            $action = match (true) {
+                $serialized === null => AuditAction::SECRET_CLEARED,
+                $previousValue === null => AuditAction::SECRET_SET,
+                default => AuditAction::SECRET_ROTATED,
+            };
+
+            // Key only. No plaintext, no ciphertext, no hash, no length — a ciphertext
+            // here would be a second copy of the credential under weaker access
+            // control than the settings table itself (ADR 0037).
+            $this->audit->succeeded($action, $reference);
+
+            return;
+        }
+
+        $this->audit->succeeded(
+            $serialized === null ? AuditAction::SETTING_CLEARED : AuditAction::SETTING_UPDATED,
+            $reference,
+            ['type' => $setting->type->value, 'localized' => $setting->is_localized],
+        );
     }
 
     /**

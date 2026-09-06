@@ -21,6 +21,22 @@ enum AdminPermission: string
     case SETTINGS_VIEW = 'settings.view';
     case SETTINGS_UPDATE = 'settings.update';
 
+    /**
+     * Changing the platform's own defences, and supplying the credentials it uses.
+     * Separate from settings.update because an administrator who may rename the site
+     * is not thereby entitled to widen the login throttle or replace an API key.
+     */
+    case SETTINGS_SECURITY_UPDATE = 'settings.security.update';
+    case SETTINGS_SECRETS_MANAGE = 'settings.secrets.manage';
+
+    /**
+     * Reading the trail is its own permission: taken together it describes the
+     * platform's security configuration and the habits of its administrators, and
+     * performing an audited action is not a reason to be able to review everyone's
+     * (ADR 0037).
+     */
+    case AUDIT_VIEW = 'audit.view';
+
     case ROLES_VIEW = 'roles.view';
     case ROLES_UPDATE = 'roles.update';
 
@@ -43,7 +59,9 @@ enum AdminPermission: string
     {
         return match ($this) {
             self::USERS_VIEW, self::USERS_CREATE, self::USERS_UPDATE, self::USERS_DELETE => 'user',
-            self::SETTINGS_VIEW, self::SETTINGS_UPDATE => 'settings',
+            self::SETTINGS_VIEW, self::SETTINGS_UPDATE,
+            self::SETTINGS_SECURITY_UPDATE, self::SETTINGS_SECRETS_MANAGE => 'settings',
+            self::AUDIT_VIEW => 'core',
             self::ROLES_VIEW, self::ROLES_UPDATE,
             self::PERMISSIONS_VIEW, self::PERMISSIONS_UPDATE => 'authorization',
             self::INTEGRATIONS_VIEW, self::INTEGRATIONS_UPDATE => 'integration',

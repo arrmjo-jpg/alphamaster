@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Modules\Core\Providers;
 
+use App\Modules\Core\Audit\AuditRecorder;
 use App\Modules\Core\Cache\PlatformCache;
+use App\Modules\Core\Contracts\AuditRecorderContract;
 use App\Modules\Core\Contracts\PlatformCacheContract;
 use App\Modules\Core\Services\RateLimitPolicy;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -24,6 +26,9 @@ class CoreServiceProvider extends ServiceProvider
         // because the key builder is stateless and the generation lookup benefits
         // from not being reconstructed per call.
         $this->app->singleton(PlatformCacheContract::class, PlatformCache::class);
+
+        // The audit trail, which every module writes to (ADR 0037).
+        $this->app->singleton(AuditRecorderContract::class, AuditRecorder::class);
     }
 
     /**
@@ -31,6 +36,9 @@ class CoreServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Core owns the audit trail, which every module writes to (ADR 0037).
+        $this->loadMigrationsFrom(dirname(__DIR__).'/Database/Migrations');
+
         $this->registerRoutes();
         $this->registerRateLimiters();
     }
