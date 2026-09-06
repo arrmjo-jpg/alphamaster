@@ -37,3 +37,4 @@ This directory maintains the architectural decision records for the **alphamaste
 | [0031](0031-unified-api-presentation-contract.md) | Unified API Presentation Contract | Accepted |
 | [0032](0032-seo-foundation-contracts.md) | SEO Foundation Contracts | Accepted |
 | [0033](0033-foundation-versus-project-specific-boundary.md) | Foundation versus Project-Specific Boundary | Accepted |
+| [0034](0034-single-tenant-deployment-model.md) | Single-Tenant Deployment Model | Accepted |
