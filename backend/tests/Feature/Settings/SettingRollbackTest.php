@@ -349,13 +349,43 @@ test('settings.update alone does not permit a rollback', function (): void {
     $target = newestRevision('localization', 'date_format');
     $this->service->set('localization', 'date_format', 'm-d-Y');
 
-    // The seeded administrator holds settings.view and settings.update and not
-    // settings.rollback, which is the point: rollback is deliberately not implied by
-    // being allowed to change a value (ADR 0040).
-    rollback($this, 'localization', $target, token: adminToken(roles: ['administrator']))
+    // Rollback is deliberately not implied by being allowed to change a value
+    // (ADR 0040). Asserted against the permission itself rather than against a role,
+    // so that seeding rollback onto a role — as administrator now is — cannot quietly
+    // turn this into a test of nothing.
+    rollback($this, 'localization', $target, token: tokenWithPermissions(['settings.view', 'settings.update']))
         ->assertStatus(403);
 
     expect(app(SettingServiceInterface::class)->get('localization.date_format'))->toBe('m-d-Y');
+});
+
+test('the seeded administrator may roll back', function (): void {
+    $this->service->set('localization', 'date_format', 'd/m/Y');
+    $target = newestRevision('localization', 'date_format');
+    $this->service->set('localization', 'date_format', 'm-d-Y');
+
+    // Granting it widens what the role can do without moving a boundary: the per-key
+    // check still runs, secrets are still unrestorable, and the operation is still
+    // audited and still needs a precondition.
+    rollback($this, 'localization', $target, token: adminToken(roles: ['administrator']))
+        ->assertOk();
+
+    expect(app(SettingServiceInterface::class)->get('localization.date_format'))->toBe('Y-m-d');
+});
+
+test('a seeded administrator still cannot roll back a guarded setting', function (): void {
+    $this->service->set('operations', 'audit_retention_days', 400);
+    $target = newestRevision('operations', 'audit_retention_days');
+    $this->service->set('operations', 'audit_retention_days', 500);
+
+    // The role holds rollback and not settings.security.update, so the per-key check
+    // is what stands between it and a value it may not change. This is the assertion
+    // that makes seeding the permission safe rather than merely convenient.
+    rollback($this, 'operations', $target, token: adminToken(roles: ['administrator']))
+        ->assertStatus(403)
+        ->assertJsonPath('error.code', 'PERMISSION_DENIED');
+
+    expect(app(SettingServiceInterface::class)->get('operations.audit_retention_days'))->toBe(500);
 });
 
 test('a rollback cannot change a guarded setting without the permission that guards it', function (): void {

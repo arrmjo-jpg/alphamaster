@@ -33,10 +33,14 @@ class AdminPermissionSeeder extends Seeder
                 AdminPermission::SETTINGS_VIEW,
                 AdminPermission::SETTINGS_UPDATE,
                 AdminPermission::AUDIT_VIEW,
-                // Deliberately not SETTINGS_ROLLBACK: it restores many values at once
-                // from a state nobody inspected, so it follows the same rule as the
-                // security and secret permissions and is granted rather than seeded
-                // (ADR 0040).
+                // Rollback is seeded here rather than held back the way the security
+                // and secret permissions are. Its own permission gates the operation,
+                // every setting inside it is still checked against the permission that
+                // guards it, secrets cannot be restored at all, the operation is
+                // audited and it carries a precondition — so granting it widens what
+                // this role can do without moving any security boundary, and
+                // administrator is the role that exists to run the system.
+                AdminPermission::SETTINGS_ROLLBACK,
                 AdminPermission::ROLES_VIEW,
                 AdminPermission::PERMISSIONS_VIEW,
                 AdminPermission::INTEGRATIONS_VIEW,
