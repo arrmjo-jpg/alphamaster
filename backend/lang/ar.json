@@ -38,6 +38,7 @@
     "api.error.route_not_found": "المسار أو المورد المطلوب غير موجود.",
     "api.error.server_error": "حدث خطأ غير متوقع في الخادم.",
     "api.error.settings.group_not_found": "مجموعة الإعدادات [:group] غير موجودة.",
+    "api.error.settings.permission_required": "تعديل :setting يتطلب صلاحية :permission.",
     "api.error.settings.precondition_required": "يجب أن يحدد هذا الطلب نسخة المجموعة التي يعدّلها. أعد قراءة المجموعة وأرسل نسختها.",
     "api.error.settings.unknown_key": "الإعداد [:group.:key] غير موجود. لا يمكن تحديث إعداد غير معروف.",
     "api.error.settings.version_conflict": "تغيّرت هذه الإعدادات بعد تحميلها. راجع القيم الحالية ثم أعد المحاولة.",

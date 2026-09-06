@@ -16,7 +16,8 @@ beforeEach(function (): void {
     $this->seed(SettingSeeder::class);
     $this->seed(AdminPermissionSeeder::class);
     $this->service = app(SettingServiceInterface::class);
-    $this->token = adminToken(roles: ['administrator']);
+    // These exercise secret handling, which needs settings.secrets.manage.
+    $this->token = adminToken(roles: ['super_admin']);
 });
 
 /**

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Settings\Definitions;
 
 use App\Modules\Settings\Enums\SettingType;
+use Illuminate\Support\Str;
 use InvalidArgumentException;
 
 /**
@@ -83,6 +84,55 @@ final readonly class SettingDefinition
     public function helpKey(): string
     {
         return $this->labelKey().'.help';
+    }
+
+    /**
+     * The permission a caller needs to change this setting, beyond settings.update.
+     *
+     * A secret always needs `settings.secrets.manage`, whatever group it lives in, so
+     * a credential added to any future catalogue is covered the moment it is declared
+     * rather than when somebody remembers to guard it.
+     *
+     * The string is declared here rather than read from the Authorization module's
+     * enum: Settings may depend on Core and the framework only (ADR 0002), and a
+     * setting naming the permission it requires is Settings' own business.
+     */
+    public function requiredPermission(): ?string
+    {
+        if ($this->isSecret) {
+            return 'settings.secrets.manage';
+        }
+
+        return $this->permission;
+    }
+
+    /**
+     * The human label for this setting, in the request's locale (ADR 0030).
+     *
+     * Falls back to a humanised key rather than to the raw identifier or to blank,
+     * the same way a permission does: an interface has something readable the moment
+     * a setting is declared, and translating it is incremental rather than blocking.
+     */
+    public function label(): string
+    {
+        $translated = __($this->labelKey());
+
+        if (is_string($translated) && $translated !== $this->labelKey()) {
+            return $translated;
+        }
+
+        return Str::headline($this->key);
+    }
+
+    /**
+     * Help text, where a catalogue provides it. Null rather than a guess: inventing
+     * an explanation from the key would read as documentation nobody wrote.
+     */
+    public function help(): ?string
+    {
+        $translated = __($this->helpKey());
+
+        return is_string($translated) && $translated !== $this->helpKey() ? $translated : null;
     }
 
     /**

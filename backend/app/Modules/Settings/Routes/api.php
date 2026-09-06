@@ -32,6 +32,12 @@ Route::prefix('v1')->group(function () use ($groupPattern): void {
             Route::get('/', [SettingAdminController::class, 'index'])
                 ->middleware('permission:'.AdminPermission::SETTINGS_VIEW->value)
                 ->name('admin.settings.index');
+
+            // Declared before the {group} route: the group pattern would otherwise
+            // match "definitions" and answer 404 for a group nobody named.
+            Route::get('/definitions', [SettingAdminController::class, 'definitions'])
+                ->middleware('permission:'.AdminPermission::SETTINGS_VIEW->value)
+                ->name('admin.settings.definitions');
             Route::get('/{group}', [SettingAdminController::class, 'show'])
                 ->middleware('permission:'.AdminPermission::SETTINGS_VIEW->value)
                 ->where('group', $groupPattern)

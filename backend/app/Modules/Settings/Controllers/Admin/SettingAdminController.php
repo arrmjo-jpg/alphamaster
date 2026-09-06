@@ -6,9 +6,12 @@ namespace App\Modules\Settings\Controllers\Admin;
 
 use App\Modules\Core\Controllers\BaseApiController;
 use App\Modules\Settings\Contracts\SettingServiceInterface;
+use App\Modules\Settings\Definitions\SettingRegistry;
 use App\Modules\Settings\Exceptions\SettingGroupNotFoundException;
 use App\Modules\Settings\Exceptions\UnknownSettingKeyException;
 use App\Modules\Settings\Requests\UpdateGroupSettingsRequest;
+use App\Modules\Settings\Resources\SettingDefinitionResource;
+use Illuminate\Contracts\Auth\Access\Authorizable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use InvalidArgumentException;
@@ -16,8 +19,31 @@ use InvalidArgumentException;
 class SettingAdminController extends BaseApiController
 {
     public function __construct(
-        protected SettingServiceInterface $settingService
+        protected SettingServiceInterface $settingService,
+        protected SettingRegistry $registry,
     ) {}
+
+    /**
+     * The catalogue: what settings exist and what the rules are for each.
+     *
+     * The question the registry was built to answer, and the one a future Admin UI
+     * needs before it can render a form for anything. It carries no values — a
+     * definition describes a setting, and what one is set to is a different endpoint
+     * with a different shape.
+     *
+     * Deprecated definitions are included and flagged rather than hidden, so an
+     * interface can show an operator that a setting they configured is on its way out.
+     */
+    public function definitions(): JsonResponse
+    {
+        $grouped = [];
+
+        foreach ($this->registry->all() as $definition) {
+            $grouped[$definition->group][] = (new SettingDefinitionResource($definition))->resolve();
+        }
+
+        return $this->successResponse($grouped);
+    }
 
     /**
      * List all settings grouped by group with admin details and masked secrets.
@@ -64,6 +90,12 @@ class SettingAdminController extends BaseApiController
                 return $precondition;
             }
 
+            $forbidden = $this->assertKeyPermissions($request, $group, $payload);
+
+            if ($forbidden !== null) {
+                return $forbidden;
+            }
+
             $updated = $this->settingService->updateGroup($group, $payload);
         } catch (SettingGroupNotFoundException $e) {
             return $this->errorResponse('SETTING_GROUP_NOT_FOUND', $e->translationKey(), null, 404, $e->translationParameters());
@@ -84,6 +116,56 @@ class SettingAdminController extends BaseApiController
             replace: ['group' => $group],
             meta: ['version' => $version],
         )->header('ETag', '"'.$version.'"');
+    }
+
+    /**
+     * Refuse a write touching a key the caller is not entitled to change.
+     *
+     * Checked per key rather than per route, because sensitivity is a property of the
+     * setting and not of the group it lives in: `settings.update` is enough to rename
+     * the site, and is deliberately not enough to widen the login throttle, replace a
+     * credential, or shorten how long the record of who did what survives.
+     *
+     * A secret needs `settings.secrets.manage` whatever group it is in, so a
+     * credential added to any future catalogue is covered the moment it is declared
+     * rather than when somebody remembers to guard it.
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    private function assertKeyPermissions(Request $request, string $group, array $payload): ?JsonResponse
+    {
+        $user = $request->user();
+
+        if (! $user instanceof Authorizable) {
+            return null;
+        }
+
+        foreach (array_keys($payload) as $key) {
+            $reference = $group.'.'.(string) $key;
+
+            if (! $this->registry->has($reference)) {
+                continue;
+            }
+
+            $required = $this->registry->get($reference)->requiredPermission();
+
+            // Asked through the framework's own authorization API rather than the
+            // Authorization module's contract: Settings depends on Core and the
+            // framework only (ADR 0002), and Spatie registers permissions with the
+            // Gate, so `can()` is the same answer by a permitted route.
+            if ($required === null || $user->can($required)) {
+                continue;
+            }
+
+            return $this->errorResponse(
+                'PERMISSION_DENIED',
+                'api.error.settings.permission_required',
+                ['setting' => $reference, 'permission' => $required],
+                403,
+            );
+        }
+
+        return null;
     }
 
     /**
