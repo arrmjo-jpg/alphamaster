@@ -7,8 +7,10 @@ namespace App\Modules\Settings\Providers;
 use App\Modules\Settings\Console\SynchroniseSettingsCommand;
 use App\Modules\Settings\Contracts\SettingServiceInterface;
 use App\Modules\Settings\Definitions\Catalogues\AuthCatalogue;
+use App\Modules\Settings\Definitions\Catalogues\BrandingCatalogue;
 use App\Modules\Settings\Definitions\Catalogues\GeneralCatalogue;
 use App\Modules\Settings\Definitions\Catalogues\LocalizationCatalogue;
+use App\Modules\Settings\Definitions\Catalogues\MailCatalogue;
 use App\Modules\Settings\Definitions\Catalogues\RateLimitCatalogue;
 use App\Modules\Settings\Definitions\Catalogues\SecurityCatalogue;
 use App\Modules\Settings\Definitions\SettingCatalogue;
@@ -77,6 +79,8 @@ class SettingsServiceProvider extends ServiceProvider
         return [
             GeneralCatalogue::class,
             LocalizationCatalogue::class,
+            BrandingCatalogue::class,
+            MailCatalogue::class,
             AuthCatalogue::class,
             SecurityCatalogue::class,
             RateLimitCatalogue::class,
