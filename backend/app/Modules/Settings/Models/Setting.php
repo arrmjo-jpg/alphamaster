@@ -172,7 +172,9 @@ class Setting extends BaseModel
             SettingType::INTEGER => self::strictCastInteger($raw),
             SettingType::FLOAT => self::strictCastFloat($raw),
             SettingType::JSON => self::strictCastJson($raw),
-            SettingType::STRING => $raw,
+            // A url, email or media id is a string once stored; what makes it one of
+            // those is the rule applied on the way in, not the conversion.
+            SettingType::STRING, SettingType::URL, SettingType::EMAIL, SettingType::MEDIA => $raw,
         };
     }
 
@@ -194,7 +196,7 @@ class Setting extends BaseModel
             SettingType::INTEGER => (string) self::strictCastInteger($val),
             SettingType::FLOAT => self::encodeFloat(self::strictCastFloat($val)),
             SettingType::JSON => self::encodeJson(self::strictCastJson($val)),
-            SettingType::STRING => self::strictCastString($val),
+            SettingType::STRING, SettingType::URL, SettingType::EMAIL, SettingType::MEDIA => self::strictCastString($val),
         };
     }
 
