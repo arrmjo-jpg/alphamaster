@@ -28,6 +28,18 @@ class LoginRequest extends FormRequest
      * matches the email column's width, and every E.164 number fits inside it many
      * times over.
      *
+     * `captcha_token` is optional even when the platform is asking for one, for the
+     * same reason. `required_if` against the setting would answer 422 for a missing
+     * token and 401 for a rejected one, and the difference between those two
+     * responses is exactly the signal this endpoint refuses to give. An absent token
+     * is a captcha that did not pass, handled where every other refusal is handled.
+     * Its bound is generous because a reCAPTCHA response runs to a couple of thousand
+     * characters and has grown between versions.
+     *
+     * The rationale lives here rather than beside the rule because Scramble reads an
+     * inline comment as the field's public description, and internal reasoning is not
+     * what a client should be handed.
+     *
      * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
@@ -35,6 +47,8 @@ class LoginRequest extends FormRequest
         return [
             'identifier' => ['required', 'string', 'max:255'],
             'password' => ['required', 'string', 'max:1024'],
+            // The captcha response, when the platform is asking for one.
+            'captcha_token' => ['sometimes', 'nullable', 'string', 'max:5000'],
         ];
     }
 }

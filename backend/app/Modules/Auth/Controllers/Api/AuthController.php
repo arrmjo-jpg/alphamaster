@@ -17,6 +17,7 @@ use App\Modules\Auth\Requests\MfaChallengeRequest;
 use App\Modules\Auth\Requests\MfaChallengeSendRequest;
 use App\Modules\Auth\Resources\AuthenticatedUserResource;
 use App\Modules\Auth\Services\AuthService;
+use App\Modules\Auth\Services\CaptchaGuard;
 use App\Modules\Auth\Services\LoginThrottle;
 use App\Modules\Auth\Support\LoginIdentifier;
 use App\Modules\Core\Contracts\EffectiveGrants;
@@ -32,6 +33,7 @@ class AuthController extends BaseApiController
         protected LoginThrottle $throttle,
         protected MfaManagerContract $mfa,
         protected EffectiveGrants $grants,
+        protected CaptchaGuard $captcha,
     ) {}
 
     /**
@@ -48,6 +50,22 @@ class AuthController extends BaseApiController
 
         try {
             $this->throttle->assertNotLimited($key);
+
+            // Second, and before the credentials are read. The order is the point:
+            // the limiter runs first so a captcha cannot be used to buy unlimited
+            // attempts, and the captcha runs before authenticate() so an automated
+            // attempt never reaches a password comparison at all.
+            //
+            // The refusal is raised as InvalidCredentialsException rather than
+            // written out here, so it travels the existing path and produces the
+            // byte-identical response a wrong password produces — including the
+            // recorded failure and therefore the same attempts_remaining. Building a
+            // second response here would be a second thing to keep in step, and the
+            // first time they diverged the difference would tell an attacker which
+            // check it had tripped.
+            if (! $this->captcha->passes($request)) {
+                throw new InvalidCredentialsException;
+            }
 
             $user = $this->auth->authenticate($identifier, (string) $request->validated('password'));
         } catch (TooManyAttemptsException $e) {
