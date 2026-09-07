@@ -43,14 +43,24 @@ services:
     image: ${ALPHAMASTER_IMAGE_NAMESPACE:-alphamaster}/backend:${ALPHAMASTER_IMAGE_TAG:-latest}
     env_file:
       - ./backend/.env
+    environment:
+      # Application logs go to the container's stderr, so `docker compose logs`
+      # shows them and nothing accumulates in a file inside an ephemeral
+      # filesystem. Set here rather than only in .env.example because the live
+      # value comes from env_file, which this overrides.
+      LOG_CHANNEL: stderr
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     networks:
+      # Edge because nginx reaches it over FastCGI; data because it reads and
+      # writes both stores; egress because the request path still sends MFA codes
+      # and the mail test synchronously.
       - alphamaster_edge
       - alphamaster_data
+      - alphamaster_egress
     healthcheck:
       test: ["CMD-SHELL", "php -r \"exit(@fsockopen('127.0.0.1', 9000) ? 0 : 1);\""]
       interval: 10s
@@ -68,14 +78,21 @@ services:
     command: php artisan horizon
     env_file:
       - ./backend/.env
+    environment:
+      LOG_CHANNEL: stderr
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     networks:
-      - alphamaster_edge
+      # Off the public edge. It needs the data tier for the rows its jobs write,
+      # and outbound for the SMS and mail those jobs dispatch — but nothing
+      # reaches it, so it has no business on the network the proxy and the future
+      # frontend containers share. This closes the one imprecision ADR 0041
+      # recorded in its own consequences.
       - alphamaster_data
+      - alphamaster_egress
     healthcheck:
       test: ["CMD", "php", "artisan", "horizon:status"]
       interval: 20s
@@ -93,14 +110,34 @@ services:
     command: php artisan schedule:work
     env_file:
       - ./backend/.env
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    networks:
-      - alphamaster_edge
-      - alphamaster_data
+    environment:
+      # A file cache, local to this container and deliberately not the Redis one
+      # the API and the worker share.
+      #
+      # `schedule:run` reads `illuminate:schedule:paused` from the cache on every
+      # tick, before it looks at the schedule at all — so a scheduler with no
+      # network and the shared Redis store would fail every minute while `pgrep`
+      # still reported it healthy. There is no scheduled work today, so a cache
+      # nobody else reads costs nothing.
+      #
+      # DEPLOYMENT INVARIANT: exactly one scheduler instance. A file cache is not
+      # shared, so a second replica would silently lose mutual exclusion for any
+      # future withoutOverlapping or onOneServer task.
+      #
+      # EXPANSION RULE: a scheduled command that needs shared application cache or
+      # settings moves this service to the Redis store and its network access is
+      # reassessed then. It is not solved by attaching this container to the data
+      # network and leaving the file store in place, which would leave it reading
+      # an empty cache and falling through to a database it cannot reach.
+      CACHE_STORE: file
+      LOG_CHANNEL: stderr
+    # No network at all. Removing the `networks:` key would not achieve this —
+    # Compose then attaches the service to an implicit `default` network and
+    # quietly restores off-host routing, which is the opposite of the intent.
+    #
+    # `depends_on` went with it: waiting for postgres and redis to be healthy is
+    # meaningless for a container that cannot address either.
+    network_mode: none
     healthcheck:
       test: ["CMD-SHELL", "pgrep -f 'artisan schedule:work' > /dev/null || exit 1"]
       interval: 15s
@@ -201,3 +238,13 @@ networks:
   alphamaster_data:
     driver: bridge
     internal: true
+
+  # Outbound only. It exists so that a container needing to reach a vendor does
+  # not have to join the network the proxy publishes on — which is what horizon
+  # was doing, purely for a route off the host.
+  #
+  # It is a route, not a filter. A bridge network cannot express "this container
+  # may reach Twilio and nothing else"; destination allowlisting needs an egress
+  # proxy or a host firewall and is deliberately not attempted here.
+  alphamaster_egress:
+    driver: bridge
