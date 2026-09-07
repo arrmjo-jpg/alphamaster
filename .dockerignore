@@ -1,0 +1,49 @@
+# What the build context must not carry.
+#
+# The backend image copies the application in, so everything here is either a
+# secret that must never be baked into a layer, an artefact the build produces
+# for itself, or weight that has no business in the context at all.
+#
+# Note that docker/ is deliberately absent: both Dockerfiles read from it.
+
+# ─── Secrets ───
+# The real environment file lives beside the example on a developer machine and
+# in CI. It is git-ignored, but the build context is the filesystem, not the
+# index, so without this line every credential in it ships inside the image.
+.env
+backend/.env
+backend/.env.*
+!backend/.env.example
+
+# ─── Dependencies the build resolves for itself ───
+# vendor/ is installed from composer.lock inside the build. Copying the host's
+# would make the image depend on whatever that machine happens to hold.
+**/vendor/
+**/node_modules/
+
+# ─── Version control and CI ───
+.git/
+.gitattributes
+.gitignore
+.github/
+
+# ─── Repository material with no role at runtime ───
+docs/
+scripts/
+Makefile
+README.md
+docker-compose.yml
+docker-compose.*.yml
+
+# ─── Generated state, not source ───
+backend/storage/logs/*
+backend/storage/framework/cache/*
+backend/storage/framework/sessions/*
+backend/storage/framework/testing/*
+backend/storage/framework/views/*
+backend/storage/pail/
+backend/bootstrap/cache/*
+backend/.phpunit.cache/
+backend/.phpunit.result.cache
+backend/public/hot
+backend/public/storage
