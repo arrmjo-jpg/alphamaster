@@ -1,7 +1,11 @@
-﻿.PHONY: up down restart build logs ps gate test test-sqlite shell artisan migrate seed adminer adminer-down
+﻿.PHONY: compose-version up down restart build logs ps gate test test-sqlite shell artisan migrate seed adminer adminer-down
 
-# Start all services in the background
+# Start all services in the background.
+#
+# The version check runs first: the composition needs Compose >= 2.24, and an older
+# client fails with a YAML parse error that explains nothing.
 up:
+	@bash scripts/gate.sh compose-version
 	docker compose up -d
 
 # Stop and remove containers and networks

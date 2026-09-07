@@ -1,0 +1,99 @@
+# Development, layered over the production baseline.
+#
+# Compose reads this file automatically alongside docker-compose.yml, so the
+# day-to-day commands are unchanged — `make up`, `scripts/gate.sh` and the CI
+# workflow all keep working exactly as they did, and all of them get the mounts
+# and ports below without asking for them.
+#
+# Two things belong here and nowhere else:
+#
+#   Source mounts. The image built by docker/backend/Dockerfile carries the
+#   application, which is what makes it deployable. Mounting the working tree
+#   over that copy is what makes editing a file take effect without a rebuild.
+#   It also brings the host's vendor directory, which the quality gate needs:
+#   the image installs production dependencies only, and pint, larastan and
+#   the test runner are all dev dependencies.
+#
+#   Published ports. Postgres and Redis are reachable from the host here, bound
+#   to the loopback interface, because psql and redis-cli and a database client
+#   are development tools. In the baseline they are reachable only from inside
+#   the network, which is where they belong once deployed.
+#
+# Publishing those ports takes one more thing than the ports themselves. Docker
+# discards a port publication for a container attached only to an internal
+# network, and does it silently: the binding stays in the container's own
+# configuration while its actual port map comes back empty, so nothing fails and
+# nothing warns — the port simply refuses connections. Measured, not assumed.
+#
+# The exception is therefore made against the network rather than against the
+# services on it: the data network stops being internal here, and Postgres and
+# Redis stay attached to it and to nothing else. Attaching them to the edge
+# network instead would also have restored publishing, and was tried first — it
+# put the database on the same network as the future admin and frontend
+# containers, and an edge-only probe reached port 5432 immediately. Lifting
+# `internal` keeps the two tiers separate and relaxes only what has to be
+# relaxed, so the isolation this topology exists for holds while developing, not
+# merely once deployed.
+
+# Requires Docker Compose >= 2.24, for the `!override` tag below. An older client
+# does not ignore it — it fails to parse this file, and every command in this project
+# loads it automatically, so the whole stack stops rather than degrading. That floor
+# is asserted by `scripts/gate.sh compose-version`, which `make up` runs first.
+
+services:
+  nginx:
+    # `!override` replaces the baseline's list rather than adding to it. Compose
+    # merges sequences by default, so without this development would publish 80 *and*
+    # 8080 — still binding the port this override exists to avoid, and doing it
+    # silently because both mappings are valid.
+    ports: !override
+      - "${NGINX_HTTP_PORT:-8080}:80"
+    volumes:
+      # Edit the server config and reload, rather than rebuild the image.
+      - ./docker/nginx/conf.d:/etc/nginx/conf.d:ro
+
+  backend:
+    volumes:
+      - ./backend:/var/www/html
+
+  horizon:
+    volumes:
+      - ./backend:/var/www/html
+
+  scheduler:
+    volumes:
+      - ./backend:/var/www/html
+
+  postgres:
+    ports:
+      - "127.0.0.1:5432:5432"
+
+  redis:
+    ports:
+      - "127.0.0.1:6379:6379"
+
+  adminer:
+    ports:
+      - "127.0.0.1:8080:8080"
+
+# The names a developer's database already lives under. Not `external`: Compose
+# creates these when they are absent, so a first clone works, and attaches them when
+# they are present, so an existing database is not left orphaned behind a new empty
+# volume of a different name.
+#
+# The cost is that these two names are global rather than project-scoped in
+# development. That is the collision the baseline avoids, accepted here because the
+# alternative is a developer's data silently ceasing to be attached — and because
+# two copies of this project on one machine is not the case this file serves.
+volumes:
+  postgres_data:
+    name: alphamaster_postgres_data
+
+  redis_data:
+    name: alphamaster_redis_data
+
+networks:
+  # Development only. Everything above needs the host to be able to open a
+  # connection to these two services, which an internal network forbids.
+  alphamaster_data:
+    internal: false
