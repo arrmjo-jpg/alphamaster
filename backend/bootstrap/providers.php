@@ -11,6 +11,7 @@ use App\Modules\Settings\Providers\SettingsServiceProvider;
 use App\Modules\User\Providers\UserServiceProvider;
 use App\Providers\AppServiceProvider;
 use App\Providers\HorizonServiceProvider;
+use App\Providers\OpenApiServiceProvider;
 
 return [
     AppServiceProvider::class,
@@ -24,4 +25,5 @@ return [
     IntegrationServiceProvider::class,
     NotificationServiceProvider::class,
     MediaServiceProvider::class,
+    OpenApiServiceProvider::class,
 ];
