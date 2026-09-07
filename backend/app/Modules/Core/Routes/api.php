@@ -8,6 +8,14 @@ use App\Modules\Core\Controllers\Admin\ConfigurationBackupController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function (): void {
+    /**
+     * Liveness probe.
+     *
+     * Answers from the application itself, so it reports that PHP is executing rather
+     * than that any dependency is reachable. The summary is here because the generated
+     * contract requires one per operation and a closure carries no docblock of its own
+     * to infer from — every other operation gets its summary from its controller method.
+     */
     Route::get('/health', function () {
         return response()->json([
             'success' => true,

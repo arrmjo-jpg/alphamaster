@@ -1,0 +1,21 @@
+# Spectral ruleset for the generated OpenAPI contract (ADR 0010).
+#
+# It extends the full recommended OAS ruleset and disables nothing. ADR 0029 item 19
+# is explicit that no linter rule is suppressed to get past the upstream Scramble
+# defect, and this project has twice been burned by a validator that had quietly
+# stopped validating — an architecture rule guarding a namespace nothing imported, and
+# a secret scan reporting clean because it had stopped looking.
+#
+# Two rules are *raised* rather than lowered. Nothing here is turned off.
+extends:
+  - "spectral:oas"
+
+rules:
+  # An operation nobody can identify is a contract a generated client cannot name.
+  # ADR 0011 compiles this document into typed clients, so a missing operationId
+  # becomes an unnamed function rather than a documentation nicety.
+  operation-operationId: error
+
+  # A duplicated operationId silently collides in the generated client, and the
+  # symptom appears far from the cause.
+  operation-operationId-unique: error

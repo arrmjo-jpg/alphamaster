@@ -1,0 +1,29 @@
+# Redocly configuration for the generated OpenAPI contract (ADR 0010).
+#
+# Redocly is the validator that first caught the upstream Scramble defect recorded in
+# ADR 0029 item 19 — `Property additionalItems is not expected here` at five nodes. It
+# runs here at full strength, with the `recommended` ruleset and no rule disabled and
+# no node ignored.
+#
+# There is deliberately no `ignore` file. Redocly can record known problems in
+# `.redocly.lint-ignore.yaml` and carry on; adopting that here would turn the exact
+# failure this gate exists to catch into a line in a file nobody reads.
+apis:
+  alphamaster:
+    root: backend/openapi.json
+
+extends:
+  - recommended
+
+rules:
+  # Structural correctness, which is what the gate is for.
+  struct: error
+  spec-strict-refs: error
+
+  # Style warnings are reported and do not fail the gate. ADR 0029 item 19 notes 83 of
+  # them — absent operation descriptions and undeclared tags — as metadata Phase 12 has
+  # not written yet, unrelated to the blocker. Recording them as warnings keeps them
+  # visible without letting missing prose block a contract that is structurally sound.
+  operation-description: warn
+  tag-description: warn
+  info-license: off

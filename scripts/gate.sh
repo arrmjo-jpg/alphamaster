@@ -36,6 +36,7 @@ scripts/gate.sh <command>
   compose-version Docker Compose meets the minimum the composition requires
   diff [base]     Whitespace errors; with a base ref, checks that range instead of the worktree
   secrets         Secret scan over the whole repository, with its own positive controls
+  openapi         Regenerate the contract, validate it, and fail on drift
   all             Everything above, in order
 
 Environment:
@@ -215,6 +216,143 @@ cmd_secrets() {
         "$image" php scripts/security/secrets-scan.php
 }
 
+# Four steps, each gating the next: generate, validate, compare, fail on difference.
+#
+# The generated document is committed. A specification nobody compares against the code
+# drifts from it, which is the whole reason ADR 0010 chose an inferred contract over a
+# maintained one — so the comparison is the gate, not the generation.
+#
+# Validation runs Redocly and Spectral at full strength. ADR 0029 item 19 records an
+# upstream defect in the generator that produces an invalid keyword; it is removed by a
+# document transformer in the application, not by silencing either validator. The suite
+# carries a control that plants an invalid document and requires both to reject it, so a
+# validator that stopped validating is visible rather than comfortable.
+#
+# Node runs on the host rather than in the backend container: that image is PHP-only by
+# ADR 0005 (one process per container), and adding a Node toolchain to it to lint a JSON
+# file would be the wrong trade.
+cmd_openapi() {
+    step "OpenAPI contract"
+    require_stack
+
+    # The validators live in backend/package.json, which is the repository's only npm
+    # manifest. Invoked through their own bin paths rather than npx: npx resolves by
+    # package name, and the binary `redocly` comes from the package `@redocly/cli`, so
+    # `npx --no-install redocly` looks for a package that does not exist and fails.
+    local bin="backend/node_modules/.bin"
+
+    if [ ! -x "$bin/redocly" ] || [ ! -x "$bin/spectral" ]; then
+        echo "The OpenAPI validators are not installed. Run: npm ci --prefix backend" >&2
+        exit 1
+    fi
+
+    echo "generating"
+    in_backend "$BACKEND_SERVICE" php artisan scramble:export
+
+    # Redocly is the blocking validator. It understands OpenAPI 3.1, including the
+    # `prefixItems` tuples this document contains, and its `recommended` ruleset runs
+    # with nothing disabled. Errors fail the gate; style warnings do not.
+    echo "validating (redocly) — blocking"
+    "$bin/redocly" lint --config redocly.yaml
+
+    # Spectral runs as a diagnostic and does not fail the gate at this stage.
+    #
+    # This is not a suppression: the `array-items` rule stays enabled and still
+    # reports. ADR 0029 item 19 records why its findings cannot be acted on — the rule
+    # predates JSON Schema 2020-12 and requires a sibling `items` for every
+    # `type: array`, so it flags valid 3.1 tuples that carry `prefixItems` instead.
+    # That is a limitation of the rule, not a defect in this document, and the record
+    # is explicit that the document must not be rewritten to satisfy it.
+    #
+    # Making it blocking would leave a permanently red gate whose only remedy is to
+    # disable the rule or corrupt the contract. Reporting it keeps the finding visible
+    # so that an upstream rule fix can simply flip this to blocking.
+    echo "validating (spectral) — diagnostic, non-blocking (ADR 0029 item 19)"
+    "$bin/spectral" lint backend/openapi.json --ruleset .spectral.yaml || true
+
+    # The control, before the result is trusted. A validator that has stopped
+    # validating reports a clean document forever, and this project has been burned by
+    # that twice: an architecture rule guarding a namespace nothing imported, and a
+    # secret scan reporting clean because it had stopped looking. The secret scan now
+    # proves its own detectors; so does this.
+    #
+    # The planted node is the exact defect ADR 0029 item 19 describes — an
+    # `additionalItems` beside a `prefixItems` — so the control proves the validator
+    # catches the specific thing the transformer exists to remove, not merely that it
+    # can reject some malformed file.
+    # Written in Node rather than any other scripting language: the validators are Node
+    # tools, so a runtime that is guaranteed present wherever this gate can run at all
+    # is the one with no portability question attached.
+    echo "proving the validator (positive controls)"
+    control_keyword="$(mktemp -t openapi-control-keyword-XXXXXX.json)"
+    control_struct="$(mktemp -t openapi-control-struct-XXXXXX.json)"
+    trap 'rm -f "$control_keyword" "$control_struct"' RETURN
+
+    CONTROL_KEYWORD="$control_keyword" CONTROL_STRUCT="$control_struct" node <<'CONTROL'
+const fs = require('fs');
+const read = () => JSON.parse(fs.readFileSync('backend/openapi.json', 'utf8'));
+
+// Control 1: the exact defect ADR 0029 item 19 describes — `additionalItems` beside
+// `prefixItems`. Proves the validator catches the specific thing the transformer
+// removes, not merely that it can reject some malformed file.
+const keyword = read();
+keyword.components = keyword.components || {};
+keyword.components.schemas = keyword.components.schemas || {};
+keyword.components.schemas.GateControlKeyword = {
+    type: 'array',
+    prefixItems: [{ type: 'string' }],
+    additionalItems: false,
+    minItems: 1,
+    maxItems: 1,
+};
+fs.writeFileSync(process.env.CONTROL_KEYWORD, JSON.stringify(keyword));
+
+// Control 2: an unrelated structural error. A validator tuned to one keyword and blind
+// to everything else would pass control 1 and still be worthless.
+const struct = read();
+struct.paths = struct.paths || {};
+struct.paths['/gate-control'] = { get: { responses: { '200': { description: 42 } } } };
+fs.writeFileSync(process.env.CONTROL_STRUCT, JSON.stringify(struct));
+CONTROL
+
+    if "$bin/redocly" lint "$control_keyword" --config redocly.yaml >/dev/null 2>&1; then
+        echo >&2
+        echo "UNPROVEN: the validator accepted a document carrying the invalid keyword." >&2
+        exit 1
+    fi
+    echo "  planted additionalItems rejected: DETECTED"
+
+    if "$bin/redocly" lint "$control_struct" --config redocly.yaml >/dev/null 2>&1; then
+        echo >&2
+        echo "UNPROVEN: the validator accepted a structurally invalid document." >&2
+        exit 1
+    fi
+    echo "  planted structural error rejected: DETECTED"
+
+    echo "checking for drift"
+
+    # Tracked first, and not as a formality. `git diff` says nothing about an untracked
+    # file, so on a document that has never been committed the comparison below would
+    # report no drift and the gate would go green having compared nothing — the precise
+    # shape of failure this project has twice been caught by.
+    if ! git ls-files --error-unmatch backend/openapi.json >/dev/null 2>&1; then
+        echo >&2
+        echo "backend/openapi.json is not tracked by git, so there is nothing to" >&2
+        echo "compare the regenerated document against. Commit it first." >&2
+        exit 1
+    fi
+
+    if ! git diff --quiet -- backend/openapi.json; then
+        echo >&2
+        echo "The committed contract does not match what the code produces." >&2
+        echo "Regenerate and commit backend/openapi.json:" >&2
+        git --no-pager diff --stat -- backend/openapi.json >&2
+        exit 1
+    fi
+
+    echo "contract validates and matches the committed document"
+}
+
 cmd_all() {
     cmd_pint
     cmd_arch
@@ -232,6 +370,7 @@ cmd_all() {
 
     cmd_diff "${1:-}"
     cmd_secrets
+    cmd_openapi
 
     printf '\n\033[1mgate: all checks passed\033[0m\n'
 }
@@ -245,6 +384,7 @@ case "${1:-}" in
     migrate-fresh) cmd_migrate_fresh ;;
     diff)          shift; cmd_diff "${1:-}" ;;
     secrets)       cmd_secrets ;;
+    openapi)       cmd_openapi ;;
     compose-version) cmd_compose_version ;;
     all)           shift; cmd_all "${1:-}" ;;
     -h|--help|help|"") usage ;;
