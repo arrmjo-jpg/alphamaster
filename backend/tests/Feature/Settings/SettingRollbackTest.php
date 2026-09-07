@@ -12,7 +12,6 @@ use App\Modules\Settings\Definitions\SettingRegistry;
 use App\Modules\Settings\Enums\SettingType;
 use App\Modules\Settings\Models\Setting;
 use App\Modules\Settings\Models\SettingRevision;
-use App\Modules\User\Enums\AccountType;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -75,32 +74,6 @@ function newestRevision(string $group, string $key, ?string $locale = null): str
 function revisionAt(int $offset): string
 {
     return (string) SettingRevision::query()->orderBy('id')->skip($offset)->take(1)->firstOrFail()->id;
-}
-
-/**
- * An administrator holding exactly the named permissions and no role.
- *
- * The seeded roles cannot express "may roll back but may not change security settings"
- * — super_admin holds everything and administrator holds neither — and that
- * combination is the one the escalation route runs through.
- *
- * @param  array<int, string>  $permissions
- */
-function tokenWithPermissions(array $permissions): string
-{
-    static $sequence = 0;
-    $sequence++;
-
-    $admin = makeAccount([
-        'name' => 'Rollback Operator '.$sequence,
-        'email' => 'rollback'.$sequence.'@example.com',
-        'password' => bcrypt('secret'),
-        'account_type' => AccountType::ADMIN,
-    ]);
-
-    $admin->givePermissionTo($permissions);
-
-    return $admin->createToken('test-token', ['admin:access'])->plainTextToken;
 }
 
 /**

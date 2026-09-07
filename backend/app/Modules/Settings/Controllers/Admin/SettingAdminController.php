@@ -7,9 +7,11 @@ namespace App\Modules\Settings\Controllers\Admin;
 use App\Modules\Core\Audit\AuditAction;
 use App\Modules\Core\Contracts\AuditRecorderContract;
 use App\Modules\Core\Controllers\BaseApiController;
+use App\Modules\Settings\Concerns\AssertsSettingPrecondition;
 use App\Modules\Settings\Contracts\SettingServiceInterface;
 use App\Modules\Settings\Definitions\SettingRegistry;
 use App\Modules\Settings\Exceptions\SettingGroupNotFoundException;
+use App\Modules\Settings\Exceptions\SettingValueRejectedException;
 use App\Modules\Settings\Exceptions\UnknownRevisionException;
 use App\Modules\Settings\Exceptions\UnknownSettingKeyException;
 use App\Modules\Settings\Requests\RollbackGroupSettingsRequest;
@@ -23,6 +25,8 @@ use InvalidArgumentException;
 
 class SettingAdminController extends BaseApiController
 {
+    use AssertsSettingPrecondition;
+
     public function __construct(
         protected SettingServiceInterface $settingService,
         protected SettingRegistry $registry,
@@ -171,6 +175,10 @@ class SettingAdminController extends BaseApiController
             return $this->errorResponse('SETTING_GROUP_NOT_FOUND', $e->translationKey(), null, 404, $e->translationParameters());
         } catch (UnknownSettingKeyException $e) {
             return $this->errorResponse('SETTING_KEY_NOT_FOUND', $e->translationKey(), null, 404, $e->translationParameters());
+        } catch (SettingValueRejectedException $e) {
+            // Named, so an operator writing twenty settings at once is told which one
+            // was refused and by which rule.
+            return $this->errorResponse('SETTING_VALUE_REJECTED', 'api.error.settings.value_rejected', $e->details(), 422);
         } catch (InvalidArgumentException $e) {
             return $this->errorResponse('INVALID_SETTING_VALUE', $e->getMessage(), null, 422);
         }
@@ -298,45 +306,6 @@ class SettingAdminController extends BaseApiController
                 'api.error.settings.permission_required',
                 ['setting' => $reference, 'permission' => $required],
                 403,
-            );
-        }
-
-        return null;
-    }
-
-    /**
-     * Refuse a write that was not built on the group's current state (ADR 0038).
-     *
-     * Returns a response to send, or null when the write may proceed.
-     *
-     * A missing precondition is refused rather than waved through. Accepting one
-     * would leave every client that had not been updated silently overwriting, which
-     * is the behaviour this exists to end — reachable by omitting a header. 428 says
-     * the request needs a precondition; 412 says the one it carried is stale.
-     */
-    private function assertPrecondition(Request $request, string $group): ?JsonResponse
-    {
-        $presented = trim((string) $request->header('If-Match'), '"');
-
-        if ($presented === '') {
-            return $this->errorResponse(
-                'PRECONDITION_REQUIRED',
-                'api.error.settings.precondition_required',
-                null,
-                428,
-            );
-        }
-
-        $current = $this->settingService->groupVersion($group);
-
-        if (! hash_equals($current, $presented)) {
-            // The current state travels with the refusal, so a client can show what
-            // changed rather than only reporting that it failed.
-            return $this->errorResponse(
-                'SETTING_VERSION_CONFLICT',
-                'api.error.settings.version_conflict',
-                ['current_version' => $current],
-                412,
             );
         }
 

@@ -29,6 +29,13 @@ class MailConfigurationTester
     /** The runtime mailer this builds from the stored settings. */
     private const MAILER = 'settings_test';
 
+    /**
+     * Values standing in for stored settings, for the duration of one test call.
+     *
+     * @var array<string, mixed>
+     */
+    private array $overrides = [];
+
     public function __construct(private readonly SettingServiceInterface $settings) {}
 
     /**
@@ -38,16 +45,26 @@ class MailConfigurationTester
      * is an outcome an operator needs described, not a 500 with a stack trace. Only a
      * programming fault would escape here, which is the distinction ADR 0017 already
      * draws for provider dispatch.
+     *
+     * $overrides substitutes setting references for the duration of this call and
+     * nothing longer. It exists so a credential can be tried before it is stored
+     * (ADR 0038): the candidate arrives as an argument, is used to build a mailer that
+     * lives for one request, and is gone when the call returns. There is deliberately
+     * no setter and no way to leave one behind — a rotation must have no pending state.
+     *
+     * @param  array<string, mixed>  $overrides  setting reference => value, for this call only
      */
-    public function test(): MailTestResult
+    public function test(array $overrides = []): MailTestResult
     {
+        $this->overrides = $overrides;
+
         $incomplete = $this->missingRequirements();
 
         if ($incomplete !== []) {
             return MailTestResult::incomplete($incomplete);
         }
 
-        $recipient = (string) $this->settings->get('mail.test_recipient');
+        $recipient = (string) $this->value('mail.test_recipient');
 
         try {
             $this->configureRuntimeMailer();
@@ -69,6 +86,23 @@ class MailConfigurationTester
     }
 
     /**
+     * One setting value, from the override if this call supplied one.
+     *
+     * Every read in this class goes through here, so a candidate credential cannot be
+     * honoured in the mailer and missed in the prerequisite check — which would test a
+     * configuration nobody asked about and report the answer as if it were the one
+     * requested.
+     */
+    private function value(string $reference, mixed $default = null): mixed
+    {
+        if (array_key_exists($reference, $this->overrides)) {
+            return $this->overrides[$reference];
+        }
+
+        return $this->settings->get($reference, $default);
+    }
+
+    /**
      * Which prerequisites are missing, as setting references.
      *
      * The dependencies the catalogue already declares, checked before attempting
@@ -81,12 +115,12 @@ class MailConfigurationTester
     {
         $missing = [];
 
-        if ($this->settings->get('mail.enabled') !== true) {
+        if ($this->value('mail.enabled') !== true) {
             $missing[] = 'mail.enabled';
         }
 
         foreach (['mail.host', 'mail.from_address', 'mail.test_recipient'] as $reference) {
-            $value = $this->settings->get($reference);
+            $value = $this->value($reference);
 
             if (! is_string($value) || trim($value) === '') {
                 $missing[] = $reference;
@@ -106,20 +140,20 @@ class MailConfigurationTester
      */
     private function configureRuntimeMailer(): void
     {
-        $encryption = (string) $this->settings->get('mail.encryption', 'tls');
+        $encryption = (string) $this->value('mail.encryption', 'tls');
 
         config([
             'mail.mailers.'.self::MAILER => [
                 'transport' => 'smtp',
-                'host' => (string) $this->settings->get('mail.host'),
-                'port' => (int) $this->settings->get('mail.port', 587),
+                'host' => (string) $this->value('mail.host'),
+                'port' => (int) $this->value('mail.port', 587),
                 'encryption' => $encryption === 'none' ? null : $encryption,
-                'username' => $this->settings->get('mail.username'),
-                'password' => $this->settings->get('mail.password'),
-                'timeout' => (int) $this->settings->get('operations.provider_timeout_seconds', 10),
+                'username' => $this->value('mail.username'),
+                'password' => $this->value('mail.password'),
+                'timeout' => (int) $this->value('operations.provider_timeout_seconds', 10),
             ],
-            'mail.from.address' => (string) $this->settings->get('mail.from_address'),
-            'mail.from.name' => (string) $this->settings->get('mail.from_name', 'AlphaMaster'),
+            'mail.from.address' => (string) $this->value('mail.from_address'),
+            'mail.from.name' => (string) $this->value('mail.from_name', 'AlphaMaster'),
         ]);
     }
 }

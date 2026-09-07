@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Modules\Localization\Providers;
 
+use App\Modules\Core\Backup\ConfigurationPortability;
 use App\Modules\Core\Contracts\LocaleResolverInterface;
+use App\Modules\Localization\Backup\LanguagePortability;
 use App\Modules\Localization\Services\LocaleResolver;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
@@ -26,6 +28,11 @@ class LocalizationServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // This module's share of a portable configuration export (ADR 0039). Registered
+        // here rather than listed centrally, because Core may not import a domain module
+        // and a central list would have to.
+        $this->app->make(ConfigurationPortability::class)
+            ->register($this->app->make(LanguagePortability::class));
         $this->loadMigrationsFrom(__DIR__.'/../Database/Migrations');
         $this->registerRoutes();
     }

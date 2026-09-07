@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Modules\Authorization\Enums\AdminPermission;
+use App\Modules\Settings\Controllers\Admin\SecretAdminController;
 use App\Modules\Settings\Controllers\Admin\SettingAdminController;
 use App\Modules\Settings\Controllers\Api\SettingApiController;
 use Illuminate\Support\Facades\Route;
@@ -58,6 +59,16 @@ Route::prefix('v1')->group(function () use ($groupPattern): void {
                 ->middleware('permission:'.AdminPermission::SETTINGS_VIEW->value)
                 ->where('group', $groupPattern)
                 ->name('admin.settings.history');
+
+            // Rotation needs the permission every write to a secret needs, and no
+            // more: it is the same class of change, performed more carefully
+            // (ADR 0038). Declared before /{group} so the group pattern cannot
+            // swallow the deeper path.
+            Route::post('/{group}/secrets/{key}/rotate', [SecretAdminController::class, 'rotate'])
+                ->middleware('permission:'.AdminPermission::SETTINGS_SECRETS_MANAGE->value)
+                ->where('group', $groupPattern)
+                ->where('key', '[a-z][a-z0-9_]{0,49}')
+                ->name('admin.settings.secrets.rotate');
 
             // Its own permission, not `settings.update`: a rollback changes many
             // values at once, from a state the operator may not have inspected, and it

@@ -2,6 +2,7 @@
 
 * **Status**: Accepted
 * **Date**: 2026-09-06
+* **Built**: 2026-09-07 — Phase 16B-5 implements the export and restore contract, the key fingerprint and the refusal it enables; key rotation across the three stores remains unbuilt, as this record specifies
 
 ## Context
 

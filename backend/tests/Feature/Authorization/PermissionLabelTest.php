@@ -25,8 +25,8 @@ test('every permission in the catalogue resolves a label in both locales', funct
     $cases = AdminPermission::cases();
 
     // 16 through Phase 15; Phase 16A added the security, secrets and audit trio,
-    // and Phase 16B-2 added rollback.
-    expect($cases)->toHaveCount(20);
+    // Phase 16B-2 added rollback, 16B-4 audit archival and 16B-5 configuration backup.
+    expect($cases)->toHaveCount(22);
 
     foreach (['en', 'ar'] as $locale) {
         app()->setLocale($locale);
@@ -168,7 +168,7 @@ test('every permission key exists in both dictionaries and differs between them'
 
     $keys = array_values(array_filter(array_keys($en), fn (string $k): bool => str_starts_with($k, 'permission.')));
 
-    expect($keys)->toHaveCount(20);
+    expect($keys)->toHaveCount(22);
 
     foreach ($keys as $key) {
         expect($ar)->toHaveKey($key)

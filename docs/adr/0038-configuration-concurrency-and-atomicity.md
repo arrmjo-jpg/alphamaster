@@ -140,6 +140,25 @@ that declares no verifier, not a flag that skips one.
 
 Decided here, built in Phase 16B.
 
+**Built — Phase 16B-3.** `POST /admin/settings/{group}/secrets/{key}/rotate`, behind
+`settings.secrets.manage` and the ordinary `If-Match` precondition. Verifiers are
+registered per setting reference and most secrets have none, so the outcome distinguishes
+`verified`, `failed` and `unavailable` rather than collapsing the last two.
+
+The candidate is never persisted mid-flight: it arrives as a parameter, is handed to a
+verifier that holds it for one call, and is then committed or dropped. There is no
+pending column and no staging row, which is what makes "a failed verification leaves the
+stored credential exactly as it was" a property of the shape rather than a rule to
+remember.
+
+One verifier exists, for `mail.password`, built on the configuration tester that already
+delivers a real message. A refused rotation is recorded as a failed attempt — recording
+only successes would leave the trail unable to show a credential being guessed at.
+
+The ordinary settings write still stores a secret without verifying it, which is how a
+credential is first supplied to a vendor that cannot yet be reached. Rotation is the
+verified path, not the only one.
+
 ## Alternatives considered
 
 **Last-write-wins, as today.** Rejected. It is not that conflicts are frequent; it is that the loss is silent, and the values most likely to be quietly reverted are the ones an operator changed most recently and is least likely to re-check.

@@ -258,8 +258,9 @@ test('every placeholder survives translation', function (): void {
 test('every FormRequest still validates', function (): void {
     $requests = glob(app_path('Modules/*/Requests/*.php'));
 
-    // 14 through Phase 16A; Phase 16B-2 added the rollback request.
-    expect($requests)->toHaveCount(15);
+    // 14 through Phase 16A; Phase 16B-2 added the rollback request, 16B-3 the
+    // credential-rotation one, and 16B-5 the export and restore pair.
+    expect($requests)->toHaveCount(18);
 
     foreach ($requests as $file) {
         $source = (string) file_get_contents($file);

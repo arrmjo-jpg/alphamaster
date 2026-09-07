@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Modules\Integration\Providers;
 
+use App\Modules\Core\Backup\ConfigurationPortability;
+use App\Modules\Integration\Backup\ProviderPortability;
 use App\Modules\Integration\Contracts\SmsDispatcherContract;
 use App\Modules\Integration\Services\SmsDispatcher;
 use App\Modules\Integration\Services\SmsManager;
@@ -29,6 +31,11 @@ class IntegrationServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // This module's share of a portable configuration export (ADR 0039). Registered
+        // here rather than listed centrally, because Core may not import a domain module
+        // and a central list would have to.
+        $this->app->make(ConfigurationPortability::class)
+            ->register($this->app->make(ProviderPortability::class));
         $this->loadMigrationsFrom(dirname(__DIR__).'/Database/Migrations');
         $this->registerRoutes();
     }

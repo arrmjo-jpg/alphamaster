@@ -6,6 +6,7 @@ namespace App\Modules\Settings\Contracts;
 
 use App\Modules\Settings\Exceptions\SettingGroupNotFoundException;
 use App\Modules\Settings\Exceptions\UnknownRevisionException;
+use App\Modules\Settings\Exceptions\UnknownSettingKeyException;
 use App\Modules\Settings\Rollback\RollbackPlan;
 
 interface SettingServiceInterface
@@ -83,6 +84,18 @@ interface SettingServiceInterface
      * @return array<int, array<string, mixed>>
      */
     public function groupHistory(string $group, ?string $key = null, int $limit = 100): array;
+
+    /**
+     * Replace a stored credential (ADR 0038, as extended).
+     *
+     * Verification happens before this is called and its outcome travels into the
+     * audit trail, so the trail distinguishes a rotation that was confirmed with the
+     * vendor from one nobody could confirm. No revision is written: a secret has no
+     * history by design (ADR 0040).
+     *
+     * @throws UnknownSettingKeyException when nothing by that name is a secret here
+     */
+    public function rotateSecret(string $group, string $key, string $candidate, string $verification): void;
 
     public function groupVersion(string $group): string;
 

@@ -44,6 +44,26 @@ enum AdminPermission: string
      */
     case AUDIT_VIEW = 'audit.view';
 
+    /**
+     * Run an archival operation (ADR 0037, as extended).
+     *
+     * Reading the trail and removing from it are different powers, and holding the
+     * first is not a reason to hold the second — the accounts most interested in
+     * removal are the ones being recorded. Held by super_admin only, because
+     * super_admin holds every permission explicitly by design; no other seeded role
+     * carries it.
+     */
+    case AUDIT_MANAGE = 'audit.manage';
+
+    /**
+     * Export configuration, and restore it (ADR 0039).
+     *
+     * Exporting reads every non-secret value and lists which secrets exist; restoring
+     * rewrites configuration wholesale. Neither is `settings.update`, and neither
+     * should arrive with the permission to make an ordinary change.
+     */
+    case SETTINGS_BACKUP_MANAGE = 'settings.backup.manage';
+
     case ROLES_VIEW = 'roles.view';
     case ROLES_UPDATE = 'roles.update';
 
@@ -68,8 +88,8 @@ enum AdminPermission: string
             self::USERS_VIEW, self::USERS_CREATE, self::USERS_UPDATE, self::USERS_DELETE => 'user',
             self::SETTINGS_VIEW, self::SETTINGS_UPDATE,
             self::SETTINGS_ROLLBACK, self::SETTINGS_SECURITY_UPDATE,
-            self::SETTINGS_SECRETS_MANAGE => 'settings',
-            self::AUDIT_VIEW => 'core',
+            self::SETTINGS_SECRETS_MANAGE, self::SETTINGS_BACKUP_MANAGE => 'settings',
+            self::AUDIT_VIEW, self::AUDIT_MANAGE => 'core',
             self::ROLES_VIEW, self::ROLES_UPDATE,
             self::PERMISSIONS_VIEW, self::PERMISSIONS_UPDATE => 'authorization',
             self::INTEGRATIONS_VIEW, self::INTEGRATIONS_UPDATE => 'integration',

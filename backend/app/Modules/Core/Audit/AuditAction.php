@@ -41,6 +41,25 @@ final class AuditAction
      */
     public const SETTINGS_ROLLED_BACK = 'settings.rolled_back';
 
+    /**
+     * Records moved out of the active trail and into an archive (ADR 0037).
+     *
+     * The one action that is never itself eligible for archival. Without that
+     * exclusion a patient sequence of operations erases the evidence that any of them
+     * happened, one window at a time, and the trail ends up complete-looking and false.
+     */
+    public const AUDIT_ARCHIVED = 'audit.archived';
+
+    /**
+     * Configuration written to a portable artefact, or read back from one (ADR 0039).
+     *
+     * Both are recorded because both move the platform's configuration across a
+     * boundary: one out to a file that will be copied, one in over what is running.
+     */
+    public const CONFIGURATION_EXPORTED = 'configuration.exported';
+
+    public const CONFIGURATION_RESTORED = 'configuration.restored';
+
     public const MAIL_TEST_SENT = 'mail.test_sent';
 
     private function __construct() {}

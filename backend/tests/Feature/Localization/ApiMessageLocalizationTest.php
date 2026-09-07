@@ -206,9 +206,9 @@ test('every key this change introduced exists in both dictionaries', function ()
 
     // 16 from Scope B, plus `api.error.too_many_attempts` added with the central
     // rate limiter in Phase 14 — a handler message of exactly the same kind.
-    // Phase 16A added the mail-test success message, and Phase 16B-2 the
-    // rollback one.
-    expect($keys)->toHaveCount(19);
+    // Phase 16A added the mail-test success message, Phase 16B-2 the rollback one,
+    // and Phase 16B-3 the credential-rotated one.
+    expect($keys)->toHaveCount(20);
 
     foreach ($keys as $key) {
         expect($ar)->toHaveKey($key)

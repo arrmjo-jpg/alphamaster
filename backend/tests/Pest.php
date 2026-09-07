@@ -111,6 +111,34 @@ function adminToken(array $abilities = ['admin:access'], bool $isAdmin = true, a
 }
 
 /**
+ * An administrator holding exactly the named permissions and no role.
+ *
+ * The seeded roles are deliberately coarse — super_admin holds everything, and the
+ * others hold coherent job-shaped sets — so they cannot express the combinations a
+ * privilege test needs: "may roll back but may not change security settings", "may
+ * change a value but may not rotate a credential". Those are exactly the combinations
+ * an escalation runs through, so they are built here rather than by bending a role.
+ *
+ * @param  array<int, string>  $permissions
+ */
+function tokenWithPermissions(array $permissions): string
+{
+    static $sequence = 0;
+    $sequence++;
+
+    $admin = makeAccount([
+        'name' => 'Scoped Operator '.$sequence,
+        'email' => 'scoped-operator'.$sequence.'@example.com',
+        'password' => bcrypt('secret'),
+        'account_type' => AccountType::ADMIN,
+    ]);
+
+    $admin->givePermissionTo($permissions);
+
+    return $admin->createToken('test-token', ['admin:access'])->plainTextToken;
+}
+
+/**
  * Return the test client to a genuinely unauthenticated state.
  *
  * withToken() persists the Authorization header across requests, and
@@ -123,6 +151,7 @@ function resetClient(mixed $test): void
     $test->flushHeaders();
     app('auth')->forgetGuards();
 }
+
 /**
  * Drive an administrator through mandatory MFA enrolment and return the resulting
  * access token together with the material needed to sign in again.

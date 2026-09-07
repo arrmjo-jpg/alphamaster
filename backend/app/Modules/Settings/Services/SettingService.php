@@ -10,9 +10,11 @@ use App\Modules\Core\Contracts\AuditRecorderContract;
 use App\Modules\Core\Contracts\LocaleResolverInterface;
 use App\Modules\Core\Contracts\PlatformCacheContract;
 use App\Modules\Settings\Contracts\SettingServiceInterface;
+use App\Modules\Settings\Definitions\DefinitionValidator;
 use App\Modules\Settings\Definitions\SettingDefinition;
 use App\Modules\Settings\Definitions\SettingRegistry;
 use App\Modules\Settings\Exceptions\SettingGroupNotFoundException;
+use App\Modules\Settings\Exceptions\SettingValueRejectedException;
 use App\Modules\Settings\Exceptions\UnknownRevisionException;
 use App\Modules\Settings\Exceptions\UnknownSettingKeyException;
 use App\Modules\Settings\Models\Setting;
@@ -25,7 +27,6 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Validator;
 use InvalidArgumentException;
 
 class SettingService implements SettingServiceInterface
@@ -46,6 +47,7 @@ class SettingService implements SettingServiceInterface
         private readonly PlatformCacheContract $cache,
         private readonly AuditRecorderContract $audit,
         private readonly SettingRegistry $registry,
+        private readonly DefinitionValidator $definitionValidator,
     ) {}
 
     /**
@@ -133,6 +135,12 @@ class SettingService implements SettingServiceInterface
                 // serializeValue maps null to null (explicitly unset) and rejects every
                 // value it cannot represent exactly, rather than coercing it.
                 $serialized = Setting::serializeValue($val, $setting->type);
+
+                // And then the rules the definition declares, which until Phase 16B-6
+                // were declared, published, and enforced nowhere. Checked here rather
+                // than in the FormRequest because the request sees a payload and this
+                // sees the value in its declared type, which is what the rules describe.
+                $this->assertDeclarationSatisfied($setting, $serialized);
 
                 // Captured before the version advances, so the revision carries the
                 // version its value actually belonged to (ADR 0040).
@@ -311,6 +319,63 @@ class SettingService implements SettingServiceInterface
                 'recorded_at' => $revision->created_at->toIso8601String(),
             ];
         })->all();
+    }
+
+    /**
+     * Replace a stored credential, once something has decided it may be replaced.
+     *
+     * Separate from `updateGroup` because a rotation is a different operation with a
+     * different contract (ADR 0038, as extended): the candidate has already been tried
+     * against the vendor where one exists, and the outcome of that travels into the
+     * audit record so the trail distinguishes a rotation that was confirmed from one
+     * that nobody could confirm.
+     *
+     * What it does not do is decide. The verification is performed before this is
+     * called, by a service that owns verifiers, and a failed one never reaches here —
+     * so there is no branch in the write path that could commit an unverified
+     * credential by taking the wrong turn.
+     *
+     * No revision is written, here or anywhere: a secret has no history by design
+     * (ADR 0040), so a rotated credential is unrecoverable, which is the property that
+     * makes the revision store safe to keep.
+     *
+     * @throws UnknownSettingKeyException when nothing by that name is a secret here
+     */
+    public function rotateSecret(string $group, string $key, string $candidate, string $verification): void
+    {
+        DB::transaction(function () use ($group, $key, $candidate, $verification): void {
+            $setting = Setting::query()->where('group', $group)->where('key', $key)->first();
+
+            if ($setting === null || ! $setting->is_secret) {
+                // A non-secret answers the same way a missing one does. Rotation is
+                // defined for credentials, and telling a caller that some key exists
+                // but is not secret is a fact about the catalogue they can already
+                // read through the definitions endpoint.
+                throw new UnknownSettingKeyException($group, $key);
+            }
+
+            // Whether it held anything before, which is the whole of what the trail is
+            // allowed to know about a credential's previous state.
+            $held = $setting->value !== null;
+
+            $setting->version = $setting->version + 1;
+            $setting->setRawValue($candidate);
+            $setting->save();
+
+            // Key, outcome, and nothing else. No plaintext, no ciphertext, no hash, no
+            // length: a rotation record that carried any of those would be a second
+            // copy of the credential under weaker access control than the settings
+            // table it came from (ADR 0037).
+            $this->audit->succeeded(
+                $held ? AuditAction::SECRET_ROTATED : AuditAction::SECRET_SET,
+                $group.'.'.$key,
+                ['verification' => $verification],
+            );
+
+            DB::afterCommit(function () use ($group): void {
+                $this->clearCache($group);
+            });
+        });
     }
 
     /**
@@ -591,21 +656,14 @@ class SettingService implements SettingServiceInterface
     /**
      * Whether a value fails the rules its definition declares.
      *
-     * These rules are checked here and not on the ordinary write path, which is a
-     * difference worth naming rather than leaving to be discovered: an ordinary write
-     * carries a value an operator is looking at as they submit it, while a rollback
-     * writes values from a state nobody has inspected, recorded under declarations that
-     * may no longer hold. ADR 0040 requires the second to be revalidated; extending the
-     * same enforcement to the first changes a shipped contract and belongs to a slice
-     * that can be reviewed as one.
+     * The ordinary write path enforces these too, as of Phase 16B-6. The difference
+     * that remains is what happens next: a write refuses and tells the operator, while
+     * a rollback skips the setting and carries on, because a rollback restores a whole
+     * group and failing all of it over one stale value helps nobody.
      */
     private function violatesDeclaredRules(SettingDefinition $definition, mixed $typed): bool
     {
-        if ($definition->rules === []) {
-            return false;
-        }
-
-        return Validator::make(['value' => $typed], ['value' => $definition->rules])->fails();
+        return $this->definitionValidator->violates($definition, $typed);
     }
 
     /**
@@ -984,6 +1042,39 @@ class SettingService implements SettingServiceInterface
             ->first();
 
         return $setting?->getTypedValue();
+    }
+
+    /**
+     * Refuse a value its own declaration would not allow.
+     *
+     * A setting with no declaration is left alone: an orphaned row is a state the
+     * synchroniser reports and keeps (ADR 0018), and inventing rules for it here would
+     * make an undeclared setting unwritable by a path that has no way to fix it.
+     *
+     * @throws SettingValueRejectedException
+     */
+    private function assertDeclarationSatisfied(Setting $setting, ?string $serialized): void
+    {
+        $reference = $setting->group.'.'.$setting->key;
+
+        if (! $this->registry->has($reference)) {
+            return;
+        }
+
+        $definition = $this->registry->get($reference);
+
+        // A secret's rules cannot be applied to its stored form, which is ciphertext,
+        // and applying them to the plaintext would mean holding it here to do so.
+        if ($definition->isSecret) {
+            return;
+        }
+
+        $typed = $serialized === null ? null : Setting::castValue($serialized, $definition->type);
+        $messages = $this->definitionValidator->messages($definition, $typed);
+
+        if ($messages !== []) {
+            throw new SettingValueRejectedException($reference, $messages);
+        }
     }
 
     /**
