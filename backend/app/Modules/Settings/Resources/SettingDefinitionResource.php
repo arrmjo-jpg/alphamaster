@@ -57,9 +57,24 @@ class SettingDefinitionResource extends JsonResource
             // silently does nothing.
             'depends_on' => $definition->dependsOn,
 
-            // The permission required beyond settings.update, where this value is
-            // sensitive enough to warrant its own.
-            'permission' => $definition->permission,
+            // The rules this value must satisfy, as declared. Published because they
+            // are enforced (Phase 16B-6): a client that generates a form from this
+            // catalogue and does not know them will submit values the API refuses, and
+            // an operator will read that as the platform being broken.
+            //
+            // Laravel rule strings, deliberately. Translating them into some neutral
+            // schema here would invent a second dialect for the same constraints, and
+            // the two would drift in exactly the direction that makes the client more
+            // permissive than the server.
+            'rules' => $definition->rules,
+
+            // The permission required to change this setting, resolved rather than
+            // repeated: `requiredPermission()` answers `settings.secrets.manage` for a
+            // secret, which the raw declaration does not carry. Publishing the raw
+            // field would show every credential as freely editable — and it is the
+            // resolved answer the API itself enforces, so it is the one a client must
+            // be given.
+            'permission' => $definition->requiredPermission(),
 
             'deprecated' => $definition->isDeprecated(),
         ];

@@ -7,7 +7,9 @@ namespace App\Modules\Authorization\Providers;
 use App\Modules\Authorization\Contracts\AdminRbacContract;
 use App\Modules\Authorization\Models\Permission;
 use App\Modules\Authorization\Models\Role;
+use App\Modules\Authorization\Services\AdminEffectiveGrants;
 use App\Modules\Authorization\Services\AdminRbac;
+use App\Modules\Core\Contracts\EffectiveGrants;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Spatie\Permission\PermissionRegistrar;
@@ -20,6 +22,11 @@ class AuthorizationServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(AdminRbacContract::class, AdminRbac::class);
+
+        // The Core-facing view of the same boundary, so a module that may not import
+        // Authorization can still ask what an account may do (ADR 0028). Bound here
+        // because this module owns the answer.
+        $this->app->singleton(EffectiveGrants::class, AdminEffectiveGrants::class);
     }
 
     /**
