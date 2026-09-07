@@ -10,6 +10,7 @@ use App\Modules\Settings\Contracts\SettingServiceInterface;
 use App\Modules\Settings\Exceptions\UnknownSettingKeyException;
 use App\Modules\Settings\Requests\RotateSecretRequest;
 use App\Modules\Settings\Services\SecretRotationService;
+use Dedoc\Scramble\Attributes\Response;
 use Illuminate\Http\JsonResponse;
 
 /**
@@ -40,6 +41,7 @@ class SecretAdminController extends BaseApiController
      * The response carries the outcome and never the credential — not the new one, not
      * the old one, not a masked or truncated form of either.
      */
+    #[Response(200, type: 'array{success: bool, message: string, data: array{key: string, verification: array{status: string, status_label: string, detail: string|null}}, meta: array{version: string}}')]
     public function rotate(RotateSecretRequest $request, string $group, string $key): JsonResponse
     {
         /** @var string $candidate */

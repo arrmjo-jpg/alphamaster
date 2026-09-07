@@ -18,6 +18,7 @@ use App\Modules\Settings\Requests\RollbackGroupSettingsRequest;
 use App\Modules\Settings\Requests\UpdateGroupSettingsRequest;
 use App\Modules\Settings\Resources\SettingDefinitionResource;
 use App\Modules\Settings\Services\MailConfigurationTester;
+use Dedoc\Scramble\Attributes\Response;
 use Illuminate\Contracts\Auth\Access\Authorizable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -79,6 +80,7 @@ class SettingAdminController extends BaseApiController
      * Deprecated definitions are included and flagged rather than hidden, so an
      * interface can show an operator that a setting they configured is on its way out.
      */
+    #[Response(200, type: 'array{success: bool, data: array<string, list<SettingDefinitionResource>>}')]
     public function definitions(): JsonResponse
     {
         $grouped = [];
@@ -152,6 +154,7 @@ class SettingAdminController extends BaseApiController
      * An unknown group or key is a 404 (settings are provisioned, not created here);
      * a value that cannot be represented in the setting's declared type is a 422.
      */
+    #[Response(200, type: 'array{success: bool, message: string, data: array{group: string, updated: array<string, mixed>}, meta: array{version: string}}')]
     public function update(UpdateGroupSettingsRequest $request, string $group): JsonResponse
     {
         /** @var array<string, mixed> $payload */
@@ -216,6 +219,7 @@ class SettingAdminController extends BaseApiController
      * secret has no history to restore from — an operator gets a checklist rather than
      * a failure or a silence.
      */
+    #[Response(200, type: 'array{success: bool, message: string, data: array{group: string, target_revision_id: string, restored: list<array{key: string, locale: string|null, value: mixed}>, skipped: list<array{key: string, locale: string|null, reason: string, reason_label: string}>}, meta: array{version: string}}')]
     public function rollback(RollbackGroupSettingsRequest $request, string $group): JsonResponse
     {
         /** @var string $revisionId */

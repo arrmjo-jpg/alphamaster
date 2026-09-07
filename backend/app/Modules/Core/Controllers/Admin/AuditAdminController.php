@@ -9,6 +9,7 @@ use App\Modules\Core\Contracts\RetentionPolicyContract;
 use App\Modules\Core\Controllers\BaseApiController;
 use App\Modules\Core\Models\AuditRecord;
 use App\Modules\Core\Resources\AuditRecordResource;
+use Dedoc\Scramble\Attributes\QueryParameter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -37,6 +38,13 @@ class AuditAdminController extends BaseApiController
      * this person do, what happened to this setting, what happened that day — are the
      * ones the indexes were built for.
      */
+    #[QueryParameter('per_page', 'Rows per page.', type: 'int', default: 25)]
+    #[QueryParameter('action', 'Exact match on the recorded action.', type: 'string')]
+    #[QueryParameter('subject', 'Exact match on the subject the action was taken on.', type: 'string')]
+    #[QueryParameter('actor_id', 'Exact match on the account that acted.', type: 'string')]
+    #[QueryParameter('outcome', 'Exact match on the recorded outcome.', type: 'string')]
+    #[QueryParameter('from', 'Only entries recorded at or after this moment.', type: 'string', format: 'date-time')]
+    #[QueryParameter('to', 'Only entries recorded at or before this moment.', type: 'string', format: 'date-time')]
     public function index(Request $request): JsonResponse
     {
         $perPage = (int) $request->query('per_page', '25');
