@@ -6,7 +6,9 @@ A modular, high-performance Laravel 13 API foundation built on PostgreSQL 17, Re
 
 ## Quick Start (Docker)
 
-Ensure Docker Desktop is running, then manage the platform using `make`:
+Ensure Docker Desktop is running and that Docker Compose is **2.24 or newer**
+(the composition uses the `!override` merge tag), then manage the platform using
+`make`:
 
 ```bash
 # Start all containers in the background

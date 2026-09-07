@@ -17,9 +17,12 @@ services:
       context: .
       dockerfile: docker/nginx/Dockerfile
     image: ${ALPHAMASTER_IMAGE_NAMESPACE:-alphamaster}/nginx:${ALPHAMASTER_IMAGE_TAG:-latest}
-    container_name: alphamaster-nginx
     ports:
-      - "80:80"
+      # The container always listens on 80; only the host publication varies, so a
+      # second environment needs no change to the service itself. Production takes
+      # the default; development overrides it; CI sets 0 and Docker picks a free
+      # port, which is what stops parallel runs contending for one.
+      - "${NGINX_HTTP_PORT:-80}:80"
     depends_on:
       backend:
         condition: service_healthy
@@ -38,7 +41,6 @@ services:
       context: .
       dockerfile: docker/backend/Dockerfile
     image: ${ALPHAMASTER_IMAGE_NAMESPACE:-alphamaster}/backend:${ALPHAMASTER_IMAGE_TAG:-latest}
-    container_name: alphamaster-backend
     env_file:
       - ./backend/.env
     depends_on:
@@ -63,7 +65,6 @@ services:
       context: .
       dockerfile: docker/backend/Dockerfile
     image: ${ALPHAMASTER_IMAGE_NAMESPACE:-alphamaster}/horizon:${ALPHAMASTER_IMAGE_TAG:-latest}
-    container_name: alphamaster-horizon
     command: php artisan horizon
     env_file:
       - ./backend/.env
@@ -89,7 +90,6 @@ services:
       context: .
       dockerfile: docker/backend/Dockerfile
     image: ${ALPHAMASTER_IMAGE_NAMESPACE:-alphamaster}/scheduler:${ALPHAMASTER_IMAGE_TAG:-latest}
-    container_name: alphamaster-scheduler
     command: php artisan schedule:work
     env_file:
       - ./backend/.env
@@ -112,7 +112,6 @@ services:
   # ─── Primary Database (PostgreSQL 17) ───
   postgres:
     image: postgres:17-alpine
-    container_name: alphamaster-postgres
     environment:
       POSTGRES_DB: ${DB_DATABASE:-alphamaster}
       POSTGRES_USER: ${DB_USERNAME:-alphamaster}
@@ -132,7 +131,6 @@ services:
   # ─── In-Memory Cache & Queue Broker (Redis 7) ───
   redis:
     image: redis:7-alpine
-    container_name: alphamaster-redis
     volumes:
       - redis_data:/data
     networks:
@@ -148,7 +146,6 @@ services:
   # ─── Database Web Client (Adminer) — optional, profile: tools ───
   adminer:
     image: adminer:5-standalone
-    container_name: alphamaster-adminer
     profiles:
       - tools
     environment:
@@ -166,18 +163,32 @@ services:
       start_period: 5s
     restart: unless-stopped
 
+# Declared external, which means Compose may attach to them and may not create,
+# recreate or delete them. That is the whole point: `docker compose down -v` in any
+# project sharing these names would otherwise destroy the live database, and the
+# names are global because the data is — a volume holding real rows is the one
+# resource that must not be quietly re-scoped.
+#
+# The names are the ones the running deployment already uses, verified against the
+# daemon rather than assumed. Nothing here renames, migrates or recreates them; an
+# environment that needs its own data creates volumes under its own project scope
+# by not declaring them external.
 volumes:
   postgres_data:
+    external: true
     name: alphamaster_postgres_data
   redis_data:
+    external: true
     name: alphamaster_redis_data
 
+# Networks carry no state, so they are project-scoped: dropping `name:` lets Compose
+# prefix them per project and two environments stop sharing one bridge. The topology
+# itself is unchanged — an edge tier and a closed data tier, exactly as before.
 networks:
   # Reachable from outside and able to reach outside. The proxy publishes here,
   # and the future admin and public frontend containers belong here and nowhere
   # else — which is what stops them from ever addressing the database.
   alphamaster_edge:
-    name: alphamaster_edge
     driver: bridge
 
   # Closed. Docker gives a container attached only to an internal network no
@@ -188,6 +199,5 @@ networks:
   # PHP services also sit on the edge network, and the second is why the
   # development override has to attach Postgres and Redis to it as well.
   alphamaster_data:
-    name: alphamaster_data
     driver: bridge
     internal: true

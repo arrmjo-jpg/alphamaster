@@ -35,8 +35,19 @@
 # relaxed, so the isolation this topology exists for holds while developing, not
 # merely once deployed.
 
+# Requires Docker Compose >= 2.24, for the `!override` tag below. An older client
+# does not ignore it — it fails to parse this file, and every command in this project
+# loads it automatically, so the whole stack stops rather than degrading. That floor
+# is asserted by `scripts/gate.sh compose-version`, which `make up` runs first.
+
 services:
   nginx:
+    # `!override` replaces the baseline's list rather than adding to it. Compose
+    # merges sequences by default, so without this development would publish 80 *and*
+    # 8080 — still binding the port this override exists to avoid, and doing it
+    # silently because both mappings are valid.
+    ports: !override
+      - "${NGINX_HTTP_PORT:-8080}:80"
     volumes:
       # Edit the server config and reload, rather than rebuild the image.
       - ./docker/nginx/conf.d:/etc/nginx/conf.d:ro

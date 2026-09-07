@@ -25,6 +25,13 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Every gate reaches the application through `docker compose exec`, never through a
+# published port, so CI needs the proxy's host binding only to satisfy the mapping.
+# 0 makes Docker choose a free port, which is what stops two runs on one runner from
+# contending for a fixed one.
+env:
+  NGINX_HTTP_PORT: 0
+
 jobs:
   # Proves the stack can still be built from nothing.
   #
