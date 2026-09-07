@@ -200,23 +200,20 @@ services:
       start_period: 5s
     restart: unless-stopped
 
-# Declared external, which means Compose may attach to them and may not create,
-# recreate or delete them. That is the whole point: `docker compose down -v` in any
-# project sharing these names would otherwise destroy the live database, and the
-# names are global because the data is — a volume holding real rows is the one
-# resource that must not be quietly re-scoped.
+# Project-scoped and creatable, because this file also describes environments that
+# have no data yet: a CI runner, a new deployment, a first clone. Declaring them
+# `external` here was tried and broke exactly those — Compose refuses to start when
+# an external volume does not exist, which is right for a live database and wrong
+# for a runner that has never had one.
 #
-# The names are the ones the running deployment already uses, verified against the
-# daemon rather than assumed. Nothing here renames, migrates or recreates them; an
-# environment that needs its own data creates volumes under its own project scope
-# by not declaring them external.
+# Protecting real data is therefore the production overlay's job, not the
+# baseline's. docker-compose.production.yml redeclares these two as `external`
+# under the names the deployment already uses, so `down -v` cannot reach them
+# there; docker-compose.override.yml pins the same names for development so a
+# developer's existing database keeps being attached.
 volumes:
   postgres_data:
-    external: true
-    name: alphamaster_postgres_data
   redis_data:
-    external: true
-    name: alphamaster_redis_data
 
 # Networks carry no state, so they are project-scoped: dropping `name:` lets Compose
 # prefix them per project and two environments stop sharing one bridge. The topology

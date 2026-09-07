@@ -76,6 +76,22 @@ services:
     ports:
       - "127.0.0.1:8080:8080"
 
+# The names a developer's database already lives under. Not `external`: Compose
+# creates these when they are absent, so a first clone works, and attaches them when
+# they are present, so an existing database is not left orphaned behind a new empty
+# volume of a different name.
+#
+# The cost is that these two names are global rather than project-scoped in
+# development. That is the collision the baseline avoids, accepted here because the
+# alternative is a developer's data silently ceasing to be attached — and because
+# two copies of this project on one machine is not the case this file serves.
+volumes:
+  postgres_data:
+    name: alphamaster_postgres_data
+
+  redis_data:
+    name: alphamaster_redis_data
+
 networks:
   # Development only. Everything above needs the host to be able to open a
   # connection to these two services, which an internal network forbids.
