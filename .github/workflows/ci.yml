@@ -25,6 +25,13 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Every gate reaches the application through `docker compose exec`, never through a
+# published port, so CI needs the proxy's host binding only to satisfy the mapping.
+# 0 makes Docker choose a free port, which is what stops two runs on one runner from
+# contending for a fixed one.
+env:
+  NGINX_HTTP_PORT: 0
+
 jobs:
   # Proves the stack can still be built from nothing.
   #
@@ -60,6 +67,30 @@ jobs:
             }
             echo "all required extensions present" . PHP_EOL;
           '
+
+      - name: The production baseline must carry no source mounts
+        # Every other compose command in this workflow picks up
+        # docker-compose.override.yml automatically, which is exactly what keeps
+        # the gate working unchanged. It also means nothing else here ever reads
+        # docker-compose.yml on its own, so a source mount could be added back to
+        # the baseline and no gate would notice until a deployment did.
+        #
+        # nginx is in this list because it is the one that would drift back most
+        # easily: reintroducing `root` in the server config makes mounting the
+        # application directory look necessary again, and it is not — ADR 0041
+        # and an API-only backend are what let the proxy hold no application
+        # file at all.
+        run: |
+          baseline="$(mktemp)"
+          docker compose -f docker-compose.yml config --format json > "$baseline"
+          for svc in nginx backend horizon scheduler; do
+            binds="$(jq --arg s "$svc" '[.services[$s].volumes // [] | .[] | select(.type == "bind")] | length' "$baseline")"
+            if [ "$binds" != "0" ]; then
+              echo "$svc carries $binds bind mount(s) in the production baseline" >&2
+              exit 1
+            fi
+          done
+          echo "no service mounts the working tree in the baseline"
 
   # The quality gate itself, run inside the project's containers.
   gate:

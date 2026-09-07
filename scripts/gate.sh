@@ -33,6 +33,7 @@ scripts/gate.sh <command>
   test-pgsql      Full suite on PostgreSQL, asserting the engine really was PostgreSQL
   test-sqlite     Full suite on SQLite, asserting the engine really was SQLite
   migrate-fresh   migrate:fresh --seed (DESTRUCTIVE: drops the target database)
+  compose-version Docker Compose meets the minimum the composition requires
   diff [base]     Whitespace errors; with a base ref, checks that range instead of the worktree
   secrets         Secret scan over the whole repository, with its own positive controls
   all             Everything above, in order
@@ -57,6 +58,58 @@ require_stack() {
         echo "The $BACKEND_SERVICE service is not running. Start it with: $COMPOSE up -d" >&2
         exit 1
     fi
+}
+
+# The composition uses the `!override` merge tag, which Docker Compose understands
+# from 2.24. An older client does not ignore the tag — it fails to parse the file it
+# appears in, and every command here loads the development override automatically, so
+# the failure is total and the message is a YAML parse error that names nothing useful.
+#
+# Checked explicitly so the requirement is a stated precondition rather than a latent
+# assumption discovered by whoever upgrades last.
+COMPOSE_MINIMUM_MAJOR=2
+COMPOSE_MINIMUM_MINOR=24
+
+cmd_compose_version() {
+    step "Docker Compose version"
+
+    local reported major minor
+    reported="$($COMPOSE version --short 2>/dev/null || true)"
+
+    if [ -z "$reported" ]; then
+        echo "Could not determine the Docker Compose version from: $COMPOSE version --short" >&2
+        echo "This project requires Docker Compose ${COMPOSE_MINIMUM_MAJOR}.${COMPOSE_MINIMUM_MINOR} or newer." >&2
+        exit 1
+    fi
+
+    # Leading `v` where the client prints one, then the first two components.
+    reported="${reported#v}"
+    major="${reported%%.*}"
+    minor="${reported#*.}"
+    minor="${minor%%.*}"
+
+    case "$major$minor" in
+        *[!0-9]*|'')
+            echo "Unrecognised Docker Compose version string: $reported" >&2
+            echo "This project requires Docker Compose ${COMPOSE_MINIMUM_MAJOR}.${COMPOSE_MINIMUM_MINOR} or newer." >&2
+            exit 1
+            ;;
+    esac
+
+    if [ "$major" -lt "$COMPOSE_MINIMUM_MAJOR" ] ||
+       { [ "$major" -eq "$COMPOSE_MINIMUM_MAJOR" ] && [ "$minor" -lt "$COMPOSE_MINIMUM_MINOR" ]; }; then
+        echo >&2
+        echo "Docker Compose $reported is too old for this composition." >&2
+        echo >&2
+        echo "Required: ${COMPOSE_MINIMUM_MAJOR}.${COMPOSE_MINIMUM_MINOR} or newer." >&2
+        echo "Reason:   docker-compose.override.yml uses the \`!override\` merge tag," >&2
+        echo "          which Compose understands from ${COMPOSE_MINIMUM_MAJOR}.${COMPOSE_MINIMUM_MINOR}. Without it the" >&2
+        echo "          development proxy would publish both 80 and 8080." >&2
+        echo "Fix:      update Docker Desktop, or install a newer docker-compose-plugin." >&2
+        exit 1
+    fi
+
+    echo "docker compose $reported meets the required ${COMPOSE_MINIMUM_MAJOR}.${COMPOSE_MINIMUM_MINOR} minimum"
 }
 
 cmd_pint() {
@@ -192,6 +245,7 @@ case "${1:-}" in
     migrate-fresh) cmd_migrate_fresh ;;
     diff)          shift; cmd_diff "${1:-}" ;;
     secrets)       cmd_secrets ;;
+    compose-version) cmd_compose_version ;;
     all)           shift; cmd_all "${1:-}" ;;
     -h|--help|help|"") usage ;;
     *)             echo "Unknown command: $1" >&2; echo >&2; usage >&2; exit 1 ;;

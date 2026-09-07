@@ -1,3 +1,15 @@
+# The production baseline.
+#
+# Nothing here mounts the working tree: every PHP service runs the application
+# that was baked into its image, and no database or cache port is published to
+# the host. This file alone describes a deployable stack.
+#
+# `docker compose up` on a developer machine also reads docker-compose.override.yml,
+# which is loaded automatically and puts the source mounts and the local ports
+# back. To exercise this file as it would actually be deployed, name it alone:
+#
+#   docker compose -f docker-compose.yml up -d
+
 services:
   # ─── Reverse Proxy (Nginx) ───
   nginx:
@@ -5,17 +17,17 @@ services:
       context: .
       dockerfile: docker/nginx/Dockerfile
     image: ${ALPHAMASTER_IMAGE_NAMESPACE:-alphamaster}/nginx:${ALPHAMASTER_IMAGE_TAG:-latest}
-    container_name: alphamaster-nginx
     ports:
-      - "80:80"
-    volumes:
-      - ./docker/nginx/conf.d:/etc/nginx/conf.d:ro
-      - ./backend:/var/www/html:ro
+      # The container always listens on 80; only the host publication varies, so a
+      # second environment needs no change to the service itself. Production takes
+      # the default; development overrides it; CI sets 0 and Docker picks a free
+      # port, which is what stops parallel runs contending for one.
+      - "${NGINX_HTTP_PORT:-80}:80"
     depends_on:
       backend:
         condition: service_healthy
     networks:
-      - alphamaster_network
+      - alphamaster_edge
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/health"]
       interval: 10s
@@ -29,18 +41,26 @@ services:
       context: .
       dockerfile: docker/backend/Dockerfile
     image: ${ALPHAMASTER_IMAGE_NAMESPACE:-alphamaster}/backend:${ALPHAMASTER_IMAGE_TAG:-latest}
-    container_name: alphamaster-backend
-    volumes:
-      - ./backend:/var/www/html
     env_file:
       - ./backend/.env
+    environment:
+      # Application logs go to the container's stderr, so `docker compose logs`
+      # shows them and nothing accumulates in a file inside an ephemeral
+      # filesystem. Set here rather than only in .env.example because the live
+      # value comes from env_file, which this overrides.
+      LOG_CHANNEL: stderr
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     networks:
-      - alphamaster_network
+      # Edge because nginx reaches it over FastCGI; data because it reads and
+      # writes both stores; egress because the request path still sends MFA codes
+      # and the mail test synchronously.
+      - alphamaster_edge
+      - alphamaster_data
+      - alphamaster_egress
     healthcheck:
       test: ["CMD-SHELL", "php -r \"exit(@fsockopen('127.0.0.1', 9000) ? 0 : 1);\""]
       interval: 10s
@@ -55,21 +75,24 @@ services:
       context: .
       dockerfile: docker/backend/Dockerfile
     image: ${ALPHAMASTER_IMAGE_NAMESPACE:-alphamaster}/horizon:${ALPHAMASTER_IMAGE_TAG:-latest}
-    container_name: alphamaster-horizon
     command: php artisan horizon
-    volumes:
-      - ./backend:/var/www/html
     env_file:
       - ./backend/.env
+    environment:
+      LOG_CHANNEL: stderr
     depends_on:
-      backend:
-        condition: service_healthy
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     networks:
-      - alphamaster_network
+      # Off the public edge. It needs the data tier for the rows its jobs write,
+      # and outbound for the SMS and mail those jobs dispatch — but nothing
+      # reaches it, so it has no business on the network the proxy and the future
+      # frontend containers share. This closes the one imprecision ADR 0041
+      # recorded in its own consequences.
+      - alphamaster_data
+      - alphamaster_egress
     healthcheck:
       test: ["CMD", "php", "artisan", "horizon:status"]
       interval: 20s
@@ -84,21 +107,37 @@ services:
       context: .
       dockerfile: docker/backend/Dockerfile
     image: ${ALPHAMASTER_IMAGE_NAMESPACE:-alphamaster}/scheduler:${ALPHAMASTER_IMAGE_TAG:-latest}
-    container_name: alphamaster-scheduler
     command: php artisan schedule:work
-    volumes:
-      - ./backend:/var/www/html
     env_file:
       - ./backend/.env
-    depends_on:
-      backend:
-        condition: service_healthy
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    networks:
-      - alphamaster_network
+    environment:
+      # A file cache, local to this container and deliberately not the Redis one
+      # the API and the worker share.
+      #
+      # `schedule:run` reads `illuminate:schedule:paused` from the cache on every
+      # tick, before it looks at the schedule at all — so a scheduler with no
+      # network and the shared Redis store would fail every minute while `pgrep`
+      # still reported it healthy. There is no scheduled work today, so a cache
+      # nobody else reads costs nothing.
+      #
+      # DEPLOYMENT INVARIANT: exactly one scheduler instance. A file cache is not
+      # shared, so a second replica would silently lose mutual exclusion for any
+      # future withoutOverlapping or onOneServer task.
+      #
+      # EXPANSION RULE: a scheduled command that needs shared application cache or
+      # settings moves this service to the Redis store and its network access is
+      # reassessed then. It is not solved by attaching this container to the data
+      # network and leaving the file store in place, which would leave it reading
+      # an empty cache and falling through to a database it cannot reach.
+      CACHE_STORE: file
+      LOG_CHANNEL: stderr
+    # No network at all. Removing the `networks:` key would not achieve this —
+    # Compose then attaches the service to an implicit `default` network and
+    # quietly restores off-host routing, which is the opposite of the intent.
+    #
+    # `depends_on` went with it: waiting for postgres and redis to be healthy is
+    # meaningless for a container that cannot address either.
+    network_mode: none
     healthcheck:
       test: ["CMD-SHELL", "pgrep -f 'artisan schedule:work' > /dev/null || exit 1"]
       interval: 15s
@@ -110,9 +149,6 @@ services:
   # ─── Primary Database (PostgreSQL 17) ───
   postgres:
     image: postgres:17-alpine
-    container_name: alphamaster-postgres
-    ports:
-      - "127.0.0.1:5432:5432"
     environment:
       POSTGRES_DB: ${DB_DATABASE:-alphamaster}
       POSTGRES_USER: ${DB_USERNAME:-alphamaster}
@@ -120,7 +156,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
-      - alphamaster_network
+      - alphamaster_data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-alphamaster} -d ${DB_DATABASE:-alphamaster}"]
       interval: 5s
@@ -132,13 +168,10 @@ services:
   # ─── In-Memory Cache & Queue Broker (Redis 7) ───
   redis:
     image: redis:7-alpine
-    container_name: alphamaster-redis
-    ports:
-      - "127.0.0.1:6379:6379"
     volumes:
       - redis_data:/data
     networks:
-      - alphamaster_network
+      - alphamaster_data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -150,18 +183,15 @@ services:
   # ─── Database Web Client (Adminer) — optional, profile: tools ───
   adminer:
     image: adminer:5-standalone
-    container_name: alphamaster-adminer
     profiles:
       - tools
-    ports:
-      - "127.0.0.1:8080:8080"
     environment:
       ADMINER_DEFAULT_SERVER: postgres
     depends_on:
       postgres:
         condition: service_healthy
     networks:
-      - alphamaster_network
+      - alphamaster_data
     healthcheck:
       test: ["CMD-SHELL", "php -r \"exit(@file_get_contents('http://127.0.0.1:8080/') ? 0 : 1);\""]
       interval: 15s
@@ -170,13 +200,48 @@ services:
       start_period: 5s
     restart: unless-stopped
 
+# Project-scoped and creatable, because this file also describes environments that
+# have no data yet: a CI runner, a new deployment, a first clone. Declaring them
+# `external` here was tried and broke exactly those — Compose refuses to start when
+# an external volume does not exist, which is right for a live database and wrong
+# for a runner that has never had one.
+#
+# Protecting real data is therefore the production overlay's job, not the
+# baseline's. docker-compose.production.yml redeclares these two as `external`
+# under the names the deployment already uses, so `down -v` cannot reach them
+# there; docker-compose.override.yml pins the same names for development so a
+# developer's existing database keeps being attached.
 volumes:
   postgres_data:
-    name: alphamaster_postgres_data
   redis_data:
-    name: alphamaster_redis_data
 
+# Networks carry no state, so they are project-scoped: dropping `name:` lets Compose
+# prefix them per project and two environments stop sharing one bridge. The topology
+# itself is unchanged — an edge tier and a closed data tier, exactly as before.
 networks:
-  alphamaster_network:
-    name: alphamaster_network
+  # Reachable from outside and able to reach outside. The proxy publishes here,
+  # and the future admin and public frontend containers belong here and nowhere
+  # else — which is what stops them from ever addressing the database.
+  alphamaster_edge:
+    driver: bridge
+
+  # Closed. Docker gives a container attached only to an internal network no
+  # route out and, less obviously, silently discards any port publication for it
+  # — the binding is recorded in the container's configuration and never appears
+  # in its actual port map. Both behaviours were confirmed by experiment before
+  # this topology was written, and both are load-bearing: the first is why the
+  # PHP services also sit on the edge network, and the second is why the
+  # development override has to attach Postgres and Redis to it as well.
+  alphamaster_data:
+    driver: bridge
+    internal: true
+
+  # Outbound only. It exists so that a container needing to reach a vendor does
+  # not have to join the network the proxy publishes on — which is what horizon
+  # was doing, purely for a route off the host.
+  #
+  # It is a route, not a filter. A bridge network cannot express "this container
+  # may reach Twilio and nothing else"; destination allowlisting needs an egress
+  # proxy or a host firewall and is deliberately not attempted here.
+  alphamaster_egress:
     driver: bridge

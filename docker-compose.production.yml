@@ -1,0 +1,37 @@
+# Production, layered over the baseline.
+#
+# Named explicitly, never automatically: only docker-compose.override.yml is loaded
+# without being asked for, and that one is development. Passing any `-f` suppresses
+# it, so this composition is the baseline plus what is below and never the source
+# mounts or the local ports.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.production.yml up -d
+#
+# It declares volumes and nothing else. No services, no networks: the topology is
+# the baseline's, and an overlay that repeated it would be a second place for it to
+# drift.
+#
+# `external` means Compose may attach to these and may not create, recreate or
+# delete them. Two consequences, both intended:
+#
+#   `docker compose down -v` cannot destroy the database. Proven rather than
+#   assumed — a scratch project's `down -v` removed its container and network and
+#   left its external volume intact.
+#
+#   A first-ever deployment must create the volumes deliberately before the first
+#   `up`, because Compose will refuse rather than invent them:
+#
+#     docker volume create alphamaster_postgres_data
+#     docker volume create alphamaster_redis_data
+#
+#   That refusal is the point. A production stack that silently starts on an empty
+#   volume looks healthy and has lost everything.
+
+volumes:
+  postgres_data:
+    external: true
+    name: alphamaster_postgres_data
+
+  redis_data:
+    external: true
+    name: alphamaster_redis_data
