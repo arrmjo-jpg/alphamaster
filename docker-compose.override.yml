@@ -18,6 +18,22 @@
 #   to the loopback interface, because psql and redis-cli and a database client
 #   are development tools. In the baseline they are reachable only from inside
 #   the network, which is where they belong once deployed.
+#
+# Publishing those ports takes one more thing than the ports themselves. Docker
+# discards a port publication for a container attached only to an internal
+# network, and does it silently: the binding stays in the container's own
+# configuration while its actual port map comes back empty, so nothing fails and
+# nothing warns — the port simply refuses connections. Measured, not assumed.
+#
+# The exception is therefore made against the network rather than against the
+# services on it: the data network stops being internal here, and Postgres and
+# Redis stay attached to it and to nothing else. Attaching them to the edge
+# network instead would also have restored publishing, and was tried first — it
+# put the database on the same network as the future admin and frontend
+# containers, and an edge-only probe reached port 5432 immediately. Lifting
+# `internal` keeps the two tiers separate and relaxes only what has to be
+# relaxed, so the isolation this topology exists for holds while developing, not
+# merely once deployed.
 
 services:
   nginx:
@@ -48,3 +64,9 @@ services:
   adminer:
     ports:
       - "127.0.0.1:8080:8080"
+
+networks:
+  # Development only. Everything above needs the host to be able to open a
+  # connection to these two services, which an internal network forbids.
+  alphamaster_data:
+    internal: false

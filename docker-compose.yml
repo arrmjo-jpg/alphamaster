@@ -31,7 +31,7 @@ services:
       backend:
         condition: service_healthy
     networks:
-      - alphamaster_network
+      - alphamaster_edge
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/health"]
       interval: 10s
@@ -54,7 +54,8 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - alphamaster_network
+      - alphamaster_edge
+      - alphamaster_data
     healthcheck:
       test: ["CMD-SHELL", "php -r \"exit(@fsockopen('127.0.0.1', 9000) ? 0 : 1);\""]
       interval: 10s
@@ -74,14 +75,13 @@ services:
     env_file:
       - ./backend/.env
     depends_on:
-      backend:
-        condition: service_healthy
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     networks:
-      - alphamaster_network
+      - alphamaster_edge
+      - alphamaster_data
     healthcheck:
       test: ["CMD", "php", "artisan", "horizon:status"]
       interval: 20s
@@ -101,14 +101,13 @@ services:
     env_file:
       - ./backend/.env
     depends_on:
-      backend:
-        condition: service_healthy
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     networks:
-      - alphamaster_network
+      - alphamaster_edge
+      - alphamaster_data
     healthcheck:
       test: ["CMD-SHELL", "pgrep -f 'artisan schedule:work' > /dev/null || exit 1"]
       interval: 15s
@@ -128,7 +127,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
-      - alphamaster_network
+      - alphamaster_data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-alphamaster} -d ${DB_DATABASE:-alphamaster}"]
       interval: 5s
@@ -144,7 +143,7 @@ services:
     volumes:
       - redis_data:/data
     networks:
-      - alphamaster_network
+      - alphamaster_data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -165,7 +164,7 @@ services:
       postgres:
         condition: service_healthy
     networks:
-      - alphamaster_network
+      - alphamaster_data
     healthcheck:
       test: ["CMD-SHELL", "php -r \"exit(@file_get_contents('http://127.0.0.1:8080/') ? 0 : 1);\""]
       interval: 15s
@@ -181,6 +180,21 @@ volumes:
     name: alphamaster_redis_data
 
 networks:
-  alphamaster_network:
-    name: alphamaster_network
+  # Reachable from outside and able to reach outside. The proxy publishes here,
+  # and the future admin and public frontend containers belong here and nowhere
+  # else — which is what stops them from ever addressing the database.
+  alphamaster_edge:
+    name: alphamaster_edge
     driver: bridge
+
+  # Closed. Docker gives a container attached only to an internal network no
+  # route out and, less obviously, silently discards any port publication for it
+  # — the binding is recorded in the container's configuration and never appears
+  # in its actual port map. Both behaviours were confirmed by experiment before
+  # this topology was written, and both are load-bearing: the first is why the
+  # PHP services also sit on the edge network, and the second is why the
+  # development override has to attach Postgres and Redis to it as well.
+  alphamaster_data:
+    name: alphamaster_data
+    driver: bridge
+    internal: true
