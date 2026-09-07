@@ -29,6 +29,22 @@ enum TokenAbility: string
     case MFA_ENROL = 'mfa:enrol';
 
     /**
+     * Granted only to an administrator whose email address is not yet verified.
+     *
+     * It reaches one endpoint — the request for a verification link — and nothing
+     * else. Not `me`, not `logout`, not enrolment, and least of all an administrative
+     * route: the perimeter demands admin:access and this is not it.
+     *
+     * It exists for the same reason MFA_ENROL does, and resolves the same shape of
+     * deadlock. Verification is now a precondition of administrative access, so an
+     * unverified administrator holds no access token; but the endpoint that sends the
+     * link is authenticated, because one that took an address would mail strangers.
+     * Something has to bridge those two facts, and a narrowly scoped ability is the
+     * bridge the perimeter already knows how to enforce.
+     */
+    case EMAIL_VERIFY = 'email:verify';
+
+    /**
      * The ability a fully authenticated user's token should carry.
      */
     public static function forAdministrator(bool $isAdmin): self
@@ -38,6 +54,9 @@ enum TokenAbility: string
 
     /**
      * Abilities that represent a completed sign-in, as opposed to a partial one.
+     *
+     * MFA_ENROL and EMAIL_VERIFY are deliberately absent: each is a credential for
+     * finishing one prerequisite, and neither is a sign-in.
      *
      * @return array<int, string>
      */

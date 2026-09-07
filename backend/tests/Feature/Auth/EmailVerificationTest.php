@@ -24,15 +24,18 @@ beforeEach(function (): void {
 
     Notification::fake();
 
+    // Explicitly unverified. makeAccount() verifies by default, because an
+    // administrative endpoint now requires a verified address and almost every other
+    // test means an account that finished signing up.
     $this->unverified = makeAccount([
         'name' => 'Unverified Person',
         'email' => 'unverified@example.com',
         'password' => VERIFY_PASSWORD,
         'account_type' => AccountType::USER,
         'is_active' => true,
+        'email_verified_at' => null,
     ]);
 
-    // makeAccount() does not set email_verified_at, so the account starts unverified.
     $this->token = $this->postJson('/api/v1/auth/login', [
         'identifier' => 'unverified@example.com',
         'password' => VERIFY_PASSWORD,
@@ -72,7 +75,7 @@ test('the link is not reachable without signing in', function (): void {
 test('the endpoint takes no address, so it cannot be aimed at a stranger', function (): void {
     // An address in the payload is ignored; the mail goes to the account that is
     // signed in. Otherwise this is an open relay for bothering people.
-    $victim = makeAccount(['email' => 'victim@example.com', 'password' => VERIFY_PASSWORD]);
+    $victim = makeAccount(['email' => 'victim@example.com', 'password' => VERIFY_PASSWORD, 'email_verified_at' => null]);
 
     $this->withToken($this->token)
         ->postJson('/api/v1/auth/email/verify/send', ['email' => 'victim@example.com'])
@@ -179,7 +182,7 @@ test('a tampered link is refused', function (string $mutation): void {
 })->with(['signature removed', 'signature altered', 'expiry extended']);
 
 test('a link naming an account that does not exist is refused', function (): void {
-    $ghost = makeAccount(['email' => 'ghost@example.com', 'password' => VERIFY_PASSWORD]);
+    $ghost = makeAccount(['email' => 'ghost@example.com', 'password' => VERIFY_PASSWORD, 'email_verified_at' => null]);
     $link = verificationLink($ghost);
     $ghost->delete();
 
@@ -212,7 +215,7 @@ test('a validly signed link carrying the wrong hash is refused', function (): vo
 });
 
 test('one account cannot verify another', function (): void {
-    $other = makeAccount(['email' => 'other@example.com', 'password' => VERIFY_PASSWORD]);
+    $other = makeAccount(['email' => 'other@example.com', 'password' => VERIFY_PASSWORD, 'email_verified_at' => null]);
 
     // A link built for this account, pointed at the other one's id. The signature
     // covers both parameters, so this is refused before the hash is even compared.
@@ -274,21 +277,22 @@ test('me reports a verified address and when it happened', function (): void {
 
 // ── Nothing else moved ───────────────────────────────────────────────────────
 
-test('an unverified account still signs in and still holds its token', function (): void {
-    // Refusing access to an unverified administrator is a separate change. Until it
-    // lands, verification is reported and nothing is gated on it.
+test('an unverified regular account still signs in and still holds its token', function (): void {
+    // Verification gates administrative access and nothing else. A regular account is
+    // reported as unverified and is not stopped for it.
     expect($this->token)->toBeString();
 
     $this->withToken($this->token)->getJson('/api/v1/auth/me')->assertOk();
 });
 
-test('an unverified administrator still reaches MFA enrolment as before', function (): void {
+test('an unverified administrator is now stopped before MFA enrolment', function (): void {
     makeAccount([
         'name' => 'Unverified Admin',
         'email' => 'unverified-admin@example.com',
         'password' => VERIFY_PASSWORD,
         'account_type' => AccountType::ADMIN,
         'is_active' => true,
+        'email_verified_at' => null,
     ]);
 
     $this->postJson('/api/v1/auth/login', [
@@ -296,7 +300,8 @@ test('an unverified administrator still reaches MFA enrolment as before', functi
         'password' => VERIFY_PASSWORD,
     ])
         ->assertOk()
-        ->assertJsonPath('data.mfa_setup_required', true);
+        ->assertJsonPath('data.email_verification_required', true)
+        ->assertJsonPath('data.abilities', ['email:verify']);
 });
 
 // ── The mail itself ──────────────────────────────────────────────────────────

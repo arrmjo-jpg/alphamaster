@@ -331,6 +331,16 @@ test('the captcha runs before the credentials are looked at', function (): void 
             return false;
         }
 
+        public function requiresEmailVerification(User $user): bool
+        {
+            return false;
+        }
+
+        public function issueEmailVerificationToken(User $user): AuthenticatedToken
+        {
+            throw new RuntimeException('not reached');
+        }
+
         public function issueEnrolmentToken(User $user): AuthenticatedToken
         {
             throw new RuntimeException('not reached');

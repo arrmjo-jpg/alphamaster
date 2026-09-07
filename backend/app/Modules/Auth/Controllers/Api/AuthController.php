@@ -86,6 +86,24 @@ class AuthController extends BaseApiController
 
         $this->throttle->clear($key);
 
+        // Verification comes before enrolment, so an administrator settles one
+        // prerequisite at a time and in the order that makes the second one worth
+        // doing: enrolling a second factor against an address nobody has proved
+        // control of secures an identity that is not yet established.
+        //
+        // The ordering is also what keeps the enrolment exchange honest. Completing
+        // enrolment hands back a real admin:access token in the same response (ADR
+        // 0013); if an unverified administrator could reach enrolment, that exchange
+        // would be a path to administrative access without a verified address.
+        if ($this->auth->requiresEmailVerification($user)) {
+            return $this->successResponse([
+                'email_verification_required' => true,
+                'verification_token' => $this->auth->issueEmailVerificationToken($user)->plainTextToken,
+                'token_type' => 'Bearer',
+                'abilities' => [TokenAbility::EMAIL_VERIFY->value],
+            ], 'Verify your email address to continue. Request a verification link to proceed.');
+        }
+
         // MFA is mandatory for administrators. One who has not enrolled receives no
         // access token, only a credential scoped to enrolment, so there is no window
         // in which an administrator holds access without a second factor.

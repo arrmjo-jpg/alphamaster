@@ -6,6 +6,7 @@ use App\Modules\Authorization\Middleware\EnsurePermission;
 use App\Modules\Core\Middleware\ApplyRateLimit;
 use App\Modules\Core\Middleware\AttachRequestContext;
 use App\Modules\Core\Middleware\EnsureAccountActive;
+use App\Modules\Core\Middleware\EnsureEmailVerified;
 use App\Modules\Core\Middleware\EnsureUserIsAdmin;
 use App\Modules\Core\Middleware\ForceJsonResponse;
 use App\Modules\Core\Middleware\SetLocale;
@@ -53,6 +54,11 @@ return Application::configure(basePath: dirname(__DIR__))
         // Register route middleware aliases
         $middleware->alias([
             'admin' => EnsureUserIsAdmin::class,
+            // Deliberately not the alias `verified`, which the framework already binds
+            // to its own EnsureEmailIsVerified — that one redirects to a named route,
+            // which is meaningless for an API and would shadow a middleware other
+            // people expect to behave the framework's way.
+            'email-verified' => EnsureEmailVerified::class,
             'permission' => EnsurePermission::class,
             'active' => EnsureAccountActive::class,
             'ability' => CheckForAnyAbility::class,

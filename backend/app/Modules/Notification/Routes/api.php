@@ -25,7 +25,7 @@ Route::prefix('v1')->group(function (): void {
 
     // Template wording is administrative, behind the full five-stage stack.
     Route::prefix('admin/notifications')
-        ->middleware(['auth:sanctum', 'ability:admin:access', 'active', 'admin'])
+        ->middleware(['auth:sanctum', 'ability:admin:access', 'active', 'admin', 'email-verified'])
         ->group(function (): void {
             Route::get('/templates', [NotificationTemplateAdminController::class, 'index'])
                 ->middleware('permission:'.AdminPermission::NOTIFICATIONS_VIEW->value)

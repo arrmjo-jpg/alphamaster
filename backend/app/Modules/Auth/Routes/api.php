@@ -10,8 +10,9 @@ use Illuminate\Support\Facades\Route;
 
 $accessAbilities = implode(',', TokenAbility::accessAbilities());
 $enrolAbilities = $accessAbilities.','.TokenAbility::MFA_ENROL->value;
+$verifyAbilities = $accessAbilities.','.TokenAbility::EMAIL_VERIFY->value;
 
-Route::prefix('v1/auth')->group(function () use ($accessAbilities, $enrolAbilities): void {
+Route::prefix('v1/auth')->group(function () use ($accessAbilities, $enrolAbilities, $verifyAbilities): void {
     // Public: brute-force protection is applied inside the controller, driven by
     // the security.* settings rather than a fixed middleware limit.
     Route::post('/login', [AuthController::class, 'login'])->name('api.auth.login');
@@ -36,13 +37,19 @@ Route::prefix('v1/auth')->group(function () use ($accessAbilities, $enrolAbiliti
         Route::post('/logout', [AuthController::class, 'logout'])->name('api.auth.logout');
         Route::get('/me', [AuthController::class, 'me'])->name('api.auth.me');
 
-        // Sends to the authenticated account's own address and takes no address of
-        // its own, so it cannot be pointed at a stranger's inbox.
-        Route::post('/email/verify/send', [EmailVerificationController::class, 'send'])
-            ->name('api.auth.email.verify.send');
-
         Route::get('/mfa', [MfaController::class, 'status'])->name('api.auth.mfa.status');
         Route::delete('/mfa', [MfaController::class, 'disable'])->name('api.auth.mfa.disable');
+    });
+
+    // Requesting a verification link is the one place an email:verify token is
+    // accepted, alongside ordinary access tokens so that anyone may re-request one.
+    //
+    // Still authenticated, and still takes no address of its own: the mail goes to the
+    // account the credential belongs to, so this cannot be aimed at a stranger's inbox
+    // however it is called.
+    Route::middleware(['auth:sanctum', 'ability:'.$verifyAbilities, 'active'])->group(function (): void {
+        Route::post('/email/verify/send', [EmailVerificationController::class, 'send'])
+            ->name('api.auth.email.verify.send');
     });
 
     // Enrolment is the one place an mfa:enrol token is accepted, alongside ordinary

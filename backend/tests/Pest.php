@@ -71,6 +71,20 @@ function makeAccount(array $attributes = []): User
     $type = $attributes['account_type'] ?? AccountType::USER;
     unset($attributes['account_type']);
 
+    // Verified by default, and settable to null by a caller that means it.
+    //
+    // Not fillable, for the same reason account_type is not: a verified address is a
+    // fact about the account that mass assignment must never establish. The default
+    // here is about what a test is usually saying — an operating account, one that
+    // finished signing up — because an administrative endpoint now requires a
+    // verified address (ADR 0012), and leaving every test account unverified would
+    // make almost every admin test a test of the verification stage instead of the
+    // thing it names. A test that means "not yet verified" says so explicitly.
+    $verifiedAt = array_key_exists('email_verified_at', $attributes)
+        ? $attributes['email_verified_at']
+        : now();
+    unset($attributes['email_verified_at']);
+
     $user = new User(array_merge([
         'name' => 'Test Account',
         'password' => TEST_ACCOUNT_PASSWORD,
@@ -78,6 +92,7 @@ function makeAccount(array $attributes = []): User
     ], $attributes));
 
     $user->account_type = $type instanceof AccountType ? $type : AccountType::from((string) $type);
+    $user->email_verified_at = $verifiedAt;
     $user->save();
 
     return $user;

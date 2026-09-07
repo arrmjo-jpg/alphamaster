@@ -11,6 +11,7 @@ use App\Modules\Auth\Enums\TokenAbility;
 use App\Modules\Auth\Exceptions\AccountInactiveException;
 use App\Modules\Auth\Exceptions\InvalidCredentialsException;
 use App\Modules\Auth\Exceptions\MfaChallengeException;
+use App\Modules\Auth\Exceptions\UnverifiedAdministratorException;
 use App\Modules\Auth\Support\LoginIdentifier;
 use App\Modules\Core\Cache\CacheNamespace;
 use App\Modules\Core\Contracts\PlatformCacheContract;
@@ -104,6 +105,35 @@ class AuthService implements AuthServiceContract
     }
 
     /**
+     * Whether this user must verify their email address before receiving a token.
+     *
+     * Administrators only. A verified address is what makes the account recoverable
+     * and what an audit trail attributes an action to; for an account that can change
+     * the platform's configuration, an unverified one is an unowned identity.
+     * Everyone else may verify and is not stopped for not having.
+     */
+    public function requiresEmailVerification(User $user): bool
+    {
+        return $user->isAdmin() && ! $user->hasVerifiedEmail();
+    }
+
+    /**
+     * Issue a token that can do nothing but ask for a verification link.
+     *
+     * The same construction as the enrolment credential and for the same reason: a
+     * real Sanctum token carrying one narrow ability, so the perimeter that already
+     * exists does the enforcing and no second path has to be kept in step.
+     */
+    public function issueEmailVerificationToken(User $user): AuthenticatedToken
+    {
+        return new AuthenticatedToken(
+            $user,
+            $user->createToken('email-verification', [TokenAbility::EMAIL_VERIFY->value])->plainTextToken,
+            TokenAbility::EMAIL_VERIFY,
+        );
+    }
+
+    /**
      * Issue a token that can do nothing but enrol a second factor.
      *
      * Deliberately a real Sanctum token rather than another bespoke credential: the
@@ -125,6 +155,20 @@ class AuthService implements AuthServiceContract
     public function issueToken(User $user, string $name = 'api-token'): AuthenticatedToken
     {
         $ability = TokenAbility::forAdministrator($user->isAdmin());
+
+        // The choke point. Three paths mint an access token — sign-in, completing an
+        // MFA challenge, and exchanging an enrolment credential — and all three come
+        // through here, so the invariant is stated once instead of three times and
+        // cannot be missed by a fourth.
+        //
+        // Unreachable in ordinary operation: sign-in refuses an unverified
+        // administrator before it gets this far. That is what makes throwing the right
+        // response rather than a harsh one — arriving here means a path exists that
+        // nobody intended, and the useful outcome is a loud failure rather than a
+        // token.
+        if ($ability === TokenAbility::ADMIN_ACCESS && ! $user->hasVerifiedEmail()) {
+            throw UnverifiedAdministratorException::cannotHoldAdminAccess($user->id);
+        }
 
         return new AuthenticatedToken(
             $user,

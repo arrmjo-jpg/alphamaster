@@ -20,7 +20,7 @@ Route::prefix('v1')->group(function (): void {
 
     // Moderation is administrative, behind the full five-stage stack.
     Route::prefix('admin/media')
-        ->middleware(['auth:sanctum', 'ability:admin:access', 'active', 'admin'])
+        ->middleware(['auth:sanctum', 'ability:admin:access', 'active', 'admin', 'email-verified'])
         ->group(function (): void {
             Route::get('/', [MediaAdminController::class, 'index'])
                 ->middleware('permission:'.AdminPermission::MEDIA_VIEW->value)
