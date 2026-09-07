@@ -15,10 +15,15 @@ interface AuthServiceContract
     /**
      * Verify credentials and return the user, without issuing anything.
      *
+     * The identifier is an email address or a phone number. Which one it is is the
+     * implementation's question, not the caller's: a sign-in form has one field and
+     * the person filling it in does not tell the server which kind of thing they
+     * typed.
+     *
      * @throws InvalidCredentialsException
      * @throws AccountInactiveException
      */
-    public function authenticate(string $email, string $password): User;
+    public function authenticate(string $identifier, string $password): User;
 
     /**
      * Whether this user must clear an MFA challenge before receiving a token.

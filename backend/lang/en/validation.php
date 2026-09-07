@@ -215,6 +215,7 @@ return [
         'direction' => 'Direction',
         'email' => 'Email Address',
         'file' => 'File',
+        'identifier' => 'Email or Phone Number',
         'is_active' => 'Active',
         'is_default' => 'Default',
         'label' => 'Label',

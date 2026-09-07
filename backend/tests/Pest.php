@@ -164,7 +164,7 @@ function resetClient(mixed $test): void
 function signInAdminWithMfa(mixed $test, string $email, string $password): array
 {
     $enrolmentToken = $test->postJson('/api/v1/auth/login', [
-        'email' => $email,
+        'identifier' => $email,
         'password' => $password,
     ])->json('data.enrolment_token');
 
@@ -227,7 +227,7 @@ function regularWithToken(mixed $test, string $email = 'rbac-user@example.com'):
 
     resetClient($test);
     $token = $test->postJson('/api/v1/auth/login', [
-        'email' => $email,
+        'identifier' => $email,
         'password' => TEST_ACCOUNT_PASSWORD,
     ])->json('data.token');
 

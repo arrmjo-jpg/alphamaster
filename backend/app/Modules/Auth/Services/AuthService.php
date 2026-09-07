@@ -11,6 +11,7 @@ use App\Modules\Auth\Enums\TokenAbility;
 use App\Modules\Auth\Exceptions\AccountInactiveException;
 use App\Modules\Auth\Exceptions\InvalidCredentialsException;
 use App\Modules\Auth\Exceptions\MfaChallengeException;
+use App\Modules\Auth\Support\LoginIdentifier;
 use App\Modules\Core\Cache\CacheNamespace;
 use App\Modules\Core\Contracts\PlatformCacheContract;
 use App\Modules\User\Models\User;
@@ -46,9 +47,20 @@ class AuthService implements AuthServiceContract
      * @throws InvalidCredentialsException
      * @throws AccountInactiveException
      */
-    public function authenticate(string $email, string $password): User
+    public function authenticate(string $identifier, string $password): User
     {
-        $user = User::query()->where('email', mb_strtolower($email))->first();
+        // Which column to look in, decided by the identifier itself. An E.164 number
+        // cannot contain `@` and an email address cannot omit one, so the two kinds
+        // never overlap and neither lookup can shadow the other.
+        //
+        // The phone side goes through findByPhone(), which matches on the keyed hash
+        // rather than on the text, so `+962 79 000 0000` and `+962790000000` resolve
+        // to the same account — the same equivalence the unique constraint enforces.
+        // It answers null rather than raising for anything it cannot read, which is
+        // what keeps an unreadable identifier indistinguishable from an unknown one.
+        $user = LoginIdentifier::isEmail($identifier)
+            ? User::query()->where('email', mb_strtolower($identifier))->first()
+            : User::findByPhone($identifier);
 
         // Hash a dummy value when the account is unknown, so a missing account and a
         // wrong password take comparable time and cannot be told apart by timing.

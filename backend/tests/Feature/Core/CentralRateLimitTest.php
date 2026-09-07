@@ -208,7 +208,7 @@ test('the login throttle still binds before the class ceiling', function (): voi
     for ($i = 0; $i < 8; $i++) {
         resetClient($this);
         $last = $this->postJson('/api/v1/auth/login', [
-            'email' => 'throttled@example.test',
+            'identifier' => 'throttled@example.test',
             'password' => 'wrong-password',
         ]);
 
@@ -230,7 +230,7 @@ test('the auth endpoints are still reachable under the class ceiling', function 
     makeAccount(['email' => 'reachable@example.test']);
 
     $response = $this->postJson('/api/v1/auth/login', [
-        'email' => 'reachable@example.test',
+        'identifier' => 'reachable@example.test',
         'password' => TEST_ACCOUNT_PASSWORD,
     ]);
 

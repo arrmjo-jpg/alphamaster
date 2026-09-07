@@ -18,6 +18,7 @@ use App\Modules\Auth\Requests\MfaChallengeSendRequest;
 use App\Modules\Auth\Resources\AuthenticatedUserResource;
 use App\Modules\Auth\Services\AuthService;
 use App\Modules\Auth\Services\LoginThrottle;
+use App\Modules\Auth\Support\LoginIdentifier;
 use App\Modules\Core\Contracts\EffectiveGrants;
 use App\Modules\Core\Controllers\BaseApiController;
 use Illuminate\Http\JsonResponse;
@@ -38,13 +39,17 @@ class AuthController extends BaseApiController
      */
     public function login(LoginRequest $request): JsonResponse
     {
-        $email = (string) $request->validated('email');
-        $key = $this->throttle->key($request, 'login', $email);
+        $identifier = (string) $request->validated('identifier');
+
+        // The throttle counts against the canonical identifier, not the typed one.
+        // Otherwise `+962 79 000 0000` and `+962790000000` are two buckets for one
+        // account, and the limiter is bypassed by varying the spacing.
+        $key = $this->throttle->key($request, 'login', LoginIdentifier::canonicalise($identifier));
 
         try {
             $this->throttle->assertNotLimited($key);
 
-            $user = $this->auth->authenticate($email, (string) $request->validated('password'));
+            $user = $this->auth->authenticate($identifier, (string) $request->validated('password'));
         } catch (TooManyAttemptsException $e) {
             return $this->throttledResponse($e);
         } catch (InvalidCredentialsException $e) {

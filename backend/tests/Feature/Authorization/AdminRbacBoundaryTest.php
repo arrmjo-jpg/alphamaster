@@ -97,7 +97,7 @@ test('a regular user holding every admin role still receives only user:access', 
 
     resetClient($this);
     $data = $this->postJson('/api/v1/auth/login', [
-        'email' => 'sneaky@example.com', 'password' => TEST_ACCOUNT_PASSWORD,
+        'identifier' => 'sneaky@example.com', 'password' => TEST_ACCOUNT_PASSWORD,
     ])->json('data');
 
     expect($data['abilities'])->toBe([TokenAbility::USER_ACCESS->value]);
@@ -281,7 +281,7 @@ test('no relation a regular account can hold yields admin access', function (): 
 
     resetClient($this);
     $token = $this->postJson('/api/v1/auth/login', [
-        'email' => 'related@example.com', 'password' => TEST_ACCOUNT_PASSWORD,
+        'identifier' => 'related@example.com', 'password' => TEST_ACCOUNT_PASSWORD,
     ])->json('data.token');
 
     resetClient($this);
@@ -348,7 +348,7 @@ test('promotion happens only through the protected workflow', function (): void 
     // And the newly promoted admin must now enrol MFA before receiving admin:access.
     resetClient($this);
     $data = $this->postJson('/api/v1/auth/login', [
-        'email' => 'promoteme@example.com', 'password' => TEST_ACCOUNT_PASSWORD,
+        'identifier' => 'promoteme@example.com', 'password' => TEST_ACCOUNT_PASSWORD,
     ])->json('data');
 
     expect($data['mfa_setup_required'])->toBeTrue()
@@ -384,7 +384,7 @@ test('admin login still requires mandatory MFA', function (): void {
 
     resetClient($this);
     $data = $this->postJson('/api/v1/auth/login', [
-        'email' => 'stillmfa@example.com', 'password' => TEST_ACCOUNT_PASSWORD,
+        'identifier' => 'stillmfa@example.com', 'password' => TEST_ACCOUNT_PASSWORD,
     ])->json('data');
 
     expect($data['mfa_setup_required'])->toBeTrue()
@@ -401,7 +401,7 @@ test('an unenrolled admin holding every role still cannot reach the admin API', 
 
     resetClient($this);
     $enrolmentToken = $this->postJson('/api/v1/auth/login', [
-        'email' => 'unenrolled@example.com', 'password' => TEST_ACCOUNT_PASSWORD,
+        'identifier' => 'unenrolled@example.com', 'password' => TEST_ACCOUNT_PASSWORD,
     ])->json('data.enrolment_token');
 
     // Every permission in the catalogue, and still no way in.

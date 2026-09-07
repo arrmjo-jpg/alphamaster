@@ -41,7 +41,7 @@ test('a regular user can sign in and receives a user:access token', function ():
     makeUser();
 
     $response = $this->postJson('/api/v1/auth/login', [
-        'email' => 'person@example.com',
+        'identifier' => 'person@example.com',
         'password' => 'correct-horse-battery',
     ]);
 
@@ -83,7 +83,7 @@ test('a regular user token is refused at the admin perimeter', function (): void
     makeUser(['email' => 'plain@example.com']);
 
     $token = $this->postJson('/api/v1/auth/login', [
-        'email' => 'plain@example.com',
+        'identifier' => 'plain@example.com',
         'password' => 'correct-horse-battery',
     ])->json('data.token');
 
@@ -121,12 +121,12 @@ test('invalid credentials are rejected without revealing which half was wrong', 
     makeUser(['email' => 'real@example.com']);
 
     $wrongPassword = $this->postJson('/api/v1/auth/login', [
-        'email' => 'real@example.com',
+        'identifier' => 'real@example.com',
         'password' => 'not-the-password',
     ]);
 
     $unknownEmail = $this->postJson('/api/v1/auth/login', [
-        'email' => 'ghost@example.com',
+        'identifier' => 'ghost@example.com',
         'password' => 'not-the-password',
     ]);
 
@@ -140,7 +140,7 @@ test('a suspended account cannot obtain a token even with correct credentials', 
     makeUser(['email' => 'suspended@example.com', 'is_active' => false]);
 
     $this->postJson('/api/v1/auth/login', [
-        'email' => 'suspended@example.com',
+        'identifier' => 'suspended@example.com',
         'password' => 'correct-horse-battery',
     ])
         ->assertStatus(403)
@@ -153,7 +153,7 @@ test('the password is never echoed back in any response', function (): void {
     makeUser(['email' => 'echo@example.com']);
 
     $response = $this->postJson('/api/v1/auth/login', [
-        'email' => 'echo@example.com',
+        'identifier' => 'echo@example.com',
         'password' => 'correct-horse-battery',
     ]);
 
@@ -165,7 +165,7 @@ test('logout revokes the presented token and nothing else', function (): void {
     $keep = $user->createToken('other-device', [TokenAbility::USER_ACCESS->value])->plainTextToken;
 
     $token = $this->postJson('/api/v1/auth/login', [
-        'email' => 'bye@example.com',
+        'identifier' => 'bye@example.com',
         'password' => 'correct-horse-battery',
     ])->json('data.token');
 
@@ -201,7 +201,7 @@ test('a user suspended after signing in loses access on the next request', funct
     $user = makeUser(['email' => 'later@example.com']);
 
     $token = $this->postJson('/api/v1/auth/login', [
-        'email' => 'later@example.com',
+        'identifier' => 'later@example.com',
         'password' => 'correct-horse-battery',
     ])->json('data.token');
 
@@ -221,7 +221,7 @@ test('the users ULID primary key drives the Sanctum token relationship', functio
     $user = makeUser(['email' => 'ulid@example.com']);
 
     $token = $this->postJson('/api/v1/auth/login', [
-        'email' => 'ulid@example.com',
+        'identifier' => 'ulid@example.com',
         'password' => 'correct-horse-battery',
     ])->json('data.token');
 
@@ -234,4 +234,152 @@ test('the users ULID primary key drives the Sanctum token relationship', functio
         ->and($model->tokenable_id)->toBe($user->id)
         ->and($model->tokenable_type)->toBe(User::class)
         ->and($model->tokenable->is($user))->toBeTrue();
+});
+
+// ── Signing in with a phone number ───────────────────────────────────────────
+
+test('an account can sign in with its phone number', function (): void {
+    makeUser(['email' => 'byphone@example.com', 'phone' => '+962790000000']);
+
+    $response = $this->postJson('/api/v1/auth/login', [
+        'identifier' => '+962790000000',
+        'password' => 'correct-horse-battery',
+    ]);
+
+    $response->assertOk()
+        ->assertJsonPath('success', true)
+        ->assertJsonPath('data.abilities', [TokenAbility::USER_ACCESS->value]);
+});
+
+test('the number may be written any of the ways a person writes it', function (string $written): void {
+    makeUser(['email' => 'anyform@example.com', 'phone' => '+962790000000']);
+
+    $this->postJson('/api/v1/auth/login', [
+        'identifier' => $written,
+        'password' => 'correct-horse-battery',
+    ])->assertOk();
+})->with([
+    'canonical' => '+962790000000',
+    'spaced' => '+962 79 000 0000',
+    'hyphenated' => '+962-79-000-0000',
+    'parenthesised' => '+962 (79) 000-0000',
+]);
+
+test('signing in by phone and by email reach the same account', function (): void {
+    $user = makeUser(['email' => 'same@example.com', 'phone' => '+962790000000']);
+
+    $byEmail = $this->postJson('/api/v1/auth/login', [
+        'identifier' => 'same@example.com',
+        'password' => 'correct-horse-battery',
+    ])->json('data.token');
+
+    $byPhone = $this->postJson('/api/v1/auth/login', [
+        'identifier' => '+962790000000',
+        'password' => 'correct-horse-battery',
+    ])->json('data.token');
+
+    expect(PersonalAccessToken::findToken($byEmail)->tokenable_id)->toBe($user->id)
+        ->and(PersonalAccessToken::findToken($byPhone)->tokenable_id)->toBe($user->id);
+});
+
+test('an account with no phone number cannot be reached by one', function (): void {
+    makeUser(['email' => 'nophone@example.com']);
+
+    $this->postJson('/api/v1/auth/login', [
+        'identifier' => '+962790000000',
+        'password' => 'correct-horse-battery',
+    ])
+        ->assertStatus(401)
+        ->assertJsonPath('error.code', 'INVALID_CREDENTIALS');
+});
+
+test('a suspended account is refused by phone exactly as by email', function (): void {
+    makeUser(['email' => 'suspphone@example.com', 'phone' => '+962790000000', 'is_active' => false]);
+
+    $this->postJson('/api/v1/auth/login', [
+        'identifier' => '+962790000000',
+        'password' => 'correct-horse-battery',
+    ])
+        ->assertStatus(403)
+        ->assertJsonPath('error.code', 'ACCOUNT_SUSPENDED');
+
+    expect(PersonalAccessToken::query()->count())->toBe(0);
+});
+
+// ── The refusal says nothing about the identifier ────────────────────────────
+
+test('every unusable identifier is refused identically', function (): void {
+    makeUser(['email' => 'known@example.com', 'phone' => '+962790000000']);
+
+    // A wrong password, an unknown email, an unknown number, and a value that is
+    // neither. If any of these differed, the endpoint would be answering "that
+    // identifier exists" or "that identifier was well-formed" to a caller who has
+    // proven nothing.
+    $responses = collect([
+        'wrong password' => 'known@example.com',
+        'unknown email' => 'ghost@example.com',
+        'unknown number' => '+962790000009',
+        'not an identifier at all' => 'nonsense',
+        'a malformed number' => '0790000000',
+    ])->map(fn (string $identifier) => $this->postJson('/api/v1/auth/login', [
+        'identifier' => $identifier,
+        'password' => 'not-the-password',
+    ]));
+
+    foreach ($responses as $label => $response) {
+        expect($response->status())->toBe(401, $label)
+            ->and($response->json('error.code'))->toBe('INVALID_CREDENTIALS', $label);
+    }
+
+    // Same sentence too, not merely the same code.
+    expect($responses->map(fn ($r) => $r->json('error.message'))->unique())->toHaveCount(1);
+});
+
+test('a malformed identifier is a failed sign-in rather than a validation error', function (): void {
+    // 422 would tell an unauthenticated caller that its input was the wrong shape,
+    // which is a fact about the platform's accounts it has not earned.
+    $this->postJson('/api/v1/auth/login', [
+        'identifier' => 'not-an-email-and-not-a-number',
+        'password' => 'whatever',
+    ])->assertStatus(401);
+});
+
+// ── The throttle counts one account, not one spelling ────────────────────────
+
+test('failures against one number accumulate however the number is written', function (): void {
+    makeUser(['email' => 'throttled@example.com', 'phone' => '+962790000000']);
+
+    $written = ['+962790000000', '+962 79 000 0000', '+962-79-000-0000', '+962 (79) 000-0000'];
+
+    $remaining = [];
+
+    foreach ($written as $identifier) {
+        $remaining[] = $this->postJson('/api/v1/auth/login', [
+            'identifier' => $identifier,
+            'password' => 'not-the-password',
+        ])->json('error.details.attempts_remaining');
+    }
+
+    // Strictly decreasing. If the limiter keyed on the typed string, each spelling
+    // would open a fresh allowance and these would all be equal — which is a rate
+    // limit an attacker bypasses with the space bar.
+    expect($remaining)->toBe([$remaining[0], $remaining[0] - 1, $remaining[0] - 2, $remaining[0] - 3]);
+});
+
+// ── Nothing about MFA moved ──────────────────────────────────────────────────
+
+test('an administrator signing in by phone still lands on MFA enrolment', function (): void {
+    makeUser([
+        'email' => 'adminphone@example.com',
+        'phone' => '+962790000001',
+        'account_type' => AccountType::ADMIN,
+    ]);
+
+    $this->postJson('/api/v1/auth/login', [
+        'identifier' => '+962 79 000 0001',
+        'password' => 'correct-horse-battery',
+    ])
+        ->assertOk()
+        ->assertJsonPath('data.mfa_setup_required', true)
+        ->assertJsonPath('data.abilities', [TokenAbility::MFA_ENROL->value]);
 });

@@ -29,18 +29,31 @@ function firstError(mixed $test, string $locale, array $payload, string $field):
 
 // ── The locale reaches the message ────────────────────────────────────────────
 
+/**
+ * A value that fails a rule carrying a sentence and a placeholder, rather than a bare
+ * `required`. The login field takes an email address or a phone number and so declares
+ * no shape rule of its own — asserting on one would be asserting that the endpoint
+ * tells an unauthenticated caller which kind of identifier it recognised, which it
+ * deliberately does not.
+ */
+function tooLongIdentifier(): string
+{
+    return str_repeat('a', 300);
+}
+
 test('a request in Arabic receives Arabic validation messages', function (): void {
-    $message = firstError($this, 'ar', ['email' => 'not-an-email'], 'email');
+    $message = firstError($this, 'ar', ['identifier' => tooLongIdentifier()], 'identifier');
 
     expect($message)->toBeString()
-        ->and($message)->toContain('بريدًا إلكترونيًا صحيحًا')
-        ->and($message)->not->toContain('must be a valid');
+        ->and($message)->toContain('يجب ألا يتجاوز طول')
+        ->and($message)->toContain('255')
+        ->and($message)->not->toContain('must not be greater');
 });
 
 test('a request in English is unchanged', function (): void {
-    $message = firstError($this, 'en', ['email' => 'not-an-email'], 'email');
+    $message = firstError($this, 'en', ['identifier' => tooLongIdentifier()], 'identifier');
 
-    expect($message)->toContain('must be a valid email address');
+    expect($message)->toContain('must not be greater than 255 characters');
 });
 
 test('the same request in two locales differs only in language', function (): void {
@@ -63,9 +76,11 @@ test('the field name in a message is the central Arabic attribute', function ():
 });
 
 test('the field name in English is the central attribute too', function (): void {
-    $message = firstError($this, 'en', ['email' => 'x'], 'email');
+    $message = firstError($this, 'en', ['identifier' => tooLongIdentifier()], 'identifier');
 
-    expect($message)->toContain('Email Address');
+    // From validation.attributes.identifier, not the raw field name.
+    expect($message)->toContain('Email or Phone Number')
+        ->and($message)->not->toContain('identifier field');
 });
 
 test('no FormRequest declares its own attributes', function (): void {
