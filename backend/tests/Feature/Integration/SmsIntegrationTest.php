@@ -80,7 +80,9 @@ test('re-running the seeder never overwrites operator configuration or credentia
     expect(DB::table('integration_providers')->where('id', $twilio->id)->value('credentials'))->toBe($ciphertext)
         ->and($after->is_active)->toBeTrue()
         ->and($after->settings['from'])->toBe('+15559999999')
-        ->and(IntegrationProvider::query()->count())->toBe(2);
+        // Scoped to SMS: the seeder provisions other capabilities too, and this test
+        // is about it not duplicating or overwriting the two it owns here.
+        ->and(IntegrationProvider::query()->forCapability(IntegrationCapability::SMS)->count())->toBe(2);
 });
 
 // ── Credentials at rest ───────────────────────────────────────────────────────
@@ -329,8 +331,16 @@ test('a capability can have at most one default provider', function (): void {
         $rejected = true;
     }
 
-    expect($rejected)->toBeTrue()
-        ->and(IntegrationProvider::query()->where('is_default', true)->count())->toBe(1);
+    // The index is partial and per capability, which is what the title claims. Now
+    // that a second capability exists, asserting it for each of them says that;
+    // counting defaults across the whole table said something narrower that only
+    // happened to be true while there was one capability.
+    expect($rejected)->toBeTrue();
+
+    foreach (IntegrationCapability::cases() as $capability) {
+        expect(IntegrationProvider::query()->forCapability($capability)->where('is_default', true)->count())
+            ->toBe(1, $capability->value.' should have exactly one default');
+    }
 });
 
 // ── Admin API ─────────────────────────────────────────────────────────────────
@@ -433,8 +443,13 @@ test('swapping the default provider is atomic and leaves exactly one default', f
         ->assertOk()
         ->assertJsonPath('data.is_default', true);
 
-    expect(IntegrationProvider::query()->where('is_default', true)->count())->toBe(1)
-        ->and(IntegrationProvider::query()->where('is_default', true)->first()->driver)->toBe('twilio');
+    $smsDefaults = IntegrationProvider::query()
+        ->forCapability(IntegrationCapability::SMS)
+        ->where('is_default', true)
+        ->get();
+
+    expect($smsDefaults)->toHaveCount(1)
+        ->and($smsDefaults->first()->driver)->toBe('twilio');
 });
 
 test('an inactive provider cannot be made the default', function (): void {
@@ -446,7 +461,10 @@ test('an inactive provider cannot be made the default', function (): void {
         ->assertStatus(422)
         ->assertJsonPath('error.code', 'PROVIDER_INACTIVE');
 
-    expect(IntegrationProvider::query()->where('is_default', true)->first()->driver)->toBe('log');
+    expect(IntegrationProvider::query()
+        ->forCapability(IntegrationCapability::SMS)
+        ->where('is_default', true)
+        ->first()->driver)->toBe('log');
 });
 
 test('the usage endpoint reports attempts without message content', function (): void {

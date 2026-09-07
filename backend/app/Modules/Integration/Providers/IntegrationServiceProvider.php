@@ -6,7 +6,10 @@ namespace App\Modules\Integration\Providers;
 
 use App\Modules\Core\Backup\ConfigurationPortability;
 use App\Modules\Integration\Backup\ProviderPortability;
+use App\Modules\Integration\Contracts\CaptchaVerifierContract;
 use App\Modules\Integration\Contracts\SmsDispatcherContract;
+use App\Modules\Integration\Services\CaptchaManager;
+use App\Modules\Integration\Services\CaptchaVerifier;
 use App\Modules\Integration\Services\SmsDispatcher;
 use App\Modules\Integration\Services\SmsManager;
 use Illuminate\Support\Facades\Route;
@@ -24,6 +27,13 @@ class IntegrationServiceProvider extends ServiceProvider
         // Consumers depend on the dispatcher, not the manager: selecting a provider,
         // falling back and recording usage are part of sending, not the caller's job.
         $this->app->singleton(SmsDispatcherContract::class, SmsDispatcher::class);
+
+        $this->app->singleton(CaptchaManager::class, fn ($app): CaptchaManager => new CaptchaManager($app));
+
+        // Same division for captcha: a consumer asks for a verdict, and provider
+        // selection and usage recording stay here. Falling back does not, and the
+        // verifier says why — a token belongs to the vendor that minted it.
+        $this->app->singleton(CaptchaVerifierContract::class, CaptchaVerifier::class);
     }
 
     /**

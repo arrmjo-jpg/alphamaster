@@ -81,6 +81,7 @@
     "enum.auth.mfa_type.sms_otp": "رمز عبر رسالة نصية",
     "enum.auth.mfa_type.totp": "تطبيق المصادقة",
     "enum.integration.integration_capability.sms": "الرسائل النصية",
+    "enum.integration.integration_capability.captcha": "التحقق من أنك لست روبوتًا",
     "enum.integration.usage_status.failure": "فشل",
     "enum.integration.usage_status.success": "نجح",
     "enum.media.media_status.processing": "قيد المعالجة",

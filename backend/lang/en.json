@@ -81,6 +81,7 @@
     "enum.auth.mfa_type.sms_otp": "SMS Code",
     "enum.auth.mfa_type.totp": "Authenticator App",
     "enum.integration.integration_capability.sms": "SMS",
+    "enum.integration.integration_capability.captcha": "CAPTCHA",
     "enum.integration.usage_status.failure": "Failed",
     "enum.integration.usage_status.success": "Succeeded",
     "enum.media.media_status.processing": "Processing",
