@@ -62,6 +62,14 @@ class AuthenticatedUserResource extends JsonResource
             'email' => $user?->email,
             'account_type' => $user?->account_type->value,
             'is_active' => (bool) $user?->is_active,
+
+            // Both, and they answer different questions. A client branches on the
+            // boolean — show the verification screen or do not — and an interface
+            // showing an account renders the moment. Deriving the first from the
+            // second in every client is how one of them ends up treating an empty
+            // string as verified.
+            'email_verified' => (bool) $user?->hasVerifiedEmail(),
+            'email_verified_at' => $user?->email_verified_at?->toIso8601String(),
             'abilities' => $this->abilities,
             // Names, not identifiers. A permission's name is its stable contract and
             // what `can()` is asked with (ADR 0031); its row id is an implementation

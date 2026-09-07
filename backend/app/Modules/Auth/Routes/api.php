@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Modules\Auth\Controllers\Api\AuthController;
+use App\Modules\Auth\Controllers\Api\EmailVerificationController;
 use App\Modules\Auth\Controllers\Api\MfaController;
 use App\Modules\Auth\Enums\TokenAbility;
 use Illuminate\Support\Facades\Route;
@@ -17,11 +18,28 @@ Route::prefix('v1/auth')->group(function () use ($accessAbilities, $enrolAbiliti
     Route::post('/mfa/challenge', [AuthController::class, 'mfaChallenge'])->name('api.auth.mfa.challenge');
     Route::post('/mfa/challenge/send', [AuthController::class, 'mfaChallengeSend'])->name('api.auth.mfa.challenge.send');
 
+    // Reached from a mail client, so there is no token to present: the signature is
+    // the credential, and `signed` refuses anything this platform did not issue or
+    // whose expiry has passed.
+    //
+    // The route name is the framework's, not this module's. VerifyEmail builds its
+    // URL with URL::temporarySignedRoute('verification.verify', ...) and that string
+    // is not configurable, so renaming this to match the api.auth.* convention would
+    // produce a notification that cannot generate a link.
+    Route::get('/email/verify/{id}/{hash}', [EmailVerificationController::class, 'verify'])
+        ->middleware('signed')
+        ->name('verification.verify');
+
     // A fully signed-in identity. An enrolment token is explicitly not enough here,
     // so an administrator mid-enrolment cannot read or act as themselves yet.
     Route::middleware(['auth:sanctum', 'ability:'.$accessAbilities, 'active'])->group(function (): void {
         Route::post('/logout', [AuthController::class, 'logout'])->name('api.auth.logout');
         Route::get('/me', [AuthController::class, 'me'])->name('api.auth.me');
+
+        // Sends to the authenticated account's own address and takes no address of
+        // its own, so it cannot be pointed at a stranger's inbox.
+        Route::post('/email/verify/send', [EmailVerificationController::class, 'send'])
+            ->name('api.auth.email.verify.send');
 
         Route::get('/mfa', [MfaController::class, 'status'])->name('api.auth.mfa.status');
         Route::delete('/mfa', [MfaController::class, 'disable'])->name('api.auth.mfa.disable');

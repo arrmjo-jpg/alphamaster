@@ -9,6 +9,7 @@ use App\Modules\User\Enums\AccountType;
 use App\Modules\User\Exceptions\InvalidPhoneNumberException;
 use App\Modules\User\Support\PhoneNumber;
 use Database\Factories\UserFactory;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
@@ -36,7 +37,7 @@ use Spatie\Permission\Traits\HasRoles;
  * @method static Builder|User active()
  * @method static Builder|User admins()
  */
-class User extends Authenticatable implements AdminIdentity
+class User extends Authenticatable implements AdminIdentity, MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
     /**
