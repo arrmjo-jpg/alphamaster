@@ -18,6 +18,7 @@ use App\Modules\Auth\Requests\MfaChallengeSendRequest;
 use App\Modules\Auth\Resources\AuthenticatedUserResource;
 use App\Modules\Auth\Services\AuthService;
 use App\Modules\Auth\Services\LoginThrottle;
+use App\Modules\Core\Contracts\EffectiveGrants;
 use App\Modules\Core\Controllers\BaseApiController;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -29,6 +30,7 @@ class AuthController extends BaseApiController
         protected AuthServiceContract $auth,
         protected LoginThrottle $throttle,
         protected MfaManagerContract $mfa,
+        protected EffectiveGrants $grants,
     ) {}
 
     /**
@@ -190,9 +192,16 @@ class AuthController extends BaseApiController
         $user = $request->user();
         $token = $user?->currentAccessToken();
 
+        // Asked through the Core contract rather than the Authorization module's own,
+        // because this module does not depend on Authorization and reaching Spatie
+        // directly is reserved to the module that owns it. The boundary reports nothing
+        // for an account that does not participate, so a regular user gets empty lists
+        // rather than a leak of the admin catalogue.
         return $this->successResponse(new AuthenticatedUserResource(
             $user,
             $token instanceof PersonalAccessToken ? $token->abilities : [],
+            $user === null ? [] : $this->grants->rolesFor($user),
+            $user === null ? [] : $this->grants->permissionsFor($user),
         ));
     }
 

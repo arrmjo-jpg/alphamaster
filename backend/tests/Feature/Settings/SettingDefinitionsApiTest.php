@@ -64,7 +64,7 @@ test('a definition row carries the metadata an interface cannot infer', function
     expect(array_keys($rows['general.site_name']))->toBe([
         'key', 'group', 'name', 'label', 'help', 'type', 'type_label',
         'nullable', 'editable', 'is_secret', 'is_public', 'is_localized',
-        'default', 'depends_on', 'permission', 'deprecated',
+        'default', 'depends_on', 'rules', 'permission', 'deprecated',
     ]);
 });
 
@@ -113,7 +113,12 @@ test('the endpoint declares which settings need more than settings.update', func
     $rows = collect(definitionRows($this))->keyBy('key');
 
     expect($rows['operations.audit_retention_days']['permission'])->toBe('settings.security.update')
-        ->and($rows['general.site_name']['permission'])->toBeNull();
+        ->and($rows['general.site_name']['permission'])->toBeNull()
+        // A secret declares no permission of its own and is nonetheless guarded by
+        // one. The endpoint publishes what the API enforces rather than what the
+        // catalogue literally says, or an interface would show every credential as
+        // freely editable.
+        ->and($rows['mail.password']['permission'])->toBe('settings.secrets.manage');
 });
 
 test('dependencies are declared so an interface can say what is missing', function (): void {
