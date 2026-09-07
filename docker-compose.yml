@@ -1,3 +1,15 @@
+# The production baseline.
+#
+# Nothing here mounts the working tree: every PHP service runs the application
+# that was baked into its image, and no database or cache port is published to
+# the host. This file alone describes a deployable stack.
+#
+# `docker compose up` on a developer machine also reads docker-compose.override.yml,
+# which is loaded automatically and puts the source mounts and the local ports
+# back. To exercise this file as it would actually be deployed, name it alone:
+#
+#   docker compose -f docker-compose.yml up -d
+
 services:
   # ─── Reverse Proxy (Nginx) ───
   nginx:
@@ -9,7 +21,11 @@ services:
     ports:
       - "80:80"
     volumes:
-      - ./docker/nginx/conf.d:/etc/nginx/conf.d:ro
+      # The one mount this file still carries. Nginx resolves `root` against its
+      # own filesystem, so serving the API today means it needs the application
+      # directory even though it never executes any of it. D4 removes this by
+      # passing a fixed SCRIPT_FILENAME to FPM instead, which an API-only backend
+      # (ADR 0001) can do because it serves no static assets at all.
       - ./backend:/var/www/html:ro
     depends_on:
       backend:
@@ -30,8 +46,6 @@ services:
       dockerfile: docker/backend/Dockerfile
     image: ${ALPHAMASTER_IMAGE_NAMESPACE:-alphamaster}/backend:${ALPHAMASTER_IMAGE_TAG:-latest}
     container_name: alphamaster-backend
-    volumes:
-      - ./backend:/var/www/html
     env_file:
       - ./backend/.env
     depends_on:
@@ -57,8 +71,6 @@ services:
     image: ${ALPHAMASTER_IMAGE_NAMESPACE:-alphamaster}/horizon:${ALPHAMASTER_IMAGE_TAG:-latest}
     container_name: alphamaster-horizon
     command: php artisan horizon
-    volumes:
-      - ./backend:/var/www/html
     env_file:
       - ./backend/.env
     depends_on:
@@ -86,8 +98,6 @@ services:
     image: ${ALPHAMASTER_IMAGE_NAMESPACE:-alphamaster}/scheduler:${ALPHAMASTER_IMAGE_TAG:-latest}
     container_name: alphamaster-scheduler
     command: php artisan schedule:work
-    volumes:
-      - ./backend:/var/www/html
     env_file:
       - ./backend/.env
     depends_on:
@@ -111,8 +121,6 @@ services:
   postgres:
     image: postgres:17-alpine
     container_name: alphamaster-postgres
-    ports:
-      - "127.0.0.1:5432:5432"
     environment:
       POSTGRES_DB: ${DB_DATABASE:-alphamaster}
       POSTGRES_USER: ${DB_USERNAME:-alphamaster}
@@ -133,8 +141,6 @@ services:
   redis:
     image: redis:7-alpine
     container_name: alphamaster-redis
-    ports:
-      - "127.0.0.1:6379:6379"
     volumes:
       - redis_data:/data
     networks:
@@ -153,8 +159,6 @@ services:
     container_name: alphamaster-adminer
     profiles:
       - tools
-    ports:
-      - "127.0.0.1:8080:8080"
     environment:
       ADMINER_DEFAULT_SERVER: postgres
     depends_on:

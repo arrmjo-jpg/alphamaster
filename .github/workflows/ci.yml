@@ -61,6 +61,24 @@ jobs:
             echo "all required extensions present" . PHP_EOL;
           '
 
+      - name: The production baseline must carry no source mounts
+        # Every other compose command in this workflow picks up
+        # docker-compose.override.yml automatically, which is exactly what keeps
+        # the gate working unchanged. It also means nothing else here ever reads
+        # docker-compose.yml on its own, so a source mount could be added back to
+        # the baseline and no gate would notice until a deployment did.
+        run: |
+          baseline="$(mktemp)"
+          docker compose -f docker-compose.yml config --format json > "$baseline"
+          for svc in backend horizon scheduler; do
+            binds="$(jq --arg s "$svc" '[.services[$s].volumes // [] | .[] | select(.type == "bind")] | length' "$baseline")"
+            if [ "$binds" != "0" ]; then
+              echo "$svc carries $binds bind mount(s) in the production baseline" >&2
+              exit 1
+            fi
+          done
+          echo "backend, horizon and scheduler run from their images in the baseline"
+
   # The quality gate itself, run inside the project's containers.
   gate:
     name: Quality gate
