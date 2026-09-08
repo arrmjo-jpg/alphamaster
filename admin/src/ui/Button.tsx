@@ -56,10 +56,22 @@ export function Button({
     children,
     ...props
 }: ButtonProps) {
-    const Component = asChild ? Slot : 'button';
+    // `asChild` hands the styling to whatever is inside — a router link, usually —
+    // and takes a separate path rather than a different tag name. Slot accepts
+    // exactly one child, so the spinner cannot be prepended; and `disabled` is not
+    // an attribute an anchor has, so passing it through would put an invalid
+    // attribute on the element and change nothing about whether it can be clicked.
+    // Neither belongs on a link, which is why they are dropped rather than adapted.
+    if (asChild) {
+        return (
+            <Slot className={cn(button({ variant, size }), className)} {...props}>
+                {children}
+            </Slot>
+        );
+    }
 
     return (
-        <Component
+        <button
             className={cn(button({ variant, size }), className)}
             disabled={disabled === true || loading}
             {...(loading ? { 'aria-busy': true } : {})}
@@ -67,6 +79,6 @@ export function Button({
         >
             {loading ? <Loader2 aria-hidden className="size-4 animate-spin" /> : null}
             {children}
-        </Component>
+        </button>
     );
 }

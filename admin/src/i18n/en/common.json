@@ -113,5 +113,24 @@
         "unreachable": {
             "title": "Cannot reach the platform"
         }
+    },
+    "shell": {
+        "navigation": "Modules",
+        "content": "Main content",
+        "openNavigation": "Open navigation",
+        "closeNavigation": "Close navigation",
+        "notFound": {
+            "title": "Nothing lives at this address",
+            "body": "No module claims this path. A bookmark or a link may be out of date.",
+            "home": "Go to the dashboard"
+        },
+        "crash": {
+            "title": "The console stopped",
+            "body": "Something in the interface failed to render. The platform itself is unaffected — nothing was saved or lost by this.",
+            "reload": "Reload"
+        }
+    },
+    "modules": {
+        "dashboard": "Dashboard"
     }
 }

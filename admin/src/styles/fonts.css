@@ -1,0 +1,18 @@
+/**
+ * The typefaces, bundled rather than fetched.
+ *
+ * Loading these from a font CDN would be one line shorter and would give the Admin
+ * an external dependency at runtime — a third party that can be slow, be blocked, or
+ * see every operator's IP address. The container serves them from its own image
+ * instead, which is what lets it sit on the edge network with no route out.
+ *
+ * Variable faces where they exist, so one file covers every weight the design uses.
+ * The Arabic face is static and only its Arabic subset is imported: Latin text under
+ * `lang="ar"` falls through to Inter, which is already here.
+ */
+
+@import '@fontsource-variable/inter/wght.css';
+@import '@fontsource-variable/jetbrains-mono/wght.css';
+@import '@fontsource/ibm-plex-sans-arabic/arabic-400.css';
+@import '@fontsource/ibm-plex-sans-arabic/arabic-500.css';
+@import '@fontsource/ibm-plex-sans-arabic/arabic-600.css';
