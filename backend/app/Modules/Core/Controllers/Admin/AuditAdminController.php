@@ -10,6 +10,7 @@ use App\Modules\Core\Controllers\BaseApiController;
 use App\Modules\Core\Models\AuditRecord;
 use App\Modules\Core\Resources\AuditRecordResource;
 use Dedoc\Scramble\Attributes\QueryParameter;
+use Dedoc\Scramble\Attributes\Response;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -45,6 +46,7 @@ class AuditAdminController extends BaseApiController
     #[QueryParameter('outcome', 'Exact match on the recorded outcome.', type: 'string')]
     #[QueryParameter('from', 'Only entries recorded at or after this moment.', type: 'string', format: 'date-time')]
     #[QueryParameter('to', 'Only entries recorded at or before this moment.', type: 'string', format: 'date-time')]
+    #[Response(200, type: 'array{success: bool, data: list<AuditRecordResource>, meta: array{pagination: array{current_page: int, per_page: int, total: int, last_page: int, has_more_pages: bool}}}')]
     public function index(Request $request): JsonResponse
     {
         $perPage = (int) $request->query('per_page', '25');

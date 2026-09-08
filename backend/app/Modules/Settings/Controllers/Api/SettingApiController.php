@@ -7,6 +7,7 @@ namespace App\Modules\Settings\Controllers\Api;
 use App\Modules\Core\Controllers\BaseApiController;
 use App\Modules\Settings\Contracts\SettingServiceInterface;
 use App\Modules\Settings\Exceptions\SettingGroupNotFoundException;
+use Dedoc\Scramble\Attributes\Response;
 use Illuminate\Http\JsonResponse;
 
 class SettingApiController extends BaseApiController
@@ -30,6 +31,7 @@ class SettingApiController extends BaseApiController
      * A group that exposes no public settings is reported as 404 rather than as an
      * empty 200, so callers can tell "no such group" from "group with nothing in it".
      */
+    #[Response(200, type: 'array{success: bool, data: array<string, mixed>}')]
     public function show(string $group): JsonResponse
     {
         try {

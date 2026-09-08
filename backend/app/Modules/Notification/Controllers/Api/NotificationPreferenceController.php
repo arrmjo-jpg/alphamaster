@@ -10,6 +10,7 @@ use App\Modules\Notification\Enums\NotificationChannel;
 use App\Modules\Notification\Enums\NotificationType;
 use App\Modules\Notification\Exceptions\PreferenceNotSilenceableException;
 use App\Modules\Notification\Requests\UpdateNotificationPreferencesRequest;
+use Dedoc\Scramble\Attributes\Response;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -28,6 +29,7 @@ class NotificationPreferenceController extends BaseApiController
      * Every effective decision, defaults included, so a client can render the whole
      * matrix without inferring which combinations exist.
      */
+    #[Response(200, type: 'array{success: bool, data: list<array{type: string, type_label: string, channel: string, channel_label: string, enabled: bool, silenceable: bool}>}')]
     public function index(Request $request): JsonResponse
     {
         return $this->successResponse($this->preferences->describe($request->user()));
@@ -40,6 +42,7 @@ class NotificationPreferenceController extends BaseApiController
      * ignored, so a client is told its request had no effect instead of showing a
      * switch that appears to have moved.
      */
+    #[Response(200, type: 'array{success: bool, message: string, data: list<array{type: string, type_label: string, channel: string, channel_label: string, enabled: bool, silenceable: bool}>}')]
     public function update(UpdateNotificationPreferencesRequest $request): JsonResponse
     {
         $user = $request->user();

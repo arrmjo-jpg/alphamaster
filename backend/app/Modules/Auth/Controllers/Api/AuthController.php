@@ -23,6 +23,7 @@ use App\Modules\Auth\Support\AuthCookie;
 use App\Modules\Auth\Support\LoginIdentifier;
 use App\Modules\Core\Contracts\EffectiveGrants;
 use App\Modules\Core\Controllers\BaseApiController;
+use Dedoc\Scramble\Attributes\Response;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Laravel\Sanctum\PersonalAccessToken;
@@ -256,6 +257,7 @@ class AuthController extends BaseApiController
     /**
      * The authenticated identity behind the presented token.
      */
+    #[Response(200, type: 'array{success: bool, data: AuthenticatedUserResource}')]
     public function me(Request $request): JsonResponse
     {
         $user = $request->user();
