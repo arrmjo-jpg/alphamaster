@@ -44,6 +44,8 @@ export default tseslint.config(
                         'useDirection',
                         'useAuth',
                         'useCurrentUser',
+                        'useCaptcha',
+                        'captchaMode',
                     ],
                 },
             ],

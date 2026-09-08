@@ -2,7 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { HttpResponse, http } from 'msw';
 import { MemoryRouter } from 'react-router';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 import { App } from '@/app/App';
 import { AppProviders } from '@/app/AppProviders';
@@ -45,9 +45,11 @@ const HEALTH = http.get('*/api/v1/health', () =>
     }),
 );
 
-const AUTH_SETTINGS = http.get('*/api/v1/settings/auth', () =>
-    HttpResponse.json({ success: true, data: { captcha_enabled: false } }),
-);
+function authSettings(data: Record<string, unknown>) {
+    return http.get('*/api/v1/settings/auth', () => HttpResponse.json({ success: true, data }));
+}
+
+const AUTH_SETTINGS = authSettings({ captcha_enabled: false });
 
 const ADMIN = {
     id: '01hzz',
@@ -426,6 +428,13 @@ describe('what leaves the browser', () => {
 });
 
 describe('the captcha', () => {
+    // The loader is keyed on the script element being absent, and jsdom keeps the
+    // document between tests in a file.
+    beforeEach(() => {
+        document.getElementById('recaptcha-api')?.remove();
+        delete (window as { grecaptcha?: unknown }).grecaptcha;
+    });
+
     it('is absent when the platform is not asking for one', async () => {
         server.use(LANGUAGES, AUTH_SETTINGS, HEALTH, meFails(401, 'UNAUTHENTICATED'));
 
@@ -442,12 +451,7 @@ describe('the captcha', () => {
             LANGUAGES,
             HEALTH,
             meFails(401, 'UNAUTHENTICATED'),
-            http.get('*/api/v1/settings/auth', () =>
-                HttpResponse.json({
-                    success: true,
-                    data: { captcha_enabled: true, captcha_site_key: 'site-key-1' },
-                }),
-            ),
+            authSettings({ captcha_enabled: true, captcha_site_key: 'site-key-1' }),
         );
 
         renderApp();
@@ -457,8 +461,61 @@ describe('the captcha', () => {
             expect(document.getElementById('recaptcha-api')).not.toBeNull();
         });
 
-        // Nothing may be submitted until the widget has produced a response, or the
-        // attempt is spent on a refusal the operator cannot act on.
+        // v2 by default, and nothing may be submitted until the checkbox has produced
+        // a response — otherwise the attempt is spent on a refusal the operator
+        // cannot act on.
         expect(screen.getByRole('button', { name: 'Sign in' })).toBeDisabled();
+    });
+
+    it('asks the vendor for v2 with an explicit render, and for v3 with the site key', async () => {
+        // The two versions need different script URLs. Getting this wrong is not a
+        // styling difference: the wrong one leaves `grecaptcha.execute` undefined or
+        // the checkbox unrenderable.
+        server.use(
+            LANGUAGES,
+            HEALTH,
+            meFails(401, 'UNAUTHENTICATED'),
+            authSettings({
+                captcha_enabled: true,
+                captcha_site_key: 'site-key-1',
+                captcha_version: 'v3',
+            }),
+        );
+
+        renderApp();
+        await screen.findByRole('button', { name: 'Sign in' });
+
+        await waitFor(() => {
+            expect(document.getElementById('recaptcha-api')).not.toBeNull();
+        });
+
+        expect(document.getElementById('recaptcha-api')?.getAttribute('src')).toContain(
+            'render=site-key-1',
+        );
+    });
+
+    it('does not hold up submission for v3, which has no challenge to wait for', async () => {
+        // v3 renders nothing and mints its token during submit. Disabling the button
+        // until a token exists — correct for v2 — would make v3 unsubmittable.
+        server.use(
+            LANGUAGES,
+            HEALTH,
+            meFails(401, 'UNAUTHENTICATED'),
+            authSettings({
+                captcha_enabled: true,
+                captcha_site_key: 'site-key-1',
+                captcha_version: 'v3',
+            }),
+        );
+
+        renderApp();
+
+        const submit = await screen.findByRole('button', { name: 'Sign in' });
+        await waitFor(() => {
+            expect(document.getElementById('recaptcha-api')).not.toBeNull();
+        });
+
+        expect(submit).toBeEnabled();
+        expect(screen.queryByText(/protected by reCAPTCHA/i)).toBeInTheDocument();
     });
 });

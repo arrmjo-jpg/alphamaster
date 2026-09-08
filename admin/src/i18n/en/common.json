@@ -123,7 +123,8 @@
             "perimeter": "Perimeter",
             "perimeterValue": "Five stages, second factor required"
         },
-        "captchaUnavailable": "The verification challenge could not be loaded, so sign-in cannot be completed. An administrator can switch the captcha off in Settings › Auth."
+        "captchaUnavailable": "The verification challenge could not be loaded, so sign-in cannot be completed. An administrator can switch the captcha off in Settings › Auth.",
+        "captchaInvisible": "This sign-in is protected by reCAPTCHA. No challenge is shown; the check runs in the background."
     },
     "shell": {
         "navigation": "Modules",
