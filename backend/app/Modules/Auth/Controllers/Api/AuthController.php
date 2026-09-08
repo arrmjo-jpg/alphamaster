@@ -220,17 +220,37 @@ class AuthController extends BaseApiController
     }
 
     /**
-     * Revoke the token used to make this request.
+     * Revoke the token used to make this request and clear the authentication cookie.
+     *
+     * Only the presented credential is revoked, so signing out of one browser leaves
+     * another signed in.
      */
     public function logout(Request $request): JsonResponse
     {
+        // Both halves are necessary and neither is sufficient. Deleting the token
+        // without clearing the cookie leaves the browser presenting a credential that
+        // no longer resolves — every later request fails as 401 for a reason nothing
+        // explains, and the client cannot clear it itself because the cookie is
+        // HttpOnly. Clearing the cookie without deleting the token leaves a live
+        // credential behind, which is the more serious half: a copy of it would still
+        // work.
+        //
+        // The cookie is attached whether or not this request arrived by cookie. A
+        // bearer caller has none to clear and is unaffected, and branching on the
+        // transport would be a condition with no benefit.
+        //
+        // Written here rather than beside the return: Scramble publishes a docblock as
+        // the operation description and the comment before a return as the response
+        // description, and internal reasoning is not what an API consumer should be
+        // handed.
         $token = $request->user()?->currentAccessToken();
 
         if ($token instanceof PersonalAccessToken) {
             $token->delete();
         }
 
-        return $this->successResponse(null, 'Signed out successfully.');
+        return $this->successResponse(null, 'Signed out successfully.')
+            ->withCookie(AuthCookie::forget());
     }
 
     /**

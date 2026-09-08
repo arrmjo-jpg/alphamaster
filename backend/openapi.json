@@ -1341,7 +1341,8 @@
         "/auth/logout": {
             "post": {
                 "operationId": "auth.logout",
-                "summary": "Revoke the token used to make this request",
+                "description": "Only the presented credential is revoked, so signing out of one browser leaves\nanother signed in.",
+                "summary": "Revoke the token used to make this request and clear the authentication cookie",
                 "tags": [
                     "Auth"
                 ],
