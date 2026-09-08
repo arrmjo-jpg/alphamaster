@@ -144,13 +144,10 @@
                                         "success": {
                                             "type": "boolean"
                                         },
-                                        "message": {
-                                            "type": "string"
-                                        },
                                         "data": {
-                                            "type": "object",
-                                            "additionalProperties": {
-                                                "type": "string"
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/AuditRecordResource"
                                             }
                                         },
                                         "meta": {
@@ -191,7 +188,6 @@
                                     },
                                     "required": [
                                         "success",
-                                        "message",
                                         "data",
                                         "meta"
                                     ]
@@ -1401,21 +1397,13 @@
                                         "success": {
                                             "type": "boolean"
                                         },
-                                        "message": {
-                                            "type": "string"
-                                        },
                                         "data": {
                                             "$ref": "#/components/schemas/AuthenticatedUserResource"
-                                        },
-                                        "meta": {
-                                            "type": "string"
                                         }
                                     },
                                     "required": [
                                         "success",
-                                        "message",
-                                        "data",
-                                        "meta"
+                                        "data"
                                     ]
                                 }
                             }
@@ -2698,13 +2686,10 @@
                                         "success": {
                                             "type": "boolean"
                                         },
-                                        "message": {
-                                            "type": "string"
-                                        },
                                         "data": {
-                                            "type": "object",
-                                            "additionalProperties": {
-                                                "type": "string"
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/MediaAdminResource"
                                             }
                                         },
                                         "meta": {
@@ -2745,7 +2730,6 @@
                                     },
                                     "required": [
                                         "success",
-                                        "message",
                                         "data",
                                         "meta"
                                     ]
@@ -3090,18 +3074,30 @@
                                             "type": "string"
                                         },
                                         "data": {
-                                            "type": "array",
-                                            "items": {}
-                                        },
-                                        "meta": {
-                                            "type": "string"
+                                            "type": "object",
+                                            "properties": {
+                                                "type": {
+                                                    "type": "string"
+                                                },
+                                                "secret": {
+                                                    "type": "string"
+                                                },
+                                                "uri": {
+                                                    "type": "string"
+                                                },
+                                                "destination": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "type"
+                                            ]
                                         }
                                     },
                                     "required": [
                                         "success",
                                         "message",
-                                        "data",
-                                        "meta"
+                                        "data"
                                     ]
                                 }
                             }
@@ -3227,25 +3223,44 @@
                                         "success": {
                                             "type": "boolean"
                                         },
-                                        "message": {
-                                            "type": "string"
-                                        },
                                         "data": {
                                             "type": "array",
                                             "items": {
                                                 "type": "object",
-                                                "additionalProperties": {}
+                                                "properties": {
+                                                    "type": {
+                                                        "type": "string"
+                                                    },
+                                                    "type_label": {
+                                                        "type": "string"
+                                                    },
+                                                    "channel": {
+                                                        "type": "string"
+                                                    },
+                                                    "channel_label": {
+                                                        "type": "string"
+                                                    },
+                                                    "enabled": {
+                                                        "type": "boolean"
+                                                    },
+                                                    "silenceable": {
+                                                        "type": "boolean"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "type",
+                                                    "type_label",
+                                                    "channel",
+                                                    "channel_label",
+                                                    "enabled",
+                                                    "silenceable"
+                                                ]
                                             }
-                                        },
-                                        "meta": {
-                                            "type": "string"
                                         }
                                     },
                                     "required": [
                                         "success",
-                                        "message",
-                                        "data",
-                                        "meta"
+                                        "data"
                                     ]
                                 }
                             }
@@ -3291,18 +3306,41 @@
                                             "type": "array",
                                             "items": {
                                                 "type": "object",
-                                                "additionalProperties": {}
+                                                "properties": {
+                                                    "type": {
+                                                        "type": "string"
+                                                    },
+                                                    "type_label": {
+                                                        "type": "string"
+                                                    },
+                                                    "channel": {
+                                                        "type": "string"
+                                                    },
+                                                    "channel_label": {
+                                                        "type": "string"
+                                                    },
+                                                    "enabled": {
+                                                        "type": "boolean"
+                                                    },
+                                                    "silenceable": {
+                                                        "type": "boolean"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "type",
+                                                    "type_label",
+                                                    "channel",
+                                                    "channel_label",
+                                                    "enabled",
+                                                    "silenceable"
+                                                ]
                                             }
-                                        },
-                                        "meta": {
-                                            "type": "string"
                                         }
                                     },
                                     "required": [
                                         "success",
                                         "message",
-                                        "data",
-                                        "meta"
+                                        "data"
                                     ]
                                 }
                             }
@@ -3907,28 +3945,78 @@
                                         "success": {
                                             "type": "boolean"
                                         },
-                                        "message": {
-                                            "type": "string"
-                                        },
                                         "data": {
                                             "type": "object",
                                             "additionalProperties": {
                                                 "type": "array",
                                                 "items": {
                                                     "type": "object",
-                                                    "additionalProperties": {}
+                                                    "properties": {
+                                                        "id": {
+                                                            "type": "string"
+                                                        },
+                                                        "group": {
+                                                            "type": "string"
+                                                        },
+                                                        "key": {
+                                                            "type": "string"
+                                                        },
+                                                        "value": {},
+                                                        "is_localized": {
+                                                            "type": "boolean"
+                                                        },
+                                                        "locale": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "type": {
+                                                            "type": "string"
+                                                        },
+                                                        "type_label": {
+                                                            "type": "string"
+                                                        },
+                                                        "is_secret": {
+                                                            "type": "boolean"
+                                                        },
+                                                        "is_public": {
+                                                            "type": "boolean"
+                                                        },
+                                                        "description": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "updated_at": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "id",
+                                                        "group",
+                                                        "key",
+                                                        "value",
+                                                        "is_localized",
+                                                        "locale",
+                                                        "type",
+                                                        "type_label",
+                                                        "is_secret",
+                                                        "is_public",
+                                                        "description",
+                                                        "updated_at"
+                                                    ]
                                                 }
                                             }
-                                        },
-                                        "meta": {
-                                            "type": "string"
                                         }
                                     },
                                     "required": [
                                         "success",
-                                        "message",
-                                        "data",
-                                        "meta"
+                                        "data"
                                     ]
                                 }
                             }
@@ -4050,18 +4138,33 @@
                                             "type": "string"
                                         },
                                         "data": {
-                                            "type": "array",
-                                            "items": {}
-                                        },
-                                        "meta": {
-                                            "type": "string"
+                                            "type": "object",
+                                            "properties": {
+                                                "status": {
+                                                    "type": "string"
+                                                },
+                                                "recipient": {
+                                                    "type": "string"
+                                                },
+                                                "missing": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "failure": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "status"
+                                            ]
                                         }
                                     },
                                     "required": [
                                         "success",
                                         "message",
-                                        "data",
-                                        "meta"
+                                        "data"
                                     ]
                                 }
                             }
@@ -4141,14 +4244,69 @@
                                         "success": {
                                             "type": "boolean"
                                         },
-                                        "message": {
-                                            "type": "string"
-                                        },
                                         "data": {
                                             "type": "array",
                                             "items": {
                                                 "type": "object",
-                                                "additionalProperties": {}
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "string"
+                                                    },
+                                                    "group": {
+                                                        "type": "string"
+                                                    },
+                                                    "key": {
+                                                        "type": "string"
+                                                    },
+                                                    "value": {},
+                                                    "is_localized": {
+                                                        "type": "boolean"
+                                                    },
+                                                    "locale": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "type": {
+                                                        "type": "string"
+                                                    },
+                                                    "type_label": {
+                                                        "type": "string"
+                                                    },
+                                                    "is_secret": {
+                                                        "type": "boolean"
+                                                    },
+                                                    "is_public": {
+                                                        "type": "boolean"
+                                                    },
+                                                    "description": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "updated_at": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": [
+                                                    "id",
+                                                    "group",
+                                                    "key",
+                                                    "value",
+                                                    "is_localized",
+                                                    "locale",
+                                                    "type",
+                                                    "type_label",
+                                                    "is_secret",
+                                                    "is_public",
+                                                    "description",
+                                                    "updated_at"
+                                                ]
                                             }
                                         },
                                         "meta": {
@@ -4165,7 +4323,6 @@
                                     },
                                     "required": [
                                         "success",
-                                        "message",
                                         "data",
                                         "meta"
                                     ]
@@ -4302,14 +4459,42 @@
                                         "success": {
                                             "type": "boolean"
                                         },
-                                        "message": {
-                                            "type": "string"
-                                        },
                                         "data": {
                                             "type": "array",
                                             "items": {
                                                 "type": "object",
-                                                "additionalProperties": {}
+                                                "properties": {
+                                                    "key": {
+                                                        "type": "string"
+                                                    },
+                                                    "locale": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "version": {
+                                                        "type": "integer"
+                                                    },
+                                                    "value": {},
+                                                    "actor_id": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "recorded_at": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "key",
+                                                    "locale",
+                                                    "version",
+                                                    "value",
+                                                    "actor_id",
+                                                    "recorded_at"
+                                                ]
                                             }
                                         },
                                         "meta": {
@@ -4330,7 +4515,6 @@
                                     },
                                     "required": [
                                         "success",
-                                        "message",
                                         "data",
                                         "meta"
                                     ]
@@ -4678,22 +4862,14 @@
                                         "success": {
                                             "type": "boolean"
                                         },
-                                        "message": {
-                                            "type": "string"
-                                        },
                                         "data": {
                                             "type": "object",
                                             "additionalProperties": {}
-                                        },
-                                        "meta": {
-                                            "type": "string"
                                         }
                                     },
                                     "required": [
                                         "success",
-                                        "message",
-                                        "data",
-                                        "meta"
+                                        "data"
                                     ]
                                 }
                             }
@@ -5005,6 +5181,64 @@
             }
         },
         "schemas": {
+            "AuditRecordResource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "actor_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "action": {
+                        "type": "string"
+                    },
+                    "action_label": {
+                        "type": "string",
+                        "description": "Beside the stable identifier, never instead of it (ADR 0031). The action\nis what a client branches on; the label is what a person reads."
+                    },
+                    "subject": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "outcome": {
+                        "type": "string"
+                    },
+                    "context": {
+                        "type": [
+                            "array",
+                            "null"
+                        ],
+                        "items": {}
+                    },
+                    "correlation_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "created_at": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "id",
+                    "actor_id",
+                    "action",
+                    "action_label",
+                    "subject",
+                    "outcome",
+                    "context",
+                    "correlation_id",
+                    "created_at"
+                ],
+                "title": "AuditRecordResource"
+            },
             "AuthenticatedUserResource": {
                 "type": "object",
                 "properties": {
