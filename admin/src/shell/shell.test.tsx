@@ -102,6 +102,17 @@ const LANGUAGES = http.get('*/api/v1/languages', () =>
     }),
 );
 
+const HEALTH = http.get('*/api/v1/health', () =>
+    HttpResponse.json({
+        success: true,
+        data: {
+            status: 'healthy',
+            timestamp: '2026-09-08T10:00:00+00:00',
+            framework: 'Laravel 13',
+        },
+    }),
+);
+
 const ADMIN = {
     id: '01hzz',
     name: 'Nadia Haddad',
@@ -118,6 +129,7 @@ const ADMIN = {
 function renderAt(pathname: string) {
     server.use(
         LANGUAGES,
+        HEALTH,
         http.get('*/api/v1/auth/me', () => HttpResponse.json({ success: true, data: ADMIN })),
     );
 
@@ -136,13 +148,13 @@ describe('routing', () => {
     it('sends the root to the home module rather than showing an empty frame', async () => {
         renderAt('/');
 
-        expect(await screen.findByText('nadia@example.test')).toBeInTheDocument();
+        expect(await screen.findByText('Nadia Haddad')).toBeInTheDocument();
     });
 
     it('renders the module that claims a path', async () => {
         renderAt('/dashboard');
 
-        expect(await screen.findByText('nadia@example.test')).toBeInTheDocument();
+        expect(await screen.findByText('Nadia Haddad')).toBeInTheDocument();
     });
 
     it('names the path when no module claims it', async () => {

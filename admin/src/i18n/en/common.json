@@ -132,5 +132,38 @@
     },
     "modules": {
         "dashboard": "Dashboard"
+    },
+    "dashboard": {
+        "platform": {
+            "title": "Platform",
+            "answering": "Answering",
+            "notAnswering": "Not answering",
+            "scope": "This probe reports that the application is running. It does not check the database or the cache."
+        },
+        "integrations": {
+            "title": "Integrations",
+            "none": "No vendor capability is configured or has been used.",
+            "noActiveProvider_zero": "No provider is configured.",
+            "noActiveProvider_one": "One provider is configured and none is active.",
+            "noActiveProvider_other": "{{count}} providers are configured and none is active.",
+            "attempts_zero": "No recent attempts.",
+            "attempts_one": "{{count}} recent attempt, {{failures}} failed.",
+            "attempts_other": "{{count}} recent attempts, {{failures}} failed.",
+            "noCredentials": "The active provider has no credentials, so every attempt will be refused.",
+            "state": {
+                "healthy": "Working",
+                "degraded": "Some failures",
+                "failing": "Failing",
+                "idle": "Unused",
+                "unconfigured": "Not configured"
+            }
+        },
+        "activity": {
+            "title": "Recent administrative activity",
+            "none": "Nothing has been recorded yet.",
+            "failed": "Failed",
+            "total_one": "{{count}} entry",
+            "total_other": "{{count}} entries"
+        }
     }
 }

@@ -1,5 +1,4 @@
 import { Check, Copy } from 'lucide-react';
-import QRCode from 'qrcode';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -262,7 +261,13 @@ function TotpEnrolment({ uri, secret }: { uri: string; secret: string }) {
             return;
         }
 
-        QRCode.toCanvas(element, uri, { margin: 1, width: 180 }).catch(() => setFailed(true));
+        // Imported here rather than at the top of the file so the encoder is its own
+        // chunk. It is needed on exactly one screen, once per administrator, and
+        // carrying it in the initial bundle would make every page load pay for
+        // enrolment.
+        void import('qrcode')
+            .then((module) => module.default.toCanvas(element, uri, { margin: 1, width: 180 }))
+            .catch(() => setFailed(true));
     }, [uri]);
 
     return (

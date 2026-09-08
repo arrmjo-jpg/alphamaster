@@ -34,6 +34,17 @@ const LANGUAGES = http.get('*/api/v1/languages', () =>
     }),
 );
 
+const HEALTH = http.get('*/api/v1/health', () =>
+    HttpResponse.json({
+        success: true,
+        data: {
+            status: 'healthy',
+            timestamp: '2026-09-08T10:00:00+00:00',
+            framework: 'Laravel 13',
+        },
+    }),
+);
+
 const AUTH_SETTINGS = http.get('*/api/v1/settings/auth', () =>
     HttpResponse.json({ success: true, data: { captcha_enabled: false } }),
 );
@@ -91,14 +102,14 @@ async function signIn() {
 
 describe('starting up with a cookie already in the browser', () => {
     it('shows the application when the session is a live administrator', async () => {
-        server.use(LANGUAGES, AUTH_SETTINGS, me(ADMIN));
+        server.use(LANGUAGES, AUTH_SETTINGS, HEALTH, me(ADMIN));
         renderApp();
 
-        expect(await screen.findByText('nadia@example.test')).toBeInTheDocument();
+        expect(await screen.findByText('Nadia Haddad')).toBeInTheDocument();
     });
 
     it('shows the sign-in form when there is no session', async () => {
-        server.use(LANGUAGES, AUTH_SETTINGS, meFails(401, 'UNAUTHENTICATED'));
+        server.use(LANGUAGES, AUTH_SETTINGS, HEALTH, meFails(401, 'UNAUTHENTICATED'));
         renderApp();
 
         expect(await screen.findByRole('button', { name: 'Sign in' })).toBeInTheDocument();
@@ -108,7 +119,7 @@ describe('starting up with a cookie already in the browser', () => {
         // A browser holding an enrolment or verification cookie gets 403 FORBIDDEN
         // from /auth/me, because that credential carries no access ability. It cannot
         // be resumed, and saying so is better than an unexplained sign-in form.
-        server.use(LANGUAGES, AUTH_SETTINGS, meFails(403, 'FORBIDDEN', 'Missing ability.'));
+        server.use(LANGUAGES, AUTH_SETTINGS, HEALTH, meFails(403, 'FORBIDDEN', 'Missing ability.'));
         renderApp();
 
         expect(await screen.findByText('Sign-in was not completed')).toBeInTheDocument();
@@ -116,7 +127,12 @@ describe('starting up with a cookie already in the browser', () => {
     });
 
     it('names suspension as suspension rather than as a missing session', async () => {
-        server.use(LANGUAGES, AUTH_SETTINGS, meFails(403, 'ACCOUNT_SUSPENDED', 'Suspended.'));
+        server.use(
+            LANGUAGES,
+            AUTH_SETTINGS,
+            HEALTH,
+            meFails(403, 'ACCOUNT_SUSPENDED', 'Suspended.'),
+        );
         renderApp();
 
         expect(await screen.findByText('This account is suspended')).toBeInTheDocument();
@@ -126,6 +142,7 @@ describe('starting up with a cookie already in the browser', () => {
         server.use(
             LANGUAGES,
             AUTH_SETTINGS,
+            HEALTH,
             me({ ...ADMIN, account_type: 'user', roles: [], permissions: [] }),
         );
         renderApp();
@@ -139,6 +156,7 @@ describe('when the platform cannot be reached', () => {
         server.use(
             LANGUAGES,
             AUTH_SETTINGS,
+            HEALTH,
             http.get('*/api/v1/auth/me', () => HttpResponse.error()),
         );
 
@@ -156,7 +174,7 @@ describe('when the platform cannot be reached', () => {
         // always aborted. Treating that as an error produced an unhandled rejection on
         // every page load — and vitest fails the run on one, which is what makes this
         // a test rather than a comment.
-        server.use(LANGUAGES, AUTH_SETTINGS, me(ADMIN));
+        server.use(LANGUAGES, AUTH_SETTINGS, HEALTH, me(ADMIN));
 
         const { unmount } = renderApp();
         unmount();
@@ -172,6 +190,7 @@ describe('signing in', () => {
         server.use(
             LANGUAGES,
             AUTH_SETTINGS,
+            HEALTH,
             http.get('*/api/v1/auth/me', () =>
                 authenticated
                     ? HttpResponse.json({ success: true, data: ADMIN })
@@ -194,13 +213,14 @@ describe('signing in', () => {
         await screen.findByRole('button', { name: 'Sign in' });
         await signIn();
 
-        expect(await screen.findByText('nadia@example.test')).toBeInTheDocument();
+        expect(await screen.findByText('Nadia Haddad')).toBeInTheDocument();
     });
 
     it('reports a refusal with the attempts the backend says are left', async () => {
         server.use(
             LANGUAGES,
             AUTH_SETTINGS,
+            HEALTH,
             meFails(401, 'UNAUTHENTICATED'),
             loginFails(401, 'INVALID_CREDENTIALS', 'Those credentials do not match.', {
                 attempts_remaining: 3,
@@ -221,6 +241,7 @@ describe('signing in', () => {
         server.use(
             LANGUAGES,
             AUTH_SETTINGS,
+            HEALTH,
             meFails(401, 'UNAUTHENTICATED'),
             loginFails(429, 'TOO_MANY_ATTEMPTS', 'Too many attempts.', { retry_after: 45 }),
         );
@@ -238,6 +259,7 @@ describe('signing in', () => {
         server.use(
             LANGUAGES,
             AUTH_SETTINGS,
+            HEALTH,
             meFails(401, 'UNAUTHENTICATED'),
             loginReturns({ mfa_required: true, mfa_token: 'challenge-1', expires_in: 300 }),
         );
@@ -247,13 +269,14 @@ describe('signing in', () => {
         await signIn();
 
         expect(await screen.findByText('Two-factor authentication')).toBeInTheDocument();
-        expect(screen.queryByText('nadia@example.test')).not.toBeInTheDocument();
+        expect(screen.queryByText('Nadia Haddad')).not.toBeInTheDocument();
     });
 
     it('sends an administrator with no second factor to enrolment, not to the console', async () => {
         server.use(
             LANGUAGES,
             AUTH_SETTINGS,
+            HEALTH,
             meFails(401, 'UNAUTHENTICATED'),
             loginReturns({
                 mfa_setup_required: true,
@@ -274,6 +297,7 @@ describe('signing in', () => {
         server.use(
             LANGUAGES,
             AUTH_SETTINGS,
+            HEALTH,
             meFails(401, 'UNAUTHENTICATED'),
             loginReturns({
                 email_verification_required: true,
@@ -298,6 +322,7 @@ describe('completing a challenge', () => {
         server.use(
             LANGUAGES,
             AUTH_SETTINGS,
+            HEALTH,
             http.get('*/api/v1/auth/me', () =>
                 challenged
                     ? HttpResponse.json({ success: true, data: ADMIN })
@@ -325,13 +350,14 @@ describe('completing a challenge', () => {
         await userEvent.type(screen.getByLabelText(/verification code/i), '123456');
         await userEvent.click(screen.getByRole('button', { name: 'Verify' }));
 
-        expect(await screen.findByText('nadia@example.test')).toBeInTheDocument();
+        expect(await screen.findByText('Nadia Haddad')).toBeInTheDocument();
     });
 
     it('keeps the operator on the challenge when the code is wrong', async () => {
         server.use(
             LANGUAGES,
             AUTH_SETTINGS,
+            HEALTH,
             meFails(401, 'UNAUTHENTICATED'),
             loginReturns({ mfa_required: true, mfa_token: 'challenge-1', expires_in: 300 }),
             http.post('*/api/v1/auth/mfa/challenge', () =>
@@ -369,6 +395,7 @@ describe('what leaves the browser', () => {
         server.use(
             LANGUAGES,
             AUTH_SETTINGS,
+            HEALTH,
             me(ADMIN),
             http.post('*/api/v1/auth/logout', () =>
                 HttpResponse.json({ success: true, data: null }),
@@ -376,7 +403,7 @@ describe('what leaves the browser', () => {
         );
 
         renderApp();
-        await screen.findByText('nadia@example.test');
+        await screen.findByText('Nadia Haddad');
         await userEvent.click(screen.getByRole('button', { name: 'Sign out' }));
         await screen.findByRole('button', { name: 'Sign in' });
 
@@ -388,10 +415,10 @@ describe('what leaves the browser', () => {
     });
 
     it('asks for credentials to be included, which is how the cookie travels', async () => {
-        server.use(LANGUAGES, AUTH_SETTINGS, me(ADMIN));
+        server.use(LANGUAGES, AUTH_SETTINGS, HEALTH, me(ADMIN));
 
         renderApp();
-        await screen.findByText('nadia@example.test');
+        await screen.findByText('Nadia Haddad');
 
         const meRequest = observed.find((request) => request.url.includes('/auth/me'));
         expect(meRequest?.credentials).toBe('include');
@@ -400,7 +427,7 @@ describe('what leaves the browser', () => {
 
 describe('the captcha', () => {
     it('is absent when the platform is not asking for one', async () => {
-        server.use(LANGUAGES, AUTH_SETTINGS, meFails(401, 'UNAUTHENTICATED'));
+        server.use(LANGUAGES, AUTH_SETTINGS, HEALTH, meFails(401, 'UNAUTHENTICATED'));
 
         renderApp();
         await screen.findByRole('button', { name: 'Sign in' });
@@ -413,6 +440,7 @@ describe('the captcha', () => {
     it('loads only when the switch is on and a site key is configured', async () => {
         server.use(
             LANGUAGES,
+            HEALTH,
             meFails(401, 'UNAUTHENTICATED'),
             http.get('*/api/v1/settings/auth', () =>
                 HttpResponse.json({

@@ -1,60 +1,50 @@
 import { useTranslation } from 'react-i18next';
 
 import { useCurrentUser } from '@/auth/AuthProvider';
-import { StateRail } from '@/ui/StateRail';
-import { StatusBadge } from '@/ui/StatusBadge';
+import { ActivityPanel } from '@/screens/dashboard/ActivityPanel';
+import { IntegrationsPanel } from '@/screens/dashboard/IntegrationsPanel';
+import { PlatformPanel } from '@/screens/dashboard/PlatformPanel';
 
 /**
- * The first thing an operator sees, in its first form.
+ * What is the platform doing right now.
  *
- * Today it answers one question — who am I signed in as, and what may I do — because
- * that is what the platform has been asked for so far. The operational picture
- * replaces this content; the route and the manifest entry do not change when it does.
+ * Panels are composed here and gated on the permission each one's endpoints need, so
+ * a request that is certain to be refused is never sent: the API would answer 403,
+ * the panel would render an error, and the operator would be told something is wrong
+ * when nothing is. A panel they may not read is simply absent.
+ *
+ * The layout is a grid rather than a widget system. Panels are extensible — adding
+ * one is adding a component and a permission — and nothing here builds a dashboard
+ * builder.
  */
 export function DashboardScreen() {
     const { t } = useTranslation();
     const user = useCurrentUser();
 
-    return (
-        <div className="flex max-w-3xl flex-col gap-(--section-gap)">
-            <StateRail tone="success">
-                <p className="text-(length:--text-sm) text-(--text-muted)">
-                    {t('session.signedInAs')}
-                </p>
-                <p className="font-medium text-(--text-primary)">{user.name}</p>
-                <p className="text-(--text-secondary)" data-technical>
-                    {user.email}
-                </p>
-            </StateRail>
+    const may = (permission: string) => user.permissions.includes(permission);
 
-            <section className="flex flex-col gap-3 rounded-lg border border-(--border-default) bg-(--surface-default) p-4">
-                <Grants label={t('session.roles')} values={user.roles} />
-                <Grants label={t('session.permissions')} values={user.permissions} />
-            </section>
-        </div>
-    );
-}
-
-function Grants({ label, values }: { label: string; values: string[] }) {
-    const { t } = useTranslation();
+    const panels = [
+        { id: 'platform', node: <PlatformPanel />, visible: true },
+        { id: 'integrations', node: <IntegrationsPanel />, visible: may('integrations.view') },
+        { id: 'activity', node: <ActivityPanel />, visible: may('audit.view') },
+    ].filter((panel) => panel.visible);
 
     return (
-        <div className="flex flex-col gap-2">
-            <span className="text-(length:--text-sm) font-medium text-(--text-secondary)">
-                {label}
-            </span>
+        <div className="flex flex-col gap-(--section-gap)">
+            <h1 className="text-(length:--text-2xl) font-semibold text-(--text-primary)">
+                {t('modules.dashboard')}
+            </h1>
 
-            {values.length === 0 ? (
-                <span className="text-(--text-muted)">{t('session.none')}</span>
-            ) : (
-                <div className="flex flex-wrap gap-1">
-                    {values.map((value) => (
-                        <StatusBadge key={value} tone="neutral">
-                            {value}
-                        </StatusBadge>
-                    ))}
-                </div>
-            )}
+            <div className="grid grid-cols-1 gap-(--section-gap) xl:grid-cols-2">
+                {panels.map((panel) => (
+                    <div
+                        className={panel.id === 'activity' ? 'xl:col-span-2' : undefined}
+                        key={panel.id}
+                    >
+                        {panel.node}
+                    </div>
+                ))}
+            </div>
         </div>
     );
 }
