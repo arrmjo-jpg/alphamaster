@@ -2857,6 +2857,88 @@ export type AdminSettingsHistoryResponses = {
 
 export type AdminSettingsHistoryResponse = AdminSettingsHistoryResponses[keyof AdminSettingsHistoryResponses];
 
+export type AdminSettingsRollbackPreviewData = {
+    body?: never;
+    path: {
+        group: string;
+    };
+    query?: never;
+    url: '/admin/settings/{group}/rollback/preview';
+};
+
+export type AdminSettingsRollbackPreviewErrors = {
+    /**
+     * Unauthenticated
+     */
+    401: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+    404: {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'SETTING_REVISION_NOT_FOUND';
+            message: string;
+            details: null;
+        };
+    } | {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'SETTING_GROUP_NOT_FOUND';
+            message: string;
+            details: null;
+        };
+    };
+    422: {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'VALIDATION_ERROR';
+            message: string;
+            details: {
+                revision_id: [
+                    'The revision to preview is required.'
+                ];
+            };
+        };
+    };
+};
+
+export type AdminSettingsRollbackPreviewError = AdminSettingsRollbackPreviewErrors[keyof AdminSettingsRollbackPreviewErrors];
+
+export type AdminSettingsRollbackPreviewResponses = {
+    200: {
+        success: boolean;
+        data: {
+            group: string;
+            target_revision_id: string;
+            restored: Array<{
+                key: string;
+                locale: string | null;
+                value: unknown;
+            }>;
+            skipped: Array<{
+                key: string;
+                locale: string | null;
+                reason: string;
+                reason_label: string;
+            }>;
+        };
+    };
+};
+
+export type AdminSettingsRollbackPreviewResponse = AdminSettingsRollbackPreviewResponses[keyof AdminSettingsRollbackPreviewResponses];
+
 export type AdminSettingsRollbackData = {
     body: RollbackGroupSettingsRequest;
     path: {

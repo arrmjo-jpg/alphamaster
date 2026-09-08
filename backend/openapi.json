@@ -4692,6 +4692,252 @@
                 }
             }
         },
+        "/admin/settings/{group}/rollback/preview": {
+            "get": {
+                "operationId": "admin.settings.rollback.preview",
+                "description": "The plan is already computed before every rollback \u2014 this exposes the same\ncomputation as a read, so an operator can see the change before committing to\nit rather than discovering it afterwards. A rollback restores many values at\nonce from a state nobody has inspected and is the operation most likely to be\nrun under pressure; the one thing that makes that safe is being able to look\nfirst.\n\nNothing is written, so there is no precondition and no audit record: this\nanswers a question rather than taking an action. Behind the same permission as\nthe rollback it previews, because a plan names every value that would change\nand that is the same information.",
+                "summary": "What a rollback would do, without doing any of it",
+                "tags": [
+                    "SettingAdmin"
+                ],
+                "parameters": [
+                    {
+                        "name": "group",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "group": {
+                                                    "type": "string"
+                                                },
+                                                "target_revision_id": {
+                                                    "type": "string"
+                                                },
+                                                "restored": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "key": {
+                                                                "type": "string"
+                                                            },
+                                                            "locale": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "value": {}
+                                                        },
+                                                        "required": [
+                                                            "key",
+                                                            "locale",
+                                                            "value"
+                                                        ]
+                                                    }
+                                                },
+                                                "skipped": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "key": {
+                                                                "type": "string"
+                                                            },
+                                                            "locale": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "reason": {
+                                                                "type": "string"
+                                                            },
+                                                            "reason_label": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "key",
+                                                            "locale",
+                                                            "reason",
+                                                            "reason_label"
+                                                        ]
+                                                    }
+                                                }
+                                            },
+                                            "required": [
+                                                "group",
+                                                "target_revision_id",
+                                                "restored",
+                                                "skipped"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "anyOf": [
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "success": {
+                                                    "type": "boolean"
+                                                },
+                                                "error": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "code": {
+                                                            "type": "string",
+                                                            "description": "`code` is contract and is never localized (ADR 0031).",
+                                                            "const": "SETTING_REVISION_NOT_FOUND"
+                                                        },
+                                                        "message": {
+                                                            "type": "string"
+                                                        },
+                                                        "details": {
+                                                            "type": "null"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "code",
+                                                        "message",
+                                                        "details"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "success",
+                                                "error"
+                                            ]
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "success": {
+                                                    "type": "boolean"
+                                                },
+                                                "error": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "code": {
+                                                            "type": "string",
+                                                            "description": "`code` is contract and is never localized (ADR 0031).",
+                                                            "const": "SETTING_GROUP_NOT_FOUND"
+                                                        },
+                                                        "message": {
+                                                            "type": "string"
+                                                        },
+                                                        "details": {
+                                                            "type": "null"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "code",
+                                                        "message",
+                                                        "details"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "success",
+                                                "error"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "error": {
+                                            "type": "object",
+                                            "properties": {
+                                                "code": {
+                                                    "type": "string",
+                                                    "description": "`code` is contract and is never localized (ADR 0031).",
+                                                    "const": "VALIDATION_ERROR"
+                                                },
+                                                "message": {
+                                                    "type": "string"
+                                                },
+                                                "details": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "revision_id": {
+                                                            "type": "array",
+                                                            "prefixItems": [
+                                                                {
+                                                                    "type": "string",
+                                                                    "const": "The revision to preview is required."
+                                                                }
+                                                            ],
+                                                            "minItems": 1,
+                                                            "maxItems": 1
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "revision_id"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "code",
+                                                "message",
+                                                "details"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "error"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
         "/admin/settings/{group}/rollback": {
             "post": {
                 "operationId": "admin.settings.rollback",

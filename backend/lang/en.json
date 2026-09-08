@@ -55,6 +55,7 @@
     "api.error.settings.permission_required": "Changing :setting requires the :permission permission.",
     "api.error.settings.precondition_required": "This request must state which version of the group it is changing. Read the group again and send its version.",
     "api.error.settings.revision_not_found": "Revision [:revision] does not belong to the [:group] settings group.",
+    "api.error.settings.revision_required": "Name the revision to preview.",
     "api.error.settings.secret_verification_failed": "The new credential was not accepted, so nothing was changed.",
     "api.error.settings.unknown_key": "Setting [:group.:key] does not exist. Cannot update an unknown setting.",
     "api.error.settings.value_rejected": "That value is not allowed by the setting’s own rules.",

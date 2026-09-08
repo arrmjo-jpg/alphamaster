@@ -30,7 +30,6 @@ beforeEach(function (): void {
  * account_type deliberately — Pest shares one global function namespace, so a local
  * helper of the same name is a fatal redeclaration rather than a shadow.
  */
-
 function viewingAdmin(): string
 {
     return adminToken(roles: ['administrator']);

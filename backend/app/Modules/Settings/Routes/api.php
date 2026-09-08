@@ -76,6 +76,14 @@ Route::prefix('v1')->group(function () use ($groupPattern): void {
             // settings it may actually touch are checked per key against the computed
             // plan, so this route cannot be used to change a guarded value without the
             // permission that guards it.
+            // Declared before the rollback itself so the deeper path is not swallowed,
+            // and a read rather than an action: it writes nothing and carries no
+            // precondition.
+            Route::get('/{group}/rollback/preview', [SettingAdminController::class, 'rollbackPreview'])
+                ->middleware('permission:'.AdminPermission::SETTINGS_ROLLBACK->value)
+                ->where('group', $groupPattern)
+                ->name('admin.settings.rollback.preview');
+
             Route::post('/{group}/rollback', [SettingAdminController::class, 'rollback'])
                 ->middleware('permission:'.AdminPermission::SETTINGS_ROLLBACK->value)
                 ->where('group', $groupPattern)
