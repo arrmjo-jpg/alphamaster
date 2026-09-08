@@ -178,7 +178,7 @@ test('a message that is not a key passes through unchanged', function (): void {
     // asserted so that converting them later is a visible change and not a
     // silent one.
     $response = $this->postJson('/api/v1/auth/login', [
-        'email' => 'nobody@example.test',
+        'identifier' => 'nobody@example.test',
         'password' => 'wrong-password',
     ]);
 

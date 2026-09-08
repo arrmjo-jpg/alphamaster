@@ -17,7 +17,9 @@ use App\Modules\Auth\Requests\MfaChallengeRequest;
 use App\Modules\Auth\Requests\MfaChallengeSendRequest;
 use App\Modules\Auth\Resources\AuthenticatedUserResource;
 use App\Modules\Auth\Services\AuthService;
+use App\Modules\Auth\Services\CaptchaGuard;
 use App\Modules\Auth\Services\LoginThrottle;
+use App\Modules\Auth\Support\LoginIdentifier;
 use App\Modules\Core\Contracts\EffectiveGrants;
 use App\Modules\Core\Controllers\BaseApiController;
 use Illuminate\Http\JsonResponse;
@@ -31,6 +33,7 @@ class AuthController extends BaseApiController
         protected LoginThrottle $throttle,
         protected MfaManagerContract $mfa,
         protected EffectiveGrants $grants,
+        protected CaptchaGuard $captcha,
     ) {}
 
     /**
@@ -38,13 +41,33 @@ class AuthController extends BaseApiController
      */
     public function login(LoginRequest $request): JsonResponse
     {
-        $email = (string) $request->validated('email');
-        $key = $this->throttle->key($request, 'login', $email);
+        $identifier = (string) $request->validated('identifier');
+
+        // The throttle counts against the canonical identifier, not the typed one.
+        // Otherwise `+962 79 000 0000` and `+962790000000` are two buckets for one
+        // account, and the limiter is bypassed by varying the spacing.
+        $key = $this->throttle->key($request, 'login', LoginIdentifier::canonicalise($identifier));
 
         try {
             $this->throttle->assertNotLimited($key);
 
-            $user = $this->auth->authenticate($email, (string) $request->validated('password'));
+            // Second, and before the credentials are read. The order is the point:
+            // the limiter runs first so a captcha cannot be used to buy unlimited
+            // attempts, and the captcha runs before authenticate() so an automated
+            // attempt never reaches a password comparison at all.
+            //
+            // The refusal is raised as InvalidCredentialsException rather than
+            // written out here, so it travels the existing path and produces the
+            // byte-identical response a wrong password produces — including the
+            // recorded failure and therefore the same attempts_remaining. Building a
+            // second response here would be a second thing to keep in step, and the
+            // first time they diverged the difference would tell an attacker which
+            // check it had tripped.
+            if (! $this->captcha->passes($request)) {
+                throw new InvalidCredentialsException;
+            }
+
+            $user = $this->auth->authenticate($identifier, (string) $request->validated('password'));
         } catch (TooManyAttemptsException $e) {
             return $this->throttledResponse($e);
         } catch (InvalidCredentialsException $e) {
@@ -62,6 +85,24 @@ class AuthController extends BaseApiController
         }
 
         $this->throttle->clear($key);
+
+        // Verification comes before enrolment, so an administrator settles one
+        // prerequisite at a time and in the order that makes the second one worth
+        // doing: enrolling a second factor against an address nobody has proved
+        // control of secures an identity that is not yet established.
+        //
+        // The ordering is also what keeps the enrolment exchange honest. Completing
+        // enrolment hands back a real admin:access token in the same response (ADR
+        // 0013); if an unverified administrator could reach enrolment, that exchange
+        // would be a path to administrative access without a verified address.
+        if ($this->auth->requiresEmailVerification($user)) {
+            return $this->successResponse([
+                'email_verification_required' => true,
+                'verification_token' => $this->auth->issueEmailVerificationToken($user)->plainTextToken,
+                'token_type' => 'Bearer',
+                'abilities' => [TokenAbility::EMAIL_VERIFY->value],
+            ], 'Verify your email address to continue. Request a verification link to proceed.');
+        }
 
         // MFA is mandatory for administrators. One who has not enrolled receives no
         // access token, only a credential scoped to enrolment, so there is no window

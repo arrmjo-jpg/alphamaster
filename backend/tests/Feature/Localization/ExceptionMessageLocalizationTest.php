@@ -225,7 +225,7 @@ test('a rejected login answers in the requested language', function (): void {
     $user = makeAccount(['email' => 'person@example.test']);
 
     $response = $this->withHeaders(['X-Locale' => 'ar'])->postJson('/api/v1/auth/login', [
-        'email' => $user->email,
+        'identifier' => $user->email,
         'password' => 'not-the-password',
     ]);
 
@@ -238,7 +238,7 @@ test('the same login reads in English', function (): void {
     $user = makeAccount(['email' => 'person@example.test']);
 
     $response = $this->postJson('/api/v1/auth/login', [
-        'email' => $user->email,
+        'identifier' => $user->email,
         'password' => 'not-the-password',
     ]);
 
@@ -252,7 +252,7 @@ test('error code is unchanged across locales for an exception-backed error', fun
         resetClient($this);
 
         $response = $this->withHeaders(['X-Locale' => $locale])->postJson('/api/v1/auth/login', [
-            'email' => $user->email,
+            'identifier' => $user->email,
             'password' => 'not-the-password',
         ]);
 
@@ -268,13 +268,13 @@ test('wrong password and unknown email stay indistinguishable in every locale', 
     foreach (['en', 'ar'] as $locale) {
         resetClient($this);
         $wrongPassword = $this->withHeaders(['X-Locale' => $locale])->postJson('/api/v1/auth/login', [
-            'email' => $user->email,
+            'identifier' => $user->email,
             'password' => 'not-the-password',
         ]);
 
         resetClient($this);
         $unknownEmail = $this->withHeaders(['X-Locale' => $locale])->postJson('/api/v1/auth/login', [
-            'email' => 'ghost@example.test',
+            'identifier' => 'ghost@example.test',
             'password' => 'not-the-password',
         ]);
 
@@ -289,7 +289,7 @@ test('a suspended account is told so in its own language', function (): void {
     $user->forceFill(['is_active' => false])->save();
 
     $response = $this->withHeaders(['X-Locale' => 'ar'])->postJson('/api/v1/auth/login', [
-        'email' => $user->email,
+        'identifier' => $user->email,
         'password' => TEST_ACCOUNT_PASSWORD,
     ]);
 
@@ -313,7 +313,7 @@ test('no error response ever leaks a translation key', function (): void {
 
     $responses = [
         $this->withHeaders(['X-Locale' => 'ar'])->postJson('/api/v1/auth/login', [
-            'email' => $user->email, 'password' => 'wrong',
+            'identifier' => $user->email, 'password' => 'wrong',
         ]),
         $this->withHeaders(['X-Locale' => 'ar'])->getJson('/api/v1/no-such-route'),
         $this->withHeaders(['X-Locale' => 'ar'])->postJson('/api/v1/auth/login', []),
@@ -370,8 +370,9 @@ test('every key this scope introduced exists in both dictionaries', function ():
 
     // 30 through Phase 15; Phase 16A added the two precondition messages,
     // Phase 16B-2 the unknown-revision one, 16B-3 the failed-verification one, and
-    // 16B-6 the rejected-value one.
-    expect($keys)->toHaveCount(38);
+    // 16B-6 the rejected-value one. Email verification added the throttled and
+    // invalid-link messages.
+    expect($keys)->toHaveCount(40);
 
     foreach ($keys as $key) {
         expect($ar)->toHaveKey($key)

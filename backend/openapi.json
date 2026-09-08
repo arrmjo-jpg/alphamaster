@@ -72,6 +72,67 @@
                 "tags": [
                     "AuditAdmin"
                 ],
+                "parameters": [
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "Rows per page.",
+                        "schema": {
+                            "type": "integer",
+                            "default": 25
+                        }
+                    },
+                    {
+                        "name": "action",
+                        "in": "query",
+                        "description": "Exact match on the recorded action.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "subject",
+                        "in": "query",
+                        "description": "Exact match on the subject the action was taken on.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "actor_id",
+                        "in": "query",
+                        "description": "Exact match on the account that acted.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "outcome",
+                        "in": "query",
+                        "description": "Exact match on the recorded outcome.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "from",
+                        "in": "query",
+                        "description": "Only entries recorded at or after this moment.",
+                        "schema": {
+                            "type": "string",
+                            "format": "date-time"
+                        }
+                    },
+                    {
+                        "name": "to",
+                        "in": "query",
+                        "description": "Only entries recorded at or before this moment.",
+                        "schema": {
+                            "type": "string",
+                            "format": "date-time"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "",
@@ -616,6 +677,57 @@
                                                     "required": [
                                                         "mfa_setup_required",
                                                         "enrolment_token",
+                                                        "token_type",
+                                                        "abilities"
+                                                    ]
+                                                },
+                                                "meta": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "success",
+                                                "message",
+                                                "data",
+                                                "meta"
+                                            ]
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "success": {
+                                                    "type": "boolean"
+                                                },
+                                                "message": {
+                                                    "type": "string"
+                                                },
+                                                "data": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "email_verification_required": {
+                                                            "type": "boolean"
+                                                        },
+                                                        "verification_token": {
+                                                            "type": "string"
+                                                        },
+                                                        "token_type": {
+                                                            "type": "string",
+                                                            "const": "Bearer"
+                                                        },
+                                                        "abilities": {
+                                                            "type": "array",
+                                                            "prefixItems": [
+                                                                {
+                                                                    "type": "string"
+                                                                }
+                                                            ],
+                                                            "minItems": 1,
+                                                            "maxItems": 1
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "email_verification_required",
+                                                        "verification_token",
                                                         "token_type",
                                                         "abilities"
                                                     ]
@@ -1461,6 +1573,216 @@
                     },
                     "422": {
                         "$ref": "#/components/responses/ValidationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/auth/email/verify/{id}/{hash}": {
+            "get": {
+                "operationId": "verification.verify",
+                "description": "Reached from an email client, so there is no bearer token and none is wanted:\nthe signature is the credential. `signed` middleware has already established\nthat this URL came from here and has not expired before anything below runs.\n\nA GET that changes state, which is the framework's own shape for this. It is\nsafe from the usual objection because the signature cannot be forged and the\noperation is idempotent \u2014 repeating it, as a prefetching mail client will,\nchanges nothing.",
+                "summary": "Honour a signed verification link",
+                "tags": [
+                    "EmailVerification"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "hash",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "email_verified": {
+                                                    "type": "boolean"
+                                                }
+                                            },
+                                            "required": [
+                                                "email_verified"
+                                            ]
+                                        },
+                                        "meta": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "message",
+                                        "data",
+                                        "meta"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "error": {
+                                            "type": "object",
+                                            "properties": {
+                                                "code": {
+                                                    "type": "string",
+                                                    "description": "`code` is contract and is never localized (ADR 0031).",
+                                                    "const": "INVALID_VERIFICATION_LINK"
+                                                },
+                                                "message": {
+                                                    "type": "string"
+                                                },
+                                                "details": {
+                                                    "type": "null"
+                                                }
+                                            },
+                                            "required": [
+                                                "code",
+                                                "message",
+                                                "details"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "error"
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": []
+            }
+        },
+        "/auth/email/verify/send": {
+            "post": {
+                "operationId": "auth.email.verify.send",
+                "description": "Authenticated, and deliberately so: an endpoint that took an address and sent\nmail to it would be an open relay for anyone who wanted to bother a stranger,\nand answering it honestly would confirm which addresses hold accounts.",
+                "summary": "Send a verification link to the authenticated account's address",
+                "tags": [
+                    "EmailVerification"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "An already-verified address is answered rather than refused. The caller is\nauthenticated as itself, so there is nothing to protect here, and a client\nthat has just verified in another tab should be told the state rather than\nhanded an error to render.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "email_verified": {
+                                                    "type": "boolean"
+                                                }
+                                            },
+                                            "required": [
+                                                "email_verified"
+                                            ]
+                                        },
+                                        "meta": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "message",
+                                        "data",
+                                        "meta"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "error": {
+                                            "type": "object",
+                                            "properties": {
+                                                "code": {
+                                                    "type": "string",
+                                                    "description": "`code` is contract and is never localized (ADR 0031).",
+                                                    "const": "EMAIL_VERIFICATION_THROTTLED"
+                                                },
+                                                "message": {
+                                                    "type": "string"
+                                                },
+                                                "details": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "retry_after": {
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "retry_after"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "code",
+                                                "message",
+                                                "details"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "error"
+                                    ]
+                                }
+                            }
+                        }
                     },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
@@ -2345,6 +2667,24 @@
                 "summary": "List media, newest first",
                 "tags": [
                     "MediaAdmin"
+                ],
+                "parameters": [
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "description": "Exact match on the media status.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "type",
+                        "in": "query",
+                        "description": "Exact match on the media type.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
                 ],
                 "responses": {
                     "200": {
@@ -3397,21 +3737,31 @@
                                         "success": {
                                             "type": "boolean"
                                         },
-                                        "message": {
-                                            "type": "string"
-                                        },
                                         "data": {
-                                            "type": "string"
-                                        },
-                                        "meta": {
-                                            "type": "string"
+                                            "type": "object",
+                                            "additionalProperties": {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "key": {
+                                                            "type": "string"
+                                                        },
+                                                        "label": {
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "key",
+                                                        "label"
+                                                    ]
+                                                }
+                                            }
                                         }
                                     },
                                     "required": [
                                         "success",
-                                        "message",
-                                        "data",
-                                        "meta"
+                                        "data"
                                     ]
                                 }
                             }
@@ -3465,7 +3815,66 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object"
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "key": {
+                                                    "type": "string"
+                                                },
+                                                "verification": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "status": {
+                                                            "type": "string"
+                                                        },
+                                                        "status_label": {
+                                                            "type": "string"
+                                                        },
+                                                        "detail": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "status",
+                                                        "status_label",
+                                                        "detail"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "key",
+                                                "verification"
+                                            ]
+                                        },
+                                        "meta": {
+                                            "type": "object",
+                                            "properties": {
+                                                "version": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "version"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "message",
+                                        "data",
+                                        "meta"
+                                    ]
                                 }
                             }
                         }
@@ -3549,21 +3958,19 @@
                                         "success": {
                                             "type": "boolean"
                                         },
-                                        "message": {
-                                            "type": "string"
-                                        },
                                         "data": {
-                                            "type": "string"
-                                        },
-                                        "meta": {
-                                            "type": "string"
+                                            "type": "object",
+                                            "additionalProperties": {
+                                                "type": "array",
+                                                "items": {
+                                                    "$ref": "#/components/schemas/SettingDefinitionResource"
+                                                }
+                                            }
                                         }
                                     },
                                     "required": [
                                         "success",
-                                        "message",
-                                        "data",
-                                        "meta"
+                                        "data"
                                     ]
                                 }
                             }
@@ -3803,7 +4210,48 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object"
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "group": {
+                                                    "type": "string"
+                                                },
+                                                "updated": {
+                                                    "type": "object",
+                                                    "additionalProperties": {}
+                                                }
+                                            },
+                                            "required": [
+                                                "group",
+                                                "updated"
+                                            ]
+                                        },
+                                        "meta": {
+                                            "type": "object",
+                                            "properties": {
+                                                "version": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "version"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "message",
+                                        "data",
+                                        "meta"
+                                    ]
                                 }
                             }
                         }
@@ -4006,7 +4454,101 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object"
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "group": {
+                                                    "type": "string"
+                                                },
+                                                "target_revision_id": {
+                                                    "type": "string"
+                                                },
+                                                "restored": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "key": {
+                                                                "type": "string"
+                                                            },
+                                                            "locale": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "value": {}
+                                                        },
+                                                        "required": [
+                                                            "key",
+                                                            "locale",
+                                                            "value"
+                                                        ]
+                                                    }
+                                                },
+                                                "skipped": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "key": {
+                                                                "type": "string"
+                                                            },
+                                                            "locale": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "reason": {
+                                                                "type": "string"
+                                                            },
+                                                            "reason_label": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "key",
+                                                            "locale",
+                                                            "reason",
+                                                            "reason_label"
+                                                        ]
+                                                    }
+                                                }
+                                            },
+                                            "required": [
+                                                "group",
+                                                "target_revision_id",
+                                                "restored",
+                                                "skipped"
+                                            ]
+                                        },
+                                        "meta": {
+                                            "type": "object",
+                                            "properties": {
+                                                "version": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "version"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "message",
+                                        "data",
+                                        "meta"
+                                    ]
                                 }
                             }
                         }
@@ -4492,6 +5034,16 @@
                     "is_active": {
                         "type": "boolean"
                     },
+                    "email_verified": {
+                        "type": "boolean",
+                        "description": "Both, and they answer different questions. A client branches on the\nboolean \u2014 show the verification screen or do not \u2014 and an interface\nshowing an account renders the moment. Deriving the first from the\nsecond in every client is how one of them ends up treating an empty\nstring as verified."
+                    },
+                    "email_verified_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
                     "abilities": {
                         "anyOf": [
                             {
@@ -4527,6 +5079,8 @@
                     "email",
                     "account_type",
                     "is_active",
+                    "email_verified",
+                    "email_verified_at",
                     "abilities",
                     "roles",
                     "permissions"
@@ -4668,18 +5222,25 @@
             "LoginRequest": {
                 "type": "object",
                 "properties": {
-                    "email": {
+                    "identifier": {
                         "type": "string",
-                        "format": "email",
                         "maxLength": 255
                     },
                     "password": {
                         "type": "string",
                         "maxLength": 1024
+                    },
+                    "captcha_token": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "The captcha response, when the platform is asking for one.",
+                        "maxLength": 5000
                     }
                 },
                 "required": [
-                    "email",
+                    "identifier",
                     "password"
                 ],
                 "title": "LoginRequest"
@@ -5119,6 +5680,101 @@
                     "credential"
                 ],
                 "title": "RotateSecretRequest"
+            },
+            "SettingDefinitionResource": {
+                "type": "object",
+                "properties": {
+                    "key": {
+                        "type": "string"
+                    },
+                    "group": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "help": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "type": {
+                        "type": "string"
+                    },
+                    "type_label": {
+                        "type": "string"
+                    },
+                    "nullable": {
+                        "type": "boolean"
+                    },
+                    "editable": {
+                        "type": "boolean"
+                    },
+                    "is_secret": {
+                        "type": "boolean"
+                    },
+                    "is_public": {
+                        "type": "boolean"
+                    },
+                    "is_localized": {
+                        "type": "boolean"
+                    },
+                    "default": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "description": "The default a fresh installation received. Never sent for a secret,\nwhich by construction has none (ADR 0018)."
+                    },
+                    "depends_on": {
+                        "type": "array",
+                        "description": "What must be configured before this one takes effect, so an interface\ncan say so rather than letting an operator switch on something that\nsilently does nothing.",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "rules": {
+                        "type": "array",
+                        "description": "The rules this value must satisfy, as declared. Published because they\nare enforced (Phase 16B-6): a client that generates a form from this\ncatalogue and does not know them will submit values the API refuses, and\nan operator will read that as the platform being broken. Laravel rule strings, deliberately. Translating them into some neutral\nschema here would invent a second dialect for the same constraints, and\nthe two would drift in exactly the direction that makes the client more\npermissive than the server.",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "permission": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "The permission required to change this setting, resolved rather than\nrepeated: `requiredPermission()` answers `settings.secrets.manage` for a\nsecret, which the raw declaration does not carry. Publishing the raw\nfield would show every credential as freely editable \u2014 and it is the\nresolved answer the API itself enforces, so it is the one a client must\nbe given."
+                    },
+                    "deprecated": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "key",
+                    "group",
+                    "name",
+                    "label",
+                    "help",
+                    "type",
+                    "type_label",
+                    "nullable",
+                    "editable",
+                    "is_secret",
+                    "is_public",
+                    "is_localized",
+                    "default",
+                    "depends_on",
+                    "rules",
+                    "permission",
+                    "deprecated"
+                ],
+                "title": "SettingDefinitionResource"
             },
             "StoreLanguageRequest": {
                 "type": "object",

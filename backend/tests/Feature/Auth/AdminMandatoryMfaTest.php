@@ -46,7 +46,7 @@ function adminLogin(mixed $test, string $email = 'mandatory@example.com'): array
     resetClient($test);
 
     return (array) $test->postJson('/api/v1/auth/login', [
-        'email' => $email,
+        'identifier' => $email,
         'password' => ADMIN_PASSWORD,
     ])->json('data');
 }
@@ -240,7 +240,7 @@ test('a suspended admin is refused before mandatory enrolment is even considered
     resetClient($this);
 
     $this->postJson('/api/v1/auth/login', [
-        'email' => 'mandatory@example.com',
+        'identifier' => 'mandatory@example.com',
         'password' => ADMIN_PASSWORD,
     ])
         ->assertStatus(403)
@@ -253,7 +253,7 @@ test('a wrong password never produces an enrolment credential', function (): voi
     resetClient($this);
 
     $this->postJson('/api/v1/auth/login', [
-        'email' => 'mandatory@example.com',
+        'identifier' => 'mandatory@example.com',
         'password' => 'wrong',
     ])->assertStatus(401);
 

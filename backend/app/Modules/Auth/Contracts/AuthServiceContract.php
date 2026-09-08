@@ -15,10 +15,15 @@ interface AuthServiceContract
     /**
      * Verify credentials and return the user, without issuing anything.
      *
+     * The identifier is an email address or a phone number. Which one it is is the
+     * implementation's question, not the caller's: a sign-in form has one field and
+     * the person filling it in does not tell the server which kind of thing they
+     * typed.
+     *
      * @throws InvalidCredentialsException
      * @throws AccountInactiveException
      */
-    public function authenticate(string $email, string $password): User;
+    public function authenticate(string $identifier, string $password): User;
 
     /**
      * Whether this user must clear an MFA challenge before receiving a token.
@@ -31,9 +36,19 @@ interface AuthServiceContract
     public function requiresMfaEnrolment(User $user): bool;
 
     /**
+     * Whether this user must verify their email address before receiving a token.
+     */
+    public function requiresEmailVerification(User $user): bool;
+
+    /**
      * Issue a token scoped to MFA enrolment and nothing else.
      */
     public function issueEnrolmentToken(User $user): AuthenticatedToken;
+
+    /**
+     * Issue a token scoped to requesting a verification link and nothing else.
+     */
+    public function issueEmailVerificationToken(User $user): AuthenticatedToken;
 
     /**
      * Issue a Sanctum token carrying exactly one ability, per ADR 0012.

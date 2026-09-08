@@ -28,7 +28,7 @@ Route::prefix('v1')->group(function () use ($groupPattern): void {
     // been in the catalogue and on the seeded roles since Phase 6 — this is where
     // they are enforced, in the same per-route form every other admin module uses.
     Route::prefix('admin/settings')
-        ->middleware(['auth:sanctum', 'ability:admin:access', 'active', 'admin'])
+        ->middleware(['auth:sanctum', 'ability:admin:access', 'active', 'admin', 'email-verified'])
         ->group(function () use ($groupPattern): void {
             Route::get('/', [SettingAdminController::class, 'index'])
                 ->middleware('permission:'.AdminPermission::SETTINGS_VIEW->value)

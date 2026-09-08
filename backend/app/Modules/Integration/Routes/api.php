@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Route;
  * changing their credentials are separately grantable.
  */
 Route::prefix('v1/admin/integrations')
-    ->middleware(['auth:sanctum', 'ability:admin:access', 'active', 'admin'])
+    ->middleware(['auth:sanctum', 'ability:admin:access', 'active', 'admin', 'email-verified'])
     ->group(function (): void {
         Route::get('/providers', [IntegrationProviderAdminController::class, 'index'])
             ->middleware('permission:'.AdminPermission::INTEGRATIONS_VIEW->value)

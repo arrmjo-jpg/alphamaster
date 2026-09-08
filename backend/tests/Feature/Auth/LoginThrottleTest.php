@@ -33,7 +33,7 @@ beforeEach(function (): void {
 function attemptLogin(mixed $test, string $password = 'wrong', string $email = 'target@example.com')
 {
     return $test->postJson('/api/v1/auth/login', [
-        'email' => $email,
+        'identifier' => $email,
         'password' => $password,
     ]);
 }

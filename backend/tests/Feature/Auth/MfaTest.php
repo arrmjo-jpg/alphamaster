@@ -45,7 +45,7 @@ beforeEach(function (): void {
 function enrolMfa(mixed $test): array
 {
     $token = $test->postJson('/api/v1/auth/login', [
-        'email' => 'mfa@example.com',
+        'identifier' => 'mfa@example.com',
         'password' => MFA_PASSWORD,
     ])->json('data.token');
 
@@ -81,7 +81,7 @@ function otpAt(string $secret, int $sliceOffset = 0): string
 
 test('enrolment returns a scannable secret and does not activate MFA yet', function (): void {
     $token = $this->postJson('/api/v1/auth/login', [
-        'email' => 'mfa@example.com', 'password' => MFA_PASSWORD,
+        'identifier' => 'mfa@example.com', 'password' => MFA_PASSWORD,
     ])->json('data.token');
 
     $response = $this->withToken($token)->postJson('/api/v1/auth/mfa/enrol');
@@ -98,7 +98,7 @@ test('enrolment returns a scannable secret and does not activate MFA yet', funct
 
 test('a wrong code does not confirm the enrolment', function (): void {
     $token = $this->postJson('/api/v1/auth/login', [
-        'email' => 'mfa@example.com', 'password' => MFA_PASSWORD,
+        'identifier' => 'mfa@example.com', 'password' => MFA_PASSWORD,
     ])->json('data.token');
 
     $this->withToken($token)->postJson('/api/v1/auth/mfa/enrol')->assertOk();
@@ -132,7 +132,7 @@ test('once MFA is enabled, login returns a challenge instead of an access token'
     resetClient($this);
 
     $response = $this->postJson('/api/v1/auth/login', [
-        'email' => 'mfa@example.com', 'password' => MFA_PASSWORD,
+        'identifier' => 'mfa@example.com', 'password' => MFA_PASSWORD,
     ]);
 
     $response->assertOk()
@@ -148,7 +148,7 @@ test('the mfa_token is not itself an access token', function (): void {
     resetClient($this);
 
     $mfaToken = $this->postJson('/api/v1/auth/login', [
-        'email' => 'mfa@example.com', 'password' => MFA_PASSWORD,
+        'identifier' => 'mfa@example.com', 'password' => MFA_PASSWORD,
     ])->json('data.mfa_token');
 
     // Presenting the challenge token as a bearer credential must grant nothing.
@@ -162,7 +162,7 @@ test('the challenge cannot be cleared with a wrong code', function (): void {
     resetClient($this);
 
     $mfaToken = $this->postJson('/api/v1/auth/login', [
-        'email' => 'mfa@example.com', 'password' => MFA_PASSWORD,
+        'identifier' => 'mfa@example.com', 'password' => MFA_PASSWORD,
     ])->json('data.mfa_token');
 
     $this->postJson('/api/v1/auth/mfa/challenge', [
@@ -190,7 +190,7 @@ test('a valid TOTP code clears the challenge and issues the real token', functio
     resetClient($this);
 
     $mfaToken = $this->postJson('/api/v1/auth/login', [
-        'email' => 'mfa@example.com', 'password' => MFA_PASSWORD,
+        'identifier' => 'mfa@example.com', 'password' => MFA_PASSWORD,
     ])->json('data.mfa_token');
 
     // Enrolment consumed the current slice, so a newer one is required.
@@ -210,7 +210,7 @@ test('an mfa_token is single use and cannot be replayed', function (): void {
     resetClient($this);
 
     $mfaToken = $this->postJson('/api/v1/auth/login', [
-        'email' => 'mfa@example.com', 'password' => MFA_PASSWORD,
+        'identifier' => 'mfa@example.com', 'password' => MFA_PASSWORD,
     ])->json('data.mfa_token');
 
     $this->postJson('/api/v1/auth/mfa/challenge', [
@@ -234,7 +234,7 @@ test('a TOTP code cannot be replayed within its own time window', function (): v
     $code = otpAt($result['secret'], 1);
 
     $first = $this->postJson('/api/v1/auth/login', [
-        'email' => 'mfa@example.com', 'password' => MFA_PASSWORD,
+        'identifier' => 'mfa@example.com', 'password' => MFA_PASSWORD,
     ])->json('data.mfa_token');
 
     $this->postJson('/api/v1/auth/mfa/challenge', ['mfa_token' => $first, 'code' => $code])
@@ -242,7 +242,7 @@ test('a TOTP code cannot be replayed within its own time window', function (): v
 
     // A second challenge, same still-valid code: must be refused as already used.
     $second = $this->postJson('/api/v1/auth/login', [
-        'email' => 'mfa@example.com', 'password' => MFA_PASSWORD,
+        'identifier' => 'mfa@example.com', 'password' => MFA_PASSWORD,
     ])->json('data.mfa_token');
 
     $this->postJson('/api/v1/auth/mfa/challenge', ['mfa_token' => $second, 'code' => $code])
@@ -254,7 +254,7 @@ test('the MFA challenge is throttled', function (): void {
     resetClient($this);
 
     $mfaToken = $this->postJson('/api/v1/auth/login', [
-        'email' => 'mfa@example.com', 'password' => MFA_PASSWORD,
+        'identifier' => 'mfa@example.com', 'password' => MFA_PASSWORD,
     ])->json('data.mfa_token');
 
     $max = setting('security.max_login_attempts');
@@ -277,7 +277,7 @@ test('a recovery code clears the challenge', function (): void {
     resetClient($this);
 
     $mfaToken = $this->postJson('/api/v1/auth/login', [
-        'email' => 'mfa@example.com', 'password' => MFA_PASSWORD,
+        'identifier' => 'mfa@example.com', 'password' => MFA_PASSWORD,
     ])->json('data.mfa_token');
 
     $this->postJson('/api/v1/auth/mfa/challenge', [
@@ -292,7 +292,7 @@ test('a recovery code is consumed exactly once', function (): void {
     $code = $result['recovery'][0];
 
     $first = $this->postJson('/api/v1/auth/login', [
-        'email' => 'mfa@example.com', 'password' => MFA_PASSWORD,
+        'identifier' => 'mfa@example.com', 'password' => MFA_PASSWORD,
     ])->json('data.mfa_token');
 
     $this->postJson('/api/v1/auth/mfa/challenge', ['mfa_token' => $first, 'code' => $code])
@@ -300,7 +300,7 @@ test('a recovery code is consumed exactly once', function (): void {
 
     // The very same code, on a fresh challenge, must now be worthless.
     $second = $this->postJson('/api/v1/auth/login', [
-        'email' => 'mfa@example.com', 'password' => MFA_PASSWORD,
+        'identifier' => 'mfa@example.com', 'password' => MFA_PASSWORD,
     ])->json('data.mfa_token');
 
     $this->postJson('/api/v1/auth/mfa/challenge', ['mfa_token' => $second, 'code' => $code])
@@ -326,7 +326,7 @@ test('disabling requires a valid code and then removes every trace', function ()
     $result = enrolMfa($this);
 
     $token = $this->postJson('/api/v1/auth/login', [
-        'email' => 'mfa@example.com', 'password' => MFA_PASSWORD,
+        'identifier' => 'mfa@example.com', 'password' => MFA_PASSWORD,
     ]);
     // Signing in now needs the challenge, so reuse the enrolment session token.
     $sessionToken = $result['token'];
@@ -356,7 +356,7 @@ test('after disabling, sign-in no longer demands a challenge', function (): void
     resetClient($this);
 
     $this->postJson('/api/v1/auth/login', [
-        'email' => 'mfa@example.com', 'password' => MFA_PASSWORD,
+        'identifier' => 'mfa@example.com', 'password' => MFA_PASSWORD,
     ])
         ->assertOk()
         ->assertJsonPath('data.abilities', [TokenAbility::USER_ACCESS->value]);
@@ -387,7 +387,7 @@ test('the MFA secret and recovery codes never reach the cache store', function (
 
     // Opening a challenge is what writes to the cache.
     $mfaToken = $this->postJson('/api/v1/auth/login', [
-        'email' => 'mfa@example.com', 'password' => MFA_PASSWORD,
+        'identifier' => 'mfa@example.com', 'password' => MFA_PASSWORD,
     ])->json('data.mfa_token');
 
     $store = Cache::getStore();

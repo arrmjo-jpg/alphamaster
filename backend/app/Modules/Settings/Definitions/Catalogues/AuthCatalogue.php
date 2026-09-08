@@ -37,6 +37,33 @@ class AuthCatalogue implements SettingCatalogue
                 rules: ['integer', 'min:8', 'max:128'],
                 isPublic: true,
             ),
+            // Public because the sign-in page is unauthenticated and has to know
+            // whether to render a widget at all. That is not a leak: whether a login
+            // form shows a captcha is visible to anyone who loads the page.
+            //
+            // Off by default. A captcha that is switched on before a provider has
+            // credentials would refuse every sign-in, so the switch and the vendor
+            // configuration are separate acts and the operator does them in that
+            // order.
+            new SettingDefinition(
+                group: 'auth',
+                key: 'captcha_enabled',
+                type: SettingType::BOOLEAN,
+                default: false,
+                nullable: false,
+                isPublic: true,
+            ),
+            // The site key, which a browser must be given to render the widget — it
+            // is public by construction and is not a credential. The secret key is,
+            // and lives encrypted on the provider row with every other vendor
+            // credential (ADR 0017, ADR 0039); it is deliberately not a setting.
+            new SettingDefinition(
+                group: 'auth',
+                key: 'captcha_site_key',
+                type: SettingType::STRING,
+                rules: ['string', 'max:255'],
+                isPublic: true,
+            ),
             new SettingDefinition(
                 group: 'auth',
                 key: 'session_lifetime',

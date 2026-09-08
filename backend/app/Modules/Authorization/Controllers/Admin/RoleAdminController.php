@@ -12,6 +12,7 @@ use App\Modules\Authorization\Resources\PermissionResource;
 use App\Modules\Authorization\Resources\RoleResource;
 use App\Modules\Authorization\Services\RoleIdentifier;
 use App\Modules\Core\Controllers\BaseApiController;
+use Dedoc\Scramble\Attributes\Response;
 use Illuminate\Http\JsonResponse;
 
 class RoleAdminController extends BaseApiController
@@ -83,6 +84,7 @@ class RoleAdminController extends BaseApiController
     /**
      * The permission catalogue, grouped by the module that owns each permission.
      */
+    #[Response(200, type: 'array{success: bool, data: array<string, list<array{key: string, label: string}>>}')]
     public function permissions(): JsonResponse
     {
         // The module grouping is unchanged; each entry gains its label beside the

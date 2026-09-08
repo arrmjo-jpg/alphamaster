@@ -11,6 +11,8 @@ use App\Modules\Auth\Enums\TokenAbility;
 use App\Modules\Auth\Exceptions\AccountInactiveException;
 use App\Modules\Auth\Exceptions\InvalidCredentialsException;
 use App\Modules\Auth\Exceptions\MfaChallengeException;
+use App\Modules\Auth\Exceptions\UnverifiedAdministratorException;
+use App\Modules\Auth\Support\LoginIdentifier;
 use App\Modules\Core\Cache\CacheNamespace;
 use App\Modules\Core\Contracts\PlatformCacheContract;
 use App\Modules\User\Models\User;
@@ -46,9 +48,20 @@ class AuthService implements AuthServiceContract
      * @throws InvalidCredentialsException
      * @throws AccountInactiveException
      */
-    public function authenticate(string $email, string $password): User
+    public function authenticate(string $identifier, string $password): User
     {
-        $user = User::query()->where('email', mb_strtolower($email))->first();
+        // Which column to look in, decided by the identifier itself. An E.164 number
+        // cannot contain `@` and an email address cannot omit one, so the two kinds
+        // never overlap and neither lookup can shadow the other.
+        //
+        // The phone side goes through findByPhone(), which matches on the keyed hash
+        // rather than on the text, so `+962 79 000 0000` and `+962790000000` resolve
+        // to the same account — the same equivalence the unique constraint enforces.
+        // It answers null rather than raising for anything it cannot read, which is
+        // what keeps an unreadable identifier indistinguishable from an unknown one.
+        $user = LoginIdentifier::isEmail($identifier)
+            ? User::query()->where('email', mb_strtolower($identifier))->first()
+            : User::findByPhone($identifier);
 
         // Hash a dummy value when the account is unknown, so a missing account and a
         // wrong password take comparable time and cannot be told apart by timing.
@@ -92,6 +105,35 @@ class AuthService implements AuthServiceContract
     }
 
     /**
+     * Whether this user must verify their email address before receiving a token.
+     *
+     * Administrators only. A verified address is what makes the account recoverable
+     * and what an audit trail attributes an action to; for an account that can change
+     * the platform's configuration, an unverified one is an unowned identity.
+     * Everyone else may verify and is not stopped for not having.
+     */
+    public function requiresEmailVerification(User $user): bool
+    {
+        return $user->isAdmin() && ! $user->hasVerifiedEmail();
+    }
+
+    /**
+     * Issue a token that can do nothing but ask for a verification link.
+     *
+     * The same construction as the enrolment credential and for the same reason: a
+     * real Sanctum token carrying one narrow ability, so the perimeter that already
+     * exists does the enforcing and no second path has to be kept in step.
+     */
+    public function issueEmailVerificationToken(User $user): AuthenticatedToken
+    {
+        return new AuthenticatedToken(
+            $user,
+            $user->createToken('email-verification', [TokenAbility::EMAIL_VERIFY->value])->plainTextToken,
+            TokenAbility::EMAIL_VERIFY,
+        );
+    }
+
+    /**
      * Issue a token that can do nothing but enrol a second factor.
      *
      * Deliberately a real Sanctum token rather than another bespoke credential: the
@@ -113,6 +155,20 @@ class AuthService implements AuthServiceContract
     public function issueToken(User $user, string $name = 'api-token'): AuthenticatedToken
     {
         $ability = TokenAbility::forAdministrator($user->isAdmin());
+
+        // The choke point. Three paths mint an access token — sign-in, completing an
+        // MFA challenge, and exchanging an enrolment credential — and all three come
+        // through here, so the invariant is stated once instead of three times and
+        // cannot be missed by a fourth.
+        //
+        // Unreachable in ordinary operation: sign-in refuses an unverified
+        // administrator before it gets this far. That is what makes throwing the right
+        // response rather than a harsh one — arriving here means a path exists that
+        // nobody intended, and the useful outcome is a loud failure rather than a
+        // token.
+        if ($ability === TokenAbility::ADMIN_ACCESS && ! $user->hasVerifiedEmail()) {
+            throw UnverifiedAdministratorException::cannotHoldAdminAccess($user->id);
+        }
 
         return new AuthenticatedToken(
             $user,

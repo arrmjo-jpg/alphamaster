@@ -21,7 +21,7 @@ use Illuminate\Support\Facades\Route;
  * an administrator.
  */
 Route::prefix('v1/admin')
-    ->middleware(['auth:sanctum', 'ability:admin:access', 'active', 'admin'])
+    ->middleware(['auth:sanctum', 'ability:admin:access', 'active', 'admin', 'email-verified'])
     ->group(function (): void {
         Route::get('/users', [UserAdminController::class, 'index'])
             ->middleware('permission:'.AdminPermission::USERS_VIEW->value)

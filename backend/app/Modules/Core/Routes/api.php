@@ -34,7 +34,7 @@ Route::prefix('v1')->group(function (): void {
     // accounts with the most reason to alter it are exactly the ones with
     // administrative access.
     Route::prefix('admin/audit')
-        ->middleware(['auth:sanctum', 'ability:admin:access', 'active', 'admin'])
+        ->middleware(['auth:sanctum', 'ability:admin:access', 'active', 'admin', 'email-verified'])
         ->group(function (): void {
             Route::get('/', [AuditAdminController::class, 'index'])
                 ->middleware('permission:'.AdminPermission::AUDIT_VIEW->value)
@@ -53,7 +53,7 @@ Route::prefix('v1')->group(function (): void {
     // export reads every non-secret value and names every secret, and a restore
     // rewrites configuration wholesale.
     Route::prefix('admin/configuration')
-        ->middleware(['auth:sanctum', 'ability:admin:access', 'active', 'admin',
+        ->middleware(['auth:sanctum', 'ability:admin:access', 'active', 'admin', 'email-verified',
             'permission:'.AdminPermission::SETTINGS_BACKUP_MANAGE->value])
         ->group(function (): void {
             Route::post('/export', [ConfigurationBackupController::class, 'export'])

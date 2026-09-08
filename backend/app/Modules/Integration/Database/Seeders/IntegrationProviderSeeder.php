@@ -42,6 +42,24 @@ class IntegrationProviderSeeder extends Seeder
                 'is_default' => false,
                 'priority' => 10,
             ],
+            [
+                // Inactive and credential-less, like Twilio — but for a second reason
+                // as well. There is no log-style captcha driver and there will not be
+                // one: a captcha that answers "pass" without asking a vendor is not a
+                // degraded captcha, it is the absence of one wearing its name. A fresh
+                // installation therefore has no working captcha provider, which is
+                // correct, because it also has the capability switched off.
+                'capability' => IntegrationCapability::CAPTCHA,
+                'driver' => 'recaptcha',
+                'label' => 'Google reCAPTCHA',
+                // Empty rather than absent, so an operator sees the field exists.
+                // A null minimum means the vendor's own verdict stands, which is what
+                // v2 needs; a v3 deployment sets it.
+                'settings' => ['minimum_score' => null],
+                'is_active' => false,
+                'is_default' => true,
+                'priority' => 0,
+            ],
         ];
     }
 

@@ -6,8 +6,12 @@ namespace App\Modules\User\Models;
 
 use App\Modules\Core\Contracts\AdminIdentity;
 use App\Modules\User\Enums\AccountType;
+use App\Modules\User\Exceptions\InvalidPhoneNumberException;
+use App\Modules\User\Support\PhoneNumber;
 use Database\Factories\UserFactory;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -20,6 +24,8 @@ use Spatie\Permission\Traits\HasRoles;
  * @property string $id
  * @property string $name
  * @property string $email
+ * @property string|null $phone
+ * @property string|null $phone_hash
  * @property Carbon|null $email_verified_at
  * @property string|null $preferred_locale
  * @property string $password
@@ -31,7 +37,7 @@ use Spatie\Permission\Traits\HasRoles;
  * @method static Builder|User active()
  * @method static Builder|User admins()
  */
-class User extends Authenticatable implements AdminIdentity
+class User extends Authenticatable implements AdminIdentity, MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
     /**
@@ -72,6 +78,10 @@ class User extends Authenticatable implements AdminIdentity
     protected $fillable = [
         'name',
         'email',
+        // `phone` and not `phone_hash`. The hash is derived from the number by the
+        // mutator below and is never accepted from outside, so the two cannot be set
+        // to values that disagree.
+        'phone',
         'password',
         'preferred_locale',
         'is_active',
@@ -99,6 +109,10 @@ class User extends Authenticatable implements AdminIdentity
     protected $hidden = [
         'password',
         'remember_token',
+        // A lookup value, not a presentable one. Nothing outside the login query has
+        // a use for it, and publishing a keyed digest of a phone number invites
+        // exactly the offline matching the key exists to prevent.
+        'phone_hash',
     ];
 
     /**
@@ -117,6 +131,67 @@ class User extends Authenticatable implements AdminIdentity
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
         ];
+    }
+
+    /**
+     * The number and its lookup hash, written as one operation.
+     *
+     * Set mutators are the only place this can live and still hold. A service that
+     * computed both and assigned them separately would work, right up until the next
+     * caller — a seeder, a console command, a factory, a test — set `phone` on its own
+     * and left a hash describing the previous number. The unique constraint would then
+     * be guarding a value the row no longer has.
+     *
+     * Canonicalisation happens here too, so `$user->phone` is the canonical form
+     * immediately after assignment rather than after a save and a refresh.
+     *
+     * @return Attribute<string|null, array{phone: string|null, phone_hash: string|null}>
+     */
+    protected function phone(): Attribute
+    {
+        return Attribute::make(
+            set: function (?string $value): array {
+                $canonical = PhoneNumber::canonicalise($value);
+
+                return [
+                    'phone' => $canonical,
+                    'phone_hash' => $canonical === null
+                        ? null
+                        : PhoneNumber::lookupHash($canonical),
+                ];
+            },
+        );
+    }
+
+    /**
+     * Find an account by phone number, or return null.
+     *
+     * The query is on the hash, never on `phone`: the hash is the indexed column and
+     * the one the unique constraint covers, and matching the canonical text instead
+     * would be an unindexed scan that also disagrees with the constraint about what
+     * counts as the same number.
+     *
+     * A value that is not a readable phone number is not an error here — it is simply
+     * not a match. This is reached from a login path where the caller does not yet
+     * know which kind of identifier it holds, and raising would tell an unauthenticated
+     * caller that its input was well-formed, which is a distinction that endpoint is
+     * careful not to make.
+     */
+    public static function findByPhone(?string $value): ?self
+    {
+        try {
+            $canonical = PhoneNumber::canonicalise($value);
+        } catch (InvalidPhoneNumberException) {
+            return null;
+        }
+
+        if ($canonical === null) {
+            return null;
+        }
+
+        return static::query()
+            ->where('phone_hash', PhoneNumber::lookupHash($canonical))
+            ->first();
     }
 
     /**

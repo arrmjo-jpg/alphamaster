@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\User\Providers;
 
+use App\Modules\User\Console\CreateFirstAdministratorCommand;
 use App\Modules\User\Contracts\AccountTypeManagerContract;
 use App\Modules\User\Services\AccountTypeManager;
 use Illuminate\Support\ServiceProvider;
@@ -28,5 +29,9 @@ class UserServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->loadMigrationsFrom(dirname(__DIR__).'/Database/Migrations');
+
+        if ($this->app->runningInConsole()) {
+            $this->commands([CreateFirstAdministratorCommand::class]);
+        }
     }
 }

@@ -154,13 +154,19 @@ test('an enrolment token cannot read the identity endpoint', function (): void {
     me($this, $token)->assertStatus(403);
 });
 
-test('the existing payload is unchanged apart from the two additions', function (): void {
+test('the payload carries exactly the declared fields and no others', function (): void {
     $response = me($this, adminToken(roles: ['administrator']));
 
     // A contract regression guard: the admin client is being built against this shape,
     // and a field quietly disappearing is the failure that shows up as a blank screen.
+    //
+    // The list grows only deliberately. It caught email_verified and
+    // email_verified_at arriving, which is exactly what it is for — an addition is as
+    // much a contract change as a removal, and this is where it gets acknowledged.
     expect(array_keys($response->json('data')))
         ->toEqualCanonicalizing([
-            'id', 'name', 'email', 'account_type', 'is_active', 'abilities', 'roles', 'permissions',
+            'id', 'name', 'email', 'account_type', 'is_active',
+            'email_verified', 'email_verified_at',
+            'abilities', 'roles', 'permissions',
         ]);
 });

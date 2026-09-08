@@ -82,7 +82,7 @@ function confirmSmsFor(mixed $test, User $user): void
 {
     resetClient($test);
     $token = $test->postJson('/api/v1/auth/login', [
-        'email' => $user->email,
+        'identifier' => $user->email,
         'password' => TEST_ACCOUNT_PASSWORD,
     ])->json('data.token');
 
@@ -106,7 +106,7 @@ function confirmTotpFor(mixed $test, User $user): void
 {
     resetClient($test);
     $token = $test->postJson('/api/v1/auth/login', [
-        'email' => $user->email,
+        'identifier' => $user->email,
         'password' => TEST_ACCOUNT_PASSWORD,
     ])->json('data.token');
 
@@ -127,7 +127,7 @@ function confirmTotpFor(mixed $test, User $user): void
 test('enrolling SMS stores the number encrypted and returns only a masked form', function (): void {
     resetClient($this);
     $token = $this->postJson('/api/v1/auth/login', [
-        'email' => 'otp@example.com', 'password' => TEST_ACCOUNT_PASSWORD,
+        'identifier' => 'otp@example.com', 'password' => TEST_ACCOUNT_PASSWORD,
     ])->json('data.token');
 
     $response = $this->withToken($token)->postJson('/api/v1/auth/mfa/enrol', [
@@ -168,7 +168,7 @@ test('enrolment dispatches the code through the Integration module', function ()
 test('the code never appears in any response and is stored only as a hash', function (): void {
     resetClient($this);
     $token = $this->postJson('/api/v1/auth/login', [
-        'email' => 'otp@example.com', 'password' => TEST_ACCOUNT_PASSWORD,
+        'identifier' => 'otp@example.com', 'password' => TEST_ACCOUNT_PASSWORD,
     ])->json('data.token');
 
     $response = $this->withToken($token)->postJson('/api/v1/auth/mfa/enrol', [
@@ -191,7 +191,7 @@ test('the code never appears in any response and is stored only as a hash', func
 test('enrolment leaves the method unconfirmed until a code is answered', function (): void {
     resetClient($this);
     $token = $this->postJson('/api/v1/auth/login', [
-        'email' => 'otp@example.com', 'password' => TEST_ACCOUNT_PASSWORD,
+        'identifier' => 'otp@example.com', 'password' => TEST_ACCOUNT_PASSWORD,
     ])->json('data.token');
 
     $this->withToken($token)->postJson('/api/v1/auth/mfa/enrol', [
@@ -205,7 +205,7 @@ test('enrolment leaves the method unconfirmed until a code is answered', functio
 test('SMS enrolment requires a phone number in international format', function (): void {
     resetClient($this);
     $token = $this->postJson('/api/v1/auth/login', [
-        'email' => 'otp@example.com', 'password' => TEST_ACCOUNT_PASSWORD,
+        'identifier' => 'otp@example.com', 'password' => TEST_ACCOUNT_PASSWORD,
     ])->json('data.token');
 
     foreach (['', '5551234567', '+0123', 'not-a-number'] as $bad) {
@@ -220,7 +220,7 @@ test('SMS enrolment requires a phone number in international format', function (
 test('a wrong code does not confirm the enrolment', function (): void {
     resetClient($this);
     $token = $this->postJson('/api/v1/auth/login', [
-        'email' => 'otp@example.com', 'password' => TEST_ACCOUNT_PASSWORD,
+        'identifier' => 'otp@example.com', 'password' => TEST_ACCOUNT_PASSWORD,
     ])->json('data.token');
 
     $this->withToken($token)->postJson('/api/v1/auth/mfa/enrol', [
@@ -237,7 +237,7 @@ test('a wrong code does not confirm the enrolment', function (): void {
 test('the delivered code confirms the method and issues recovery codes', function (): void {
     resetClient($this);
     $token = $this->postJson('/api/v1/auth/login', [
-        'email' => 'otp@example.com', 'password' => TEST_ACCOUNT_PASSWORD,
+        'identifier' => 'otp@example.com', 'password' => TEST_ACCOUNT_PASSWORD,
     ])->json('data.token');
 
     $this->withToken($token)->postJson('/api/v1/auth/mfa/enrol', [
@@ -262,7 +262,7 @@ test('an SMS user is challenged at login and no code is sent yet', function (): 
     IntegrationUsageLog::query()->delete();
 
     $data = $this->postJson('/api/v1/auth/login', [
-        'email' => 'otp@example.com', 'password' => TEST_ACCOUNT_PASSWORD,
+        'identifier' => 'otp@example.com', 'password' => TEST_ACCOUNT_PASSWORD,
     ])->json('data');
 
     expect($data['mfa_required'])->toBeTrue()
@@ -276,7 +276,7 @@ test('requesting delivery sends a code and reports only the masked destination',
     IntegrationUsageLog::query()->delete();
 
     $mfaToken = $this->postJson('/api/v1/auth/login', [
-        'email' => 'otp@example.com', 'password' => TEST_ACCOUNT_PASSWORD,
+        'identifier' => 'otp@example.com', 'password' => TEST_ACCOUNT_PASSWORD,
     ])->json('data.mfa_token');
 
     $this->travel(31)->seconds();
@@ -293,7 +293,7 @@ test('a delivered challenge code completes sign-in', function (): void {
     confirmSmsFor($this, $this->user);
 
     $mfaToken = $this->postJson('/api/v1/auth/login', [
-        'email' => 'otp@example.com', 'password' => TEST_ACCOUNT_PASSWORD,
+        'identifier' => 'otp@example.com', 'password' => TEST_ACCOUNT_PASSWORD,
     ])->json('data.mfa_token');
 
     $this->travel(31)->seconds();
@@ -356,7 +356,7 @@ test('delivery is refused inside the resend cooldown', function (): void {
     confirmSmsFor($this, $this->user);
 
     $mfaToken = $this->postJson('/api/v1/auth/login', [
-        'email' => 'otp@example.com', 'password' => TEST_ACCOUNT_PASSWORD,
+        'identifier' => 'otp@example.com', 'password' => TEST_ACCOUNT_PASSWORD,
     ])->json('data.mfa_token');
 
     $this->travel(31)->seconds();
@@ -378,7 +378,7 @@ test('the send endpoint is throttled on top of the cooldown', function (): void 
     confirmSmsFor($this, $this->user);
 
     $mfaToken = $this->postJson('/api/v1/auth/login', [
-        'email' => 'otp@example.com', 'password' => TEST_ACCOUNT_PASSWORD,
+        'identifier' => 'otp@example.com', 'password' => TEST_ACCOUNT_PASSWORD,
     ])->json('data.mfa_token');
 
     $max = setting('security.max_login_attempts');
@@ -399,7 +399,7 @@ test('requesting delivery for a TOTP account reports that none is needed', funct
     confirmTotpFor($this, $totpUser);
 
     $mfaToken = $this->postJson('/api/v1/auth/login', [
-        'email' => 'totp-only@example.com', 'password' => TEST_ACCOUNT_PASSWORD,
+        'identifier' => 'totp-only@example.com', 'password' => TEST_ACCOUNT_PASSWORD,
     ])->json('data.mfa_token');
 
     $this->postJson('/api/v1/auth/mfa/challenge/send', ['mfa_token' => $mfaToken])
@@ -427,7 +427,7 @@ test('an administrator cannot enrol SMS as their second factor', function (): vo
 
     resetClient($this);
     $enrolmentToken = $this->postJson('/api/v1/auth/login', [
-        'email' => 'sms-admin@example.com', 'password' => TEST_ACCOUNT_PASSWORD,
+        'identifier' => 'sms-admin@example.com', 'password' => TEST_ACCOUNT_PASSWORD,
     ])->json('data.enrolment_token');
 
     $this->withToken($enrolmentToken)
@@ -454,7 +454,7 @@ test('an administrator with only SMS confirmed still does not satisfy the policy
 
     resetClient($this);
     $data = $this->postJson('/api/v1/auth/login', [
-        'email' => 'forced-sms@example.com', 'password' => TEST_ACCOUNT_PASSWORD,
+        'identifier' => 'forced-sms@example.com', 'password' => TEST_ACCOUNT_PASSWORD,
     ])->json('data');
 
     // Sent to enrolment rather than handed an admin token.
@@ -476,7 +476,7 @@ test('the status endpoint offers an administrator only policy-satisfying methods
 test('a regular user is offered both methods', function (): void {
     resetClient($this);
     $token = $this->postJson('/api/v1/auth/login', [
-        'email' => 'otp@example.com', 'password' => TEST_ACCOUNT_PASSWORD,
+        'identifier' => 'otp@example.com', 'password' => TEST_ACCOUNT_PASSWORD,
     ])->json('data.token');
 
     $data = $this->withToken($token)->getJson('/api/v1/auth/mfa')->assertOk()->json('data');
