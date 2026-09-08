@@ -26,6 +26,8 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+      admin:
+        condition: service_healthy
     networks:
       - alphamaster_edge
     healthcheck:
@@ -33,6 +35,33 @@ services:
       interval: 10s
       timeout: 3s
       retries: 3
+    restart: unless-stopped
+
+  # ─── Admin UI (static bundle behind nginx) ───
+  admin:
+    build:
+      context: .
+      dockerfile: docker/admin/Dockerfile
+    image: ${ALPHAMASTER_IMAGE_NAMESPACE:-alphamaster}/admin:${ALPHAMASTER_IMAGE_TAG:-latest}
+    networks:
+      # The edge network and nothing else.
+      #
+      # This is the isolation ADR 0041 was written for, made concrete. The Admin is
+      # a browser bundle: everything it can do, it does through the API over an
+      # origin the proxy owns. Attaching it to the data network would give the
+      # container a route to Postgres and Redis that no part of it needs and that
+      # nothing in the application would ever notice was there.
+      #
+      # It has no egress network either. It fetches nothing at runtime — no CDN, no
+      # font host, no analytics — so a container that cannot reach the internet is
+      # a correct description of it rather than a restriction on it.
+      - alphamaster_edge
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
     restart: unless-stopped
 
   # ─── Backend API (PHP-FPM) ───
@@ -220,8 +249,9 @@ volumes:
 # itself is unchanged — an edge tier and a closed data tier, exactly as before.
 networks:
   # Reachable from outside and able to reach outside. The proxy publishes here,
-  # and the future admin and public frontend containers belong here and nowhere
-  # else — which is what stops them from ever addressing the database.
+  # the Admin container serves its bundle here, and the future public frontend
+  # belongs here and nowhere else — which is what stops any of them from ever
+  # addressing the database.
   alphamaster_edge:
     driver: bridge
 

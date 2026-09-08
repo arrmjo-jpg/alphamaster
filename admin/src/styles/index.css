@@ -1,0 +1,141 @@
+@import 'tailwindcss';
+@import './tokens.css';
+
+/**
+ * Tailwind v4 reads its theme from CSS, so the semantic tokens above become
+ * utilities here. A component writes `bg-surface-default`, never a hex and never
+ * an arbitrary value.
+ */
+@theme inline {
+    --color-canvas: var(--surface-canvas);
+    --color-surface: var(--surface-default);
+    --color-raised: var(--surface-raised);
+    --color-overlay: var(--surface-overlay);
+    --color-subtle: var(--surface-subtle);
+
+    --color-fg: var(--text-primary);
+    --color-fg-secondary: var(--text-secondary);
+    --color-fg-muted: var(--text-muted);
+    --color-fg-inverse: var(--text-inverse);
+    --color-fg-danger: var(--text-danger);
+
+    --color-line: var(--border-default);
+    --color-line-strong: var(--border-strong);
+
+    --color-primary: var(--action-primary);
+    --color-primary-hover: var(--action-primary-hover);
+    --color-primary-fg: var(--action-primary-text);
+    --color-secondary: var(--action-secondary);
+    --color-secondary-hover: var(--action-secondary-hover);
+    --color-ghost-hover: var(--action-ghost-hover);
+
+    --color-success: var(--state-success-rail);
+    --color-success-tint: var(--state-success-tint);
+    --color-success-fg: var(--state-success-text);
+    --color-warning: var(--state-warning-rail);
+    --color-warning-tint: var(--state-warning-tint);
+    --color-warning-fg: var(--state-warning-text);
+    --color-danger: var(--state-danger-rail);
+    --color-danger-tint: var(--state-danger-tint);
+    --color-danger-fg: var(--state-danger-text);
+    --color-info: var(--state-info-rail);
+    --color-info-tint: var(--state-info-tint);
+    --color-info-fg: var(--state-info-text);
+    --color-pending: var(--state-pending-rail);
+    --color-pending-tint: var(--state-pending-tint);
+    --color-pending-fg: var(--state-pending-text);
+    --color-neutral: var(--state-neutral-rail);
+    --color-neutral-tint: var(--state-neutral-tint);
+    --color-neutral-fg: var(--state-neutral-text);
+
+    --color-ring: var(--focus-ring);
+
+    --font-sans: var(--font-sans);
+    --font-mono: var(--font-mono);
+
+    --text-xs: var(--text-xs);
+    --text-sm: var(--text-sm);
+    --text-base: var(--text-base);
+    --text-md: var(--text-md);
+    --text-lg: var(--text-lg);
+    --text-xl: var(--text-xl);
+    --text-2xl: var(--text-2xl);
+
+    --radius-sm: var(--radius-sm);
+    --radius-md: var(--radius-md);
+    --radius-lg: var(--radius-lg);
+
+    --ease-out: var(--ease-out);
+    --ease-in: var(--ease-in);
+}
+
+@layer base {
+    html {
+        font-family: var(--font-sans);
+        font-size: 16px;
+        -webkit-text-size-adjust: 100%;
+        /* Sticky topbar must not hide a focused control when the browser scrolls
+           it into view (WCAG 2.2 focus-not-obscured). */
+        scroll-padding-block-start: var(--topbar-height);
+    }
+
+    /* Arabic runs visually smaller at the same px and needs more vertical room. */
+    html[lang='ar'] {
+        font-family: var(--font-arabic);
+        --text-base: 0.9375rem;
+        --leading-normal: 1.6;
+    }
+
+    body {
+        margin: 0;
+        min-block-size: 100dvh;
+        background-color: var(--surface-canvas);
+        color: var(--text-primary);
+        font-size: var(--text-base);
+        line-height: var(--leading-normal);
+        -webkit-font-smoothing: antialiased;
+    }
+
+    /* Operational data is read comparatively. Values must not shift as they update. */
+    table,
+    [data-numeric],
+    .tabular {
+        font-variant-numeric: tabular-nums;
+    }
+
+    ::selection {
+        background-color: var(--selection-bg);
+    }
+
+    /* One focus treatment, everywhere, and never removed without replacement. */
+    :focus-visible {
+        outline: 2px solid var(--focus-ring);
+        outline-offset: 2px;
+        border-radius: var(--radius-sm);
+    }
+
+    /* Identifiers, keys and URLs reflow instead of forcing horizontal overflow. */
+    [data-technical] {
+        font-family: var(--font-mono);
+        overflow-wrap: anywhere;
+        min-inline-size: 0;
+    }
+
+    button:not(:disabled),
+    [role='button']:not([aria-disabled='true']) {
+        cursor: pointer;
+    }
+}
+
+/* Motion explains a state change or it does not happen. Reduced motion removes
+   the movement and never the information. */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}

@@ -37,11 +37,13 @@ scripts/gate.sh <command>
   diff [base]     Whitespace errors; with a base ref, checks that range instead of the worktree
   secrets         Secret scan over the whole repository, with its own positive controls
   openapi         Regenerate the contract, validate it, and fail on drift
+  admin           Admin UI: format, lint, types, tests, build, and codegen drift
   all             Everything above, in order
 
 Environment:
   COMPOSE                  override the compose command (default: docker compose)
   GATE_ALLOW_DESTRUCTIVE   set to 1 to let `all` run migrate-fresh outside CI
+  ADMIN_NODE_IMAGE         override the Node image the admin gate runs in
 USAGE
 }
 
@@ -353,6 +355,155 @@ CONTROL
     echo "contract validates and matches the committed document"
 }
 
+# The Admin UI gate.
+#
+# Node runs in a container for the same reason PHP does: the version is the one the
+# image ships with, not whatever the developer or the runner happens to have. The
+# admin Dockerfile pins node:22-alpine and so does this, so a green result here is a
+# statement about the environment the bundle is actually built in.
+#
+# The backend stack is not required. Nothing below talks to the API — these are
+# static checks and a build.
+ADMIN_NODE_IMAGE="${ADMIN_NODE_IMAGE:-node:22-alpine}"
+
+# Docker wants a host path. On Git Bash a POSIX path reaches the daemon as
+# `C:/Program Files/Git/...` after MSYS rewrites it, which fails as a mount source;
+# cygpath is what converts it back.
+admin_mount() {
+    if command -v cygpath >/dev/null 2>&1; then
+        cygpath -m "$PWD"
+    else
+        printf '%s' "$PWD"
+    fi
+}
+
+# The whole repository is mounted, not just admin/. The code generator reads
+# ../backend/openapi.json — the contract is the backend's, and copying it into the
+# frontend to make a narrower mount possible would create a second copy to keep in
+# step. The container's working directory is admin/, so every command still runs
+# where its package.json is.
+admin_node() {
+    MSYS_NO_PATHCONV=1 docker run --rm \
+        -v "$(admin_mount):/repo" \
+        -w /repo/admin \
+        "$ADMIN_NODE_IMAGE" \
+        sh -c "$1"
+}
+
+cmd_admin() {
+    step "Admin UI"
+
+    if [ ! -d admin/node_modules ]; then
+        echo "installing dependencies from the lockfile"
+        admin_node "npm ci --no-audit --no-fund"
+    fi
+
+    echo "formatting"
+    admin_node "npm run format"
+
+    echo "linting"
+    admin_node "npm run lint"
+
+    echo "types"
+    admin_node "npm run typecheck"
+
+    echo "tests"
+    admin_node "npm test"
+
+    echo "production build"
+    admin_node "npm run build"
+
+    cmd_admin_codegen
+}
+
+# The generated API client must match the contract it was generated from.
+#
+# The types in admin/src/api/generated are committed, because the build and the
+# editor both need them and neither should have to run a generator first. That makes
+# them capable of going stale the moment backend/openapi.json changes — a renamed
+# field would keep typechecking against the old name and fail at runtime, in the
+# browser, as an undefined. Regenerating and comparing is what closes that.
+cmd_admin_codegen() {
+    step "Admin API client"
+
+    local generated="admin/src/api/generated"
+    # Script scope with an EXIT trap, not `local` with a RETURN trap: bash runs a
+    # RETURN trap again when the calling function returns, and by then the local is
+    # gone, so `set -u` aborts the gate after it has already passed.
+    ADMIN_CONTRACT_BACKUP="$(mktemp -t openapi-drift-control-XXXXXX.json)"
+    trap 'rm -f "${ADMIN_CONTRACT_BACKUP:-}"' EXIT
+
+    # Tracked first. `git diff` is silent about an untracked file, so on output that
+    # has never been committed the comparison below would report no drift having
+    # compared nothing — the same shape of failure the OpenAPI gate guards against.
+    if ! git ls-files --error-unmatch "$generated" >/dev/null 2>&1; then
+        echo >&2
+        echo "$generated is not tracked by git, so there is nothing to compare" >&2
+        echo "the regenerated client against. Commit it first." >&2
+        exit 1
+    fi
+
+    echo "regenerating from backend/openapi.json"
+    admin_node "npm run api:generate"
+
+    if ! git diff --quiet -- "$generated"; then
+        echo >&2
+        echo "The committed API client does not match the contract." >&2
+        echo "Regenerate and commit it:  npm --prefix admin run api:generate" >&2
+        git --no-pager diff --stat -- "$generated" >&2
+        exit 1
+    fi
+
+    echo "client matches the committed contract"
+
+    # The control, before the result is trusted. A generator that has stopped writing
+    # output, or a diff that has stopped looking, reports a clean tree forever.
+    #
+    # A schema is added to a copy of the contract and the client is regenerated from
+    # it; the output must then differ. This proves the whole path — generator reads
+    # the contract, writes the files, git sees the change — rather than any one link.
+    echo "proving the check (positive control)"
+    cp backend/openapi.json "$ADMIN_CONTRACT_BACKUP"
+    node -e '
+        const fs = require("fs");
+        const doc = JSON.parse(fs.readFileSync("backend/openapi.json", "utf8"));
+        doc.components = doc.components || {};
+        doc.components.schemas = doc.components.schemas || {};
+        doc.components.schemas.GateControlDriftProbe = {
+            type: "object",
+            properties: { probe: { type: "string" } },
+        };
+        fs.writeFileSync("backend/openapi.json", JSON.stringify(doc, null, 2) + "\n");
+    '
+
+    admin_node "npm run api:generate"
+
+    if git diff --quiet -- "$generated"; then
+        cp "$ADMIN_CONTRACT_BACKUP" backend/openapi.json
+        admin_node "npm run api:generate" >/dev/null
+        echo >&2
+        echo "UNPROVEN: the client did not change after the contract did." >&2
+        exit 1
+    fi
+
+    echo "  planted schema produced a client change: DETECTED"
+
+    # Restore both, and verify the restoration actually took: leaving a mutated
+    # contract or a mutated client behind would fail the next gate for a reason that
+    # has nothing to do with the change under review.
+    cp "$ADMIN_CONTRACT_BACKUP" backend/openapi.json
+    admin_node "npm run api:generate"
+
+    if ! git diff --quiet -- backend/openapi.json "$generated"; then
+        echo >&2
+        echo "The control did not clean up after itself; the working tree is dirty." >&2
+        git --no-pager diff --stat -- backend/openapi.json "$generated" >&2
+        exit 1
+    fi
+
+    echo "  contract and client restored"
+}
+
 cmd_all() {
     cmd_pint
     cmd_arch
@@ -371,6 +522,7 @@ cmd_all() {
     cmd_diff "${1:-}"
     cmd_secrets
     cmd_openapi
+    cmd_admin
 
     printf '\n\033[1mgate: all checks passed\033[0m\n'
 }
@@ -386,6 +538,7 @@ case "${1:-}" in
     secrets)       cmd_secrets ;;
     openapi)       cmd_openapi ;;
     compose-version) cmd_compose_version ;;
+    admin)         cmd_admin ;;
     all)           shift; cmd_all "${1:-}" ;;
     -h|--help|help|"") usage ;;
     *)             echo "Unknown command: $1" >&2; echo >&2; usage >&2; exit 1 ;;

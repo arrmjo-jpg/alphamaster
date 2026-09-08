@@ -83,7 +83,7 @@ jobs:
         run: |
           baseline="$(mktemp)"
           docker compose -f docker-compose.yml config --format json > "$baseline"
-          for svc in nginx backend horizon scheduler; do
+          for svc in nginx admin backend horizon scheduler; do
             binds="$(jq --arg s "$svc" '[.services[$s].volumes // [] | .[] | select(.type == "bind")] | length' "$baseline")"
             if [ "$binds" != "0" ]; then
               echo "$svc carries $binds bind mount(s) in the production baseline" >&2
@@ -123,8 +123,11 @@ jobs:
         # backend/package.json is the repository's only npm manifest.
         run: npm ci --prefix backend
 
-      - name: Build images
-        run: docker compose build
+      - name: Build the application image
+        # Only the one this job runs in. The smoke job above already builds every
+        # image from scratch, so building the proxy and the Admin bundle here as
+        # well would add minutes and prove nothing a second time.
+        run: docker compose build backend
 
       - name: Application key
         # This must happen before the stack starts. compose passes backend/.env
@@ -204,3 +207,32 @@ jobs:
       - name: Tear down
         if: always()
         run: docker compose down -v
+
+  # The Admin UI, checked on its own.
+  #
+  # A separate job rather than a step in `gate`, because it shares nothing with it:
+  # no database, no PHP container, no application key. Running it in parallel means
+  # a type error in the frontend is reported in about a minute instead of waiting
+  # behind two full backend suites.
+  #
+  # Every command comes from scripts/gate.sh, which runs Node in the same
+  # node:22-alpine image the admin Dockerfile builds from — so this job and a
+  # developer's `make admin` are the same check in the same environment.
+  admin:
+    name: Admin UI
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - name: Node for the codegen drift control
+        # The gate itself runs Node in a container; this is for the few lines of
+        # `node -e` that plant and remove the control's schema on the runner.
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Format, lint, types, tests, build and codegen drift
+        run: bash scripts/gate.sh admin

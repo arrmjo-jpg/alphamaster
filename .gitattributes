@@ -4,3 +4,26 @@
 # gate would be broken for exactly the people checking out the repository for the
 # first time.
 *.sh text eol=lf
+
+# The Admin's sources keep LF for the same reason, one layer up.
+#
+# They are formatted, linted and built by Node tooling running in a Linux
+# container, and Prettier's `endOfLine` default is `lf`. core.autocrlf is on, so
+# without these a fresh Windows checkout would hand every file back with CRLF and
+# `make admin` would fail its format check against a tree nobody had touched.
+#
+# Listed by extension rather than as `admin/**`, so a binary asset added later is
+# never line-ending converted.
+admin/*.js text eol=lf
+admin/*.json text eol=lf
+admin/*.html text eol=lf
+admin/*.ts text eol=lf
+admin/src/**/*.css text eol=lf
+admin/src/**/*.json text eol=lf
+admin/src/**/*.ts text eol=lf
+admin/src/**/*.tsx text eol=lf
+
+# The Admin image's server config, for the same reason nginx's own is not listed
+# here: it is read inside a Linux container, and CRLF in an nginx directive is a
+# parse error rather than a cosmetic difference.
+docker/admin/nginx.conf text eol=lf

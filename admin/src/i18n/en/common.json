@@ -1,0 +1,31 @@
+{
+    "app": {
+        "name": "AlphaMaster",
+        "foundation": "Admin foundation",
+        "foundationNote": "Theme, density and direction are applied to the document root, so every component below inherits them without asking."
+    },
+    "direction": {
+        "switchTo": "Switch to Arabic"
+    },
+    "theme": {
+        "light": "Light",
+        "dark": "Dark",
+        "system": "System",
+        "label": "Theme"
+    },
+    "density": {
+        "label": "Density",
+        "compact": "Compact",
+        "comfortable": "Comfortable",
+        "spacious": "Spacious"
+    },
+    "state": {
+        "loading": "Loading",
+        "empty": "Nothing here",
+        "error": "Something went wrong",
+        "retry": "Try again"
+    },
+    "language": {
+        "label": "Language"
+    }
+}
