@@ -131,7 +131,8 @@
         }
     },
     "modules": {
-        "dashboard": "Dashboard"
+        "dashboard": "Dashboard",
+        "settings": "Settings"
     },
     "dashboard": {
         "platform": {
@@ -165,5 +166,40 @@
             "total_one": "{{count}} entry",
             "total_other": "{{count}} entries"
         }
+    },
+    "settings": {
+        "groups": "Groups",
+        "chooseGroup": "Choose a group to see what it holds.",
+        "unknownGroup": "No such group. A link or a bookmark may be out of date.",
+        "on": "On",
+        "off": "Off",
+        "save_zero": "Nothing to save",
+        "save_one": "Save 1 change",
+        "save_other": "Save {{count}} changes",
+        "discard": "Discard",
+        "saved": "Saved.",
+        "testMail": "Send a test message",
+        "mailSent": "A test message was sent to the address on your account.",
+        "notEditable": "This one is not yours to change.",
+        "unmetDependencies": "Needs {{keys}} configured first.",
+        "secretSet": "Set",
+        "secretUnset": "Not set",
+        "secretExplanation": "Stored encrypted and never returned. Replace it by rotating rather than editing.",
+        "versionHelp": "The version this page was read at. A save carries it, so a change made elsewhere is refused rather than overwritten.",
+        "conflict": {
+            "title": "Someone else saved first",
+            "body": "This group changed after this page was loaded, so the save was refused rather than overwriting it. Your edits are still here. Reload to see the current values, then apply them again.",
+            "reload": "Reload the current values"
+        },
+        "history": {
+            "title": "History",
+            "none": "Nothing in this group has been changed yet.",
+            "restore": "Restore",
+            "confirmTitle": "Restore this value?",
+            "confirmBody": "This sets {{key}} back to {{value}} and records the change.",
+            "confirm": "Restore it",
+            "cancel": "Cancel"
+        },
+        "malformedJson": "That is not valid JSON yet, so it has not been staged."
     }
 }

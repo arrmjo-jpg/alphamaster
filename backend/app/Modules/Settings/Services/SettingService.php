@@ -307,6 +307,10 @@ class SettingService implements SettingServiceInterface
             $setting = $byId->get($revision->setting_id);
 
             return [
+                // The identifier rollback takes. Published because without it the two
+                // endpoints do not compose: /rollback requires a revision id, and this
+                // was the only place a client could have learned one.
+                'id' => $revision->id,
                 'key' => $setting->key,
                 'locale' => $revision->locale,
                 'version' => $revision->version,

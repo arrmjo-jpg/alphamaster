@@ -1,8 +1,9 @@
 import type { LucideIcon } from 'lucide-react';
-import { LayoutDashboard } from 'lucide-react';
+import { LayoutDashboard, SlidersHorizontal } from 'lucide-react';
 import type { ComponentType } from 'react';
 
 import { DashboardScreen } from '@/screens/DashboardScreen';
+import { SettingsScreen } from '@/screens/SettingsScreen';
 
 /**
  * The module registry: a typed manifest, and the only thing the shell knows about
@@ -36,6 +37,15 @@ export interface ModuleManifest {
     permission?: string;
     /** Ascending. Ties are resolved by declaration order. */
     order: number;
+    /**
+     * Whether the module owns everything below its path.
+     *
+     * A module with its own internal navigation — settings and its groups — needs
+     * the subtree, and declaring that here is what keeps the router generic: the
+     * shell registers a wildcard for it and never learns what the deeper segments
+     * mean. Without it those paths would fall through to the not-found screen.
+     */
+    nested?: boolean;
     component: ComponentType;
 }
 
@@ -47,6 +57,19 @@ export const MODULES: ModuleManifest[] = [
         icon: LayoutDashboard,
         order: 10,
         component: DashboardScreen,
+    },
+    {
+        id: 'settings',
+        path: '/settings',
+        label: 'modules.settings',
+        icon: SlidersHorizontal,
+        // Reading is the gate. Changing a value needs `settings.update`, and a
+        // setting that names its own permission needs that one — both enforced per
+        // key by the API, and reflected field by field rather than at this level.
+        permission: 'settings.view',
+        order: 20,
+        nested: true,
+        component: SettingsScreen,
     },
 ];
 

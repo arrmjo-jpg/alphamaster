@@ -158,12 +158,12 @@ describe('routing', () => {
     });
 
     it('names the path when no module claims it', async () => {
-        renderAt('/settings/mail');
+        renderAt('/nowhere/at/all');
 
         expect(await screen.findByText('Nothing lives at this address')).toBeInTheDocument();
         // The usual cause is a stale link, and the operator can only tell which one
         // if the address is on the screen.
-        expect(screen.getByText('/settings/mail')).toBeInTheDocument();
+        expect(screen.getByText('/nowhere/at/all')).toBeInTheDocument();
     });
 });
 

@@ -2810,6 +2810,7 @@ export type AdminSettingsHistoryResponses = {
     200: {
         success: boolean;
         data: Array<{
+            id: string;
             key: string;
             locale: string | null;
             version: number;
