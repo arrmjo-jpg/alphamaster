@@ -23,7 +23,8 @@
         "loading": "جارٍ التحميل",
         "empty": "لا يوجد شيء هنا",
         "error": "حدث خطأ",
-        "retry": "أعد المحاولة"
+        "retry": "أعد المحاولة",
+        "unavailable": "غير متاح"
     },
     "language": {
         "label": "اللغة"
@@ -196,7 +197,7 @@
             }
         },
         "activity": {
-            "title": "أحدث الإجراءات الإدارية",
+            "title": "سجلّ الإجراءات الإدارية",
             "none": "لم يُسجَّل شيء بعد.",
             "failed": "فشل",
             "total_zero": "لا مدخلات",
@@ -204,7 +205,115 @@
             "total_two": "مدخلان",
             "total_few": "{{count}} مدخلات",
             "total_many": "{{count}} مدخلًا",
-            "total_other": "{{count}} مدخل"
+            "total_other": "{{count}} مدخل",
+            "filter": "تصفية السجلّ",
+            "all": "الكلّ",
+            "failedOnly": "الفاشلة",
+            "noFailures": "لا يوجد إجراء فاشل مسجَّل."
+        },
+        "eyebrow": "التشغيل",
+        "regions": {
+            "state": "حالة النظام",
+            "changes": "أحدث التغييرات"
+        },
+        "attention": {
+            "title": "يحتاج انتباهك",
+            "count_zero": "لا نتائج",
+            "count_one": "نتيجة واحدة",
+            "count_two": "نتيجتان",
+            "count_few": "{{count}} نتائج",
+            "count_many": "{{count}} نتيجةً",
+            "count_other": "{{count}} نتيجة",
+            "criticalCount_zero": "لا شيء يحتاج معالجة فورية.",
+            "criticalCount_one": "نتيجة واحدة تحتاج معالجة فورية.",
+            "criticalCount_two": "نتيجتان تحتاجان معالجة فورية.",
+            "criticalCount_few": "{{count}} نتائج تحتاج معالجة فورية.",
+            "criticalCount_many": "{{count}} نتيجةً تحتاج معالجة فورية.",
+            "criticalCount_other": "{{count}} نتيجة تحتاج معالجة فورية.",
+            "clear": "لا شيء يحتاج انتباهك.",
+            "checked": "فُحِص: {{checks}}.",
+            "skipped": "لم يُفحص، لأنّ هذا الحساب لا يملك صلاحية قراءة ما يلزمه: {{checks}}.",
+            "check": {
+                "platform": "فحص المنصّة",
+                "administrators": "حسابات المشرفين",
+                "integrations": "قدرات المزوّدين",
+                "actions": "سجلّ التدقيق"
+            },
+            "finding": {
+                "platform-silent": "المنصّة لا تستجيب.",
+                "administrator-blocked_zero": "لا مشرف ممنوع من الدخول.",
+                "administrator-blocked_one": "مشرف واحد لا يستطيع تسجيل الدخول.",
+                "administrator-blocked_two": "مشرفان لا يستطيعان تسجيل الدخول.",
+                "administrator-blocked_few": "{{count}} مشرفين لا يستطيعون تسجيل الدخول.",
+                "administrator-blocked_many": "{{count}} مشرفًا لا يستطيعون تسجيل الدخول.",
+                "administrator-blocked_other": "{{count}} مشرف لا يستطيعون تسجيل الدخول.",
+                "capability-failing_zero": "لا قدرة فاشلة.",
+                "capability-failing_one": "قدرة واحدة تفشل في كلّ محاولة.",
+                "capability-failing_two": "قدرتان تفشلان في كلّ محاولة.",
+                "capability-failing_few": "{{count}} قدرات تفشل في كلّ محاولة.",
+                "capability-failing_many": "{{count}} قدرةً تفشل في كلّ محاولة.",
+                "capability-failing_other": "{{count}} قدرة تفشل في كلّ محاولة.",
+                "capability-degraded_zero": "لا قدرة متعثّرة.",
+                "capability-degraded_one": "قدرة واحدة تفشل في بعض المحاولات.",
+                "capability-degraded_two": "قدرتان تفشلان في بعض المحاولات.",
+                "capability-degraded_few": "{{count}} قدرات تفشل في بعض المحاولات.",
+                "capability-degraded_many": "{{count}} قدرةً تفشل في بعض المحاولات.",
+                "capability-degraded_other": "{{count}} قدرة تفشل في بعض المحاولات.",
+                "action-failed_zero": "لا إجراء فاشل.",
+                "action-failed_one": "إجراء إداريّ واحد فشل.",
+                "action-failed_two": "إجراءان إداريّان فشلا.",
+                "action-failed_few": "{{count}} إجراءات إداريّة فشلت.",
+                "action-failed_many": "{{count}} إجراءً إداريًّا فشلت.",
+                "action-failed_other": "{{count}} إجراء إداريّ فشل."
+            },
+            "why": {
+                "platform-silent": "لم يُبلّغ فحص الحياة عن تطبيق سليم.",
+                "administrator-blocked": "يرفض الحاجز الحساب الموقوف أو غير المؤكَّد العنوان أو الذي لا عامل ثانيَ مؤكَّدًا له.",
+                "capability-failing": "رُفضت كلّ محاولة حديثة عبر المزوّد النشط.",
+                "capability-degraded": "رُفض بعض المحاولات الحديثة عبر المزوّد النشط.",
+                "action-failed": "مسجَّل في سجلّ التدقيق بنتيجة فاشلة."
+            },
+            "go": {
+                "administrator-blocked": "فتح الحسابات",
+                "capability-failing": "فتح إعدادات البريد",
+                "capability-degraded": "فتح إعدادات البريد"
+            }
+        },
+        "state": {
+            "title": "المنصّة",
+            "reachability": "الاستجابة",
+            "languages": "اللغات",
+            "languageCount_zero": "لا لغة نشطة من {{total}}",
+            "languageCount_one": "لغة واحدة نشطة من {{total}}",
+            "languageCount_two": "لغتان نشطتان من {{total}}",
+            "languageCount_few": "{{count}} لغات نشطة من {{total}}",
+            "languageCount_many": "{{count}} لغةً نشطة من {{total}}",
+            "languageCount_other": "{{count}} لغة نشطة من {{total}}",
+            "defaultLanguage": "الافتراضية: {{name}}",
+            "trail": "سجلّ التدقيق",
+            "trailNote": "عدد القيود المحفوظة. لا تنشر الواجهة مدّة الاحتفاظ."
+        },
+        "next": {
+            "title": "الخطوة التالية",
+            "none": "لا شيء لتفعله.",
+            "noneNote": "تُدرَج هنا الأعمال التي يستطيع هذا المركز تنفيذها. قد يحتاج أمرٌ انتباهك دون أن تكون له شاشة هنا.",
+            "action": {
+                "administrator-blocked_zero": "استعادة وصول المشرفين",
+                "administrator-blocked_one": "استعادة وصول مشرف واحد",
+                "administrator-blocked_two": "استعادة وصول مشرفَين",
+                "administrator-blocked_few": "استعادة وصول {{count}} مشرفين",
+                "administrator-blocked_many": "استعادة وصول {{count}} مشرفًا",
+                "administrator-blocked_other": "استعادة وصول {{count}} مشرف",
+                "capability-failing": "تفقّد تسليم البريد",
+                "capability-degraded": "تفقّد تسليم البريد",
+                "test-mail": "إرسال رسالة اختبار"
+            },
+            "because": {
+                "administrator-blocked": "يرفضهم الحاجز عند الدخول حتّى يكون الحساب نشطًا والعنوان مؤكَّدًا والعامل الثاني مسجَّلًا.",
+                "capability-failing": "فشلت كلّ محاولة إرسال حديثة. تحمل مجموعة البريد الإعدادات ورسالة اختبار.",
+                "capability-degraded": "فشل بعض محاولات الإرسال الحديثة. تحمل مجموعة البريد الإعدادات ورسالة اختبار.",
+                "test-mail": "البريد مهيّأ ولم يُستخدم بعد، وهي الحالة الأسهل خلطًا بالعمل الصحيح."
+            }
         }
     },
     "settings": {
@@ -391,5 +500,8 @@
         "noUsers": "لا توجد حسابات بعد.",
         "noMatches": "لا يطابق أي حساب ذلك.",
         "noRoles": "لا توجد أدوار معرَّفة."
+    },
+    "list": {
+        "separator": "، "
     }
 }

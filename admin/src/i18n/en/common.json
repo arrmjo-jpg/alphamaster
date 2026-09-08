@@ -23,7 +23,8 @@
         "loading": "Loading",
         "empty": "Nothing here",
         "error": "Something went wrong",
-        "retry": "Try again"
+        "retry": "Try again",
+        "unavailable": "Unavailable"
     },
     "language": {
         "label": "Language"
@@ -174,11 +175,87 @@
             }
         },
         "activity": {
-            "title": "Recent administrative activity",
+            "title": "Administrative trail",
             "none": "Nothing has been recorded yet.",
             "failed": "Failed",
             "total_one": "{{count}} entry",
-            "total_other": "{{count}} entries"
+            "total_other": "{{count}} entries",
+            "filter": "Filter the trail",
+            "all": "All",
+            "failedOnly": "Failed",
+            "noFailures": "No failed action is recorded."
+        },
+        "eyebrow": "Operations",
+        "regions": {
+            "state": "System state",
+            "changes": "Recent changes"
+        },
+        "attention": {
+            "title": "Needs attention",
+            "count_one": "{{count}} finding",
+            "count_other": "{{count}} findings",
+            "criticalCount_one": "{{count}} finding needs immediate attention.",
+            "criticalCount_other": "{{count}} findings need immediate attention.",
+            "clear": "Nothing needs attention.",
+            "checked": "Checked: {{checks}}.",
+            "skipped": "Not checked, because this account may not read what it needs: {{checks}}.",
+            "check": {
+                "platform": "the platform probe",
+                "administrators": "administrator accounts",
+                "integrations": "vendor capabilities",
+                "actions": "the audit trail"
+            },
+            "finding": {
+                "platform-silent": "The platform is not answering.",
+                "administrator-blocked_one": "One administrator cannot sign in.",
+                "administrator-blocked_other": "{{count}} administrators cannot sign in.",
+                "capability-failing_one": "One capability is failing every attempt.",
+                "capability-failing_other": "{{count}} capabilities are failing every attempt.",
+                "capability-degraded_one": "One capability is failing some attempts.",
+                "capability-degraded_other": "{{count}} capabilities are failing some attempts.",
+                "action-failed_one": "One administrative action failed.",
+                "action-failed_other": "{{count}} administrative actions failed."
+            },
+            "why": {
+                "platform-silent": "The liveness probe did not report a healthy application.",
+                "administrator-blocked": "The perimeter refuses an account that is suspended, has an unconfirmed address, or has no confirmed second factor.",
+                "capability-failing": "Every recent attempt through the active provider was refused.",
+                "capability-degraded": "Some recent attempts through the active provider were refused.",
+                "action-failed": "Recorded in the audit trail with a failed outcome."
+            },
+            "go": {
+                "administrator-blocked": "Open accounts",
+                "capability-failing": "Open mail settings",
+                "capability-degraded": "Open mail settings"
+            }
+        },
+        "state": {
+            "title": "Platform",
+            "reachability": "Reachability",
+            "languages": "Languages",
+            "languageCount_one": "{{count}} active of {{total}}",
+            "languageCount_other": "{{count}} active of {{total}}",
+            "defaultLanguage": "Default: {{name}}",
+            "trail": "Audit trail",
+            "trailNote": "Entries retained. The API does not publish a retention window."
+        },
+        "next": {
+            "title": "Next actions",
+            "none": "Nothing to do.",
+            "noneNote": "This lists work the console can carry out. Something can need attention and still have no screen here to act on it.",
+            "action": {
+                "administrator-blocked_one": "Restore access for one administrator",
+                "administrator-blocked_other": "Restore access for {{count}} administrators",
+                "capability-failing": "Check mail delivery",
+                "capability-degraded": "Check mail delivery",
+                "test-mail": "Send a test message"
+            },
+            "because": {
+                "administrator-blocked": "They are refused at sign-in until the account is active, the address confirmed and a second factor enrolled.",
+                "capability-failing": "Every recent send was refused. The mail group holds the settings and a test message.",
+                "capability-degraded": "Some recent sends were refused. The mail group holds the settings and a test message.",
+                "test-mail": "Mail is configured and has never been used, which is the state most easily mistaken for working."
+            }
         }
     },
     "settings": {
@@ -340,5 +417,8 @@
         "noUsers": "No accounts yet.",
         "noMatches": "No account matches that.",
         "noRoles": "No roles are defined."
+    },
+    "list": {
+        "separator": ", "
     }
 }

@@ -15,6 +15,12 @@ export interface PanelProps {
     /** Shown instead of children when there is nothing to show. */
     empty?: boolean;
     emptyMessage?: string;
+    /**
+     * The panel's title level. `2` when a panel is a region of the page in its own
+     * right, `3` when the page groups panels under headings of its own — the outline
+     * has to match what a reader is actually looking at.
+     */
+    headingLevel?: 2 | 3;
     className?: string;
     children: React.ReactNode;
 }
@@ -35,10 +41,12 @@ export function Panel({
     onRetry,
     empty = false,
     emptyMessage,
+    headingLevel = 2,
     className,
     children,
 }: PanelProps) {
     const { t } = useTranslation();
+    const Heading = headingLevel === 3 ? 'h3' : 'h2';
 
     return (
         <section
@@ -52,9 +60,9 @@ export function Panel({
             <header className="flex items-baseline justify-between gap-3 border-b border-(--border-default) px-3 py-2.5">
                 {/* The eyebrow, not a heading-sized title: a panel names its region
                     without competing with the page it sits on. */}
-                <h2 className="min-w-0 truncate text-(--text-secondary)" data-eyebrow>
+                <Heading className="min-w-0 truncate text-(--text-secondary)" data-eyebrow>
                     {title}
-                </h2>
+                </Heading>
                 {aside !== undefined ? (
                     <div className="shrink-0 text-(length:--text-sm) text-(--text-muted)">
                         {aside}
