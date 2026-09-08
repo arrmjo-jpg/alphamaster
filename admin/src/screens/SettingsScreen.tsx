@@ -46,7 +46,7 @@ export function SettingsScreen() {
                             <NavLink
                                 className={({ isActive }) =>
                                     cn(
-                                        'rounded-md px-2 py-1 text-(length:--text-base)',
+                                        'px-2 py-1 text-(length:--text-base)',
                                         'transition-colors duration-100 ease-out',
                                         isActive
                                             ? 'bg-(--action-secondary) font-medium text-(--text-primary)'

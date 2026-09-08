@@ -15,7 +15,7 @@ import { Button } from '@/ui/Button';
 import { Field } from '@/ui/Field';
 import { Input } from '@/ui/Input';
 
-import { AuthLayout } from './AuthLayout';
+import { AuthCover } from './AuthCover';
 
 // Presence only. The platform owns what a valid identifier and a valid password are,
 // and a client that re-states those rules is a second copy to keep in step — and one
@@ -100,7 +100,7 @@ export function SignInScreen({ busy, failure, lockedFor = 0 }: SignInScreenProps
     });
 
     return (
-        <AuthLayout description={t('auth.signIn.description')} title={t('auth.signIn.title')}>
+        <AuthCover description={t('auth.signIn.description')} title={t('auth.signIn.title')}>
             <form
                 className="flex flex-col gap-4"
                 noValidate
@@ -180,6 +180,6 @@ export function SignInScreen({ busy, failure, lockedFor = 0 }: SignInScreenProps
                     {t('auth.signIn.submit')}
                 </Button>
             </form>
-        </AuthLayout>
+        </AuthCover>
     );
 }

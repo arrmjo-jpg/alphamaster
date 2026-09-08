@@ -6,7 +6,7 @@ import { useDirection } from '@/shell/DirectionProvider';
 import { Panel } from '@/ui/Panel';
 import { StatusBadge } from '@/ui/StatusBadge';
 
-import { platformHealth } from './api';
+import { platformHealth } from '@/api/health';
 
 /**
  * Is the platform answering?

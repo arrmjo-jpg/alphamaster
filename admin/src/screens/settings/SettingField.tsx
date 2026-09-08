@@ -175,13 +175,13 @@ function JsonControl({
         <div className="flex flex-col gap-1">
             <textarea
                 className={cn(
-                    'min-h-24 w-full rounded-md border bg-(--surface-default) p-2',
+                    'min-h-24 w-full border bg-(--surface-default) p-2',
                     'font-(family-name:--font-mono) text-(length:--text-sm) text-(--text-primary)',
                     'focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-(--focus-ring)',
                     'disabled:cursor-not-allowed disabled:opacity-50',
                     invalid || malformed
                         ? 'border-(--state-danger-rail)'
-                        : 'border-(--border-default)',
+                        : 'border-(--border-strong)',
                 )}
                 disabled={disabled}
                 id={id}

@@ -112,7 +112,18 @@
         },
         "unreachable": {
             "title": "Cannot reach the platform"
-        }
+        },
+        "cover": {
+            "eyebrow": "Administration",
+            "kicker": "AlphaMaster control",
+            "statement": "The system, and everyone who may change it.",
+            "detail": "Configuration, integrations, access and the record of every change — behind one perimeter, on one credential.",
+            "platform": "Platform",
+            "build": "Build",
+            "perimeter": "Perimeter",
+            "perimeterValue": "Five stages, second factor required"
+        },
+        "captchaUnavailable": "The verification challenge could not be loaded, so sign-in cannot be completed. An administrator can switch the captcha off in Settings › Auth."
     },
     "shell": {
         "navigation": "Modules",

@@ -8,6 +8,14 @@
  * Theme remaps semantic colour and nothing else. Density remaps a handful of
  * component sizes and nothing else. That separation is what makes light, dark,
  * compact and spacious correct by construction rather than by review.
+ *
+ * ## The visual position
+ *
+ * Sharp, structural, typographic. There is no corner radius on a surface anywhere in
+ * this file — a panel is a rectangle bounded by a rule, not a card floating on a page
+ * — and elevation is spent only where an overlay genuinely leaves the page.
+ * Hierarchy is carried by type, weight, rule and space, in that order. The one radius
+ * that survives is `--radius-full`, and only a status dot may use it.
  */
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -15,7 +23,9 @@
    ───────────────────────────────────────────────────────────────────────────── */
 
 :root {
-    /* Cool slate, so the blue below belongs to the same family as the chrome. */
+    /* Cool slate, so the plum and teal below belong to the same family as the
+       chrome. The ramp runs to both extremes because a flat interface leans on the
+       near-black and the near-white that a card interface never needs. */
     --slate-50: #f8fafc;
     --slate-100: #f1f5f9;
     --slate-200: #e2e8f0;
@@ -28,21 +38,37 @@
     --slate-900: #0f172a;
     --slate-950: #020617;
 
-    --blue-100: #dbeafe;
-    --blue-300: #93c5fd;
-    --blue-500: #3b82f6;
-    --blue-600: #2563eb;
-    --blue-700: #1d4ed8;
-    --blue-900: #1e3a8a;
+    /* The brand. `--plum-600` is the value as given and is the primary action's
+       fill; every other step is that hue at another lightness. `--plum-500` is
+       lighter than the ramp position would suggest on purpose — in dark mode it is
+       the fill, and the label on it is `--slate-950` rather than white, so it has to
+       be light enough to read against. */
+    --plum-100: #f0e7f3;
+    --plum-300: #caafd4;
+    --plum-500: #b177c6;
+    --plum-600: #553461;
+    --plum-700: #41254b;
+    --plum-900: #2a1731;
+
+    /* The accent, and the `info` state. `--teal-500` is the value as given; it sits
+       at 3.8:1 on white, which carries a rail, a rule or a badge (3:1 for a non-text
+       component) and will not carry body text. `--teal-600` exists for the places
+       that do. */
+    --teal-100: #e7edef;
+    --teal-300: #b2c4c7;
+    --teal-500: #6d878c;
+    --teal-600: #445f64;
+    --teal-700: #364b4f;
+    --teal-900: #212e30;
 
     --emerald-100: #d1fae5;
     --emerald-500: #10b981;
-    --emerald-600: #059669;
+    --emerald-600: #047857;
     --emerald-900: #064e3b;
 
     --amber-100: #fef3c7;
     --amber-500: #f59e0b;
-    --amber-600: #d97706;
+    --amber-600: #b45309;
     --amber-900: #78350f;
 
     --red-100: #fee2e2;
@@ -52,7 +78,7 @@
 
     --violet-100: #ede9fe;
     --violet-500: #8b5cf6;
-    --violet-600: #7c3aed;
+    --violet-600: #6d28d9;
     --violet-900: #4c1d95;
 
     /* 4px base. Every spacing decision is a multiple of it. */
@@ -67,39 +93,56 @@
     --space-16: 4rem;
     --space-24: 6rem;
 
-    /* Restrained and semantic. Nothing here is a pill except an avatar. */
-    --radius-sm: 4px;
-    --radius-md: 6px;
-    --radius-lg: 8px;
+    /* Zero, and meant. A surface in this product is a rectangle: the geometry is
+       what makes it read as structure rather than as a card floating on a page.
+       `--radius-full` is the single exception and belongs to a status dot, where
+       round is the meaning rather than the decoration. */
+    --radius-sm: 0;
+    --radius-md: 0;
+    --radius-lg: 0;
     --radius-full: 9999px;
 
-    --icon-sm: 16px;
-    --icon-md: 20px;
-    --icon-lg: 24px;
+    --icon-sm: 14px;
+    --icon-md: 16px;
+    --icon-lg: 20px;
 
-    /* The `Variable` suffixes are the family names the bundled faces declare; the
-       plain names after them pick up a locally installed copy. Both are in the
-       stack because the bundle is authoritative and a local install is a bonus. */
-    --font-sans: 'Inter Variable', 'Inter', ui-sans-serif, system-ui, sans-serif;
-    --font-arabic: 'IBM Plex Sans Arabic', 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
-    --font-mono:
-        'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+    /* One family for both languages. Tajawal sets Arabic and Latin, so a mixed line
+       — an Arabic label beside an English identifier — has one voice instead of two.
+       The monospace is the technical layer only: ids, hashes, versions, paths. */
+    --font-sans: 'Tajawal', ui-sans-serif, system-ui, sans-serif;
+    --font-arabic: var(--font-sans);
+    --font-mono: 'JetBrains Mono Variable', ui-monospace, 'SF Mono', Menlo, monospace;
 
-    /* Compressed on purpose: hierarchy comes from weight and colour, not size. */
+    /* Dense at the bottom, editorial at the top. The lower half is a working
+       interface and stays compressed; the upper half exists so a page can open with
+       something that means it. Nothing between them is invented to fill a gap. */
+    --text-2xs: 0.625rem; /* 10px — the eyebrow, tracked wide and capitalised */
     --text-xs: 0.6875rem; /* 11px — badges, table meta */
     --text-sm: 0.75rem; /* 12px — labels, dense cells */
     --text-base: 0.875rem; /* 14px — body, the workhorse */
     --text-md: 0.9375rem; /* 15px — emphasised body */
-    --text-lg: 1rem; /* 16px — section heading, mobile body */
-    --text-xl: 1.125rem; /* 18px — panel title */
-    --text-2xl: 1.25rem; /* 20px — page title, the largest in the product */
+    --text-lg: 1.0625rem; /* 17px — section heading */
+    --text-xl: 1.25rem; /* 20px — panel title */
+    --text-2xl: 1.625rem; /* 26px — page title */
+    --text-3xl: 2.25rem; /* 36px — cover heading */
+    --text-4xl: 3.25rem; /* 52px — the cover's one large statement */
 
+    /* Three, because Tajawal ships no 600. 700 carries what a semibold would. */
     --weight-normal: 400;
     --weight-medium: 500;
-    --weight-semibold: 600;
+    --weight-bold: 700;
 
-    --leading-tight: 1.35;
-    --leading-normal: 1.5;
+    /* Tracking is the editorial lever: tight on a large heading so it reads as one
+       object, wide on a small capitalised label so it reads as a rule rather than as
+       a word. */
+    --tracking-tight: -0.02em;
+    --tracking-normal: 0;
+    --tracking-wide: 0.08em;
+    --tracking-eyebrow: 0.16em;
+
+    --leading-tight: 1.15;
+    --leading-snug: 1.35;
+    --leading-normal: 1.55;
 
     --duration-instant: 0ms;
     --duration-micro: 100ms;
@@ -111,8 +154,10 @@
     --ease-in: cubic-bezier(0.4, 0, 1, 1);
     --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
 
-    --shadow-raised: 0 1px 2px 0 rgb(15 23 42 / 0.06), 0 1px 3px 0 rgb(15 23 42 / 0.1);
-    --shadow-overlay: 0 4px 6px -1px rgb(15 23 42 / 0.1), 0 10px 15px -3px rgb(15 23 42 / 0.1);
+    /* Elevation is spent on what genuinely leaves the page — a dialog, a dropdown, a
+       drawer — and nowhere else. A panel sitting in the layout is bounded by a rule
+       instead, which is why there is no `raised` shadow left to reach for. */
+    --shadow-overlay: 0 8px 24px -8px rgb(15 23 42 / 0.28);
 
     --z-base: 0;
     --z-raised: 10;
@@ -131,25 +176,34 @@
     --surface-raised: #ffffff;
     --surface-overlay: #ffffff;
     --surface-subtle: var(--slate-50);
+    /* The chrome. Navigation and the topbar are near-black in both themes, so the
+       frame reads as the console and the area inside it reads as the work. */
+    --surface-chrome: var(--slate-950);
+    --surface-chrome-hover: var(--slate-800);
 
     --text-primary: var(--slate-900);
     --text-secondary: var(--slate-600);
     --text-muted: var(--slate-500);
     --text-inverse: #ffffff;
     --text-danger: var(--red-600);
+    --text-on-chrome: var(--slate-100);
+    --text-on-chrome-muted: var(--slate-400);
 
+    /* Two weights of rule, and they mean different things: the default separates
+       rows inside one thing, `strong` separates one thing from the next. */
     --border-default: var(--slate-200);
-    --border-strong: var(--slate-300);
-    --border-focus: var(--blue-600);
+    --border-strong: var(--slate-400);
+    --border-chrome: var(--slate-800);
+    --border-focus: var(--plum-600);
 
-    --action-primary: var(--blue-600);
-    --action-primary-hover: var(--blue-700);
+    --action-primary: var(--plum-600);
+    --action-primary-hover: var(--plum-700);
     --action-primary-text: #ffffff;
     --action-secondary: var(--slate-100);
     --action-secondary-hover: var(--slate-200);
     --action-ghost-hover: var(--slate-100);
 
-    /* Five states. `pending` is AlphaMaster's own: staged but not yet written.
+    /* Six states. `pending` is AlphaMaster's own: staged but not yet written.
        Without it a modified-unsaved row borrows `warning`, and warning then means
        two different things on the same screen. */
     --state-success-rail: var(--emerald-500);
@@ -164,21 +218,21 @@
     --state-danger-tint: var(--red-100);
     --state-danger-text: var(--red-600);
 
-    --state-info-rail: var(--blue-500);
-    --state-info-tint: var(--blue-100);
-    --state-info-text: var(--blue-600);
+    --state-info-rail: var(--teal-500);
+    --state-info-tint: var(--teal-100);
+    --state-info-text: var(--teal-600);
 
     --state-pending-rail: var(--violet-500);
     --state-pending-tint: var(--violet-100);
     --state-pending-text: var(--violet-600);
 
-    --state-neutral-rail: var(--slate-300);
+    --state-neutral-rail: var(--slate-400);
     --state-neutral-tint: var(--slate-100);
     --state-neutral-text: var(--slate-600);
 
-    --focus-ring: var(--blue-600);
+    --focus-ring: var(--plum-600);
 
-    --selection-bg: var(--blue-100);
+    --selection-bg: var(--plum-100);
 }
 
 /* Dark is designed, not derived: desaturated tonal variants rather than inverted
@@ -189,19 +243,28 @@
     --surface-raised: var(--slate-800);
     --surface-overlay: var(--slate-800);
     --surface-subtle: #0b1220;
+    /* Darker than the content it frames, in both themes, so the console reads the
+       same way whichever one is on. */
+    --surface-chrome: #05070f;
+    --surface-chrome-hover: var(--slate-800);
 
     --text-primary: var(--slate-100);
     --text-secondary: var(--slate-300);
     --text-muted: var(--slate-400);
     --text-inverse: var(--slate-950);
     --text-danger: #f87171;
+    --text-on-chrome: var(--slate-100);
+    --text-on-chrome-muted: var(--slate-400);
 
     --border-default: var(--slate-700);
-    --border-strong: var(--slate-600);
-    --border-focus: var(--blue-500);
+    --border-strong: var(--slate-500);
+    --border-chrome: var(--slate-800);
+    --border-focus: var(--plum-500);
 
-    --action-primary: var(--blue-500);
-    --action-primary-hover: #60a5fa;
+    --action-primary: var(--plum-500);
+    /* A ramp step rather than a literal: the hover of a brand colour is that
+       colour, lighter. */
+    --action-primary-hover: var(--plum-300);
     --action-primary-text: var(--slate-950);
     --action-secondary: var(--slate-800);
     --action-secondary-hover: var(--slate-700);
@@ -219,9 +282,9 @@
     --state-danger-tint: var(--red-900);
     --state-danger-text: #fca5a5;
 
-    --state-info-rail: var(--blue-500);
-    --state-info-tint: var(--blue-900);
-    --state-info-text: var(--blue-300);
+    --state-info-rail: var(--teal-500);
+    --state-info-tint: var(--teal-900);
+    --state-info-text: var(--teal-300);
 
     --state-pending-rail: var(--violet-500);
     --state-pending-tint: var(--violet-900);
@@ -231,13 +294,10 @@
     --state-neutral-tint: var(--slate-800);
     --state-neutral-text: var(--slate-400);
 
-    --focus-ring: var(--blue-500);
-    --selection-bg: var(--blue-900);
+    --focus-ring: var(--plum-500);
+    --selection-bg: var(--plum-900);
 
-    /* Shadows all but vanish on dark ground, which is why elevation is carried by
-       border first and shadow second. */
-    --shadow-raised: 0 1px 2px 0 rgb(0 0 0 / 0.4);
-    --shadow-overlay: 0 10px 15px -3px rgb(0 0 0 / 0.5);
+    --shadow-overlay: 0 8px 24px -8px rgb(0 0 0 / 0.6);
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -248,17 +308,19 @@
 :root[data-density='compact'] {
     --table-row-height: 32px;
     --table-cell-padding-block: var(--space-1);
-    --field-height: 28px;
+    --field-height: 30px;
     --control-gap: var(--space-2);
     --section-gap: var(--space-4);
+    --page-gutter: var(--space-4);
 }
 
 :root[data-density='comfortable'] {
     --table-row-height: 40px;
     --table-cell-padding-block: var(--space-2);
-    --field-height: 34px;
+    --field-height: 36px;
     --control-gap: var(--space-3);
     --section-gap: var(--space-6);
+    --page-gutter: var(--space-6);
 }
 
 :root[data-density='spacious'] {
@@ -267,14 +329,17 @@
     --field-height: 44px;
     --control-gap: var(--space-4);
     --section-gap: var(--space-8);
+    --page-gutter: var(--space-8);
 }
 
 :root {
-    --topbar-height: 48px;
+    --topbar-height: 52px;
     --nav-rail-width: 56px;
-    --nav-panel-width: 240px;
-    --panel-width-docked: 400px;
-    --panel-width-min: 320px;
+    --nav-panel-width: 232px;
+    --panel-width-docked: 340px;
+    --panel-width-min: 300px;
     --panel-width-max: 640px;
+    /* The state rail. Thick enough to read down a column at a glance, which is the
+       only reason it exists. */
     --rail-width: 3px;
 }

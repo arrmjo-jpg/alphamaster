@@ -16,7 +16,7 @@ export function StatusBadge({ tone, children, icon, className }: StatusBadgeProp
     return (
         <span
             className={cn(
-                'inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5',
+                'inline-flex items-center gap-1 px-1.5 py-0.5',
                 'text-(length:--text-xs) font-medium',
                 classes.tint,
                 classes.text,

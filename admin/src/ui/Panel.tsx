@@ -43,16 +43,22 @@ export function Panel({
     return (
         <section
             className={cn(
-                'flex flex-col rounded-lg border border-(--border-default) bg-(--surface-default)',
+                // A rule on every side and a flat fill. No radius, no shadow: a panel
+                // is a region of the page, not an object resting on it.
+                'flex flex-col border border-(--border-default) bg-(--surface-default)',
                 className,
             )}
         >
-            <header className="flex items-center justify-between gap-2 border-b border-(--border-default) px-3 py-2">
-                <h2 className="text-(length:--text-md) font-semibold text-(--text-primary)">
+            <header className="flex items-baseline justify-between gap-3 border-b border-(--border-default) px-3 py-2.5">
+                {/* The eyebrow, not a heading-sized title: a panel names its region
+                    without competing with the page it sits on. */}
+                <h2 className="min-w-0 truncate text-(--text-secondary)" data-eyebrow>
                     {title}
                 </h2>
                 {aside !== undefined ? (
-                    <div className="text-(length:--text-sm) text-(--text-muted)">{aside}</div>
+                    <div className="shrink-0 text-(length:--text-sm) text-(--text-muted)">
+                        {aside}
+                    </div>
                 ) : null}
             </header>
 
@@ -105,9 +111,9 @@ function Skeleton() {
 
     return (
         <div aria-label={t('state.loading')} className="flex flex-col gap-2" role="status">
-            <span className="h-4 w-2/3 animate-pulse rounded-sm bg-(--action-secondary)" />
-            <span className="h-4 w-1/2 animate-pulse rounded-sm bg-(--action-secondary)" />
-            <span className="h-4 w-3/5 animate-pulse rounded-sm bg-(--action-secondary)" />
+            <span className="h-4 w-2/3 animate-pulse bg-(--action-secondary)" />
+            <span className="h-4 w-1/2 animate-pulse bg-(--action-secondary)" />
+            <span className="h-4 w-3/5 animate-pulse bg-(--action-secondary)" />
         </div>
     );
 }

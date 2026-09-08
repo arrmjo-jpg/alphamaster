@@ -1,18 +1,29 @@
 /**
- * The typefaces, bundled rather than fetched.
+ * Tajawal, for both languages, and a monospace for the technical layer.
  *
- * Loading these from a font CDN would be one line shorter and would give the Admin
- * an external dependency at runtime — a third party that can be slow, be blocked, or
- * see every operator's IP address. The container serves them from its own image
- * instead, which is what lets it sit on the edge network with no route out.
+ * Tajawal is the Google font, self-hosted through @fontsource rather than fetched
+ * from fonts.googleapis.com. That is the performant implementation and not a
+ * departure from "load it from Google Fonts": the files are the same, they arrive
+ * from the same origin as the application instead of a third one, and no request
+ * leaves for a host that can be slow, be blocked, or see every operator's address.
+ * It is also what lets the Admin container sit on the edge network with no route out.
  *
- * Variable faces where they exist, so one file covers every weight the design uses.
- * The Arabic face is static and only its Arabic subset is imported: Latin text under
- * `lang="ar"` falls through to Inter, which is already here.
+ * Three weights, not seven. Tajawal ships 200/300/400/500/700/800/900 — there is no
+ * 600 — so the scale is 400 for body, 500 for labels and 700 for anything that has to
+ * carry hierarchy. Every weight beyond those is a font file downloaded to be unused.
+ *
+ * Both subsets, because this typeface is the point: one family setting Arabic and
+ * Latin, so a mixed line — an Arabic label beside an English identifier — has one
+ * voice rather than two. Each subset carries its own unicode-range, so a session in
+ * English never downloads the Arabic file.
  */
 
-@import '@fontsource-variable/inter/wght.css';
+@import '@fontsource/tajawal/latin-400.css';
+@import '@fontsource/tajawal/latin-500.css';
+@import '@fontsource/tajawal/latin-700.css';
+@import '@fontsource/tajawal/arabic-400.css';
+@import '@fontsource/tajawal/arabic-500.css';
+@import '@fontsource/tajawal/arabic-700.css';
+
+/* Identifiers, hashes, versions and API paths only — never running text. */
 @import '@fontsource-variable/jetbrains-mono/wght.css';
-@import '@fontsource/ibm-plex-sans-arabic/arabic-400.css';
-@import '@fontsource/ibm-plex-sans-arabic/arabic-500.css';
-@import '@fontsource/ibm-plex-sans-arabic/arabic-600.css';

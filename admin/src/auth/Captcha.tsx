@@ -1,9 +1,10 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 /**
  * The reCAPTCHA checkbox, rendered only when the platform is asking for one.
  *
- * Two things are worth stating plainly.
+ * Three things are worth stating plainly.
  *
  * This is the one place the Admin loads a third-party script, and it happens only
  * when an operator has switched the captcha on and configured a site key. With the
@@ -13,26 +14,44 @@ import { useEffect, useRef } from 'react';
  * `minimum_score` when the vendor returns one, which is v3's shape), but the contract
  * publishes only `captcha_enabled` and `captcha_site_key`, so there is nothing here
  * to switch on. A deployment using a v3 site key needs a signal this contract does
- * not yet carry; when it grows one, this component branches on it rather than being
- * rewritten.
+ * not yet carry — and it now says so on screen rather than presenting a form that
+ * cannot be submitted.
+ *
+ * A widget that fails to appear is reported. This is not defensive tidiness: the
+ * submit button is disabled until the widget produces a response, so a silent render
+ * failure is an unusable sign-in page with nothing on it to explain why. It happened
+ * — see `loadScript` — and the fix for the cause is not a reason to leave the symptom
+ * unhandled.
  */
 
 interface GreCaptcha {
     render: (container: HTMLElement, options: Record<string, unknown>) => number;
     reset: (widgetId?: number) => void;
+    ready: (callback: () => void) => void;
 }
 
 declare global {
     interface Window {
-        grecaptcha?: GreCaptcha & { ready: (callback: () => void) => void };
+        grecaptcha?: GreCaptcha;
     }
 }
 
 const SCRIPT_ID = 'recaptcha-api';
 const SCRIPT_SRC = 'https://www.google.com/recaptcha/api.js?render=explicit';
 
+/**
+ * Resolve once the vendor's API is usable.
+ *
+ * The `window.grecaptcha` check comes first and is load-bearing. React's strict mode
+ * mounts, unmounts and remounts, so the second mount finds the script tag the first
+ * one added — and attaching a `load` listener to a script that has *already* loaded
+ * waits for an event that will never fire again. That is a promise which never
+ * settles, a `render` that is never called, and a sign-in button disabled forever.
+ * Measured against a live key: the widget id came back as 0, meaning nothing had
+ * rendered.
+ */
 function loadScript(): Promise<void> {
-    if (window.grecaptcha !== undefined) {
+    if (window.grecaptcha?.render !== undefined) {
         return Promise.resolve();
     }
 
@@ -40,8 +59,18 @@ function loadScript(): Promise<void> {
 
     if (existing !== null) {
         return new Promise((resolve, reject) => {
-            existing.addEventListener('load', () => resolve());
-            existing.addEventListener('error', () => reject(new Error('recaptcha failed to load')));
+            // Poll rather than listen. The event may already have happened, and the
+            // vendor's object appearing is the condition that actually matters.
+            const started = Date.now();
+            const timer = setInterval(() => {
+                if (window.grecaptcha?.render !== undefined) {
+                    clearInterval(timer);
+                    resolve();
+                } else if (Date.now() - started > 15_000) {
+                    clearInterval(timer);
+                    reject(new Error('recaptcha did not become available'));
+                }
+            }, 50);
         });
     }
 
@@ -66,9 +95,11 @@ export interface CaptchaProps {
 }
 
 export function Captcha({ siteKey, onToken, resetKey }: CaptchaProps) {
+    const { t } = useTranslation();
     const container = useRef<HTMLDivElement>(null);
     const widgetId = useRef<number | null>(null);
     const latestOnToken = useRef(onToken);
+    const [failed, setFailed] = useState(false);
 
     latestOnToken.current = onToken;
 
@@ -76,6 +107,14 @@ export function Captcha({ siteKey, onToken, resetKey }: CaptchaProps) {
         let cancelled = false;
 
         void loadScript()
+            .then(
+                () =>
+                    new Promise<void>((resolve) => {
+                        // `ready` is the vendor's own signal that render is safe. With
+                        // `render=explicit` the object can exist before it is.
+                        window.grecaptcha?.ready(() => resolve());
+                    }),
+            )
             .then(() => {
                 const element = container.current;
 
@@ -95,9 +134,16 @@ export function Captcha({ siteKey, onToken, resetKey }: CaptchaProps) {
                 }
             })
             .catch(() => {
-                // The vendor being unreachable is not reported as a form error: the
-                // backend fails closed, so the sign-in will be refused with the same
-                // message a wrong password produces, which is the point.
+                if (cancelled) {
+                    return;
+                }
+
+                // The vendor being unreachable, or refusing the key, is not reported
+                // as a form error — the backend fails closed and the refusal is the
+                // ordinary one. What has to be said is that the challenge cannot be
+                // completed, because the operator is otherwise looking at a button
+                // that will not work and no reason for it.
+                setFailed(true);
                 latestOnToken.current(null);
             });
 
@@ -115,5 +161,14 @@ export function Captcha({ siteKey, onToken, resetKey }: CaptchaProps) {
         latestOnToken.current(null);
     }, [resetKey]);
 
-    return <div ref={container} />;
+    return (
+        <div className="flex flex-col gap-2">
+            <div ref={container} />
+            {failed ? (
+                <p className="text-(length:--text-sm) text-(--text-danger)" role="alert">
+                    {t('auth.captchaUnavailable')}
+                </p>
+            ) : null}
+        </div>
+    );
 }

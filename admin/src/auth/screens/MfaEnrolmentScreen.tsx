@@ -12,7 +12,7 @@ import { Field } from '@/ui/Field';
 import { Input } from '@/ui/Input';
 import { SegmentedControl } from '@/ui/SegmentedControl';
 
-import { AuthLayout } from './AuthLayout';
+import { AuthCover } from './AuthCover';
 
 type Method = 'totp' | 'sms_otp';
 type Stage = 'choose' | 'confirm' | 'recovery';
@@ -87,7 +87,7 @@ export function MfaEnrolmentScreen() {
     };
 
     return (
-        <AuthLayout
+        <AuthCover
             description={t('auth.enrol.description')}
             footer={
                 stage === 'recovery' ? null : (
@@ -191,7 +191,7 @@ export function MfaEnrolmentScreen() {
                         </Alert>
 
                         <ul
-                            className="grid grid-cols-2 gap-1 rounded-md border border-(--border-default) bg-(--surface-subtle) p-3"
+                            className="grid grid-cols-2 gap-1 border border-(--border-default) bg-(--surface-subtle) p-3"
                             data-technical
                         >
                             {recoveryCodes.map((recoveryCode) => (
@@ -238,7 +238,7 @@ export function MfaEnrolmentScreen() {
                     </>
                 ) : null}
             </div>
-        </AuthLayout>
+        </AuthCover>
     );
 }
 
@@ -277,7 +277,7 @@ function TotpEnrolment({ uri, secret }: { uri: string; secret: string }) {
             ) : (
                 <canvas
                     aria-label={t('auth.enrol.qrLabel')}
-                    className="rounded-md bg-white p-2"
+                    className="bg-white p-2"
                     ref={canvas}
                     role="img"
                 />

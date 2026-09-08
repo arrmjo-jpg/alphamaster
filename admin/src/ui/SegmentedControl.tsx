@@ -32,7 +32,7 @@ export function SegmentedControl<T extends string>({
         <div
             aria-label={label}
             className={cn(
-                'inline-flex items-center gap-0.5 rounded-md bg-(--action-secondary) p-0.5',
+                'inline-flex items-center gap-0.5 bg-(--action-secondary) p-0.5',
                 className,
             )}
             role="radiogroup"
@@ -44,12 +44,12 @@ export function SegmentedControl<T extends string>({
                     <button
                         aria-checked={selected}
                         className={cn(
-                            'inline-flex items-center gap-1.5 rounded-sm px-2 py-1',
+                            'inline-flex items-center gap-1.5 px-2 py-1',
                             'text-(length:--text-sm) font-medium',
                             'transition-colors duration-100 ease-out',
                             'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-(--focus-ring)',
                             selected
-                                ? 'bg-(--surface-default) text-(--text-primary) shadow-(--shadow-raised)'
+                                ? 'bg-(--surface-default) text-(--text-primary)'
                                 : 'text-(--text-secondary) hover:text-(--text-primary)',
                         )}
                         key={option.value}

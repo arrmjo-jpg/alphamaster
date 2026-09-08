@@ -24,7 +24,7 @@ export function StateRail({ tone, children, className }: StateRailProps) {
             <span
                 aria-hidden
                 className={cn(
-                    'absolute inset-y-0 start-0 w-(--rail-width) rounded-full',
+                    'absolute inset-y-0 start-0 w-(--rail-width) ',
                     TONE_CLASSES[tone].rail,
                 )}
             />
