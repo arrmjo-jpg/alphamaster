@@ -308,7 +308,8 @@
             "remove": "Remove",
             "preview": "Current image",
             "tooLarge": "That file is larger than the platform accepts (100 MB).",
-            "notAnImage": "That file is not an image."
+            "notAnImage": "That file is not an image.",
+            "rejectedTooLarge": "The file was refused before it reached the platform, because it is larger than this deployment accepts."
         },
         "status": {
             "modified": "Modified",

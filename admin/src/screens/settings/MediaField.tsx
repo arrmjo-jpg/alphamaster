@@ -77,7 +77,7 @@ export function MediaField({ value, disabled, onChange, id }: MediaFieldProps) {
             const uploaded = await uploadMedia(file);
             onChange(uploaded.id);
         } catch (caught) {
-            setError(caught instanceof ApiError ? caught.message : t('state.error'));
+            setError(messageFor(caught, t));
         } finally {
             setUploading(false);
         }
@@ -157,6 +157,23 @@ export function MediaField({ value, disabled, onChange, id }: MediaFieldProps) {
             ) : null}
         </div>
     );
+}
+
+/**
+ * What to tell the operator when an upload fails.
+ *
+ * A 413 is the one case the platform cannot describe itself: a proxy refuses the body
+ * before the application sees it, so what comes back is a status line rather than the
+ * error envelope, and `ApiError` falls back to `HTTP_413` with whatever text the proxy
+ * used. Saying "Request Entity Too Large" to an operator is showing them the plumbing.
+ * Everything else already carries a message the platform wrote, and that message wins.
+ */
+function messageFor(caught: unknown, t: (key: string) => string): string {
+    if (caught instanceof ApiError) {
+        return caught.status === 413 ? t('settings.media.rejectedTooLarge') : caught.message;
+    }
+
+    return t('state.error');
 }
 
 function Preview({ file, loading }: { file: MediaFile | undefined; loading: boolean }) {
