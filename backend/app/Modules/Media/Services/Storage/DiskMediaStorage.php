@@ -9,6 +9,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use League\Flysystem\UnableToGenerateTemporaryUrl;
+use League\Flysystem\UnableToReadFile;
 use RuntimeException;
 
 /**
@@ -87,6 +88,20 @@ class DiskMediaStorage implements MediaStorageContract
             // application route instead, which is slower but correct.
             return null;
         }
+    }
+
+    /**
+     * @return resource|null
+     */
+    public function readStream(string $path, string $disk)
+    {
+        try {
+            $stream = Storage::disk($disk)->readStream($path);
+        } catch (UnableToReadFile) {
+            return null;
+        }
+
+        return is_resource($stream) ? $stream : null;
     }
 
     public function defaultDisk(): string

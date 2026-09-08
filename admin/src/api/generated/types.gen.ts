@@ -1674,6 +1674,50 @@ export type MediaShowResponses = {
 
 export type MediaShowResponse = MediaShowResponses[keyof MediaShowResponses];
 
+export type MediaFileData = {
+    body?: never;
+    path: {
+        /**
+         * The media ID
+         */
+        media: string;
+    };
+    query?: never;
+    url: '/media/{media}/file';
+};
+
+export type MediaFileErrors = {
+    /**
+     * Unauthenticated
+     */
+    401: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+    /**
+     * Not found
+     */
+    404: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+};
+
+export type MediaFileError = MediaFileErrors[keyof MediaFileErrors];
+
+export type MediaFileResponses = {
+    /**
+     * The file, with the media type recorded for it.
+     */
+    200: string;
+};
+
+export type MediaFileResponse = MediaFileResponses[keyof MediaFileResponses];
+
 export type AdminMediaIndexData = {
     body?: never;
     path?: never;

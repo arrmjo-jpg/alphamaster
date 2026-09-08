@@ -43,6 +43,17 @@ interface MediaStorageContract
     public function temporaryUrl(string $path, string $disk, int $ttlSeconds): ?string;
 
     /**
+     * A read handle on the stored object, or null when it is no longer there.
+     *
+     * A stream rather than the contents: media is bounded at 100 MiB and the point of
+     * serving it through the application is that the bytes pass through, not that
+     * they are assembled in memory first.
+     *
+     * @return resource|null
+     */
+    public function readStream(string $path, string $disk);
+
+    /**
      * The disk new uploads are written to by default.
      */
     public function defaultDisk(): string;

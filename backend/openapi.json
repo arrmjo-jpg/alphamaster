@@ -2650,6 +2650,79 @@
                 }
             }
         },
+        "/media/{media}/file": {
+            "get": {
+                "operationId": "media.file",
+                "description": "Returns the stored file itself, with the media type recorded for it. The\nresponse carries a strong `ETag` derived from the file's checksum, so a\nconditional request with `If-None-Match` is answered `304`. It is cacheable\nprivately and indefinitely: the bytes behind a media id never change.\n\nA file the caller may not see is reported exactly as one that does not exist.",
+                "summary": "Serve the bytes",
+                "tags": [
+                    "Media"
+                ],
+                "parameters": [
+                    {
+                        "name": "media",
+                        "in": "path",
+                        "required": true,
+                        "description": "The media ID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The file, with the media type recorded for it.",
+                        "content": {
+                            "text/html": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "application/octet-stream": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "binary"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Transfer-Encoding": {
+                                "required": true,
+                                "schema": {
+                                    "type": "string",
+                                    "enum": [
+                                        "chunked"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "304": {
+                        "description": "The copy already held is still current.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "ETag": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
         "/admin/media": {
             "get": {
                 "operationId": "admin.media.index",
