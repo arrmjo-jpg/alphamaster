@@ -14,6 +14,7 @@ use App\Modules\Auth\Requests\MfaEnrolRequest;
 use App\Modules\Auth\Services\MfaManager;
 use App\Modules\Auth\Support\AuthCookie;
 use App\Modules\Core\Controllers\BaseApiController;
+use Dedoc\Scramble\Attributes\Response;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Laravel\Sanctum\Contracts\HasAbilities;
@@ -61,6 +62,7 @@ class MfaController extends BaseApiController
      * first code has just been sent to. The response carries only what the chosen
      * method actually has.
      */
+    #[Response(200, type: 'array{success: bool, message: string, data: array{type: string, secret?: string, uri?: string, destination?: string}}')]
     public function enrol(MfaEnrolRequest $request): JsonResponse
     {
         $type = MfaType::from((string) ($request->validated('type') ?? MfaType::TOTP->value));

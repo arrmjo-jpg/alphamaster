@@ -9,6 +9,7 @@ use App\Modules\Media\Contracts\MediaServiceContract;
 use App\Modules\Media\Models\MediaFile;
 use App\Modules\Media\Resources\MediaAdminResource;
 use Dedoc\Scramble\Attributes\QueryParameter;
+use Dedoc\Scramble\Attributes\Response;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -30,6 +31,7 @@ class MediaAdminController extends BaseApiController
      */
     #[QueryParameter('status', 'Exact match on the media status.', type: 'string')]
     #[QueryParameter('type', 'Exact match on the media type.', type: 'string')]
+    #[Response(200, type: 'array{success: bool, data: list<MediaAdminResource>, meta: array{pagination: array{current_page: int, per_page: int, total: int, last_page: int, has_more_pages: bool}}}')]
     public function index(Request $request): JsonResponse
     {
         $query = MediaFile::query()->with('uploader')->latest();

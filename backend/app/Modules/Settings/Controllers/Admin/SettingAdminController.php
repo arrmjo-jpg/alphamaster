@@ -45,6 +45,7 @@ class SettingAdminController extends BaseApiController
      * recorded with its outcome (ADR 0037), and no credential appears in the
      * response, the record, or the failure.
      */
+    #[Response(200, type: 'array{success: bool, message: string, data: array{status: string, recipient?: string, missing?: list<string>, failure?: string}}')]
     public function testMail(MailConfigurationTester $tester): JsonResponse
     {
         $result = $tester->test();
@@ -95,6 +96,7 @@ class SettingAdminController extends BaseApiController
     /**
      * List all settings grouped by group with admin details and masked secrets.
      */
+    #[Response(200, type: 'array{success: bool, data: array<string, list<array{id: string, group: string, key: string, value: mixed, is_localized: bool, locale: string|null, type: string, type_label: string, is_secret: bool, is_public: bool, description: string|null, updated_at: string|null}>>}')]
     public function index(): JsonResponse
     {
         return $this->successResponse($this->settingService->getAdminAll());
@@ -103,6 +105,7 @@ class SettingAdminController extends BaseApiController
     /**
      * Get all settings in a specific group with admin details and masked secrets.
      */
+    #[Response(200, type: 'array{success: bool, data: list<array{id: string, group: string, key: string, value: mixed, is_localized: bool, locale: string|null, type: string, type_label: string, is_secret: bool, is_public: bool, description: string|null, updated_at: string|null}>, meta: array{version: string}}')]
     public function show(string $group): JsonResponse
     {
         try {
@@ -128,6 +131,7 @@ class SettingAdminController extends BaseApiController
      * Secrets are absent because they have no revisions, not because they are filtered
      * here — there is nothing to filter.
      */
+    #[Response(200, type: 'array{success: bool, data: list<array{key: string, locale: string|null, version: int, value: mixed, actor_id: string|null, recorded_at: string}>, meta: array{group: string, count: int}}')]
     public function history(Request $request, string $group): JsonResponse
     {
         $key = $request->query('key');
