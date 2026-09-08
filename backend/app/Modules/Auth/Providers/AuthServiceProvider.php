@@ -12,9 +12,12 @@ use App\Modules\Auth\Services\ConfirmedMfaSmsRecipientResolver;
 use App\Modules\Auth\Services\Mfa\SmsOtpMethod;
 use App\Modules\Auth\Services\Mfa\TotpMethod;
 use App\Modules\Auth\Services\MfaManager;
+use App\Modules\Auth\Support\AuthCookie;
 use App\Modules\Core\Contracts\SmsRecipientResolverInterface;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Laravel\Sanctum\Sanctum;
 use PragmaRX\Google2FA\Google2FA;
 
 class AuthServiceProvider extends ServiceProvider
@@ -50,6 +53,35 @@ class AuthServiceProvider extends ServiceProvider
     {
         $this->loadMigrationsFrom(dirname(__DIR__).'/Database/Migrations');
         $this->registerRoutes();
+        $this->registerCookieTransport();
+    }
+
+    /**
+     * Let an access token arrive in a cookie as well as in a header (ADR 0042).
+     *
+     * A published extension point: Sanctum's guard consults this callback before
+     * falling back to bearerToken(). What it returns is looked up as an ordinary
+     * personal access token, so currentAccessToken() is a real PersonalAccessToken
+     * and tokenCan() reads real abilities — which is the entire reason for doing it
+     * this way rather than through EnsureFrontendRequestsAreStateful, whose
+     * TransientToken answers true to every ability check and would silently delete
+     * the perimeter of ADR 0012 and the scoping of ADR 0013.
+     *
+     * Cookie first, then bearer. The order matters only when both are present, and
+     * then the browser's own credential is the more specific statement of who is
+     * calling. Bearer is untouched and remains fully supported.
+     */
+    protected function registerCookieTransport(): void
+    {
+        Sanctum::getAccessTokenFromRequestUsing(static function (Request $request): ?string {
+            $fromCookie = $request->cookie(AuthCookie::NAME);
+
+            if (is_string($fromCookie) && $fromCookie !== '') {
+                return $fromCookie;
+            }
+
+            return $request->bearerToken();
+        });
     }
 
     /**

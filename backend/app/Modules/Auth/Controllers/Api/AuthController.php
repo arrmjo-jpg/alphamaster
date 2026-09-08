@@ -19,6 +19,7 @@ use App\Modules\Auth\Resources\AuthenticatedUserResource;
 use App\Modules\Auth\Services\AuthService;
 use App\Modules\Auth\Services\CaptchaGuard;
 use App\Modules\Auth\Services\LoginThrottle;
+use App\Modules\Auth\Support\AuthCookie;
 use App\Modules\Auth\Support\LoginIdentifier;
 use App\Modules\Core\Contracts\EffectiveGrants;
 use App\Modules\Core\Controllers\BaseApiController;
@@ -96,24 +97,30 @@ class AuthController extends BaseApiController
         // 0013); if an unverified administrator could reach enrolment, that exchange
         // would be a path to administrative access without a verified address.
         if ($this->auth->requiresEmailVerification($user)) {
+            $verification = $this->auth->issueEmailVerificationToken($user)->plainTextToken;
+
             return $this->successResponse([
                 'email_verification_required' => true,
-                'verification_token' => $this->auth->issueEmailVerificationToken($user)->plainTextToken,
+                'verification_token' => $verification,
                 'token_type' => 'Bearer',
                 'abilities' => [TokenAbility::EMAIL_VERIFY->value],
-            ], 'Verify your email address to continue. Request a verification link to proceed.');
+            ], 'Verify your email address to continue. Request a verification link to proceed.')
+                ->withCookie(AuthCookie::issue($verification));
         }
 
         // MFA is mandatory for administrators. One who has not enrolled receives no
         // access token, only a credential scoped to enrolment, so there is no window
         // in which an administrator holds access without a second factor.
         if ($this->auth->requiresMfaEnrolment($user)) {
+            $enrolment = $this->auth->issueEnrolmentToken($user)->plainTextToken;
+
             return $this->successResponse([
                 'mfa_setup_required' => true,
-                'enrolment_token' => $this->auth->issueEnrolmentToken($user)->plainTextToken,
+                'enrolment_token' => $enrolment,
                 'token_type' => 'Bearer',
                 'abilities' => [TokenAbility::MFA_ENROL->value],
-            ], 'Multi-factor authentication is required for administrators. Enrol a second factor to continue.');
+            ], 'Multi-factor authentication is required for administrators. Enrol a second factor to continue.')
+                ->withCookie(AuthCookie::issue($enrolment));
         }
 
         // A user with MFA enabled gets no access token here — only a short-lived
@@ -126,10 +133,10 @@ class AuthController extends BaseApiController
             ], 'Multi-factor authentication is required to complete sign-in.');
         }
 
-        return $this->successResponse(
-            $this->auth->issueToken($user)->toArray(),
-            'Authenticated successfully.'
-        );
+        $issued = $this->auth->issueToken($user);
+
+        return $this->successResponse($issued->toArray(), 'Authenticated successfully.')
+            ->withCookie(AuthCookie::issue($issued->plainTextToken));
     }
 
     /**
@@ -161,7 +168,8 @@ class AuthController extends BaseApiController
 
         $this->throttle->clear($key);
 
-        return $this->successResponse($issued->toArray(), 'Authenticated successfully.');
+        return $this->successResponse($issued->toArray(), 'Authenticated successfully.')
+            ->withCookie(AuthCookie::issue($issued->plainTextToken));
     }
 
     /**
