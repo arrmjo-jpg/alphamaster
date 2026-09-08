@@ -340,6 +340,19 @@ export type UserResource = {
     account_type: string;
     account_type_label: string;
     is_active: boolean;
+    /**
+     * The account's phone number in canonical form, or null.
+     */
+    phone: string | null;
+    /**
+     * Whether the address has been confirmed, and when.
+     */
+    email_verified: boolean;
+    email_verified_at: string | null;
+    /**
+     * Whether a confirmed second factor exists. Which one is not published.
+     */
+    mfa_enrolled: boolean;
     roles: Array<string>;
     permissions: Array<string>;
 };
@@ -2259,9 +2272,12 @@ export type AdminRolesIndexError = AdminRolesIndexErrors[keyof AdminRolesIndexEr
 export type AdminRolesIndexResponses = {
     200: {
         success: boolean;
-        message: string;
-        data: Array<RoleResource>;
-        meta: string;
+        data: Array<{
+            id: number;
+            name: string;
+            name_label: string;
+            permissions: Array<string>;
+        }>;
     };
 };
 
@@ -2304,6 +2320,16 @@ export type AdminRolesStoreErrors = {
 export type AdminRolesStoreError = AdminRolesStoreErrors[keyof AdminRolesStoreErrors];
 
 export type AdminRolesStoreResponses = {
+    200: {
+        success: boolean;
+        message: string;
+        data: {
+            id: number;
+            name: string;
+            name_label: string;
+            permissions: Array<string>;
+        };
+    };
     201: {
         success: boolean;
         message: string;
@@ -2414,8 +2440,12 @@ export type AdminRolesUpdateResponses = {
     200: {
         success: boolean;
         message: string;
-        data: RoleResource;
-        meta: string;
+        data: {
+            id: number;
+            name: string;
+            name_label: string;
+            permissions: Array<string>;
+        };
     };
 };
 

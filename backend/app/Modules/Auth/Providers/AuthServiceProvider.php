@@ -8,11 +8,13 @@ use App\Modules\Auth\Contracts\AuthServiceContract;
 use App\Modules\Auth\Contracts\MfaManagerContract;
 use App\Modules\Auth\Enums\MfaType;
 use App\Modules\Auth\Services\AuthService;
+use App\Modules\Auth\Services\ConfirmedMfaEnrolmentStatus;
 use App\Modules\Auth\Services\ConfirmedMfaSmsRecipientResolver;
 use App\Modules\Auth\Services\Mfa\SmsOtpMethod;
 use App\Modules\Auth\Services\Mfa\TotpMethod;
 use App\Modules\Auth\Services\MfaManager;
 use App\Modules\Auth\Support\AuthCookie;
+use App\Modules\Core\Contracts\MfaEnrolmentStatus;
 use App\Modules\Core\Contracts\SmsRecipientResolverInterface;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -44,6 +46,12 @@ class AuthServiceProvider extends ServiceProvider
         // Auth owns the confirmed number, so it supplies the resolver Notification
         // consumes through the Core contract.
         $this->app->singleton(SmsRecipientResolverInterface::class, ConfirmedMfaSmsRecipientResolver::class);
+
+        // The administrative user list needs to know whether an account is protected,
+        // and the User module may not import this one. Core declares the question;
+        // this is the module that owns the answer, so it binds it — the same
+        // direction EffectiveGrants runs in.
+        $this->app->singleton(MfaEnrolmentStatus::class, ConfirmedMfaEnrolmentStatus::class);
     }
 
     /**

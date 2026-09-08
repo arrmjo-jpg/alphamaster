@@ -6,6 +6,7 @@ namespace App\Modules\User\Controllers\Admin;
 
 use App\Modules\Authorization\Contracts\AdminRbacContract;
 use App\Modules\Authorization\Exceptions\NotAnAdminAccountException;
+use App\Modules\Core\Contracts\MfaEnrolmentStatus;
 use App\Modules\Core\Controllers\BaseApiController;
 use App\Modules\User\Contracts\AccountTypeManagerContract;
 use App\Modules\User\Models\User;
@@ -18,6 +19,7 @@ class UserAdminController extends BaseApiController
     public function __construct(
         protected AdminRbacContract $rbac,
         protected AccountTypeManagerContract $accountTypes,
+        protected MfaEnrolmentStatus $mfa,
     ) {}
 
     /**
@@ -93,10 +95,11 @@ class UserAdminController extends BaseApiController
     /**
      * Account representation for the admin API.
      *
-     * Roles and permissions are resolved here rather than inside the Resource:
-     * they come from the Authorization boundary, which reports them as empty for
-     * a regular account even if rows existed, and crossing that boundary is the
-     * application layer's job rather than presentation's.
+     * Roles, permissions and enrolment state are resolved here rather than inside
+     * the Resource: each comes from a boundary this module may not cross, and
+     * crossing one is the application layer's job rather than presentation's. The
+     * Authorization boundary reports empty for a regular account even where rows
+     * exist; the Auth boundary answers a single boolean and can return nothing else.
      */
     private function resource(User $user): UserResource
     {
@@ -106,6 +109,7 @@ class UserAdminController extends BaseApiController
             $user,
             $this->rbac->rolesFor($user),
             $this->rbac->permissionsFor($user),
+            $this->mfa->isEnrolled($user),
         );
     }
 }
