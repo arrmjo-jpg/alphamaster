@@ -6,6 +6,7 @@ import '@/styles/index.css';
 
 import { App } from '@/app/App';
 import { AppProviders } from '@/app/AppProviders';
+import { AuthGate } from '@/auth/AuthGate';
 
 const container = document.getElementById('root');
 
@@ -16,7 +17,9 @@ if (container === null) {
 createRoot(container).render(
     <StrictMode>
         <AppProviders>
-            <App />
+            <AuthGate>
+                <App />
+            </AuthGate>
         </AppProviders>
     </StrictMode>,
 );

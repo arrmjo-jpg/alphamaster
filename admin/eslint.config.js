@@ -38,7 +38,13 @@ export default tseslint.config(
                 'warn',
                 {
                     allowConstantExport: true,
-                    allowExportNames: ['useTheme', 'useDensity', 'useDirection'],
+                    allowExportNames: [
+                        'useTheme',
+                        'useDensity',
+                        'useDirection',
+                        'useAuth',
+                        'useCurrentUser',
+                    ],
                 },
             ],
 
