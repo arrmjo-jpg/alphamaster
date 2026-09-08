@@ -144,7 +144,9 @@
     },
     "modules": {
         "dashboard": "Dashboard",
-        "settings": "Settings"
+        "settings": "Settings",
+        "users": "Users",
+        "roles": "Roles & permissions"
     },
     "dashboard": {
         "platform": {
@@ -296,5 +298,47 @@
             "rate_limit": "Rate limits",
             "security": "Security"
         }
+    },
+    "access": {
+        "eyebrow": "Access",
+        "account": "Account",
+        "identity": "Identity",
+        "security": "Security",
+        "standing": "Standing",
+        "roles": "Roles",
+        "role": "Role",
+        "effective": "Effective permissions",
+        "effectiveNote": "Everything this account holds, directly or through a role. The platform does not say which, so neither does this.",
+        "filter": "Filter accounts",
+        "filterPlaceholder": "Name, email, phone or role",
+        "filterNote_zero": "Filtered in the browser. There is nothing to filter yet.",
+        "filterNote_one": "Filtered in the browser across the one account the platform returned.",
+        "filterNote_other": "Filtered in the browser across all {{count}} accounts. The platform returns them in one response.",
+        "columns": {
+            "account": "Account",
+            "type": "Type",
+            "verification": "Address",
+            "mfa": "Second factor",
+            "roles": "Roles"
+        },
+        "verified": "Verified",
+        "unverified": "Unverified",
+        "verifiedAt": "Verified {{at}}",
+        "mfaOn": "Enrolled",
+        "mfaOff": "Not enrolled",
+        "mfaNote": "Whether a confirmed second factor exists. Which one is not published.",
+        "active": "Active",
+        "suspended": "Suspended",
+        "promote": "Make administrator",
+        "demote": "Remove administrator",
+        "saveRoles": "Save roles",
+        "rolesReadOnly": "Changing roles needs the roles.update permission.",
+        "permissionsHidden": "Seeing the permission catalogue needs the permissions.view permission.",
+        "granted": "Granted",
+        "notGranted": "Not granted",
+        "chooseUser": "Choose an account to inspect it.",
+        "noUsers": "No accounts yet.",
+        "noMatches": "No account matches that.",
+        "noRoles": "No roles are defined."
     }
 }
