@@ -12,6 +12,7 @@ use App\Modules\Auth\Exceptions\MfaEnrolmentException;
 use App\Modules\Auth\Requests\MfaCodeRequest;
 use App\Modules\Auth\Requests\MfaEnrolRequest;
 use App\Modules\Auth\Services\MfaManager;
+use App\Modules\Auth\Support\AuthCookie;
 use App\Modules\Core\Controllers\BaseApiController;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -124,15 +125,30 @@ class MfaController extends BaseApiController
         // of the factor, which together with the password they signed in with is a
         // complete two-factor authentication. Hand them the real token and burn the
         // enrolment credential, rather than making them sign in twice.
+        $exchanged = null;
+
         if ($current instanceof PersonalAccessToken && $current->can(TokenAbility::MFA_ENROL->value)) {
             $current->delete();
-            $payload = array_merge($payload, $this->auth->issueToken($request->user())->toArray());
+            $exchanged = $this->auth->issueToken($request->user());
+            $payload = array_merge($payload, $exchanged->toArray());
         }
 
-        return $this->successResponse(
+        $response = $this->successResponse(
             $payload,
             'Multi-factor authentication is now enabled. Store these recovery codes; they will not be shown again.'
         );
+
+        // The exchange replaces one credential with another, so the cookie has to
+        // follow (ADR 0042). Without this the browser would keep presenting the
+        // enrolment cookie for a token that was just deleted, and the next request
+        // would be unauthenticated for reasons nothing in the response explained.
+        //
+        // Only when an exchange actually happened: a regular user enrolling
+        // voluntarily arrives on their own access token, which is still valid and must
+        // not be overwritten.
+        return $exchanged === null
+            ? $response
+            : $response->withCookie(AuthCookie::issue($exchanged->plainTextToken));
     }
 
     /**

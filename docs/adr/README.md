@@ -45,3 +45,4 @@ This directory maintains the architectural decision records for the **alphamaste
 | [0039](0039-backup-recovery-and-encryption-key-custody.md) | Backup, Recovery and Encryption-Key Custody | Accepted |
 | [0040](0040-configuration-history-and-rollback.md) | Configuration History and Rollback | Accepted |
 | [0041](0041-deployment-network-and-exposure-topology.md) | Deployment Network and Exposure Topology | Accepted |
+| [0042](0042-admin-session-transport-same-origin-and-module-registry.md) | Admin Session Transport, Same-Origin Deployment, and the Module Registry | Accepted |
