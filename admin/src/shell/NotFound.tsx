@@ -17,7 +17,7 @@ export function NotFound({ pathname }: { pathname: string }) {
     return (
         <div className="flex max-w-xl flex-col gap-4">
             <StateRail tone="warning">
-                <h1 className="text-(length:--text-xl) font-semibold text-(--text-primary)">
+                <h1 className="text-(length:--text-2xl) text-(--text-primary)">
                     {t('shell.notFound.title')}
                 </h1>
                 <p className="text-(--text-secondary)">{t('shell.notFound.body')}</p>

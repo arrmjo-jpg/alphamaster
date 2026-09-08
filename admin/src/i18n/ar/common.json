@@ -264,19 +264,27 @@
                 "action-failed_two": "إجراءان إداريّان فشلا.",
                 "action-failed_few": "{{count}} إجراءات إداريّة فشلت.",
                 "action-failed_many": "{{count}} إجراءً إداريًّا فشلت.",
-                "action-failed_other": "{{count}} إجراء إداريّ فشل."
+                "action-failed_other": "{{count}} إجراء إداريّ فشل.",
+                "capability-uncredentialed_zero": "لا قدرة بلا اعتمادات.",
+                "capability-uncredentialed_one": "قدرة واحدة بلا اعتمادات.",
+                "capability-uncredentialed_two": "قدرتان بلا اعتمادات.",
+                "capability-uncredentialed_few": "{{count}} قدرات بلا اعتمادات.",
+                "capability-uncredentialed_many": "{{count}} قدرةً بلا اعتمادات.",
+                "capability-uncredentialed_other": "{{count}} قدرة بلا اعتمادات."
             },
             "why": {
                 "platform-silent": "لم يُبلّغ فحص الحياة عن تطبيق سليم.",
                 "administrator-blocked": "يرفض الحاجز الحساب الموقوف أو غير المؤكَّد العنوان أو الذي لا عامل ثانيَ مؤكَّدًا له.",
                 "capability-failing": "رُفضت كلّ محاولة حديثة عبر المزوّد النشط.",
                 "capability-degraded": "رُفض بعض المحاولات الحديثة عبر المزوّد النشط.",
-                "action-failed": "مسجَّل في سجلّ التدقيق بنتيجة فاشلة."
+                "action-failed": "مسجَّل في سجلّ التدقيق بنتيجة فاشلة.",
+                "capability-uncredentialed": "لا يحمل المزوّد النشط أيّ اعتمادات، فتُرفض كلّ محاولة قبل إجرائها."
             },
             "go": {
                 "administrator-blocked": "فتح الحسابات",
                 "capability-failing": "فتح إعدادات البريد",
-                "capability-degraded": "فتح إعدادات البريد"
+                "capability-degraded": "فتح إعدادات البريد",
+                "capability-uncredentialed": "فتح إعدادات البريد"
             }
         },
         "state": {
@@ -306,13 +314,15 @@
                 "administrator-blocked_other": "استعادة وصول {{count}} مشرف",
                 "capability-failing": "تفقّد تسليم البريد",
                 "capability-degraded": "تفقّد تسليم البريد",
-                "test-mail": "إرسال رسالة اختبار"
+                "test-mail": "إرسال رسالة اختبار",
+                "capability-uncredentialed": "تفقّد تسليم البريد"
             },
             "because": {
                 "administrator-blocked": "يرفضهم الحاجز عند الدخول حتّى يكون الحساب نشطًا والعنوان مؤكَّدًا والعامل الثاني مسجَّلًا.",
                 "capability-failing": "فشلت كلّ محاولة إرسال حديثة. تحمل مجموعة البريد الإعدادات ورسالة اختبار.",
                 "capability-degraded": "فشل بعض محاولات الإرسال الحديثة. تحمل مجموعة البريد الإعدادات ورسالة اختبار.",
-                "test-mail": "البريد مهيّأ ولم يُستخدم بعد، وهي الحالة الأسهل خلطًا بالعمل الصحيح."
+                "test-mail": "البريد مهيّأ ولم يُستخدم بعد، وهي الحالة الأسهل خلطًا بالعمل الصحيح.",
+                "capability-uncredentialed": "لا يحمل المزوّد النشط اعتمادات. تحمل مجموعة البريد الإعدادات ورسالة اختبار."
             }
         }
     },
@@ -454,7 +464,8 @@
             "operations": "التشغيل",
             "rate_limit": "حدود المعدّل",
             "security": "الأمان"
-        }
+        },
+        "eyebrow": "التهيئة"
     },
     "access": {
         "eyebrow": "الوصول",

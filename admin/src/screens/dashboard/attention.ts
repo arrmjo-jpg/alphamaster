@@ -24,6 +24,7 @@ export type FindingKind =
     | 'platform-silent'
     | 'administrator-blocked'
     | 'capability-failing'
+    | 'capability-uncredentialed'
     | 'capability-degraded'
     | 'action-failed';
 
@@ -137,6 +138,12 @@ export function assessAttention(input: AttentionInput): Attention {
 
         const failing = input.capabilities.filter((row) => row.state === 'failing');
         const degraded = input.capabilities.filter((row) => row.state === 'degraded');
+        // Certain to fail, and not yet observed failing. The capability panel says
+        // this per row, but an operator reading a clear attention board would
+        // otherwise learn it from the first refused message rather than from here.
+        const uncredentialed = input.capabilities.filter(
+            (row) => row.active !== null && !row.active.has_credentials,
+        );
 
         // Failing and degraded are separate findings rather than one "unhealthy"
         // count: every attempt failing and some attempts failing call for different
@@ -149,6 +156,17 @@ export function assessAttention(input: AttentionInput): Attention {
                 severity: 'critical',
                 count: failing.length,
                 subjects: failing.map((row) => row.label),
+            });
+        }
+
+        if (uncredentialed.length > 0) {
+            findings.push({
+                id: 'capability-uncredentialed',
+                kind: 'capability-uncredentialed',
+                check: 'integrations',
+                severity: 'warning',
+                count: uncredentialed.length,
+                subjects: uncredentialed.map((row) => row.label),
             });
         }
 
@@ -211,6 +229,7 @@ export function destinationFor(finding: Finding): Destination | null {
 
         case 'capability-failing':
         case 'capability-degraded':
+        case 'capability-uncredentialed':
             // The mail group is the one place this console can act on a capability: it
             // holds the delivery settings and the test-message control. Providers
             // themselves have an API but no screen yet, so every other capability gets

@@ -210,9 +210,12 @@ export function SettingsWorkspace({ name, definitions, onPendingChange }: Settin
             <header className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-(--border-default) px-4 py-3">
                 <div>
                     <p data-eyebrow>{t('settings.groupEyebrow')}</p>
-                    <h1 className="text-(length:--text-xl) text-(--text-primary)">
+                    {/* The group, not the page. `Settings` is the h1 above this and
+                        the outline has to say so, or every group reads as a page of
+                        its own with no parent. */}
+                    <h2 className="text-(length:--text-xl) text-(--text-primary)">
                         {t(`settings.group.${name}`, { defaultValue: name })}
-                    </h1>
+                    </h2>
                 </div>
 
                 <div className="flex flex-col items-end">
@@ -296,7 +299,11 @@ export function SettingsWorkspace({ name, definitions, onPendingChange }: Settin
                 </div>
             </div>
 
-            <footer className="flex flex-wrap items-center gap-2 border-t border-(--border-default) bg-(--surface-subtle) px-4 py-3">
+            {/* Pinned, in both layouts. Where the workspace is a pane it is already
+                the last row and this changes nothing; where the page scrolls it keeps
+                the save within reach of the field that was just edited rather than at
+                the far end of a long list. */}
+            <footer className="sticky bottom-0 z-10 flex flex-wrap items-center gap-2 border-t border-(--border-default) bg-(--surface-subtle) px-4 py-3">
                 <Button
                     disabled={!dirty || blocked.length > 0 || stage === 'reviewing'}
                     onClick={() => setStage('reviewing')}

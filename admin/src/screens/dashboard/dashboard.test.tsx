@@ -241,6 +241,30 @@ describe('what deserves attention', () => {
         expect(attention.findings[0]?.severity).toBe('critical');
     });
 
+    it('raises a capability that will fail before it has failed once', () => {
+        // `has_credentials` is published, so the refusal is knowable now. Waiting for
+        // the first failure means learning it from a user rather than from here.
+        const attention = assessAttention({
+            ...CLEAR,
+            capabilities: summarise(
+                [
+                    provider({
+                        capability: 'mail',
+                        capability_label: 'Mail',
+                        has_credentials: false,
+                    }),
+                ],
+                [],
+                (c) => c,
+            ),
+        });
+
+        const finding = attention.findings.find((f) => f.kind === 'capability-uncredentialed');
+
+        expect(finding?.subjects).toEqual(['Mail']);
+        expect(finding?.severity).toBe('warning');
+    });
+
     it('does not call a pending probe a silent platform', () => {
         const attention = assessAttention({ ...CLEAR, reachable: null });
 

@@ -130,7 +130,7 @@ export function RolesScreen() {
                                         ([module, entries]) => (
                                             <section key={module}>
                                                 <h3
-                                                    className="border-b border-(--border-default) pb-1 text-(--text-secondary)"
+                                                    className="border-b border-(--border-default) pb-1"
                                                     data-eyebrow
                                                 >
                                                     {module}

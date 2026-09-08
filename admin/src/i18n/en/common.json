@@ -214,19 +214,23 @@
                 "capability-degraded_one": "One capability is failing some attempts.",
                 "capability-degraded_other": "{{count}} capabilities are failing some attempts.",
                 "action-failed_one": "One administrative action failed.",
-                "action-failed_other": "{{count}} administrative actions failed."
+                "action-failed_other": "{{count}} administrative actions failed.",
+                "capability-uncredentialed_one": "One capability has no credentials.",
+                "capability-uncredentialed_other": "{{count}} capabilities have no credentials."
             },
             "why": {
                 "platform-silent": "The liveness probe did not report a healthy application.",
                 "administrator-blocked": "The perimeter refuses an account that is suspended, has an unconfirmed address, or has no confirmed second factor.",
                 "capability-failing": "Every recent attempt through the active provider was refused.",
                 "capability-degraded": "Some recent attempts through the active provider were refused.",
-                "action-failed": "Recorded in the audit trail with a failed outcome."
+                "action-failed": "Recorded in the audit trail with a failed outcome.",
+                "capability-uncredentialed": "The active provider holds no credentials, so every attempt will be refused before it is made."
             },
             "go": {
                 "administrator-blocked": "Open accounts",
                 "capability-failing": "Open mail settings",
-                "capability-degraded": "Open mail settings"
+                "capability-degraded": "Open mail settings",
+                "capability-uncredentialed": "Open mail settings"
             }
         },
         "state": {
@@ -248,13 +252,15 @@
                 "administrator-blocked_other": "Restore access for {{count}} administrators",
                 "capability-failing": "Check mail delivery",
                 "capability-degraded": "Check mail delivery",
-                "test-mail": "Send a test message"
+                "test-mail": "Send a test message",
+                "capability-uncredentialed": "Check mail delivery"
             },
             "because": {
                 "administrator-blocked": "They are refused at sign-in until the account is active, the address confirmed and a second factor enrolled.",
                 "capability-failing": "Every recent send was refused. The mail group holds the settings and a test message.",
                 "capability-degraded": "Some recent sends were refused. The mail group holds the settings and a test message.",
-                "test-mail": "Mail is configured and has never been used, which is the state most easily mistaken for working."
+                "test-mail": "Mail is configured and has never been used, which is the state most easily mistaken for working.",
+                "capability-uncredentialed": "The active provider has no credentials. The mail group holds the settings and a test message."
             }
         }
     },
@@ -374,7 +380,8 @@
             "operations": "Operations",
             "rate_limit": "Rate limits",
             "security": "Security"
-        }
+        },
+        "eyebrow": "Configuration"
     },
     "access": {
         "eyebrow": "Access",

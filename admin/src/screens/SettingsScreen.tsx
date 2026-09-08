@@ -27,6 +27,10 @@ import { Button } from '@/ui/Button';
  * context panel becomes a drawer, below 1024px the group list does too. Neither is
  * dropped — an operator on a laptop still has the history, and one on a phone still
  * has the groups.
+ *
+ * The viewport-height lock goes with them. With three panes side by side each needs
+ * its own scroll; with one pane left it would only put a short scrollbar inside a
+ * short screen, so below 1024px the page scrolls as a page.
  */
 export function SettingsScreen() {
     const { t } = useTranslation();
@@ -57,7 +61,18 @@ export function SettingsScreen() {
     const data = catalogue.data ?? {};
 
     return (
-        <div className="flex h-[calc(100dvh-var(--topbar-height)-var(--page-gutter)*2)] flex-col">
+        // Locked to the viewport only where there are panes to hold apart. Below
+        // that the group list and the history are both drawers, so a fixed height
+        // buys nothing and costs a second scrollbar inside a short screen — the
+        // page simply scrolls instead.
+        <div className="flex flex-col lg:h-[calc(100dvh-var(--topbar-height)-var(--page-gutter)*2)]">
+            <header className="pb-3">
+                <p data-eyebrow>{t('settings.eyebrow')}</p>
+                <h1 className="text-(length:--text-2xl) text-(--text-primary)">
+                    {t('modules.settings')}
+                </h1>
+            </header>
+
             <div className="flex items-center gap-2 pb-3 xl:hidden">
                 <Button
                     className="lg:hidden"

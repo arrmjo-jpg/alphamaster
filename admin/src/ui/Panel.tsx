@@ -60,7 +60,7 @@ export function Panel({
             <header className="flex items-baseline justify-between gap-3 border-b border-(--border-default) px-3 py-2.5">
                 {/* The eyebrow, not a heading-sized title: a panel names its region
                     without competing with the page it sits on. */}
-                <Heading className="min-w-0 truncate text-(--text-secondary)" data-eyebrow>
+                <Heading className="min-w-0 truncate" data-eyebrow>
                     {title}
                 </Heading>
                 {aside !== undefined ? (
