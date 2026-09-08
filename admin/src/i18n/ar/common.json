@@ -148,5 +148,48 @@
     },
     "modules": {
         "dashboard": "اللوحة"
+    },
+    "dashboard": {
+        "platform": {
+            "title": "المنصّة",
+            "answering": "تستجيب",
+            "notAnswering": "لا تستجيب",
+            "scope": "يفيد هذا الفحص بأنّ التطبيق يعمل. ولا يتحقّق من قاعدة البيانات أو الذاكرة المؤقتة."
+        },
+        "integrations": {
+            "title": "التكاملات",
+            "none": "لا توجد قدرة مزوّد مهيّأة أو مستخدَمة.",
+            "noActiveProvider_zero": "لا يوجد مزوّد مهيّأ.",
+            "noActiveProvider_one": "مزوّد واحد مهيّأ ولا مزوّد نشط.",
+            "noActiveProvider_two": "مزوّدان مهيّأان ولا مزوّد نشط.",
+            "noActiveProvider_few": "{{count}} مزوّدين مهيّأين ولا مزوّد نشط.",
+            "noActiveProvider_many": "{{count}} مزوّدًا مهيّأً ولا مزوّد نشط.",
+            "noActiveProvider_other": "{{count}} مزوّد مهيّأ ولا مزوّد نشط.",
+            "attempts_zero": "لا محاولات حديثة.",
+            "attempts_one": "محاولة حديثة واحدة، فشل منها {{failures}}.",
+            "attempts_two": "محاولتان حديثتان، فشل منهما {{failures}}.",
+            "attempts_few": "{{count}} محاولات حديثة، فشل منها {{failures}}.",
+            "attempts_many": "{{count}} محاولة حديثة، فشل منها {{failures}}.",
+            "attempts_other": "{{count}} محاولة حديثة، فشل منها {{failures}}.",
+            "noCredentials": "المزوّد النشط بلا بيانات اعتماد، فستُرفض كل محاولة.",
+            "state": {
+                "healthy": "يعمل",
+                "degraded": "إخفاقات جزئية",
+                "failing": "يفشل",
+                "idle": "غير مستخدَم",
+                "unconfigured": "غير مهيّأ"
+            }
+        },
+        "activity": {
+            "title": "أحدث الإجراءات الإدارية",
+            "none": "لم يُسجَّل شيء بعد.",
+            "failed": "فشل",
+            "total_zero": "لا مدخلات",
+            "total_one": "مدخل واحد",
+            "total_two": "مدخلان",
+            "total_few": "{{count}} مدخلات",
+            "total_many": "{{count}} مدخلًا",
+            "total_other": "{{count}} مدخل"
+        }
     }
 }
