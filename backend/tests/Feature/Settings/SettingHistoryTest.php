@@ -228,7 +228,7 @@ test('a history row carries exactly the declared fields', function (): void {
 
     $rows = history($this, 'localization')->assertOk()->json('data');
 
-    expect(array_keys($rows[0]))->toBe(['key', 'locale', 'version', 'value', 'actor_id', 'recorded_at']);
+    expect(array_keys($rows[0]))->toBe(['id', 'key', 'locale', 'version', 'value', 'actor_id', 'recorded_at']);
 });
 
 test('history can be narrowed to one setting', function (): void {
@@ -349,4 +349,28 @@ test('a failed batch records no revision for the settings it did reach', functio
 
     expect(SettingRevision::query()->count())->toBe($before)
         ->and($this->service->get('localization.date_format'))->toBe('Y-m-d');
+});
+
+test('the id a history row carries is the one rollback accepts', function (): void {
+    // The point of publishing it. /rollback takes a revision id, and until this row
+    // carried one there was no endpoint a client could learn it from — the two
+    // operations were documented, permissioned, and impossible to compose.
+    $this->service->set('localization', 'date_format', 'd/m/Y');
+    $this->service->set('localization', 'date_format', 'd.m.Y');
+
+    $rows = history($this, 'localization')->assertOk()->json('data');
+
+    // Asserted against the row's own value rather than a literal, because what is
+    // being checked is that the id and the value belong to the same revision — a
+    // hard-coded string would still pass if they did not.
+    $target = $rows[0];
+
+    resetClient($this);
+
+    $this->withToken(adminToken(roles: ['super_admin']))
+        ->withHeader('If-Match', '"'.settingsVersion('localization').'"')
+        ->postJson('/api/v1/admin/settings/localization/rollback', ['revision_id' => $target['id']])
+        ->assertOk();
+
+    expect($this->service->get('localization.date_format'))->toBe($target['value']);
 });

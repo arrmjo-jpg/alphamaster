@@ -28,7 +28,7 @@ export function App() {
                     <Route
                         element={<module.component />}
                         key={module.id}
-                        path={module.path.replace(/^\//, '')}
+                        path={`${module.path.replace(/^\//, '')}${module.nested === true ? '/*' : ''}`}
                     />
                 ))}
 

@@ -131,7 +131,7 @@ class SettingAdminController extends BaseApiController
      * Secrets are absent because they have no revisions, not because they are filtered
      * here — there is nothing to filter.
      */
-    #[Response(200, type: 'array{success: bool, data: list<array{key: string, locale: string|null, version: int, value: mixed, actor_id: string|null, recorded_at: string}>, meta: array{group: string, count: int}}')]
+    #[Response(200, type: 'array{success: bool, data: list<array{id: string, key: string, locale: string|null, version: int, value: mixed, actor_id: string|null, recorded_at: string}>, meta: array{group: string, count: int}}')]
     public function history(Request $request, string $group): JsonResponse
     {
         $key = $request->query('key');
