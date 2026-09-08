@@ -181,37 +181,120 @@
     },
     "settings": {
         "groups": "Groups",
+        "groupEyebrow": "Configuration group",
+        "version": "Version",
         "chooseGroup": "Choose a group to see what it holds.",
         "unknownGroup": "No such group. A link or a bookmark may be out of date.",
         "on": "On",
         "off": "Off",
-        "save_zero": "Nothing to save",
-        "save_one": "Save 1 change",
-        "save_other": "Save {{count}} changes",
-        "discard": "Discard",
+        "notSet": "Not set",
+        "deprecated": "Deprecated",
+        "deprecatedNote": "Withdrawn from the catalogue. It is still stored and still read, but it is no longer meant to be set.",
+        "discard": "Discard changes",
         "saved": "Saved.",
         "testMail": "Send a test message",
         "mailSent": "A test message was sent to the address on your account.",
-        "notEditable": "This one is not yours to change.",
-        "unmetDependencies": "Needs {{keys}} configured first.",
-        "secretSet": "Set",
-        "secretUnset": "Not set",
-        "secretExplanation": "Stored encrypted and never returned. Replace it by rotating rather than editing.",
+        "malformedJson": "That is not valid JSON yet, so it has not been staged.",
+        "pendingCount_one": "{{count}} staged",
+        "pendingCount_other": "{{count}} staged",
+        "blocked_one": "{{count}} value cannot be saved yet.",
+        "blocked_other": "{{count}} values cannot be saved yet.",
         "versionHelp": "The version this page was read at. A save carries it, so a change made elsewhere is refused rather than overwritten.",
+        "unavailableUntil": "Unavailable until {{keys}} is configured. Setting it now would have no effect.",
+        "readOnly": {
+            "permission": "Read only. Changing this needs the {{permission}} permission.",
+            "declared": "Read only. The platform does not allow this one to be changed here."
+        },
+        "secretSet": "Configured",
+        "secretUnset": "Not configured",
+        "secretExplanation": "Stored encrypted and never returned. Replace it by rotating rather than editing.",
+        "secret": {
+            "rotate": "Rotate",
+            "candidate": "New credential",
+            "verifyNote": "The platform verifies the candidate before storing it. Nothing is written unless it works.",
+            "commit": "Verify and store",
+            "unchangedOnFailure": "The stored credential is unchanged."
+        },
+        "media": {
+            "none": "No image set.",
+            "stored": "Stored image",
+            "upload": "Upload image",
+            "replace": "Replace",
+            "remove": "Remove",
+            "preview": "Current image",
+            "tooLarge": "That file is larger than the platform accepts (100 MB).",
+            "notAnImage": "That file is not an image."
+        },
+        "status": {
+            "modified": "Modified",
+            "pending": "Saving",
+            "conflict": "Conflict",
+            "failed": "Rejected",
+            "unverified": "Unverified"
+        },
+        "validation": {
+            "required": "This one cannot be empty.",
+            "integer": "Whole numbers only.",
+            "numeric": "Numbers only.",
+            "boolean": "On or off.",
+            "email": "That does not look like an email address.",
+            "url": "That does not look like a URL.",
+            "ulid": "That is not a valid identifier.",
+            "min": "At least {{count}}.",
+            "max": "At most {{count}}.",
+            "minLength": "At least {{count}} characters.",
+            "maxLength": "At most {{count}} characters.",
+            "in": "One of: {{values}}."
+        },
+        "review": {
+            "title": "Review changes",
+            "open_zero": "Nothing to save",
+            "open_one": "Review 1 change",
+            "open_other": "Review {{count}} changes",
+            "count_one": "{{count}} setting",
+            "count_other": "{{count}} settings",
+            "current": "Current",
+            "next": "New",
+            "confirm_one": "Save 1 change",
+            "confirm_other": "Save {{count}} changes",
+            "back": "Keep editing"
+        },
+        "precondition": {
+            "title": "The save carried no version",
+            "body": "The platform refused the write because it did not say which version of the group it was built on. Reload the group and try again."
+        },
         "conflict": {
             "title": "Someone else saved first",
-            "body": "This group changed after this page was loaded, so the save was refused rather than overwriting it. Your edits are still here. Reload to see the current values, then apply them again.",
-            "reload": "Reload the current values"
+            "body": "This group changed after this page was loaded, so the save was refused rather than overwriting it. Your edits are still here.",
+            "yours": "Read at",
+            "theirs": "Now",
+            "rebase": "Load current values, keep my edits",
+            "discard": "Discard my edits"
+        },
+        "rollback": {
+            "willRestore_zero": "Nothing would be restored",
+            "willRestore_one": "Would restore 1 value",
+            "willRestore_other": "Would restore {{count}} values",
+            "willSkip_one": "Would skip 1",
+            "willSkip_other": "Would skip {{count}}",
+            "confirm": "Restore these values"
         },
         "history": {
             "title": "History",
             "none": "Nothing in this group has been changed yet.",
-            "restore": "Restore",
-            "confirmTitle": "Restore this value?",
-            "confirmBody": "This sets {{key}} back to {{value}} and records the change.",
-            "confirm": "Restore it",
-            "cancel": "Cancel"
+            "preview": "Preview rollback",
+            "cancel": "Cancel",
+            "systemActor": "System"
         },
-        "malformedJson": "That is not valid JSON yet, so it has not been staged."
+        "group": {
+            "auth": "Authentication",
+            "branding": "Branding",
+            "general": "General",
+            "localization": "Localization",
+            "mail": "Mail",
+            "operations": "Operations",
+            "rate_limit": "Rate limits",
+            "security": "Security"
+        }
     }
 }
