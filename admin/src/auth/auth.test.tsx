@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { HttpResponse, http } from 'msw';
+import { MemoryRouter } from 'react-router';
 import { describe, expect, it } from 'vitest';
 
 import { App } from '@/app/App';
@@ -72,11 +73,13 @@ function loginFails(status: number, code: string, message: string, details?: unk
 
 function renderApp() {
     return render(
-        <AppProviders>
-            <AuthGate>
-                <App />
-            </AuthGate>
-        </AppProviders>,
+        <MemoryRouter>
+            <AppProviders>
+                <AuthGate>
+                    <App />
+                </AuthGate>
+            </AppProviders>
+        </MemoryRouter>,
     );
 }
 
@@ -91,7 +94,7 @@ describe('starting up with a cookie already in the browser', () => {
         server.use(LANGUAGES, AUTH_SETTINGS, me(ADMIN));
         renderApp();
 
-        expect(await screen.findByText('Nadia Haddad')).toBeInTheDocument();
+        expect(await screen.findByText('nadia@example.test')).toBeInTheDocument();
     });
 
     it('shows the sign-in form when there is no session', async () => {
@@ -191,7 +194,7 @@ describe('signing in', () => {
         await screen.findByRole('button', { name: 'Sign in' });
         await signIn();
 
-        expect(await screen.findByText('Nadia Haddad')).toBeInTheDocument();
+        expect(await screen.findByText('nadia@example.test')).toBeInTheDocument();
     });
 
     it('reports a refusal with the attempts the backend says are left', async () => {
@@ -244,7 +247,7 @@ describe('signing in', () => {
         await signIn();
 
         expect(await screen.findByText('Two-factor authentication')).toBeInTheDocument();
-        expect(screen.queryByText('Nadia Haddad')).not.toBeInTheDocument();
+        expect(screen.queryByText('nadia@example.test')).not.toBeInTheDocument();
     });
 
     it('sends an administrator with no second factor to enrolment, not to the console', async () => {
@@ -322,7 +325,7 @@ describe('completing a challenge', () => {
         await userEvent.type(screen.getByLabelText(/verification code/i), '123456');
         await userEvent.click(screen.getByRole('button', { name: 'Verify' }));
 
-        expect(await screen.findByText('Nadia Haddad')).toBeInTheDocument();
+        expect(await screen.findByText('nadia@example.test')).toBeInTheDocument();
     });
 
     it('keeps the operator on the challenge when the code is wrong', async () => {
@@ -373,7 +376,7 @@ describe('what leaves the browser', () => {
         );
 
         renderApp();
-        await screen.findByText('Nadia Haddad');
+        await screen.findByText('nadia@example.test');
         await userEvent.click(screen.getByRole('button', { name: 'Sign out' }));
         await screen.findByRole('button', { name: 'Sign in' });
 
@@ -388,7 +391,7 @@ describe('what leaves the browser', () => {
         server.use(LANGUAGES, AUTH_SETTINGS, me(ADMIN));
 
         renderApp();
-        await screen.findByText('Nadia Haddad');
+        await screen.findByText('nadia@example.test');
 
         const meRequest = observed.find((request) => request.url.includes('/auth/me'));
         expect(meRequest?.credentials).toBe('include');
