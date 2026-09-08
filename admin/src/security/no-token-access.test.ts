@@ -16,10 +16,21 @@ import { describe, expect, it } from 'vitest';
 
 const SOURCE_ROOT = join(import.meta.dirname, '..');
 
-const IGNORED_DIRECTORIES = new Set(['generated', 'node_modules']);
+const IGNORED_DIRECTORIES = new Set(['generated', 'node_modules', 'test']);
 
-/** The file that argues about tokens in prose is this one. */
-const IGNORED_FILES = new Set(['no-token-access.test.ts']);
+/**
+ * Tests are excluded, and that is what lets the rules below be blunt.
+ *
+ * Nothing under a `.test.` file reaches the bundle, so a credential cannot escape
+ * through one — while a test that proves no Authorization header is sent has to name
+ * the header to assert on it. Scanning tests would force that pattern to be narrow
+ * enough to let the real thing through, which is the trade this refuses: an unquoted
+ * `Authorization:` key in an object literal was missed by exactly such a pattern, and
+ * caught only because the header was planted as a control.
+ */
+function isTestFile(name: string): boolean {
+    return name.includes('.test.');
+}
 
 const FORBIDDEN: { pattern: RegExp; why: string }[] = [
     {
@@ -32,8 +43,11 @@ const FORBIDDEN: { pattern: RegExp; why: string }[] = [
         why: 'puts a credential in web storage, where any script on the page can read it',
     },
     {
-        pattern: /['"`]Authorization['"`]\s*:/,
-        why: 'sets an Authorization header; the cookie is the transport and the client sets no credential header',
+        // Any mention at all, in any of the forms a header can be set: a quoted key, a
+        // bare key, a `headers.set` call, an index. In shipped source there is no
+        // legitimate reason to name this header.
+        pattern: /\bAuthorization\b/i,
+        why: 'names the Authorization header; the cookie is the transport and the client sets no credential header',
     },
     {
         pattern: /Bearer\s+\$\{/,
@@ -63,7 +77,7 @@ function sourceFiles(directory: string): string[] {
             return IGNORED_DIRECTORIES.has(entry) ? [] : sourceFiles(path);
         }
 
-        if (!/\.tsx?$/.test(entry) || IGNORED_FILES.has(entry)) {
+        if (!/\.tsx?$/.test(entry) || isTestFile(entry)) {
             return [];
         }
 
@@ -76,7 +90,7 @@ describe('the Admin holds no credential', () => {
 
     it('scans a source tree that is actually there', () => {
         // Without this the suite would pass loudest when the scan is broken.
-        expect(files.length).toBeGreaterThan(10);
+        expect(files.length).toBeGreaterThan(15);
     });
 
     it.each(FORBIDDEN)('no source file $why', ({ pattern }) => {

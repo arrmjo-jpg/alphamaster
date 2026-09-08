@@ -27,5 +27,91 @@
     },
     "language": {
         "label": "Language"
+    },
+    "session": {
+        "signedInAs": "Signed in as",
+        "roles": "Roles",
+        "permissions": "Permissions",
+        "none": "None"
+    },
+    "auth": {
+        "signOut": "Sign out",
+        "startOver": "Start over",
+        "signIn": {
+            "title": "Sign in",
+            "description": "Administrator access to the platform.",
+            "identifier": "Email or phone number",
+            "identifierRequired": "Enter your email address or phone number.",
+            "password": "Password",
+            "passwordRequired": "Enter your password.",
+            "submit": "Sign in",
+            "refused": "Sign-in refused",
+            "attemptsRemaining_one": "{{count}} attempt remaining before this account is locked.",
+            "attemptsRemaining_other": "{{count}} attempts remaining before this account is locked."
+        },
+        "lockedOut": {
+            "title": "Too many attempts",
+            "body_one": "Try again in {{count}} second.",
+            "body_other": "Try again in {{count}} seconds."
+        },
+        "incomplete": {
+            "title": "Sign-in was not completed"
+        },
+        "mfa": {
+            "challengeTitle": "Two-factor authentication",
+            "challengeDescription": "Enter the code from your authenticator app, or have one sent to you.",
+            "code": "Verification code",
+            "codeHint": "Six digits, or one of your recovery codes.",
+            "verify": "Verify",
+            "sendCode": "Send a code",
+            "resendIn_one": "Send a code in {{count}} second",
+            "resendIn_other": "Send a code in {{count}} seconds",
+            "sentTo": "A code was sent to {{destination}}.",
+            "expiredTitle": "This challenge has expired",
+            "expiredBody": "Start again from the sign-in screen."
+        },
+        "enrol": {
+            "title": "Set up two-factor authentication",
+            "description": "Administrators cannot sign in without a second factor.",
+            "method": "Method",
+            "totp": "Authenticator app",
+            "sms": "Text message",
+            "phone": "Phone number",
+            "phoneHint": "In international format, for example +962790000000.",
+            "begin": "Continue",
+            "confirm": "Confirm",
+            "qrLabel": "Scan this code with your authenticator app",
+            "qrFailed": "The code could not be drawn. Enter the secret below by hand instead.",
+            "secretLabel": "Or enter this secret by hand",
+            "recoveryTitle": "Save your recovery codes",
+            "recoveryBody": "These are shown once and cannot be retrieved again. Each one can be used a single time to sign in if you lose your second factor.",
+            "copy": "Copy codes",
+            "copied": "Copied",
+            "acknowledge": "I have saved these recovery codes somewhere safe.",
+            "continue": "Continue"
+        },
+        "verify": {
+            "title": "Verify your email address",
+            "description": "We need to know the address on this account reaches you.",
+            "send": "Send the verification link",
+            "resendIn_one": "Send again in {{count}} second",
+            "resendIn_other": "Send again in {{count}} seconds",
+            "sent": "The link is on its way. Follow it, then continue below.",
+            "already": "This address is already verified. Continue below.",
+            "continue": "I have verified — sign in"
+        },
+        "refused": {
+            "suspended": {
+                "title": "This account is suspended",
+                "body": "Sign-in is blocked while the account is suspended. Someone with administrator access can restore it."
+            },
+            "notAdministrator": {
+                "title": "This is the administration console",
+                "body": "The account signed in is not an administrator, so there is nothing here for it. Nothing is wrong with the account itself."
+            }
+        },
+        "unreachable": {
+            "title": "Cannot reach the platform"
+        }
     }
 }
