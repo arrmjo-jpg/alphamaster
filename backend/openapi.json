@@ -1463,14 +1463,18 @@
                                                 },
                                                 "sections": {
                                                     "type": "array",
-                                                    "items": {}
+                                                    "items": {
+                                                        "type": "string"
+                                                    }
                                                 },
                                                 "includes_secrets": {
                                                     "type": "boolean"
                                                 },
                                                 "omitted_secrets": {
                                                     "type": "array",
-                                                    "items": {}
+                                                    "items": {
+                                                        "type": "string"
+                                                    }
                                                 }
                                             },
                                             "required": [
@@ -1479,16 +1483,12 @@
                                                 "includes_secrets",
                                                 "omitted_secrets"
                                             ]
-                                        },
-                                        "meta": {
-                                            "type": "string"
                                         }
                                     },
                                     "required": [
                                         "success",
                                         "message",
-                                        "data",
-                                        "meta"
+                                        "data"
                                     ]
                                 }
                             }
@@ -1546,7 +1546,40 @@
                                                 },
                                                 "sections": {
                                                     "type": "array",
-                                                    "items": {}
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "section": {
+                                                                "type": "string"
+                                                            },
+                                                            "restored": {
+                                                                "type": "integer"
+                                                            },
+                                                            "skipped": {
+                                                                "type": "array",
+                                                                "items": {
+                                                                    "type": "object",
+                                                                    "properties": {
+                                                                        "key": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "reason": {
+                                                                            "type": "string"
+                                                                        }
+                                                                    },
+                                                                    "required": [
+                                                                        "key",
+                                                                        "reason"
+                                                                    ]
+                                                                }
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "section",
+                                                            "restored",
+                                                            "skipped"
+                                                        ]
+                                                    }
                                                 }
                                             },
                                             "required": [
@@ -1554,16 +1587,12 @@
                                                 "encrypted_restorable",
                                                 "sections"
                                             ]
-                                        },
-                                        "meta": {
-                                            "type": "string"
                                         }
                                     },
                                     "required": [
                                         "success",
                                         "message",
-                                        "data",
-                                        "meta"
+                                        "data"
                                     ]
                                 }
                             }

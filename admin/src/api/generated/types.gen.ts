@@ -986,11 +986,10 @@ export type AdminConfigurationExportResponses = {
         message: string;
         data: {
             location: string;
-            sections: Array<unknown>;
+            sections: Array<string>;
             includes_secrets: boolean;
-            omitted_secrets: Array<unknown>;
+            omitted_secrets: Array<string>;
         };
-        meta: string;
     };
 };
 
@@ -1039,9 +1038,15 @@ export type AdminConfigurationRestoreResponses = {
         data: {
             location: string;
             encrypted_restorable: boolean;
-            sections: Array<unknown>;
+            sections: Array<{
+                section: string;
+                restored: number;
+                skipped: Array<{
+                    key: string;
+                    reason: string;
+                }>;
+            }>;
         };
-        meta: string;
     };
 };
 
