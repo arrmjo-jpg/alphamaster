@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { KeyRound, ShieldCheck, ShieldOff, Star, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { ApiError } from '@/api/errors';
@@ -25,7 +25,8 @@ import { fromPairs, toPairs, type Pair } from './pairs';
 
 export interface ProviderDetailProps {
     provider: IntegrationProvider;
-    usage: readonly IntegrationUsage[];
+    /** Null where the activity log could not be read, and only there. */
+    usage: readonly IntegrationUsage[] | null;
     /** Whether this viewer holds `integrations.update`. */
     mayUpdate: boolean;
     onClose: () => void;
@@ -44,6 +45,14 @@ export interface ProviderDetailProps {
  * never returns them, so this panel shows a state and offers to overwrite it. An
  * interface that appeared to show the stored value would either be lying or would mean
  * the platform had started publishing keys.
+ *
+ * The draft belongs to the provider it was opened on. The caller keys this component by
+ * provider id, so selecting another one mounts a new panel with a new draft rather than
+ * showing the first provider's edits under the second one's name. Nothing resets the
+ * form on a refetch, either: the list is refreshed on an interval and on window focus,
+ * and an effect that adopted every new object would discard what an operator typed
+ * while they were looking at something else. A write syncs the form from its own
+ * response, which is the one moment the server's copy should win.
  */
 export function ProviderDetail({ provider, usage, mayUpdate, onClose }: ProviderDetailProps) {
     const { t } = useTranslation();
@@ -57,16 +66,12 @@ export function ProviderDetail({ provider, usage, mayUpdate, onClose }: Provider
     const [credentials, setCredentials] = useState<Pair[] | null>(null);
     const [clearing, setClearing] = useState(false);
 
-    // The form follows the selection. Without this, choosing a second provider would
-    // show the first one's draft under the second one's name — the failure mode that
-    // makes a shared detail panel dangerous rather than merely wrong.
-    useEffect(() => {
-        setLabel(provider.label);
-        setPriority(String(provider.priority));
-        setSettings(toPairs(provider.settings));
-        setCredentials(null);
-        setClearing(false);
-    }, [provider.id, provider.label, provider.priority, provider.settings]);
+    /** Take the server's copy as the form's state. */
+    const adopt = (source: IntegrationProvider) => {
+        setLabel(source.label);
+        setPriority(String(source.priority));
+        setSettings(toPairs(source.settings));
+    };
 
     const refresh = async () => {
         await queryClient.invalidateQueries({ queryKey: ['integration-providers'] });
@@ -74,7 +79,12 @@ export function ProviderDetail({ provider, usage, mayUpdate, onClose }: Provider
 
     const save = useMutation({
         mutationFn: (changes: ProviderChanges) => updateProvider(provider.id, changes),
-        onSuccess: refresh,
+        onSuccess: async (updated) => {
+            // Every write answers with the canonical provider, so the form is put back
+            // in step with it here rather than by watching the list.
+            adopt(updated);
+            await refresh();
+        },
     });
 
     const promote = useMutation({
@@ -82,8 +92,8 @@ export function ProviderDetail({ provider, usage, mayUpdate, onClose }: Provider
         onSuccess: refresh,
     });
 
-    const attempts = usageFor(provider, usage);
-    const failures = attempts.filter((entry) => entry.status === 'failure');
+    const attempts = usage === null ? null : usageFor(provider, usage);
+    const failures = (attempts ?? []).filter((entry) => entry.status === 'failure');
 
     const priorityNumber = Number.parseInt(priority, 10);
     const priorityValid =
@@ -166,10 +176,12 @@ export function ProviderDetail({ provider, usage, mayUpdate, onClose }: Provider
                 <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-(length:--text-sm)">
                     <dt className="text-(--text-muted)">{t('integrations.attemptsLabel')}</dt>
                     <dd className="text-(--text-primary)">
-                        {t('integrations.attemptsValue', {
-                            count: attempts.length,
-                            failures: failures.length,
-                        })}
+                        {attempts === null
+                            ? t('integrations.activityUnavailableShort')
+                            : t('integrations.attemptsValue', {
+                                  count: attempts.length,
+                                  failures: failures.length,
+                              })}
                     </dd>
                     <dt className="text-(--text-muted)">{t('integrations.updatedAt')}</dt>
                     <dd
@@ -421,7 +433,11 @@ export function ProviderDetail({ provider, usage, mayUpdate, onClose }: Provider
                 <section className="flex flex-col gap-2 border-t border-(--border-default) pt-3">
                     <h3 data-eyebrow>{t('integrations.recentAttempts')}</h3>
 
-                    {attempts.length === 0 ? (
+                    {attempts === null ? (
+                        <p className="text-(length:--text-sm) text-(--text-muted)">
+                            {t('integrations.activityUnavailable')}
+                        </p>
+                    ) : attempts.length === 0 ? (
                         <p className="text-(length:--text-sm) text-(--text-muted)">
                             {t('integrations.noAttempts')}
                         </p>

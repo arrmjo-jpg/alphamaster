@@ -82,7 +82,10 @@ function attempt(over: Record<string, unknown> = {}) {
 function renderScreen(
     permissions: string[],
     providers: ReturnType<typeof provider>[] = [provider()],
-    usage: ReturnType<typeof attempt>[] = [],
+    // Either the rows the log returns, or the word that makes it fail. Passed in
+    // rather than registered by the caller because `server.use` prepends, so a
+    // handler added before this call would be the one this one overrode.
+    usage: ReturnType<typeof attempt>[] | 'unreadable' = [],
 ) {
     server.use(
         LANGUAGES,
@@ -91,7 +94,15 @@ function renderScreen(
             HttpResponse.json({ success: true, data: providers }),
         ),
         http.get('*/api/v1/admin/integrations/usage', () =>
-            HttpResponse.json({ success: true, data: usage }),
+            usage === 'unreadable'
+                ? HttpResponse.json(
+                      {
+                          success: false,
+                          error: { code: 'SERVER_ERROR', message: 'Log unreadable.' },
+                      },
+                      { status: 500 },
+                  )
+                : HttpResponse.json({ success: true, data: usage }),
         ),
         http.get('*/api/v1/auth/me', () =>
             HttpResponse.json({
@@ -266,6 +277,59 @@ describe('the integrations workspace', () => {
         );
 
         expect(screen.getByText('VENDOR_REFUSED')).toBeInTheDocument();
+    });
+
+    it('keeps the providers when only the activity log fails, and says what it lost', async () => {
+        renderScreen(['integrations.view'], [provider()], 'unreadable');
+
+        // The client retries a 5xx twice before it calls one a failure, so this waits
+        // out the retries rather than asserting against the loading state.
+        const slowly = { timeout: 5000 };
+
+        // The configuration survives the log going down.
+        expect(await screen.findByText('Log driver', {}, slowly)).toBeInTheDocument();
+
+        // And the half of the judgement that came from the log is withdrawn rather
+        // than quietly reported as a clean bill of health.
+        expect(await screen.findByText('Condition unknown', {}, slowly)).toBeInTheDocument();
+        expect(screen.getAllByText('Activity unknown').length).toBeGreaterThan(0);
+        expect(screen.queryByText('Working')).not.toBeInTheDocument();
+        expect(screen.getByText('Log unreadable.')).toBeInTheDocument();
+        // Its own timeout: the two retries and their backoff take longer than the
+        // suite's default, and shortening the retry policy to suit a test would change
+        // how the application behaves for a real operator on a flaky network.
+    }, 20000);
+
+    it('explains an empty platform rather than showing a bare nothing', async () => {
+        renderScreen(['integrations.view'], []);
+
+        expect(
+            await screen.findByText('No vendor provider is configured on this deployment.'),
+        ).toBeInTheDocument();
+        expect(screen.getByText(/no endpoint behind such a control/)).toBeInTheDocument();
+    });
+
+    it('reaches a provider from the keyboard alone', async () => {
+        renderScreen(
+            ['integrations.view', 'integrations.update'],
+            [provider(), provider({ id: 'prov-twilio', driver: 'twilio', label: 'Twilio' })],
+        );
+
+        await screen.findByText('Log driver');
+
+        const rows = screen
+            .getAllByRole('button')
+            .filter((node) => node.textContent?.includes('log'));
+        const first = rows[0];
+
+        expect(first).toBeDefined();
+
+        first?.focus();
+        expect(first).toHaveFocus();
+
+        await userEvent.keyboard('{Enter}');
+
+        expect(await screen.findByLabelText('Failover position')).toBeInTheDocument();
     });
 });
 

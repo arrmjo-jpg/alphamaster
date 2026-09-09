@@ -21,9 +21,18 @@ export function newPair(name = '', value = ''): Pair {
     return { uid: `pair-${counter}`, name, value };
 }
 
-/** The stored map, as rows. A null value is an unset setting and edits as empty. */
+/**
+ * The stored map, as rows. A null value is an unset setting and edits as empty.
+ *
+ * The value is coerced rather than trusted. The contract says every setting is a string
+ * because the endpoint only accepts strings, but a row written by the seeder rather than
+ * through the API can hold a number, and handing one to a text input is how a value
+ * silently becomes `[object Object]` somewhere further along.
+ */
 export function toPairs(map: Record<string, string | null> | null | undefined): Pair[] {
-    return Object.entries(map ?? {}).map(([name, value]) => newPair(name, value ?? ''));
+    return Object.entries(map ?? {}).map(([name, value]) =>
+        newPair(name, value === null || value === undefined ? '' : String(value)),
+    );
 }
 
 /**

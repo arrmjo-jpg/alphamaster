@@ -13,6 +13,9 @@ type Filter = 'all' | 'failure';
 
 export interface UsagePanelProps {
     usage: readonly IntegrationUsage[];
+    loading: boolean;
+    error: unknown;
+    onRetry: () => void;
 }
 
 /**
@@ -23,31 +26,41 @@ export interface UsagePanelProps {
  * the browser, to those rows and no others, and the panel says so — a control that
  * looked like it had asked the server a narrower question would quietly become wrong
  * the moment there were more than a hundred attempts worth looking at.
+ *
+ * The table scrolls inside this panel rather than pushing the page sideways. An error
+ * code and a vendor message are as long as they are, and a workspace that overflows
+ * horizontally is unusable in the layout that needed it least.
  */
-export function UsagePanel({ usage }: UsagePanelProps) {
+export function UsagePanel({ usage, loading, error, onRetry }: UsagePanelProps) {
     const { t } = useTranslation();
     const { locale } = useDirection();
     const [filter, setFilter] = useState<Filter>('all');
 
     const rows = filter === 'all' ? usage : usage.filter((entry) => entry.status === 'failure');
+    const settled = !loading && (error === null || error === undefined);
 
     return (
         <Panel
             aside={
-                <SegmentedControl<Filter>
-                    label={t('integrations.usage.filter')}
-                    onChange={setFilter}
-                    options={[
-                        { value: 'all', label: t('integrations.usage.all') },
-                        { value: 'failure', label: t('integrations.usage.failuresOnly') },
-                    ]}
-                    value={filter}
-                />
+                settled ? (
+                    <SegmentedControl<Filter>
+                        label={t('integrations.usage.filter')}
+                        onChange={setFilter}
+                        options={[
+                            { value: 'all', label: t('integrations.usage.all') },
+                            { value: 'failure', label: t('integrations.usage.failuresOnly') },
+                        ]}
+                        value={filter}
+                    />
+                ) : undefined
             }
             empty={rows.length === 0}
             emptyMessage={
                 filter === 'all' ? t('integrations.noAttempts') : t('integrations.noFailures')
             }
+            error={error}
+            loading={loading}
+            onRetry={onRetry}
             title={t('integrations.usage.title')}
         >
             <div className="flex flex-col gap-2">
@@ -55,8 +68,12 @@ export function UsagePanel({ usage }: UsagePanelProps) {
                     {t('integrations.usage.window', { count: usage.length })}
                 </p>
 
+                {/* The table keeps its own width and scrolls inside this box. Left to
+                    shrink, a narrow screen breaks `recaptcha` across two lines in the
+                    middle of the word, which is the one thing a technical identifier
+                    must never do. */}
                 <div className="overflow-x-auto">
-                    <table className="w-full border-collapse">
+                    <table className="w-full min-w-[34rem] border-collapse">
                         <thead>
                             <tr className="border-b border-(--border-strong)">
                                 <Th>{t('integrations.usage.columns.outcome')}</Th>
@@ -82,10 +99,14 @@ export function UsagePanel({ usage }: UsagePanelProps) {
                                         </StatusBadge>
                                     </Td>
                                     <Td>
-                                        <span data-technical>{entry.capability}</span>
+                                        <span className="whitespace-nowrap" data-technical>
+                                            {entry.capability}
+                                        </span>
                                     </Td>
                                     <Td>
-                                        <span data-technical>{entry.driver}</span>
+                                        <span className="whitespace-nowrap" data-technical>
+                                            {entry.driver}
+                                        </span>
                                     </Td>
                                     <Td>
                                         {entry.error_code === null ? (
@@ -107,6 +128,7 @@ export function UsagePanel({ usage }: UsagePanelProps) {
                                     </Td>
                                     <Td>
                                         <span
+                                            className="whitespace-nowrap"
                                             title={
                                                 absoluteTime(entry.created_at, locale) ?? undefined
                                             }

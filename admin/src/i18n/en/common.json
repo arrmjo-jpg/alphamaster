@@ -430,6 +430,11 @@
     "integrations": {
         "eyebrow": "Platform",
         "noProviders": "No vendor provider is configured on this deployment.",
+        "noProvidersNote": "Providers are shipped with the platform for the capabilities it can consume. There is no way to add one from here, and no endpoint behind such a control if there were.",
+        "unavailable": "The provider list could not be read.",
+        "detail": "Provider detail",
+        "activityUnavailable": "The activity log could not be read, so what this provider has actually done is unknown.",
+        "activityUnavailableShort": "Activity unknown",
         "chooseProvider": "Choose a provider to inspect or configure it.",
         "close": "Close the provider",
         "cancel": "Cancel",
@@ -468,7 +473,8 @@
             "degraded": "Some failures",
             "failing": "Failing",
             "idle": "Unused",
-            "unconfigured": "Not configured"
+            "unconfigured": "Not configured",
+            "unknown": "Condition unknown"
         },
         "credentials": {
             "title": "Credentials",
