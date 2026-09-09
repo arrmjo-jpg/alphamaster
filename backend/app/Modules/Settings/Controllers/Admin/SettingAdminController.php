@@ -204,6 +204,46 @@ class SettingAdminController extends BaseApiController
     }
 
     /**
+     * What a rollback would do, without doing any of it.
+     *
+     * The plan is already computed before every rollback — this exposes the same
+     * computation as a read, so an operator can see the change before committing to
+     * it rather than discovering it afterwards. A rollback restores many values at
+     * once from a state nobody has inspected and is the operation most likely to be
+     * run under pressure; the one thing that makes that safe is being able to look
+     * first.
+     *
+     * Nothing is written, so there is no precondition and no audit record: this
+     * answers a question rather than taking an action. Behind the same permission as
+     * the rollback it previews, because a plan names every value that would change
+     * and that is the same information.
+     */
+    #[Response(200, type: 'array{success: bool, data: array{group: string, target_revision_id: string, restored: list<array{key: string, locale: string|null, value: mixed}>, skipped: list<array{key: string, locale: string|null, reason: string, reason_label: string}>}}')]
+    public function rollbackPreview(Request $request, string $group): JsonResponse
+    {
+        $revisionId = (string) $request->query('revision_id', '');
+
+        if ($revisionId === '') {
+            return $this->errorResponse(
+                'VALIDATION_ERROR',
+                'api.error.settings.revision_required',
+                ['revision_id' => ['The revision to preview is required.']],
+                422,
+            );
+        }
+
+        try {
+            $plan = $this->settingService->planRollback($group, $revisionId);
+        } catch (SettingGroupNotFoundException $e) {
+            return $this->errorResponse('SETTING_GROUP_NOT_FOUND', $e->translationKey(), null, 404, $e->translationParameters());
+        } catch (UnknownRevisionException $e) {
+            return $this->errorResponse('SETTING_REVISION_NOT_FOUND', $e->translationKey(), null, 404, $e->translationParameters());
+        }
+
+        return $this->successResponse($plan->toArray());
+    }
+
+    /**
      * Restore a group to the state it held at a point in its history (ADR 0040).
      *
      * The order is deliberate and each step exists for a reason:

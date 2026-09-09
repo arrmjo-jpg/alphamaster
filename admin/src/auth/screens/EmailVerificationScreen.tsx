@@ -8,7 +8,7 @@ import { useCountdown } from '@/auth/useCountdown';
 import { Alert } from '@/ui/Alert';
 import { Button } from '@/ui/Button';
 
-import { AuthLayout } from './AuthLayout';
+import { AuthCover } from './AuthCover';
 
 /**
  * Proving control of the address before anything else proceeds.
@@ -62,7 +62,7 @@ export function EmailVerificationScreen() {
     };
 
     return (
-        <AuthLayout description={t('auth.verify.description')} title={t('auth.verify.title')}>
+        <AuthCover description={t('auth.verify.description')} title={t('auth.verify.title')}>
             <div className="flex flex-col gap-4">
                 {error !== null ? <Alert tone="danger">{error}</Alert> : null}
 
@@ -85,6 +85,6 @@ export function EmailVerificationScreen() {
                     {t('auth.verify.continue')}
                 </Button>
             </div>
-        </AuthLayout>
+        </AuthCover>
     );
 }

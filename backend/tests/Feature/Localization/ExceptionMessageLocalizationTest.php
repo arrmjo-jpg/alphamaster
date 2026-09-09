@@ -371,8 +371,9 @@ test('every key this scope introduced exists in both dictionaries', function ():
     // 30 through Phase 15; Phase 16A added the two precondition messages,
     // Phase 16B-2 the unknown-revision one, 16B-3 the failed-verification one, and
     // 16B-6 the rejected-value one. Email verification added the throttled and
-    // invalid-link messages.
-    expect($keys)->toHaveCount(40);
+    // invalid-link messages, and the rollback preview the one asking which revision
+    // to preview.
+    expect($keys)->toHaveCount(41);
 
     foreach ($keys as $key) {
         expect($ar)->toHaveKey($key)

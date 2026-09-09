@@ -33,7 +33,7 @@ export function Alert({ tone, title, children, className }: AlertProps) {
     return (
         <div
             className={cn(
-                'flex items-start gap-2 rounded-md p-3 text-(length:--text-base)',
+                'flex items-start gap-2 p-3 text-(length:--text-base)',
                 classes.tint,
                 classes.text,
                 className,

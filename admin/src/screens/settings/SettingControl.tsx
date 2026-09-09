@@ -1,75 +1,15 @@
-import { KeyRound } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { cn } from '@/lib/cn';
-import { Field } from '@/ui/Field';
 import { Input } from '@/ui/Input';
 import { SegmentedControl } from '@/ui/SegmentedControl';
-import { StateRail } from '@/ui/StateRail';
-import { StatusBadge } from '@/ui/StatusBadge';
 
-import { settingKey, type FieldState } from './draft';
+import type { SettingDefinition } from './api';
+import { allowedValues } from './validation';
 
-export interface SettingFieldProps {
-    field: FieldState;
-    /** The message the platform returned for this key, if it refused it. */
-    error?: string;
-    onChange: (key: string, value: unknown) => void;
-}
-
-/**
- * One setting, rendered the way its type and its risk deserve.
- *
- * A boolean is two buttons and a number is a number field, because a trivial setting
- * should stay trivial — complexity belongs where a change is risky, not spread evenly
- * across every row. What is never trivial is *whether it changed*: an edited row
- * carries the `pending` rail, which is the one state this product added for exactly
- * this, so an operator can scan a long group and see what they are about to write.
- */
-export function SettingField({ field, error, onChange }: SettingFieldProps) {
-    const { t } = useTranslation();
-    const { definition } = field;
-
-    if (definition.is_secret) {
-        return <SecretField field={field} />;
-    }
-
-    const hint = [
-        definition.help,
-        field.unmet.length > 0
-            ? t('settings.unmetDependencies', { keys: field.unmet.join(', ') })
-            : null,
-        !field.editable ? t('settings.notEditable') : null,
-    ]
-        .filter((line): line is string => line !== null && line !== '')
-        .join(' · ');
-
-    return (
-        <StateRail tone={field.changed ? 'pending' : 'neutral'}>
-            <Field
-                {...(hint !== '' ? { hint } : {})}
-                {...(error !== undefined ? { error } : {})}
-                label={definition.label}
-            >
-                {({ id, invalid, ...described }) => (
-                    <Control
-                        definition={definition}
-                        disabled={!field.editable}
-                        id={id}
-                        invalid={invalid}
-                        onChange={(value) => onChange(settingKey(definition), value)}
-                        value={field.value}
-                        {...described}
-                    />
-                )}
-            </Field>
-        </StateRail>
-    );
-}
-
-interface ControlProps {
-    definition: FieldState['definition'];
+export interface SettingControlProps {
+    definition: SettingDefinition;
     value: unknown;
     disabled: boolean;
     id: string;
@@ -78,7 +18,19 @@ interface ControlProps {
     onChange: (value: unknown) => void;
 }
 
-function Control({
+/**
+ * One control per setting type, and the type decides which.
+ *
+ * The platform declares eight, and each of them is a different question. A boolean is
+ * two buttons; a bounded string is a choice, not free text; a number is a number
+ * field that can still be emptied; JSON is text that has to stay editable while it is
+ * half-written. Reducing all of them to a text input would be less code and would
+ * make every one of those questions the same question.
+ *
+ * `media` is not here: an image is a file with an upload, a preview and a size limit,
+ * which is a control of its own rather than a variant of this one.
+ */
+export function SettingControl({
     definition,
     value,
     disabled,
@@ -86,8 +38,9 @@ function Control({
     invalid,
     onChange,
     ...described
-}: ControlProps) {
+}: SettingControlProps) {
     const { t } = useTranslation();
+    const choices = allowedValues(definition);
 
     if (definition.type === 'boolean') {
         return (
@@ -103,6 +56,28 @@ function Control({
         );
     }
 
+    // A rule that names the permitted values makes this a choice. Offering free text
+    // and then refusing three quarters of it is a worse interface than the list.
+    if (choices !== null) {
+        return (
+            <select
+                className={fieldClass(invalid)}
+                disabled={disabled}
+                id={id}
+                onChange={(event) => onChange(event.target.value)}
+                value={typeof value === 'string' ? value : ''}
+                {...described}
+            >
+                {definition.nullable ? <option value="">{t('settings.notSet')}</option> : null}
+                {choices.map((choice) => (
+                    <option key={choice} value={choice}>
+                        {choice}
+                    </option>
+                ))}
+            </select>
+        );
+    }
+
     if (definition.type === 'integer' || definition.type === 'float') {
         return (
             <Input
@@ -115,6 +90,7 @@ function Control({
                 onChange={(event) =>
                     onChange(event.target.value === '' ? null : Number(event.target.value))
                 }
+                step={definition.type === 'float' ? 'any' : '1'}
                 type="number"
                 value={typeof value === 'number' ? value : ''}
                 {...described}
@@ -139,8 +115,11 @@ function Control({
         <Input
             disabled={disabled}
             id={id}
+            inputMode={definition.type === 'url' ? 'url' : undefined}
             invalid={invalid}
             onChange={(event) => onChange(event.target.value)}
+            // The semantic type, so a phone keyboard offers the right layout and the
+            // browser can autofill. `text` for everything would be one line shorter.
             type={
                 definition.type === 'email' ? 'email' : definition.type === 'url' ? 'url' : 'text'
             }
@@ -150,14 +129,23 @@ function Control({
     );
 }
 
+function fieldClass(invalid: boolean): string {
+    return cn(
+        'h-(--field-height) w-full border bg-(--surface-default) px-2',
+        'text-(length:--text-base) text-(--text-primary)',
+        'focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-(--focus-ring)',
+        'disabled:cursor-not-allowed disabled:opacity-50',
+        invalid ? 'border-(--state-danger-rail)' : 'border-(--border-strong)',
+    );
+}
+
 /**
  * A structured value, edited as the JSON it is stored as.
  *
  * Text that does not parse is held as typed rather than discarded — an editor that
  * threw away a half-finished object on every keystroke would be unusable — and the
- * unparseable state is reported rather than submitted, because the platform would
- * refuse it with a message about a type rather than about the bracket that is
- * missing.
+ * unparseable state is reported rather than staged, because the platform would refuse
+ * it with a message about a type rather than about the bracket that is missing.
  */
 function JsonControl({
     value,
@@ -166,7 +154,7 @@ function JsonControl({
     invalid,
     onChange,
     ...described
-}: Omit<ControlProps, 'definition'>) {
+}: Omit<SettingControlProps, 'definition'>) {
     const { t } = useTranslation();
     const [text, setText] = useState(() => stringify(value));
     const [malformed, setMalformed] = useState(false);
@@ -175,13 +163,13 @@ function JsonControl({
         <div className="flex flex-col gap-1">
             <textarea
                 className={cn(
-                    'min-h-24 w-full rounded-md border bg-(--surface-default) p-2',
+                    'min-h-28 w-full border bg-(--surface-default) p-2',
                     'font-(family-name:--font-mono) text-(length:--text-sm) text-(--text-primary)',
                     'focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-(--focus-ring)',
                     'disabled:cursor-not-allowed disabled:opacity-50',
                     invalid || malformed
                         ? 'border-(--state-danger-rail)'
-                        : 'border-(--border-default)',
+                        : 'border-(--border-strong)',
                 )}
                 disabled={disabled}
                 id={id}
@@ -196,6 +184,7 @@ function JsonControl({
                         setMalformed(true);
                     }
                 }}
+                spellCheck={false}
                 value={text}
                 {...described}
             />
@@ -214,36 +203,4 @@ function stringify(value: unknown): string {
     }
 
     return typeof value === 'string' ? value : JSON.stringify(value, null, 2);
-}
-
-/**
- * A secret is shown as present or absent, and never as a value.
- *
- * The platform does not return it — it cannot be edited in place, and rotation is a
- * separate operation on its own permission (ADR 0018, ADR 0039). Rendering an empty
- * text field here would invite an operator to type into something that would then
- * write an empty credential.
- */
-function SecretField({ field }: { field: FieldState }) {
-    const { t } = useTranslation();
-    const present = field.row?.value !== null && field.row?.value !== undefined;
-
-    return (
-        <StateRail tone="neutral">
-            <div className="flex flex-col gap-1">
-                <span className="text-(length:--text-sm) font-medium text-(--text-secondary)">
-                    {field.definition.label}
-                </span>
-                <div className="flex items-center gap-2">
-                    <KeyRound aria-hidden className="size-4 text-(--text-muted)" />
-                    <StatusBadge tone={present ? 'success' : 'warning'}>
-                        {present ? t('settings.secretSet') : t('settings.secretUnset')}
-                    </StatusBadge>
-                </div>
-                <p className="text-(length:--text-sm) text-(--text-muted)">
-                    {t('settings.secretExplanation')}
-                </p>
-            </div>
-        </StateRail>
-    );
 }

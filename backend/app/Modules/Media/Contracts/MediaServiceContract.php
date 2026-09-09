@@ -36,6 +36,16 @@ interface MediaServiceContract
     public function urlFor(MediaFile $media, ?object $viewer = null): ?string;
 
     /**
+     * A read handle on the stored bytes, or null when the object is no longer there.
+     *
+     * Authorization is not decided here: the caller has already asked `urlFor` or the
+     * access resolver. This is the transport.
+     *
+     * @return resource|null
+     */
+    public function readStream(MediaFile $media);
+
+    /**
      * Soft delete the record. The bytes are purged later by an explicit job, so a
      * mistaken delete stays recoverable and a failed purge stays retryable.
      */

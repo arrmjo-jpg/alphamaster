@@ -10,7 +10,7 @@ import { Button } from '@/ui/Button';
 import { Field } from '@/ui/Field';
 import { Input } from '@/ui/Input';
 
-import { AuthLayout } from './AuthLayout';
+import { AuthCover } from './AuthCover';
 
 export interface MfaChallengeScreenProps {
     mfaToken: string;
@@ -98,7 +98,7 @@ export function MfaChallengeScreen({ mfaToken, expiresIn }: MfaChallengeScreenPr
     const dead = expired || remaining === 0;
 
     return (
-        <AuthLayout
+        <AuthCover
             description={t('auth.mfa.challengeDescription')}
             footer={
                 <Button className="w-full" onClick={() => void signOut()} variant="ghost">
@@ -164,6 +164,6 @@ export function MfaChallengeScreen({ mfaToken, expiresIn }: MfaChallengeScreenPr
                         : t('auth.mfa.sendCode')}
                 </Button>
             </form>
-        </AuthLayout>
+        </AuthCover>
     );
 }

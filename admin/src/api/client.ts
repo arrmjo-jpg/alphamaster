@@ -26,6 +26,14 @@ interface Envelope<T> {
 export interface RequestOptions {
     method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
     body?: unknown;
+    /**
+     * A multipart body, for the one endpoint that takes a file.
+     *
+     * Sent instead of `body`, and deliberately without a Content-Type: the browser
+     * sets that header itself, including the boundary, and a hand-written one makes
+     * the request unparseable at the other end.
+     */
+    formData?: FormData;
     /** Sent as `If-Match`; the settings write requires it (ADR 0038). */
     ifMatch?: string;
     query?: Record<string, string | number | boolean | undefined>;
@@ -75,11 +83,11 @@ export async function request<T>(
     path: string,
     options: RequestOptions = {},
 ): Promise<ApiResult<T>> {
-    const { method = 'GET', body, ifMatch, query, locale, signal } = options;
+    const { method = 'GET', body, formData, ifMatch, query, locale, signal } = options;
 
     const headers: Record<string, string> = { Accept: 'application/json' };
 
-    if (body !== undefined) {
+    if (body !== undefined && formData === undefined) {
         headers['Content-Type'] = 'application/json';
     }
 
@@ -98,7 +106,11 @@ export async function request<T>(
             method,
             headers,
             credentials: 'include',
-            ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+            ...(formData !== undefined
+                ? { body: formData }
+                : body !== undefined
+                  ? { body: JSON.stringify(body) }
+                  : {}),
             ...(signal ? { signal } : {}),
         });
     } catch (cause) {

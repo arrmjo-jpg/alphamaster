@@ -16,6 +16,11 @@ Route::prefix('v1')->group(function (): void {
         ->group(function (): void {
             Route::post('/media', [MediaController::class, 'store'])->name('api.media.store');
             Route::get('/media/{media}', [MediaController::class, 'show'])->name('api.media.show');
+
+            // The bytes, as opposed to the record. Behind the same gate, because the
+            // access decision and the file it protects must not come apart.
+            Route::get('/media/{media}/file', [MediaController::class, 'file'])
+                ->name('api.media.file');
         });
 
     // Moderation is administrative, behind the full five-stage stack.

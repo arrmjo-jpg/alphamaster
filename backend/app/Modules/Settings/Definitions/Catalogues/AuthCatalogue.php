@@ -64,6 +64,31 @@ class AuthCatalogue implements SettingCatalogue
                 rules: ['string', 'max:255'],
                 isPublic: true,
             ),
+            // Which reCAPTCHA the site key belongs to.
+            //
+            // The verifier already accepts either — it applies `minimum_score` when
+            // the vendor returns one, which is v3's shape — but the two are entirely
+            // different in the browser: v2 renders a checkbox and yields a token when
+            // it is ticked, while v3 renders nothing and a token is executed at
+            // submit. A client cannot infer which from a site key, and guessing wrong
+            // produces a sign-in page that cannot be submitted with nothing on it to
+            // explain why. That happened, which is why this exists.
+            //
+            // Public for the same reason the switch and the site key are: the
+            // unauthenticated sign-in page is what has to act on it, and which
+            // challenge a login form shows is visible to anyone who loads it.
+            //
+            // Defaults to v2, the version a fresh installation is most likely to be
+            // handed and the one that fails visibly rather than silently.
+            new SettingDefinition(
+                group: 'auth',
+                key: 'captcha_version',
+                type: SettingType::STRING,
+                default: 'v2',
+                nullable: false,
+                rules: ['string', 'in:v2,v3'],
+                isPublic: true,
+            ),
             new SettingDefinition(
                 group: 'auth',
                 key: 'session_lifetime',

@@ -4,8 +4,8 @@
 
 /**
  * Tailwind v4 reads its theme from CSS, so the semantic tokens above become
- * utilities here. A component writes `bg-surface-default`, never a hex and never
- * an arbitrary value.
+ * utilities here. A component writes `bg-surface`, never a hex and never an
+ * arbitrary value.
  */
 @theme inline {
     --color-canvas: var(--surface-canvas);
@@ -13,15 +13,20 @@
     --color-raised: var(--surface-raised);
     --color-overlay: var(--surface-overlay);
     --color-subtle: var(--surface-subtle);
+    --color-chrome: var(--surface-chrome);
+    --color-chrome-hover: var(--surface-chrome-hover);
 
     --color-fg: var(--text-primary);
     --color-fg-secondary: var(--text-secondary);
     --color-fg-muted: var(--text-muted);
     --color-fg-inverse: var(--text-inverse);
     --color-fg-danger: var(--text-danger);
+    --color-fg-chrome: var(--text-on-chrome);
+    --color-fg-chrome-muted: var(--text-on-chrome-muted);
 
     --color-line: var(--border-default);
     --color-line-strong: var(--border-strong);
+    --color-line-chrome: var(--border-chrome);
 
     --color-primary: var(--action-primary);
     --color-primary-hover: var(--action-primary-hover);
@@ -54,6 +59,7 @@
     --font-sans: var(--font-sans);
     --font-mono: var(--font-mono);
 
+    --text-2xs: var(--text-2xs);
     --text-xs: var(--text-xs);
     --text-sm: var(--text-sm);
     --text-base: var(--text-base);
@@ -61,6 +67,12 @@
     --text-lg: var(--text-lg);
     --text-xl: var(--text-xl);
     --text-2xl: var(--text-2xl);
+    --text-3xl: var(--text-3xl);
+    --text-4xl: var(--text-4xl);
+
+    --tracking-tight: var(--tracking-tight);
+    --tracking-wide: var(--tracking-wide);
+    --tracking-eyebrow: var(--tracking-eyebrow);
 
     --radius-sm: var(--radius-sm);
     --radius-md: var(--radius-md);
@@ -80,11 +92,14 @@
         scroll-padding-block-start: var(--topbar-height);
     }
 
-    /* Arabic runs visually smaller at the same px and needs more vertical room. */
+    /* One family sets both languages, so nothing here swaps the typeface. Arabic
+       still needs more vertical room at the same size — the script is taller — and
+       Tajawal's Arabic runs slightly small beside its Latin, so the base size is
+       nudged rather than the family changed. */
     html[lang='ar'] {
-        font-family: var(--font-arabic);
         --text-base: 0.9375rem;
-        --leading-normal: 1.6;
+        --leading-normal: 1.7;
+        --leading-snug: 1.5;
     }
 
     body {
@@ -93,38 +108,99 @@
         background-color: var(--surface-canvas);
         color: var(--text-primary);
         font-size: var(--text-base);
+        font-weight: var(--weight-normal);
         line-height: var(--leading-normal);
         -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
     }
 
-    /* Operational data is read comparatively. Values must not shift as they update. */
+    /* Operational data is read comparatively. Values must not shift as they update,
+       and a column of Latin digits must not gain Arabic-Indic ones halfway down. */
     table,
     [data-numeric],
+    [data-technical],
     .tabular {
         font-variant-numeric: tabular-nums;
+        font-feature-settings: 'tnum' 1;
     }
 
     ::selection {
         background-color: var(--selection-bg);
     }
 
-    /* One focus treatment, everywhere, and never removed without replacement. */
+    /* One focus treatment, everywhere, and never removed without replacement. Square
+       like everything else, and offset so it reads as a ring around the control
+       rather than as part of it. */
     :focus-visible {
         outline: 2px solid var(--focus-ring);
         outline-offset: 2px;
-        border-radius: var(--radius-sm);
+        border-radius: 0;
     }
 
-    /* Identifiers, keys and URLs reflow instead of forcing horizontal overflow. */
+    /* Identifiers, keys, versions and URLs: monospace, reflowing rather than forcing
+       overflow, and always left-to-right even inside an Arabic sentence — a ULID
+       read right to left is a different string. */
     [data-technical] {
         font-family: var(--font-mono);
+        font-size: 0.95em;
         overflow-wrap: anywhere;
         min-inline-size: 0;
+        direction: ltr;
+        unicode-bidi: isolate;
+        text-align: start;
+    }
+
+    /* The eyebrow: a small capitalised label, tracked wide, naming a region without
+       competing with it. It sits above panels and page titles and is the most
+       recognisable typographic device in this interface. */
+    [data-eyebrow] {
+        font-size: var(--text-2xs);
+        font-weight: var(--weight-bold);
+        letter-spacing: var(--tracking-eyebrow);
+        text-transform: uppercase;
+        color: var(--text-muted);
+        line-height: var(--leading-tight);
+    }
+
+    /* Arabic has no capitals, so `uppercase` does nothing — and the wide tracking is
+       actively wrong, because it breaks the joins between letters. */
+    html[lang='ar'] [data-eyebrow] {
+        text-transform: none;
+        letter-spacing: var(--tracking-normal);
+        font-size: var(--text-xs);
+    }
+
+    h1,
+    h2,
+    h3 {
+        font-weight: var(--weight-bold);
+        line-height: var(--leading-tight);
+        letter-spacing: var(--tracking-tight);
+        margin: 0;
+    }
+
+    /* Tight tracking is a Latin device. Applied to Arabic it pulls joined letters
+       into one another. */
+    html[lang='ar'] h1,
+    html[lang='ar'] h2,
+    html[lang='ar'] h3 {
+        letter-spacing: var(--tracking-normal);
+        line-height: var(--leading-snug);
     }
 
     button:not(:disabled),
     [role='button']:not([aria-disabled='true']) {
         cursor: pointer;
+    }
+
+    /* Third-party primitives ship their own radii. Everything in this product is
+       square, so they are overridden here rather than fought component by component
+       — leaving `--radius-full` alone, because a status dot is round on purpose. */
+    [data-radix-popper-content-wrapper] *,
+    [role='dialog'],
+    [role='menu'],
+    [role='listbox'] {
+        border-radius: 0;
     }
 }
 

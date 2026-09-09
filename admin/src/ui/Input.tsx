@@ -13,14 +13,17 @@ export function Input({ className, invalid = false, ...props }: InputProps) {
     return (
         <input
             className={cn(
-                'h-(--field-height) w-full rounded-md border bg-(--surface-default) px-2',
+                'h-(--field-height) w-full border bg-(--surface-default) px-2',
                 'text-(length:--text-base) text-(--text-primary) placeholder:text-(--text-muted)',
                 'transition-colors duration-100 ease-out',
                 'focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-(--focus-ring)',
                 'disabled:cursor-not-allowed disabled:opacity-50',
+                // The strong rule, not the default one. With no radius and no
+                // shadow the boundary is the entire affordance, and the hairline
+                // used between rows all but disappears against a dark surface.
                 invalid
                     ? 'border-(--state-danger-rail)'
-                    : 'border-(--border-default) hover:border-(--border-strong)',
+                    : 'border-(--border-strong) hover:border-(--border-focus)',
                 className,
             )}
             {...(invalid ? { 'aria-invalid': true } : {})}

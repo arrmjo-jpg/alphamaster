@@ -3,7 +3,12 @@ import type {
     AdminAuditIndexResponses,
     AdminIntegrationsProvidersIndexResponses,
     AdminIntegrationsUsageResponses,
+    AdminLanguagesIndexResponses,
 } from '@/api/generated';
+
+// The liveness probe is shared with the sign-in cover, so it lives beside the client
+// rather than inside this screen.
+export { platformHealth, type PlatformHealth } from '@/api/health';
 
 /**
  * What the dashboard asks the platform, and nothing it invents.
@@ -16,22 +21,10 @@ import type {
 export type AuditRecord = AdminAuditIndexResponses[200]['data'][number];
 export type IntegrationProvider = AdminIntegrationsProvidersIndexResponses[200]['data'][number];
 export type IntegrationUsage = AdminIntegrationsUsageResponses[200]['data'][number];
+export type AdminLanguage = AdminLanguagesIndexResponses[200]['data'][number];
 
-export interface PlatformHealth {
-    status: string;
-    timestamp: string;
-    framework: string;
-}
-
-/**
- * The liveness probe, which answers from the application itself.
- *
- * It reports that PHP is executing, not that the database is reachable — the route's
- * own comment says so. The panel that renders it says the same thing, because a
- * green light that means less than a reader assumes is worse than no light.
- */
-export async function platformHealth(signal?: AbortSignal): Promise<PlatformHealth> {
-    return fetchData<PlatformHealth>('/health', { ...(signal ? { signal } : {}) });
+export async function adminLanguages(signal?: AbortSignal): Promise<AdminLanguage[]> {
+    return fetchData<AdminLanguage[]>('/admin/languages', { ...(signal ? { signal } : {}) });
 }
 
 export async function integrationProviders(signal?: AbortSignal): Promise<IntegrationProvider[]> {
@@ -56,10 +49,20 @@ interface PaginationMeta {
     pagination?: { total?: unknown };
 }
 
-/** The most recent entries, with the total the trail holds behind them. */
-export async function recentAudit(perPage: number, signal?: AbortSignal): Promise<AuditPage> {
+/**
+ * The most recent entries, with the total the trail holds behind them.
+ *
+ * `outcome` is the endpoint's own filter, so asking for failures is a question the
+ * server answers rather than a page this client fetches and sifts — which matters,
+ * because a failure eight pages back is exactly the one worth surfacing.
+ */
+export async function recentAudit(
+    perPage: number,
+    outcome?: 'failed',
+    signal?: AbortSignal,
+): Promise<AuditPage> {
     const result = await request<AuditRecord[]>('/admin/audit', {
-        query: { per_page: perPage },
+        query: { per_page: perPage, ...(outcome === undefined ? {} : { outcome }) },
         ...(signal ? { signal } : {}),
     });
 

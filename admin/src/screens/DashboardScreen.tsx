@@ -1,50 +1,152 @@
+import { useQueries, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
+import { platformHealth } from '@/api/health';
 import { useCurrentUser } from '@/auth/AuthProvider';
 import { ActivityPanel } from '@/screens/dashboard/ActivityPanel';
+import { assessAttention } from '@/screens/dashboard/attention';
+import { AttentionPanel } from '@/screens/dashboard/AttentionPanel';
+import { integrationProviders, integrationUsage, recentAudit } from '@/screens/dashboard/api';
+import { summarise } from '@/screens/dashboard/capabilities';
 import { IntegrationsPanel } from '@/screens/dashboard/IntegrationsPanel';
-import { PlatformPanel } from '@/screens/dashboard/PlatformPanel';
+import { NextActionsPanel } from '@/screens/dashboard/NextActionsPanel';
+import { StatePanel } from '@/screens/dashboard/StatePanel';
+import { users } from '@/screens/access/api';
 
 /**
- * What is the platform doing right now.
+ * Operations, in the order an operator actually asks the questions.
  *
- * Panels are composed here and gated on the permission each one's endpoints need, so
- * a request that is certain to be refused is never sent: the API would answer 403,
- * the panel would render an error, and the operator would be told something is wrong
- * when nothing is. A panel they may not read is simply absent.
+ * What needs me now; what is this platform; what changed; what should I do. Four
+ * regions, and the first one is empty on a good day — a screen where the first thing
+ * you read is a row of totals trains people to skim past the row where the alarm
+ * eventually appears.
  *
- * The layout is a grid rather than a widget system. Panels are extensible — adding
- * one is adding a component and a permission — and nothing here builds a dashboard
- * builder.
+ * Every query is gated on the permission its endpoint requires, so a request certain
+ * to be refused is never sent: the API would answer 403, a panel would render an
+ * error, and an operator would be told something is wrong when nothing is. What that
+ * costs is coverage, and the attention panel says which checks it could not make
+ * rather than presenting a narrower all-clear as a complete one.
+ *
+ * There is no chart. The two datasets that could carry one are the audit trail, which
+ * is paginated rather than aggregated, and the integration log, which is the last
+ * hundred attempts rather than a period — so any time axis drawn from either would be
+ * an axis the data does not have. The counts below are what the platform actually
+ * published.
  */
 export function DashboardScreen() {
     const { t } = useTranslation();
     const user = useCurrentUser();
 
     const may = (permission: string) => user.permissions.includes(permission);
+    const mayReadUsers = may('users.view');
+    const mayReadIntegrations = may('integrations.view');
+    const mayReadAudit = may('audit.view');
 
-    const panels = [
-        { id: 'platform', node: <PlatformPanel />, visible: true },
-        { id: 'integrations', node: <IntegrationsPanel />, visible: may('integrations.view') },
-        { id: 'activity', node: <ActivityPanel />, visible: may('audit.view') },
-    ].filter((panel) => panel.visible);
+    const health = useQuery({
+        queryKey: ['platform-health'],
+        queryFn: ({ signal }) => platformHealth(signal),
+        refetchInterval: 30_000,
+        staleTime: 10_000,
+    });
+
+    const [accounts, providers, usage, failures] = useQueries({
+        queries: [
+            {
+                queryKey: ['admin-users'],
+                queryFn: ({ signal }: { signal: AbortSignal }) => users(signal),
+                enabled: mayReadUsers,
+            },
+            {
+                queryKey: ['integration-providers'],
+                queryFn: ({ signal }: { signal: AbortSignal }) => integrationProviders(signal),
+                enabled: mayReadIntegrations,
+            },
+            {
+                queryKey: ['integration-usage'],
+                queryFn: ({ signal }: { signal: AbortSignal }) => integrationUsage(signal),
+                enabled: mayReadIntegrations,
+            },
+            {
+                queryKey: ['recent-audit-failures'],
+                // The endpoint's own filter. A failure several pages back is exactly
+                // the one worth surfacing, and sifting one page would never find it.
+                queryFn: ({ signal }: { signal: AbortSignal }) => recentAudit(5, 'failed', signal),
+                enabled: mayReadAudit,
+            },
+        ],
+    });
+
+    const capabilities =
+        providers.data !== undefined && usage.data !== undefined
+            ? summarise(providers.data, usage.data, (capability) => capability)
+            : null;
+
+    const attention = assessAttention({
+        reachable: health.isPending ? null : health.isSuccess && health.data.status === 'healthy',
+        // `null` where the check could not run, and only where it could not. A query
+        // still in flight is undefined rather than forbidden, so it stays out of both
+        // the findings and the "not checked" list until it lands.
+        accounts: mayReadUsers ? (accounts.data ?? null) : null,
+        capabilities: mayReadIntegrations ? capabilities : null,
+        failedActions: mayReadAudit ? (failures.data?.records ?? null) : null,
+    });
+
+    const settling =
+        health.isPending ||
+        (mayReadUsers && accounts.isPending) ||
+        (mayReadIntegrations && (providers.isPending || usage.isPending)) ||
+        (mayReadAudit && failures.isPending);
 
     return (
         <div className="flex flex-col gap-(--section-gap)">
-            <h1 className="text-(length:--text-2xl) font-semibold text-(--text-primary)">
-                {t('modules.dashboard')}
-            </h1>
+            <header>
+                <p data-eyebrow>{t('dashboard.eyebrow')}</p>
+                <h1 className="text-(length:--text-2xl) text-(--text-primary)">
+                    {t('modules.dashboard')}
+                </h1>
+            </header>
 
-            <div className="grid grid-cols-1 gap-(--section-gap) xl:grid-cols-2">
-                {panels.map((panel) => (
-                    <div
-                        className={panel.id === 'activity' ? 'xl:col-span-2' : undefined}
-                        key={panel.id}
-                    >
-                        {panel.node}
-                    </div>
-                ))}
-            </div>
+            <AttentionPanel
+                attention={attention}
+                loading={settling}
+                permissions={user.permissions}
+            />
+
+            <Region title={t('dashboard.regions.state')}>
+                <div className="grid grid-cols-1 gap-(--section-gap) xl:grid-cols-2">
+                    <StatePanel headingLevel={3} mayReadAudit={mayReadAudit} />
+                    {mayReadIntegrations ? <IntegrationsPanel headingLevel={3} /> : null}
+                </div>
+            </Region>
+
+            {mayReadAudit ? (
+                <Region title={t('dashboard.regions.changes')}>
+                    <ActivityPanel headingLevel={3} />
+                </Region>
+            ) : null}
+
+            <NextActionsPanel
+                attention={attention}
+                capabilities={capabilities}
+                loading={settling}
+                permissions={user.permissions}
+            />
         </div>
+    );
+}
+
+/**
+ * A named band of the page.
+ *
+ * Only where a region holds more than one panel or would otherwise be unnamed — the
+ * attention and next-action panels are their own region and carry their own title, so
+ * wrapping them here would put the same words on the screen twice.
+ */
+function Region({ title, children }: { title: string; children: React.ReactNode }) {
+    return (
+        <section className="flex flex-col gap-2">
+            <h2 data-eyebrow>{title}</h2>
+            {children}
+        </section>
     );
 }

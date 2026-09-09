@@ -577,3 +577,69 @@ test('the rollback endpoint is behind the admin perimeter', function (): void {
     $this->postJson('/api/v1/admin/settings/localization/rollback', ['revision_id' => (string) Str::ulid()])
         ->assertStatus(401);
 });
+
+test('the preview says what a rollback would restore without restoring anything', function (): void {
+    // The whole point: a rollback changes many values at once from a state nobody has
+    // inspected, and this is the one thing that makes that safe — looking first.
+    $this->service->set('localization', 'date_format', 'd/m/Y');
+    $before = $this->service->get('localization.date_format');
+    $revision = newestRevision('localization', 'date_format');
+
+    resetClient($this);
+
+    $plan = $this->withToken(adminToken(roles: ['super_admin']))
+        ->getJson('/api/v1/admin/settings/localization/rollback/preview?revision_id='.$revision)
+        ->assertOk()
+        ->json('data');
+
+    expect($plan['target_revision_id'])->toBe($revision)
+        ->and($plan['restored'])->not->toBeEmpty()
+        ->and($plan['restored'][0])->toHaveKeys(['key', 'locale', 'value'])
+        // Nothing was written. A preview that changed the thing it previewed would be
+        // the opposite of the safety it exists to provide.
+        ->and($this->service->get('localization.date_format'))->toBe($before);
+});
+
+test('the preview names what it will skip and why, beside the machine-readable reason', function (): void {
+    // The mail group holds a secret, and a secret has no revisions to restore from —
+    // so a plan over it necessarily skips one. That is the case an operator most
+    // needs told: a rollback that silently left a credential behind would look like
+    // it had restored the group.
+    $this->service->set('mail', 'host', 'smtp.example.test');
+    $revision = newestRevision('mail', 'host');
+
+    resetClient($this);
+
+    $plan = $this->withToken(adminToken(roles: ['super_admin']))
+        ->getJson('/api/v1/admin/settings/mail/rollback/preview?revision_id='.$revision)
+        ->assertOk()
+        ->json('data');
+
+    $secretSkips = collect($plan['skipped'])->where('reason', 'secret');
+
+    expect($secretSkips)->not->toBeEmpty()
+        ->and($secretSkips->first())->toHaveKeys(['key', 'locale', 'reason', 'reason_label'])
+        // The label sits beside the identifier, never instead of it (ADR 0031).
+        ->and($secretSkips->first()['reason_label'])->not->toBe('secret');
+});
+
+test('the preview needs the rollback permission, not merely the view one', function (): void {
+    $this->service->set('localization', 'date_format', 'd/m/Y');
+    $revision = newestRevision('localization', 'date_format');
+
+    resetClient($this);
+
+    // A plan names every value that would change, which is the same information the
+    // rollback itself carries.
+    $this->withToken(adminToken(roles: ['editor']))
+        ->getJson('/api/v1/admin/settings/localization/rollback/preview?revision_id='.$revision)
+        ->assertForbidden();
+});
+
+test('a preview of an unknown revision is 404, not an empty plan', function (): void {
+    resetClient($this);
+
+    $this->withToken(adminToken(roles: ['super_admin']))
+        ->getJson('/api/v1/admin/settings/localization/rollback/preview?revision_id=01jzzzzzzzzzzzzzzzzzzzzzzz')
+        ->assertNotFound();
+});

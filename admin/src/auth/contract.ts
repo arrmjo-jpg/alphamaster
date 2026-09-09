@@ -98,6 +98,14 @@ export function isAdministrator(user: AuthenticatedUser): boolean {
 export interface PublicAuthSettings {
     captcha_enabled?: boolean;
     captcha_site_key?: string | null;
+    /**
+     * `v2` or `v3`, and the sign-in page cannot work without it.
+     *
+     * The two are different interactions, not styles of one: v2 is a checkbox that
+     * yields a token when ticked, v3 renders nothing and mints a token on demand. A
+     * site key does not say which it is, so the platform publishes it.
+     */
+    captcha_version?: string;
     password_min_length?: number;
 }
 

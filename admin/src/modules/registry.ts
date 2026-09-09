@@ -1,9 +1,11 @@
 import type { LucideIcon } from 'lucide-react';
-import { LayoutDashboard, SlidersHorizontal } from 'lucide-react';
+import { KeyRound, LayoutDashboard, SlidersHorizontal, Users } from 'lucide-react';
 import type { ComponentType } from 'react';
 
 import { DashboardScreen } from '@/screens/DashboardScreen';
+import { RolesScreen } from '@/screens/RolesScreen';
 import { SettingsScreen } from '@/screens/SettingsScreen';
+import { UsersScreen } from '@/screens/UsersScreen';
 
 /**
  * The module registry: a typed manifest, and the only thing the shell knows about
@@ -70,6 +72,27 @@ export const MODULES: ModuleManifest[] = [
         order: 20,
         nested: true,
         component: SettingsScreen,
+    },
+    {
+        id: 'users',
+        path: '/access/users',
+        label: 'modules.users',
+        icon: Users,
+        // Reading the list is the gate. Promoting an account needs `users.update`
+        // and changing its roles needs `roles.update`, both enforced per operation
+        // by the API and reflected control by control rather than at this level.
+        permission: 'users.view',
+        order: 30,
+        component: UsersScreen,
+    },
+    {
+        id: 'roles',
+        path: '/access/roles',
+        label: 'modules.roles',
+        icon: KeyRound,
+        permission: 'roles.view',
+        order: 40,
+        component: RolesScreen,
     },
 ];
 

@@ -113,16 +113,44 @@ class MediaService implements MediaServiceContract
             return null;
         }
 
-        if ($media->isPubliclyReadable()) {
+        // A CDN, when one is configured, is a deployment that puts a cache in front of
+        // an origin that serves files, and the storage URL is the origin path it
+        // fronts. That arrangement is unchanged.
+        if ($media->isPubliclyReadable() && $this->cdn->isEnabled()) {
             $url = $this->storage->url($media->path, $media->disk);
 
-            return $url === null ? null : $this->cdn->resolve($media, $url);
+            if ($url !== null) {
+                return $this->cdn->resolve($media, $url);
+            }
         }
 
-        // Private media is signed and expiring, and never routed through a CDN: a
-        // shared cache in front of a credential-bearing URL is how private files stop
-        // being private.
-        return $this->storage->temporaryUrl($media->path, $media->disk, self::SIGNED_URL_TTL);
+        // A signed, expiring URL when the disk can issue one, which keeps private
+        // media off the application's own thread on S3 and never routes it through a
+        // CDN: a shared cache in front of a credential-bearing URL is how private
+        // files stop being private.
+        if (! $media->isPubliclyReadable()) {
+            $signed = $this->storage->temporaryUrl($media->path, $media->disk, self::SIGNED_URL_TTL);
+
+            if ($signed !== null) {
+                return $signed;
+            }
+        }
+
+        // Otherwise the application serves the bytes itself. `Storage::url()` is not
+        // the fallback it looks like: it composes a path against a public disk and a
+        // symlink, and this platform is API-only with a proxy that reads no files
+        // (ADR 0001), so nothing is listening on that path and the URL resolves to
+        // whatever else answers. A relative URL, because the Admin and the API share
+        // one origin (ADR 0042) and an absolute one would have to guess at a host.
+        return route('api.media.file', ['media' => $media->id], absolute: false);
+    }
+
+    /**
+     * @return resource|null
+     */
+    public function readStream(MediaFile $media)
+    {
+        return $this->storage->readStream($media->path, $media->disk);
     }
 
     /**

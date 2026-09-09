@@ -5,7 +5,7 @@ import type { RefusalReason } from '@/auth/machine';
 import { Alert } from '@/ui/Alert';
 import { Button } from '@/ui/Button';
 
-import { AuthLayout } from './AuthLayout';
+import { AuthCover } from './AuthCover';
 
 /**
  * Authenticated, and still not getting in.
@@ -20,7 +20,7 @@ export function RefusedScreen({ reason }: { reason: RefusalReason }) {
     const { signOut } = useAuth();
 
     return (
-        <AuthLayout title={t(`auth.refused.${reason}.title`)}>
+        <AuthCover title={t(`auth.refused.${reason}.title`)}>
             <div className="flex flex-col gap-4">
                 <Alert tone={reason === 'suspended' ? 'danger' : 'neutral'}>
                     {t(`auth.refused.${reason}.body`)}
@@ -30,6 +30,6 @@ export function RefusedScreen({ reason }: { reason: RefusalReason }) {
                     {t('auth.signOut')}
                 </Button>
             </div>
-        </AuthLayout>
+        </AuthCover>
     );
 }

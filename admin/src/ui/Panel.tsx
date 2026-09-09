@@ -15,6 +15,12 @@ export interface PanelProps {
     /** Shown instead of children when there is nothing to show. */
     empty?: boolean;
     emptyMessage?: string;
+    /**
+     * The panel's title level. `2` when a panel is a region of the page in its own
+     * right, `3` when the page groups panels under headings of its own — the outline
+     * has to match what a reader is actually looking at.
+     */
+    headingLevel?: 2 | 3;
     className?: string;
     children: React.ReactNode;
 }
@@ -35,24 +41,32 @@ export function Panel({
     onRetry,
     empty = false,
     emptyMessage,
+    headingLevel = 2,
     className,
     children,
 }: PanelProps) {
     const { t } = useTranslation();
+    const Heading = headingLevel === 3 ? 'h3' : 'h2';
 
     return (
         <section
             className={cn(
-                'flex flex-col rounded-lg border border-(--border-default) bg-(--surface-default)',
+                // A rule on every side and a flat fill. No radius, no shadow: a panel
+                // is a region of the page, not an object resting on it.
+                'flex flex-col border border-(--border-default) bg-(--surface-default)',
                 className,
             )}
         >
-            <header className="flex items-center justify-between gap-2 border-b border-(--border-default) px-3 py-2">
-                <h2 className="text-(length:--text-md) font-semibold text-(--text-primary)">
+            <header className="flex items-baseline justify-between gap-3 border-b border-(--border-default) px-3 py-2.5">
+                {/* The eyebrow, not a heading-sized title: a panel names its region
+                    without competing with the page it sits on. */}
+                <Heading className="min-w-0 truncate" data-eyebrow>
                     {title}
-                </h2>
+                </Heading>
                 {aside !== undefined ? (
-                    <div className="text-(length:--text-sm) text-(--text-muted)">{aside}</div>
+                    <div className="shrink-0 text-(length:--text-sm) text-(--text-muted)">
+                        {aside}
+                    </div>
                 ) : null}
             </header>
 
@@ -105,9 +119,9 @@ function Skeleton() {
 
     return (
         <div aria-label={t('state.loading')} className="flex flex-col gap-2" role="status">
-            <span className="h-4 w-2/3 animate-pulse rounded-sm bg-(--action-secondary)" />
-            <span className="h-4 w-1/2 animate-pulse rounded-sm bg-(--action-secondary)" />
-            <span className="h-4 w-3/5 animate-pulse rounded-sm bg-(--action-secondary)" />
+            <span className="h-4 w-2/3 animate-pulse bg-(--action-secondary)" />
+            <span className="h-4 w-1/2 animate-pulse bg-(--action-secondary)" />
+            <span className="h-4 w-3/5 animate-pulse bg-(--action-secondary)" />
         </div>
     );
 }

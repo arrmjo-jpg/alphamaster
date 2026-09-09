@@ -23,7 +23,8 @@
         "loading": "جارٍ التحميل",
         "empty": "لا يوجد شيء هنا",
         "error": "حدث خطأ",
-        "retry": "أعد المحاولة"
+        "retry": "أعد المحاولة",
+        "unavailable": "غير متاح"
     },
     "language": {
         "label": "اللغة"
@@ -128,7 +129,19 @@
         },
         "unreachable": {
             "title": "تعذّر الوصول إلى المنصّة"
-        }
+        },
+        "cover": {
+            "eyebrow": "الإدارة",
+            "kicker": "تحكّم ألفاماستر",
+            "statement": "النظام، وكل من له أن يغيّره.",
+            "detail": "الإعدادات والتكاملات والصلاحيات وسجلّ كل تغيير — خلف محيط واحد، وباعتماد واحد.",
+            "platform": "المنصّة",
+            "build": "الإصدار",
+            "perimeter": "المحيط",
+            "perimeterValue": "خمس مراحل، ويلزم عامل ثانٍ"
+        },
+        "captchaUnavailable": "تعذّر تحميل تحدّي التحقّق، فلا يمكن إكمال تسجيل الدخول. يستطيع مشرف تعطيل الكابتشا من الإعدادات ← المصادقة.",
+        "captchaInvisible": "هذا الدخول محمي بـ reCAPTCHA. لا يظهر أي تحدٍّ؛ يجري الفحص في الخلفية."
     },
     "shell": {
         "navigation": "الوحدات",
@@ -148,7 +161,9 @@
     },
     "modules": {
         "dashboard": "اللوحة",
-        "settings": "الإعدادات"
+        "settings": "الإعدادات",
+        "users": "المستخدمون",
+        "roles": "الأدوار والصلاحيات"
     },
     "dashboard": {
         "platform": {
@@ -182,7 +197,7 @@
             }
         },
         "activity": {
-            "title": "أحدث الإجراءات الإدارية",
+            "title": "سجلّ الإجراءات الإدارية",
             "none": "لم يُسجَّل شيء بعد.",
             "failed": "فشل",
             "total_zero": "لا مدخلات",
@@ -190,45 +205,315 @@
             "total_two": "مدخلان",
             "total_few": "{{count}} مدخلات",
             "total_many": "{{count}} مدخلًا",
-            "total_other": "{{count}} مدخل"
+            "total_other": "{{count}} مدخل",
+            "filter": "تصفية السجلّ",
+            "all": "الكلّ",
+            "failedOnly": "الفاشلة",
+            "noFailures": "لا يوجد إجراء فاشل مسجَّل."
+        },
+        "eyebrow": "التشغيل",
+        "regions": {
+            "state": "حالة النظام",
+            "changes": "أحدث التغييرات"
+        },
+        "attention": {
+            "title": "يحتاج انتباهك",
+            "count_zero": "لا نتائج",
+            "count_one": "نتيجة واحدة",
+            "count_two": "نتيجتان",
+            "count_few": "{{count}} نتائج",
+            "count_many": "{{count}} نتيجةً",
+            "count_other": "{{count}} نتيجة",
+            "criticalCount_zero": "لا شيء يحتاج معالجة فورية.",
+            "criticalCount_one": "نتيجة واحدة تحتاج معالجة فورية.",
+            "criticalCount_two": "نتيجتان تحتاجان معالجة فورية.",
+            "criticalCount_few": "{{count}} نتائج تحتاج معالجة فورية.",
+            "criticalCount_many": "{{count}} نتيجةً تحتاج معالجة فورية.",
+            "criticalCount_other": "{{count}} نتيجة تحتاج معالجة فورية.",
+            "clear": "لا شيء يحتاج انتباهك.",
+            "checked": "فُحِص: {{checks}}.",
+            "skipped": "لم يُفحص، لأنّ هذا الحساب لا يملك صلاحية قراءة ما يلزمه: {{checks}}.",
+            "check": {
+                "platform": "فحص المنصّة",
+                "administrators": "حسابات المشرفين",
+                "integrations": "قدرات المزوّدين",
+                "actions": "سجلّ التدقيق"
+            },
+            "finding": {
+                "platform-silent": "المنصّة لا تستجيب.",
+                "administrator-blocked_zero": "لا مشرف ممنوع من الدخول.",
+                "administrator-blocked_one": "مشرف واحد لا يستطيع تسجيل الدخول.",
+                "administrator-blocked_two": "مشرفان لا يستطيعان تسجيل الدخول.",
+                "administrator-blocked_few": "{{count}} مشرفين لا يستطيعون تسجيل الدخول.",
+                "administrator-blocked_many": "{{count}} مشرفًا لا يستطيعون تسجيل الدخول.",
+                "administrator-blocked_other": "{{count}} مشرف لا يستطيعون تسجيل الدخول.",
+                "capability-failing_zero": "لا قدرة فاشلة.",
+                "capability-failing_one": "قدرة واحدة تفشل في كلّ محاولة.",
+                "capability-failing_two": "قدرتان تفشلان في كلّ محاولة.",
+                "capability-failing_few": "{{count}} قدرات تفشل في كلّ محاولة.",
+                "capability-failing_many": "{{count}} قدرةً تفشل في كلّ محاولة.",
+                "capability-failing_other": "{{count}} قدرة تفشل في كلّ محاولة.",
+                "capability-degraded_zero": "لا قدرة متعثّرة.",
+                "capability-degraded_one": "قدرة واحدة تفشل في بعض المحاولات.",
+                "capability-degraded_two": "قدرتان تفشلان في بعض المحاولات.",
+                "capability-degraded_few": "{{count}} قدرات تفشل في بعض المحاولات.",
+                "capability-degraded_many": "{{count}} قدرةً تفشل في بعض المحاولات.",
+                "capability-degraded_other": "{{count}} قدرة تفشل في بعض المحاولات.",
+                "action-failed_zero": "لا إجراء فاشل.",
+                "action-failed_one": "إجراء إداريّ واحد فشل.",
+                "action-failed_two": "إجراءان إداريّان فشلا.",
+                "action-failed_few": "{{count}} إجراءات إداريّة فشلت.",
+                "action-failed_many": "{{count}} إجراءً إداريًّا فشلت.",
+                "action-failed_other": "{{count}} إجراء إداريّ فشل.",
+                "capability-uncredentialed_zero": "لا قدرة بلا اعتمادات.",
+                "capability-uncredentialed_one": "قدرة واحدة بلا اعتمادات.",
+                "capability-uncredentialed_two": "قدرتان بلا اعتمادات.",
+                "capability-uncredentialed_few": "{{count}} قدرات بلا اعتمادات.",
+                "capability-uncredentialed_many": "{{count}} قدرةً بلا اعتمادات.",
+                "capability-uncredentialed_other": "{{count}} قدرة بلا اعتمادات."
+            },
+            "why": {
+                "platform-silent": "لم يُبلّغ فحص الحياة عن تطبيق سليم.",
+                "administrator-blocked": "يرفض الحاجز الحساب الموقوف أو غير المؤكَّد العنوان أو الذي لا عامل ثانيَ مؤكَّدًا له.",
+                "capability-failing": "رُفضت كلّ محاولة حديثة عبر المزوّد النشط.",
+                "capability-degraded": "رُفض بعض المحاولات الحديثة عبر المزوّد النشط.",
+                "action-failed": "مسجَّل في سجلّ التدقيق بنتيجة فاشلة.",
+                "capability-uncredentialed": "لا يحمل المزوّد النشط أيّ اعتمادات، فتُرفض كلّ محاولة قبل إجرائها."
+            },
+            "go": {
+                "administrator-blocked": "فتح الحسابات",
+                "capability-failing": "فتح إعدادات البريد",
+                "capability-degraded": "فتح إعدادات البريد",
+                "capability-uncredentialed": "فتح إعدادات البريد"
+            }
+        },
+        "state": {
+            "title": "المنصّة",
+            "reachability": "الاستجابة",
+            "languages": "اللغات",
+            "languageCount_zero": "لا لغة نشطة من {{total}}",
+            "languageCount_one": "لغة واحدة نشطة من {{total}}",
+            "languageCount_two": "لغتان نشطتان من {{total}}",
+            "languageCount_few": "{{count}} لغات نشطة من {{total}}",
+            "languageCount_many": "{{count}} لغةً نشطة من {{total}}",
+            "languageCount_other": "{{count}} لغة نشطة من {{total}}",
+            "defaultLanguage": "الافتراضية: {{name}}",
+            "trail": "سجلّ التدقيق",
+            "trailNote": "عدد القيود المحفوظة. لا تنشر الواجهة مدّة الاحتفاظ."
+        },
+        "next": {
+            "title": "الخطوة التالية",
+            "none": "لا شيء لتفعله.",
+            "noneNote": "تُدرَج هنا الأعمال التي يستطيع هذا المركز تنفيذها. قد يحتاج أمرٌ انتباهك دون أن تكون له شاشة هنا.",
+            "action": {
+                "administrator-blocked_zero": "استعادة وصول المشرفين",
+                "administrator-blocked_one": "استعادة وصول مشرف واحد",
+                "administrator-blocked_two": "استعادة وصول مشرفَين",
+                "administrator-blocked_few": "استعادة وصول {{count}} مشرفين",
+                "administrator-blocked_many": "استعادة وصول {{count}} مشرفًا",
+                "administrator-blocked_other": "استعادة وصول {{count}} مشرف",
+                "capability-failing": "تفقّد تسليم البريد",
+                "capability-degraded": "تفقّد تسليم البريد",
+                "test-mail": "إرسال رسالة اختبار",
+                "capability-uncredentialed": "تفقّد تسليم البريد"
+            },
+            "because": {
+                "administrator-blocked": "يرفضهم الحاجز عند الدخول حتّى يكون الحساب نشطًا والعنوان مؤكَّدًا والعامل الثاني مسجَّلًا.",
+                "capability-failing": "فشلت كلّ محاولة إرسال حديثة. تحمل مجموعة البريد الإعدادات ورسالة اختبار.",
+                "capability-degraded": "فشل بعض محاولات الإرسال الحديثة. تحمل مجموعة البريد الإعدادات ورسالة اختبار.",
+                "test-mail": "البريد مهيّأ ولم يُستخدم بعد، وهي الحالة الأسهل خلطًا بالعمل الصحيح.",
+                "capability-uncredentialed": "لا يحمل المزوّد النشط اعتمادات. تحمل مجموعة البريد الإعدادات ورسالة اختبار."
+            }
         }
     },
     "settings": {
         "groups": "المجموعات",
+        "groupEyebrow": "مجموعة إعدادات",
+        "version": "النسخة",
         "chooseGroup": "اختر مجموعة لعرض ما تحتويه.",
         "unknownGroup": "لا توجد مجموعة بهذا الاسم. قد يكون الرابط أو الإشارة المرجعية قديمًا.",
         "on": "مفعّل",
         "off": "معطّل",
-        "save_zero": "لا شيء للحفظ",
-        "save_one": "حفظ تغيير واحد",
-        "save_two": "حفظ تغييرين",
-        "save_few": "حفظ {{count}} تغييرات",
-        "save_many": "حفظ {{count}} تغييرًا",
-        "save_other": "حفظ {{count}} تغيير",
-        "discard": "تجاهل",
+        "notSet": "غير مضبوط",
+        "deprecated": "مهمَل",
+        "deprecatedNote": "سُحب من الفهرس. لا يزال مخزَّنًا ويُقرأ، لكن لم يعد المقصود ضبطه.",
+        "discard": "تجاهل التغييرات",
         "saved": "تم الحفظ.",
         "testMail": "إرسال رسالة اختبار",
         "mailSent": "أُرسلت رسالة اختبار إلى العنوان المسجَّل على حسابك.",
-        "notEditable": "هذا الإعداد ليس لك تغييره.",
-        "unmetDependencies": "يتطلّب تهيئة {{keys}} أولًا.",
+        "malformedJson": "هذا ليس JSON صالحًا بعد، فلم يُدرَج ضمن التغييرات.",
+        "pendingCount_zero": "لا تغييرات",
+        "pendingCount_one": "تغيير واحد",
+        "pendingCount_two": "تغييران",
+        "pendingCount_few": "{{count}} تغييرات",
+        "pendingCount_many": "{{count}} تغييرًا",
+        "pendingCount_other": "{{count}} تغيير",
+        "blocked_one": "قيمة واحدة لا يمكن حفظها بعد.",
+        "blocked_two": "قيمتان لا يمكن حفظهما بعد.",
+        "blocked_few": "{{count}} قيم لا يمكن حفظها بعد.",
+        "blocked_many": "{{count}} قيمة لا يمكن حفظها بعد.",
+        "blocked_other": "{{count}} قيمة لا يمكن حفظها بعد.",
+        "versionHelp": "النسخة التي قُرئت عندها هذه الصفحة. يحملها الحفظ، فيُرفض أي تغيير جرى في مكان آخر بدل أن يُطمس.",
+        "unavailableUntil": "غير متاح حتى تُضبط {{keys}}. ضبطه الآن لن يكون له أثر.",
+        "readOnly": {
+            "permission": "للقراءة فقط. تغييره يتطلّب صلاحية {{permission}}.",
+            "declared": "للقراءة فقط. لا تسمح المنصّة بتغيير هذا من هنا."
+        },
         "secretSet": "مضبوط",
         "secretUnset": "غير مضبوط",
         "secretExplanation": "يُخزَّن مشفَّرًا ولا يُعاد أبدًا. استبدله بالتدوير لا بالتعديل.",
-        "versionHelp": "النسخة التي قُرئت عندها هذه الصفحة. يحملها الحفظ، فيُرفض أي تغيير جرى في مكان آخر بدل أن يُطمس.",
+        "secret": {
+            "rotate": "تدوير",
+            "candidate": "بيانات الاعتماد الجديدة",
+            "verifyNote": "تتحقّق المنصّة من البيانات قبل تخزينها. لا يُكتب شيء ما لم تنجح.",
+            "commit": "تحقَّق واحفظ",
+            "unchangedOnFailure": "بيانات الاعتماد المخزَّنة لم تتغيّر."
+        },
+        "media": {
+            "none": "لا صورة مضبوطة.",
+            "stored": "صورة مخزَّنة",
+            "upload": "رفع صورة",
+            "replace": "استبدال",
+            "remove": "إزالة",
+            "preview": "الصورة الحالية",
+            "tooLarge": "حجم الملف أكبر ممّا تقبله المنصّة (100 ميغابايت).",
+            "notAnImage": "هذا الملف ليس صورة.",
+            "rejectedTooLarge": "رُفض الملف قبل وصوله إلى المنصّة، لأنّه أكبر ممّا يقبله هذا النشر."
+        },
+        "status": {
+            "modified": "معدَّل",
+            "pending": "جارٍ الحفظ",
+            "conflict": "تعارض",
+            "failed": "مرفوض",
+            "unverified": "غير مُتحقَّق"
+        },
+        "validation": {
+            "required": "لا يمكن ترك هذا فارغًا.",
+            "integer": "أعداد صحيحة فقط.",
+            "numeric": "أرقام فقط.",
+            "boolean": "مفعّل أو معطّل.",
+            "email": "هذا لا يبدو بريدًا إلكترونيًا.",
+            "url": "هذا لا يبدو رابطًا.",
+            "ulid": "هذا ليس معرِّفًا صالحًا.",
+            "min": "لا يقلّ عن {{count}}.",
+            "max": "لا يزيد عن {{count}}.",
+            "minLength": "لا يقلّ عن {{count}} حرفًا.",
+            "maxLength": "لا يزيد عن {{count}} حرفًا.",
+            "in": "أحد هذه: {{values}}."
+        },
+        "review": {
+            "title": "مراجعة التغييرات",
+            "open_zero": "لا شيء للحفظ",
+            "open_one": "مراجعة تغيير واحد",
+            "open_two": "مراجعة تغييرين",
+            "open_few": "مراجعة {{count}} تغييرات",
+            "open_many": "مراجعة {{count}} تغييرًا",
+            "open_other": "مراجعة {{count}} تغيير",
+            "count_one": "إعداد واحد",
+            "count_two": "إعدادان",
+            "count_few": "{{count}} إعدادات",
+            "count_many": "{{count}} إعدادًا",
+            "count_other": "{{count}} إعداد",
+            "current": "الحالي",
+            "next": "الجديد",
+            "confirm_one": "حفظ تغيير واحد",
+            "confirm_two": "حفظ تغييرين",
+            "confirm_few": "حفظ {{count}} تغييرات",
+            "confirm_many": "حفظ {{count}} تغييرًا",
+            "confirm_other": "حفظ {{count}} تغيير",
+            "back": "متابعة التحرير"
+        },
+        "precondition": {
+            "title": "لم يحمل الحفظ رقم النسخة",
+            "body": "رفضت المنصّة الكتابة لأنها لم تحدّد النسخة التي بُنيت عليها. أعد تحميل المجموعة وحاول مرّة أخرى."
+        },
         "conflict": {
             "title": "حفظ شخص آخر قبلك",
-            "body": "تغيّرت هذه المجموعة بعد تحميل الصفحة، فرُفض الحفظ بدل أن يطمس التغيير. تعديلاتك ما زالت هنا. أعد التحميل لرؤية القيم الحالية ثم طبّقها من جديد.",
-            "reload": "إعادة تحميل القيم الحالية"
+            "body": "تغيّرت هذه المجموعة بعد تحميل الصفحة، فرُفض الحفظ بدل أن يطمس التغيير. تعديلاتك ما زالت هنا.",
+            "yours": "قُرئت عند",
+            "theirs": "الآن",
+            "rebase": "حمّل القيم الحالية واحتفظ بتعديلاتي",
+            "discard": "تجاهل تعديلاتي"
+        },
+        "rollback": {
+            "willRestore_zero": "لن يُستعاد شيء",
+            "willRestore_one": "سيستعيد قيمة واحدة",
+            "willRestore_two": "سيستعيد قيمتين",
+            "willRestore_few": "سيستعيد {{count}} قيم",
+            "willRestore_many": "سيستعيد {{count}} قيمة",
+            "willRestore_other": "سيستعيد {{count}} قيمة",
+            "willSkip_one": "سيتخطّى واحدة",
+            "willSkip_two": "سيتخطّى اثنتين",
+            "willSkip_few": "سيتخطّى {{count}}",
+            "willSkip_many": "سيتخطّى {{count}}",
+            "willSkip_other": "سيتخطّى {{count}}",
+            "confirm": "استعِد هذه القيم"
         },
         "history": {
             "title": "السجلّ",
             "none": "لم يُغيَّر شيء في هذه المجموعة بعد.",
-            "restore": "استعادة",
-            "confirmTitle": "استعادة هذه القيمة؟",
-            "confirmBody": "سيعيد هذا {{key}} إلى {{value}} ويسجّل التغيير.",
-            "confirm": "استعِدها",
-            "cancel": "إلغاء"
+            "preview": "معاينة الاستعادة",
+            "cancel": "إلغاء",
+            "systemActor": "النظام"
         },
-        "malformedJson": "هذا ليس JSON صالحًا بعد، فلم يُدرَج ضمن التغييرات."
+        "group": {
+            "auth": "المصادقة",
+            "branding": "الهوية",
+            "general": "عام",
+            "localization": "اللغات",
+            "mail": "البريد",
+            "operations": "التشغيل",
+            "rate_limit": "حدود المعدّل",
+            "security": "الأمان"
+        },
+        "eyebrow": "التهيئة"
+    },
+    "access": {
+        "eyebrow": "الوصول",
+        "account": "الحساب",
+        "identity": "الهوية",
+        "security": "الأمان",
+        "standing": "الصفة",
+        "roles": "الأدوار",
+        "role": "الدور",
+        "effective": "الصلاحيات الفعلية",
+        "effectiveNote": "كل ما يملكه هذا الحساب، مباشرةً أو عبر دور. لا تحدّد المنصّة أيّهما، فلا نحدّده هنا.",
+        "filter": "تصفية الحسابات",
+        "filterPlaceholder": "الاسم أو البريد أو الهاتف أو الدور",
+        "filterNote_zero": "التصفية تجري في المتصفّح. لا توجد حسابات بعد.",
+        "filterNote_one": "التصفية تجري في المتصفّح على حساب واحد. تعيده المنصّة في استجابة واحدة.",
+        "filterNote_two": "التصفية تجري في المتصفّح على حسابين. تعيدهما المنصّة في استجابة واحدة.",
+        "filterNote_few": "التصفية تجري في المتصفّح على {{count}} حسابات. تعيدها المنصّة في استجابة واحدة.",
+        "filterNote_many": "التصفية تجري في المتصفّح على {{count}} حسابًا. تعيدها المنصّة في استجابة واحدة.",
+        "filterNote_other": "التصفية تجري في المتصفّح على {{count}} حساب. تعيدها المنصّة في استجابة واحدة.",
+        "columns": {
+            "account": "الحساب",
+            "type": "النوع",
+            "verification": "العنوان",
+            "mfa": "العامل الثاني",
+            "roles": "الأدوار"
+        },
+        "verified": "مؤكَّد",
+        "unverified": "غير مؤكَّد",
+        "verifiedAt": "أُكِّد في {{at}}",
+        "mfaOn": "مُسجَّل",
+        "mfaOff": "غير مُسجَّل",
+        "mfaNote": "ما إذا كان هناك عامل ثانٍ مؤكَّد. أمّا أيّه فلا يُنشر.",
+        "active": "نشط",
+        "suspended": "موقوف",
+        "promote": "ترقية إلى مشرف",
+        "demote": "إزالة الإشراف",
+        "saveRoles": "حفظ الأدوار",
+        "rolesReadOnly": "تغيير الأدوار يتطلّب صلاحية roles.update.",
+        "permissionsHidden": "عرض فهرس الصلاحيات يتطلّب صلاحية permissions.view.",
+        "granted": "ممنوحة",
+        "notGranted": "غير ممنوحة",
+        "chooseUser": "اختر حسابًا لفحصه.",
+        "noUsers": "لا توجد حسابات بعد.",
+        "noMatches": "لا يطابق أي حساب ذلك.",
+        "noRoles": "لا توجد أدوار معرَّفة."
+    },
+    "list": {
+        "separator": "، "
     }
 }

@@ -151,8 +151,14 @@ test('each resource exposes exactly its own fields, with the label beside the va
 
     $resources = labelledResources();
 
+    // Extended deliberately when the Admin needed identity and security state it
+    // could otherwise only guess at. Every field added here is state the platform
+    // already held; none of it is a secret, a destination or a recovery code, and
+    // `mfa_enrolled` is a boolean by construction.
     expect(array_keys($resources['user'][0]->toArray(request())))->toBe([
-        'id', 'name', 'email', 'account_type', 'account_type_label', 'is_active', 'roles', 'permissions',
+        'id', 'name', 'email', 'account_type', 'account_type_label', 'is_active',
+        'phone', 'email_verified', 'email_verified_at', 'mfa_enrolled',
+        'roles', 'permissions',
     ]);
 
     expect(array_keys($resources['provider'][0]->toArray(request())))->toBe([

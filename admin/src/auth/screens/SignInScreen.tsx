@@ -1,12 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 
 import { publicAuthSettings } from '@/auth/api';
 import { useAuth } from '@/auth/AuthProvider';
-import { Captcha } from '@/auth/Captcha';
+import { CaptchaField, useCaptcha } from '@/auth/Captcha';
 import type { PublicAuthSettings } from '@/auth/contract';
 import { INCOMPLETE_SIGN_IN, PLATFORM_UNREACHABLE, type SignInFailure } from '@/auth/machine';
 import { useCountdown } from '@/auth/useCountdown';
@@ -15,7 +15,7 @@ import { Button } from '@/ui/Button';
 import { Field } from '@/ui/Field';
 import { Input } from '@/ui/Input';
 
-import { AuthLayout } from './AuthLayout';
+import { AuthCover } from './AuthCover';
 
 // Presence only. The platform owns what a valid identifier and a valid password are,
 // and a client that re-states those rules is a second copy to keep in step — and one
@@ -46,8 +46,7 @@ export function SignInScreen({ busy, failure, lockedFor = 0 }: SignInScreenProps
     };
 
     const [settings, setSettings] = useState<PublicAuthSettings | null>(null);
-    const [captchaToken, setCaptchaToken] = useState<string | null>(null);
-    const [captchaResetKey, setCaptchaResetKey] = useState(0);
+    const captcha = useCaptcha(settings);
 
     const remaining = useCountdown(lockedFor);
     const locked = remaining > 0;
@@ -76,22 +75,21 @@ export function SignInScreen({ busy, failure, lockedFor = 0 }: SignInScreenProps
     // A captcha response may be spent once. Burning it after every failure is what
     // stops a second attempt from being refused for a reason nothing on screen
     // explains.
-    const failureCount = useRef(0);
+    const { reset: resetCaptcha } = captcha;
 
     useEffect(() => {
         if (failure !== undefined) {
-            failureCount.current += 1;
-            setCaptchaResetKey(failureCount.current);
-            setCaptchaToken(null);
+            resetCaptcha();
         }
-    }, [failure]);
-
-    const captchaRequired = settings?.captcha_enabled === true;
-    const siteKey = settings?.captcha_site_key ?? null;
-    const captchaPresent = captchaRequired && siteKey !== null && siteKey !== '';
-    const captchaReady = !captchaPresent || captchaToken !== null;
+    }, [failure, resetCaptcha]);
 
     const submit = handleSubmit(async (values) => {
+        // Obtained here rather than held in state, because that is the only shape
+        // that works for both: v2 hands back the token the checkbox already produced,
+        // and v3 mints a fresh one for this submission — a v3 token is scored against
+        // the action it was minted for and expires in about two minutes.
+        const captchaToken = await captcha.obtainToken();
+
         await signIn({
             identifier: values.identifier,
             password: values.password,
@@ -100,7 +98,7 @@ export function SignInScreen({ busy, failure, lockedFor = 0 }: SignInScreenProps
     });
 
     return (
-        <AuthLayout description={t('auth.signIn.description')} title={t('auth.signIn.title')}>
+        <AuthCover description={t('auth.signIn.description')} title={t('auth.signIn.title')}>
             <form
                 className="flex flex-col gap-4"
                 noValidate
@@ -163,16 +161,10 @@ export function SignInScreen({ busy, failure, lockedFor = 0 }: SignInScreenProps
                     )}
                 </Field>
 
-                {captchaPresent && siteKey !== null ? (
-                    <Captcha
-                        onToken={setCaptchaToken}
-                        resetKey={captchaResetKey}
-                        siteKey={siteKey}
-                    />
-                ) : null}
+                <CaptchaField state={captcha} />
 
                 <Button
-                    disabled={locked || !captchaReady}
+                    disabled={locked || !captcha.ready}
                     loading={busy}
                     type="submit"
                     variant="primary"
@@ -180,6 +172,6 @@ export function SignInScreen({ busy, failure, lockedFor = 0 }: SignInScreenProps
                     {t('auth.signIn.submit')}
                 </Button>
             </form>
-        </AuthLayout>
+        </AuthCover>
     );
 }

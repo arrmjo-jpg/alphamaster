@@ -25,6 +25,12 @@ class RoleAdminController extends BaseApiController
     /**
      * List roles and the permissions they carry.
      */
+    // Annotated rather than inferred, for the same reason `permissions` below is.
+    // Scramble reads RoleResource's returned expression, and a plucked collection
+    // widens to `array` — which it published as an empty object, leaving a generated
+    // client with nothing to iterate. The shape is written out here instead; the
+    // response itself is unchanged.
+    #[Response(200, type: 'array{success: bool, data: list<array{id: int, name: string, name_label: string, permissions: list<string>}>}')]
     public function index(): JsonResponse
     {
         return $this->successResponse(
@@ -35,6 +41,7 @@ class RoleAdminController extends BaseApiController
     /**
      * Create a role.
      */
+    #[Response(200, type: 'array{success: bool, message: string, data: array{id: int, name: string, name_label: string, permissions: list<string>}}')]
     public function store(RoleRequest $request): JsonResponse
     {
         $label = (string) $request->validated('label');
@@ -61,6 +68,7 @@ class RoleAdminController extends BaseApiController
     /**
      * Replace a role's label and permissions.
      */
+    #[Response(200, type: 'array{success: bool, message: string, data: array{id: int, name: string, name_label: string, permissions: list<string>}}')]
     public function update(RoleRequest $request, Role $role): JsonResponse
     {
         // The label changes; the identifier does not. Permissions and assignments

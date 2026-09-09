@@ -340,6 +340,19 @@ export type UserResource = {
     account_type: string;
     account_type_label: string;
     is_active: boolean;
+    /**
+     * The account's phone number in canonical form, or null.
+     */
+    phone: string | null;
+    /**
+     * Whether the address has been confirmed, and when.
+     */
+    email_verified: boolean;
+    email_verified_at: string | null;
+    /**
+     * Whether a confirmed second factor exists. Which one is not published.
+     */
+    mfa_enrolled: boolean;
     roles: Array<string>;
     permissions: Array<string>;
 };
@@ -1661,6 +1674,50 @@ export type MediaShowResponses = {
 
 export type MediaShowResponse = MediaShowResponses[keyof MediaShowResponses];
 
+export type MediaFileData = {
+    body?: never;
+    path: {
+        /**
+         * The media ID
+         */
+        media: string;
+    };
+    query?: never;
+    url: '/media/{media}/file';
+};
+
+export type MediaFileErrors = {
+    /**
+     * Unauthenticated
+     */
+    401: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+    /**
+     * Not found
+     */
+    404: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+};
+
+export type MediaFileError = MediaFileErrors[keyof MediaFileErrors];
+
+export type MediaFileResponses = {
+    /**
+     * The file, with the media type recorded for it.
+     */
+    200: string;
+};
+
+export type MediaFileResponse = MediaFileResponses[keyof MediaFileResponses];
+
 export type AdminMediaIndexData = {
     body?: never;
     path?: never;
@@ -2259,9 +2316,12 @@ export type AdminRolesIndexError = AdminRolesIndexErrors[keyof AdminRolesIndexEr
 export type AdminRolesIndexResponses = {
     200: {
         success: boolean;
-        message: string;
-        data: Array<RoleResource>;
-        meta: string;
+        data: Array<{
+            id: number;
+            name: string;
+            name_label: string;
+            permissions: Array<string>;
+        }>;
     };
 };
 
@@ -2304,6 +2364,16 @@ export type AdminRolesStoreErrors = {
 export type AdminRolesStoreError = AdminRolesStoreErrors[keyof AdminRolesStoreErrors];
 
 export type AdminRolesStoreResponses = {
+    200: {
+        success: boolean;
+        message: string;
+        data: {
+            id: number;
+            name: string;
+            name_label: string;
+            permissions: Array<string>;
+        };
+    };
     201: {
         success: boolean;
         message: string;
@@ -2414,8 +2484,12 @@ export type AdminRolesUpdateResponses = {
     200: {
         success: boolean;
         message: string;
-        data: RoleResource;
-        meta: string;
+        data: {
+            id: number;
+            name: string;
+            name_label: string;
+            permissions: Array<string>;
+        };
     };
 };
 
@@ -2826,6 +2900,88 @@ export type AdminSettingsHistoryResponses = {
 };
 
 export type AdminSettingsHistoryResponse = AdminSettingsHistoryResponses[keyof AdminSettingsHistoryResponses];
+
+export type AdminSettingsRollbackPreviewData = {
+    body?: never;
+    path: {
+        group: string;
+    };
+    query?: never;
+    url: '/admin/settings/{group}/rollback/preview';
+};
+
+export type AdminSettingsRollbackPreviewErrors = {
+    /**
+     * Unauthenticated
+     */
+    401: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+    404: {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'SETTING_REVISION_NOT_FOUND';
+            message: string;
+            details: null;
+        };
+    } | {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'SETTING_GROUP_NOT_FOUND';
+            message: string;
+            details: null;
+        };
+    };
+    422: {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'VALIDATION_ERROR';
+            message: string;
+            details: {
+                revision_id: [
+                    'The revision to preview is required.'
+                ];
+            };
+        };
+    };
+};
+
+export type AdminSettingsRollbackPreviewError = AdminSettingsRollbackPreviewErrors[keyof AdminSettingsRollbackPreviewErrors];
+
+export type AdminSettingsRollbackPreviewResponses = {
+    200: {
+        success: boolean;
+        data: {
+            group: string;
+            target_revision_id: string;
+            restored: Array<{
+                key: string;
+                locale: string | null;
+                value: unknown;
+            }>;
+            skipped: Array<{
+                key: string;
+                locale: string | null;
+                reason: string;
+                reason_label: string;
+            }>;
+        };
+    };
+};
+
+export type AdminSettingsRollbackPreviewResponse = AdminSettingsRollbackPreviewResponses[keyof AdminSettingsRollbackPreviewResponses];
 
 export type AdminSettingsRollbackData = {
     body: RollbackGroupSettingsRequest;

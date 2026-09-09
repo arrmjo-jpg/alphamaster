@@ -17,7 +17,11 @@ import { summarise } from './capabilities';
  * shows what that judgement says.
  */
 
-export function IntegrationsPanel() {
+export interface IntegrationsPanelProps {
+    headingLevel?: 2 | 3;
+}
+
+export function IntegrationsPanel({ headingLevel }: IntegrationsPanelProps = {}) {
     const { t } = useTranslation();
     const { locale } = useDirection();
 
@@ -49,6 +53,7 @@ export function IntegrationsPanel() {
             empty={rows.length === 0}
             emptyMessage={t('dashboard.integrations.none')}
             error={providers.error ?? usage.error}
+            {...(headingLevel === undefined ? {} : { headingLevel })}
             loading={providers.isPending || usage.isPending}
             onRetry={retry}
             title={t('dashboard.integrations.title')}
