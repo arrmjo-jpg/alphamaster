@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace App\Modules\Media\Resources;
 
+use App\Modules\Media\Enums\MediaStatus;
+use App\Modules\Media\Enums\MediaType;
+use App\Modules\Media\Enums\MediaVisibility;
+use App\Modules\Media\Enums\ScanStatus;
 use App\Modules\Media\Models\MediaFile;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -35,14 +39,24 @@ class MediaAdminResource extends JsonResource
             'collection' => $this->resource->collection,
             'original_filename' => $this->resource->original_filename,
             'mime_type' => $this->resource->mime_type,
+            /*
+             * Annotated because reading `->value` off an enum is where the generator
+             * loses the set: each of these was published as a bare string, so a client
+             * building a filter over them had to keep its own copy of the platform's
+             * enum and would be wrong the first time a case was added.
+             */
+            /** @var MediaType */
             'type' => $this->resource->type->value,
             'type_label' => $this->resource->type->label(),
             'size_bytes' => $this->resource->size_bytes,
             'checksum' => $this->resource->checksum,
+            /** @var MediaVisibility */
             'visibility' => $this->resource->visibility->value,
             'visibility_label' => $this->resource->visibility->label(),
+            /** @var MediaStatus */
             'status' => $this->resource->status->value,
             'status_label' => $this->resource->status->label(),
+            /** @var ScanStatus */
             'scan_status' => $this->resource->scan_status->value,
             'scan_status_label' => $this->resource->scan_status->label(),
             'failure_reason' => $this->resource->failure_reason,

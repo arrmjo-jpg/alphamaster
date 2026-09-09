@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { createContext, use, useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { fetchData } from '@/api/client';
+import { fetchData, setRequestLocale } from '@/api/client';
 import type { LanguagesIndexResponses } from '@/api/generated';
 import { FALLBACK_LOCALE, isSupportedLocale, type SupportedLocale } from '@/i18n';
 
@@ -119,6 +119,14 @@ export function DirectionProvider({ children }: { children: React.ReactNode }) {
         root.lang = locale;
         root.dir = direction;
     }, [locale, direction]);
+
+    // Every request from here on asks the platform to answer in this language. The
+    // labels the API publishes beside its identifiers (ADR 0030) are resolved per
+    // request, so without this an Arabic interface reads its own strings in Arabic and
+    // the platform's in English.
+    useEffect(() => {
+        setRequestLocale(locale);
+    }, [locale]);
 
     useEffect(() => {
         void i18n.changeLanguage(locale);

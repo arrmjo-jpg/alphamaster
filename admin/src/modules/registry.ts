@@ -1,10 +1,19 @@
 import type { LucideIcon } from 'lucide-react';
-import { Globe, KeyRound, LayoutDashboard, Plug, SlidersHorizontal, Users } from 'lucide-react';
+import {
+    Globe,
+    Images,
+    KeyRound,
+    LayoutDashboard,
+    Plug,
+    SlidersHorizontal,
+    Users,
+} from 'lucide-react';
 import type { ComponentType } from 'react';
 
 import { DashboardScreen } from '@/screens/DashboardScreen';
 import { IntegrationsScreen } from '@/screens/IntegrationsScreen';
 import { LanguagesScreen } from '@/screens/LanguagesScreen';
+import { MediaScreen } from '@/screens/MediaScreen';
 import { RolesScreen } from '@/screens/RolesScreen';
 import { SettingsScreen } from '@/screens/SettingsScreen';
 import { UsersScreen } from '@/screens/UsersScreen';
@@ -121,6 +130,19 @@ export const MODULES: ModuleManifest[] = [
         // gate that only looks like security.
         order: 60,
         component: LanguagesScreen,
+    },
+    {
+        id: 'media',
+        path: '/media',
+        label: 'modules.media',
+        icon: Images,
+        // Reading the library is the gate. Removing a file needs `media.delete`,
+        // enforced per operation by the API and reflected control by control rather
+        // than at this level. Uploading needs neither: media is a platform capability
+        // and any signed-in account may add to it.
+        permission: 'media.view',
+        order: 70,
+        component: MediaScreen,
     },
 ];
 
