@@ -1,9 +1,10 @@
 import type { LucideIcon } from 'lucide-react';
-import { KeyRound, LayoutDashboard, Plug, SlidersHorizontal, Users } from 'lucide-react';
+import { Globe, KeyRound, LayoutDashboard, Plug, SlidersHorizontal, Users } from 'lucide-react';
 import type { ComponentType } from 'react';
 
 import { DashboardScreen } from '@/screens/DashboardScreen';
 import { IntegrationsScreen } from '@/screens/IntegrationsScreen';
+import { LanguagesScreen } from '@/screens/LanguagesScreen';
 import { RolesScreen } from '@/screens/RolesScreen';
 import { SettingsScreen } from '@/screens/SettingsScreen';
 import { UsersScreen } from '@/screens/UsersScreen';
@@ -106,6 +107,20 @@ export const MODULES: ModuleManifest[] = [
         permission: 'integrations.view',
         order: 50,
         component: IntegrationsScreen,
+    },
+    {
+        id: 'languages',
+        path: '/languages',
+        label: 'modules.languages',
+        icon: Globe,
+        // No permission, and that is the platform's decision rather than an omission
+        // here. The language routes sit behind the administrative perimeter and behind
+        // no permission of their own — the catalogue has no `languages.*` entry — so
+        // every administrator who can reach the Admin can reach them. Naming one here
+        // would hide the module from accounts the API would happily serve, which is a
+        // gate that only looks like security.
+        order: 60,
+        component: LanguagesScreen,
     },
 ];
 
