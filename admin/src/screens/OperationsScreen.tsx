@@ -2,6 +2,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { Archive, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router';
 
 import { ApiError } from '@/api/errors';
 import { useCurrentUser } from '@/auth/AuthProvider';
@@ -58,7 +59,17 @@ export function OperationsScreen() {
     const mayArchive = viewer.permissions.includes('audit.manage');
     const mayMoveConfiguration = viewer.permissions.includes('settings.backup.manage');
 
-    const [query, setQuery] = useState<AuditQuery>(EMPTY_QUERY);
+    // The trail is linkable. An account panel sends an operator here with the actor
+    // already chosen, which is the difference between "look at what this person did"
+    // and "copy this identifier and paste it into a filter".
+    const [params, setParams] = useSearchParams();
+
+    const [query, setQuery] = useState<AuditQuery>(() => ({
+        ...EMPTY_QUERY,
+        action: params.get('action') ?? '',
+        subject: params.get('subject') ?? '',
+        actorId: params.get('actor_id') ?? '',
+    }));
     const [page, setPage] = useState(1);
     const [selected, setSelected] = useState<string | null>(null);
     const [archiving, setArchiving] = useState(false);
@@ -105,6 +116,26 @@ export function OperationsScreen() {
     const narrow = (next: AuditQuery) => {
         setQuery(next);
         setPage(1);
+
+        // The address follows the filter, so a narrowed trail can be sent to somebody
+        // else. Only the three that arrive as links are carried: a date range in a URL
+        // would be a local wall time that means something different to the person who
+        // opened it.
+        const carried = new URLSearchParams();
+
+        if (next.action !== '') {
+            carried.set('action', next.action);
+        }
+
+        if (next.subject !== '') {
+            carried.set('subject', next.subject);
+        }
+
+        if (next.actorId !== '') {
+            carried.set('actor_id', next.actorId);
+        }
+
+        setParams(carried, { replace: true });
     };
 
     const knownActions = [

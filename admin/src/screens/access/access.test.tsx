@@ -288,4 +288,134 @@ describe('the roles surface', () => {
         const heading = screen.getByRole('heading', { level: 2 });
         expect(within(heading).getByText('Editor')).toBeInTheDocument();
     });
+
+    it('offers no way to change a role without the permission the API requires', async () => {
+        renderScreen(<RolesScreen />, ['roles.view', 'permissions.view']);
+
+        await screen.findByRole('heading', { level: 2, name: 'Administrator' });
+
+        expect(screen.queryByRole('button', { name: 'Add a role' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Delete this role' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+        expect(screen.getByText(/need the roles.update permission/)).toBeInTheDocument();
+    });
+
+    it('sends the whole permission set for a role, as the endpoint takes it', async () => {
+        let sent: unknown = null;
+
+        server.use(
+            http.put('*/api/v1/admin/roles/:id', async ({ request }) => {
+                sent = await request.json();
+
+                return HttpResponse.json({
+                    success: true,
+                    data: {
+                        id: 2,
+                        name: 'editor',
+                        name_label: 'Editor',
+                        permissions: ['settings.view', 'settings.update'],
+                    },
+                });
+            }),
+        );
+
+        renderScreen(<RolesScreen />, ['roles.view', 'permissions.view', 'roles.update']);
+
+        await userEvent.click(await screen.findByRole('button', { name: /Editor/ }));
+        await userEvent.click(screen.getByRole('checkbox', { name: /Change settings/ }));
+        await userEvent.click(screen.getByRole('button', { name: 'Save role' }));
+
+        // The label travels with it: the endpoint takes both, and the identifier is
+        // derived server-side rather than sent.
+        await expect
+            .poll(() => sent)
+            .toEqual({ label: 'Editor', permissions: ['settings.view', 'settings.update'] });
+    });
+
+    it('creates a role from a label, sending no identifier of its own', async () => {
+        let sent: unknown = null;
+
+        server.use(
+            http.post('*/api/v1/admin/roles', async ({ request }) => {
+                sent = await request.json();
+
+                return HttpResponse.json({
+                    success: true,
+                    data: {
+                        id: 3,
+                        name: 'auditor',
+                        name_label: 'Auditor',
+                        permissions: ['settings.view'],
+                    },
+                });
+            }),
+        );
+
+        renderScreen(<RolesScreen />, ['roles.view', 'permissions.view', 'roles.update']);
+
+        await userEvent.click(await screen.findByRole('button', { name: 'Add a role' }));
+        await userEvent.type(screen.getByLabelText(/Name/), 'Auditor');
+        await userEvent.click(screen.getByRole('checkbox', { name: /View settings/ }));
+        await userEvent.click(screen.getByRole('button', { name: 'Create role' }));
+
+        // A label and permissions, and nothing else. The identifier is derived
+        // server-side, so a client that sent one would be naming a role the platform
+        // has not agreed to.
+        await expect.poll(() => sent).toEqual({ label: 'Auditor', permissions: ['settings.view'] });
+    });
+
+    it('says what deleting a role does before it does it', async () => {
+        renderScreen(<RolesScreen />, ['roles.view', 'permissions.view', 'roles.update']);
+
+        await userEvent.click(await screen.findByRole('button', { name: 'Delete this role' }));
+
+        expect(screen.getByText(/you will lose that too/)).toBeInTheDocument();
+
+        // The same shape every destructive confirmation in this console uses.
+        const trigger = screen.getByRole('button', { name: 'Delete this role' });
+        const cancel = screen.getByRole('button', { name: 'Cancel' });
+        const confirm = screen.getByRole('button', { name: 'Delete it' });
+
+        expect(trigger).toBeDisabled();
+        expect(trigger.compareDocumentPosition(cancel) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
+            Node.DOCUMENT_POSITION_FOLLOWING,
+        );
+        expect(cancel.compareDocumentPosition(confirm) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
+            Node.DOCUMENT_POSITION_FOLLOWING,
+        );
+    });
+});
+
+describe('the link from an account into the trail', () => {
+    it('carries the actor identifier, so the trail is a query rather than a search', async () => {
+        renderScreen(<UsersScreen />, ['users.view', 'audit.view']);
+
+        await userEvent.click(await screen.findByText('Sami Odeh'));
+
+        const link = await screen.findByRole('link', { name: /Show what this account did/ });
+
+        expect(link).toHaveAttribute('href', '/operations?actor_id=01hzzuser');
+    });
+
+    it('is absent for an account that may not read the trail', async () => {
+        renderScreen(<UsersScreen />, ['users.view']);
+
+        await userEvent.click(await screen.findByText('Sami Odeh'));
+
+        await screen.findByText('Identity');
+
+        expect(
+            screen.queryByRole('link', { name: /Show what this account did/ }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('says which account operations the platform does not have', async () => {
+        renderScreen(<UsersScreen />, ['users.view']);
+
+        await userEvent.click(await screen.findByText('Sami Odeh'));
+
+        expect(
+            await screen.findByText(/publishes no endpoint for any of them on this surface/),
+        ).toBeInTheDocument();
+    });
 });
