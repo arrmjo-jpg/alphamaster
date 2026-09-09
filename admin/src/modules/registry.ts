@@ -1,5 +1,6 @@
 import type { LucideIcon } from 'lucide-react';
 import {
+    Bell,
     Globe,
     Images,
     KeyRound,
@@ -14,6 +15,7 @@ import { DashboardScreen } from '@/screens/DashboardScreen';
 import { IntegrationsScreen } from '@/screens/IntegrationsScreen';
 import { LanguagesScreen } from '@/screens/LanguagesScreen';
 import { MediaScreen } from '@/screens/MediaScreen';
+import { NotificationsScreen } from '@/screens/NotificationsScreen';
 import { RolesScreen } from '@/screens/RolesScreen';
 import { SettingsScreen } from '@/screens/SettingsScreen';
 import { UsersScreen } from '@/screens/UsersScreen';
@@ -143,6 +145,20 @@ export const MODULES: ModuleManifest[] = [
         permission: 'media.view',
         order: 70,
         component: MediaScreen,
+    },
+    {
+        id: 'notifications',
+        path: '/notifications',
+        label: 'modules.notifications',
+        icon: Bell,
+        // No permission, and deliberately. Half this module is the signed-in
+        // account's own preferences about its own messages, which every account may
+        // manage and no permission guards. The other half — the wording every
+        // recipient reads — is administrative, and is gated inside the screen on
+        // `notifications.view`. Naming that permission here would hide an operator's
+        // own settings from them because they may not edit everyone's templates.
+        order: 80,
+        component: NotificationsScreen,
     },
 ];
 

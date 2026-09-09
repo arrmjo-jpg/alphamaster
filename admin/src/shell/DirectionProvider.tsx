@@ -1,5 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
-import { createContext, use, useCallback, useEffect, useMemo, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { createContext, use, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { fetchData, setRequestLocale } from '@/api/client';
@@ -63,6 +63,7 @@ function readStoredLocale(): SupportedLocale {
 
 export function DirectionProvider({ children }: { children: React.ReactNode }) {
     const { i18n } = useTranslation();
+    const queryClient = useQueryClient();
     const [locale, setLocaleState] = useState<SupportedLocale>(readStoredLocale);
 
     // The list is public, so it loads before sign-in and the login screen can be read
@@ -124,9 +125,29 @@ export function DirectionProvider({ children }: { children: React.ReactNode }) {
     // labels the API publishes beside its identifiers (ADR 0030) are resolved per
     // request, so without this an Arabic interface reads its own strings in Arabic and
     // the platform's in English.
+    //
+    // Changing it invalidates the cache, because a cached answer was rendered in the
+    // language that asked for it: without this, switching to Arabic leaves every
+    // status, capability and account type on screen in English until something else
+    // happens to refetch it. Keying each query by locale would work too and is the
+    // arrangement that produced the original gap — one screen remembered and the rest
+    // did not — so it is done once, here, where the locale is owned.
+    //
+    // Not on the first render: nothing is cached yet, and invalidating would send
+    // every query twice on load.
+    const settled = useRef(false);
+
     useEffect(() => {
         setRequestLocale(locale);
-    }, [locale]);
+
+        if (!settled.current) {
+            settled.current = true;
+
+            return;
+        }
+
+        void queryClient.invalidateQueries();
+    }, [locale, queryClient]);
 
     useEffect(() => {
         void i18n.changeLanguage(locale);

@@ -176,9 +176,15 @@ export type MfaEnrolRequest = {
     phone?: string | null;
 };
 
+/**
+ * A route a notification can take to a recipient. Only channels the platform can actually deliver on exist here. WhatsApp and push arrive when the Integration capabilities they need do (ADR 0017).
+ *
+ */
+export type NotificationChannel = 'database' | 'mail' | 'sms';
+
 export type NotificationTemplateResource = {
     id: string;
-    type: string;
+    type: NotificationType;
     type_label: string;
     is_active: boolean;
     translations: Array<{
@@ -188,6 +194,12 @@ export type NotificationTemplateResource = {
     }>;
     updated_at: string | null;
 };
+
+/**
+ * The registry of notifications the platform can raise. Preferences reference this rather than free text, so a stored preference always names something real and a renamed notification cannot leave orphaned rows behind that silently mean nothing.
+ *
+ */
+export type NotificationType = 'security.alert' | 'account.updated' | 'admin.announcement';
 
 export type RestoreConfigurationRequest = {
     /**
@@ -2128,9 +2140,9 @@ export type NotificationsPreferencesIndexResponses = {
     200: {
         success: boolean;
         data: Array<{
-            type: string;
+            type: NotificationType;
             type_label: string;
-            channel: string;
+            channel: NotificationChannel;
             channel_label: string;
             enabled: boolean;
             silenceable: boolean;
@@ -2181,9 +2193,9 @@ export type NotificationsPreferencesUpdateResponses = {
         success: boolean;
         message: string;
         data: Array<{
-            type: string;
+            type: NotificationType;
             type_label: string;
-            channel: string;
+            channel: NotificationChannel;
             channel_label: string;
             enabled: boolean;
             silenceable: boolean;
