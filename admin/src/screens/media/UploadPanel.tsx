@@ -49,7 +49,9 @@ export function UploadPanel({ onClose, onUploaded }: UploadPanelProps) {
     const [visibility, setVisibility] = useState<'public' | 'private'>('public');
 
     const send = useMutation({
-        mutationFn: () => uploadMedia({ file: file as File, collection, visibility }),
+        // Takes the file rather than reading it off state, so the type is narrowed by
+        // the caller that already knows there is one instead of asserted here.
+        mutationFn: (chosen: File) => uploadMedia({ file: chosen, collection, visibility }),
         onSuccess: async () => {
             setFile(null);
 
@@ -169,7 +171,11 @@ export function UploadPanel({ onClose, onUploaded }: UploadPanelProps) {
                     <Button
                         disabled={!ready}
                         loading={send.isPending}
-                        onClick={() => send.mutate()}
+                        onClick={() => {
+                            if (file !== null) {
+                                send.mutate(file);
+                            }
+                        }}
                         variant="primary"
                     >
                         <UploadIcon aria-hidden className="size-3.5" />
