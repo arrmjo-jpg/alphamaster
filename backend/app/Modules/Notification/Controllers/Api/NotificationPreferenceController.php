@@ -29,7 +29,10 @@ class NotificationPreferenceController extends BaseApiController
      * Every effective decision, defaults included, so a client can render the whole
      * matrix without inferring which combinations exist.
      */
-    #[Response(200, type: 'array{success: bool, data: list<array{type: string, type_label: string, channel: string, channel_label: string, enabled: bool, silenceable: bool}>}')]
+    // The enums are named rather than flattened to `string`. A client has to send these
+    // values back on the update, and a bare string told it nothing about which values
+    // exist — so it would have kept its own copy of two registries the platform owns.
+    #[Response(200, type: 'array{success: bool, data: list<array{type: NotificationType, type_label: string, channel: NotificationChannel, channel_label: string, enabled: bool, silenceable: bool}>}')]
     public function index(Request $request): JsonResponse
     {
         return $this->successResponse($this->preferences->describe($request->user()));
@@ -42,7 +45,7 @@ class NotificationPreferenceController extends BaseApiController
      * ignored, so a client is told its request had no effect instead of showing a
      * switch that appears to have moved.
      */
-    #[Response(200, type: 'array{success: bool, message: string, data: list<array{type: string, type_label: string, channel: string, channel_label: string, enabled: bool, silenceable: bool}>}')]
+    #[Response(200, type: 'array{success: bool, message: string, data: list<array{type: NotificationType, type_label: string, channel: NotificationChannel, channel_label: string, enabled: bool, silenceable: bool}>}')]
     public function update(UpdateNotificationPreferencesRequest $request): JsonResponse
     {
         $user = $request->user();
