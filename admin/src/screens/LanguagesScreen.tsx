@@ -125,7 +125,19 @@ export function LanguagesScreen() {
                                         }
                                     >
                                         <Td>
-                                            <span className="relative flex flex-col ps-3">
+                                            {/* A real control, not a clickable row. A
+                                                table row is not focusable and has no
+                                                keyboard activation, so the row handler
+                                                alone would leave this table reachable by
+                                                pointer only. Selecting twice is a no-op,
+                                                so both paths can coexist. */}
+                                            <button
+                                                className="relative flex w-full flex-col ps-3 text-start focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-(--focus-ring)"
+                                                onClick={() =>
+                                                    setSelection({ kind: 'language', id: row.id })
+                                                }
+                                                type="button"
+                                            >
                                                 <Rail language={row} />
                                                 <span className="flex flex-wrap items-baseline gap-x-2">
                                                     <span className="font-medium text-(--text-primary)">
@@ -144,7 +156,7 @@ export function LanguagesScreen() {
                                                 >
                                                     {row.code}
                                                 </span>
-                                            </span>
+                                            </button>
                                         </Td>
                                         <Td>{t(`languages.direction.${row.direction}`)}</Td>
                                         <Td>
