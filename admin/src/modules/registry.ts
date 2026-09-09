@@ -7,6 +7,7 @@ import {
     KeyRound,
     LayoutDashboard,
     Plug,
+    ShieldCheck,
     SlidersHorizontal,
     Users,
 } from 'lucide-react';
@@ -18,6 +19,7 @@ import { LanguagesScreen } from '@/screens/LanguagesScreen';
 import { MediaScreen } from '@/screens/MediaScreen';
 import { NotificationsScreen } from '@/screens/NotificationsScreen';
 import { OperationsScreen } from '@/screens/OperationsScreen';
+import { PermissionsScreen } from '@/screens/PermissionsScreen';
 import { RolesScreen } from '@/screens/RolesScreen';
 import { SettingsScreen } from '@/screens/SettingsScreen';
 import { UsersScreen } from '@/screens/UsersScreen';
@@ -52,6 +54,15 @@ export interface ModuleManifest {
      * wrong still meets the perimeter on every request it makes.
      */
     permission?: string;
+    /**
+     * The group this module is a child of, or absent for a top-level item.
+     *
+     * Presentation only, and only in the navigation: the route is still the module's
+     * own `path`, so a grouped module keeps its address and a bookmark to it goes on
+     * working. Naming a group no manifest declares would hide the module, so the
+     * navigation treats an unknown group as no group.
+     */
+    group?: string;
     /** Ascending. Ties are resolved by declaration order. */
     order: number;
     /**
@@ -66,6 +77,35 @@ export interface ModuleManifest {
     component: ComponentType;
 }
 
+/**
+ * A navigation section: a heading that owns modules rather than a screen of its own.
+ *
+ * A group has no path and no component. It cannot be navigated to and cannot be
+ * bookmarked, because there is nothing at it — everything an operator can open is one
+ * of its children. It disappears entirely when the viewer may see none of them, which
+ * is the same rule a module follows and for the same reason: an empty heading tells a
+ * restricted operator exactly what they are missing.
+ */
+export interface ModuleGroup {
+    id: string;
+    /** i18n key, resolved at render. Never a literal. */
+    label: string;
+    icon: LucideIcon;
+    /** Ascending, in the same sequence modules are ordered in. */
+    order: number;
+}
+
+export const MODULE_GROUPS: ModuleGroup[] = [
+    {
+        id: 'settings',
+        label: 'modules.settings',
+        icon: SlidersHorizontal,
+        // Everything that configures the platform rather than operating it: its own
+        // values, the accounts that may reach it, and what those accounts may do.
+        order: 20,
+    },
+];
+
 export const MODULES: ModuleManifest[] = [
     {
         id: 'dashboard',
@@ -78,8 +118,12 @@ export const MODULES: ModuleManifest[] = [
     {
         id: 'settings',
         path: '/settings',
-        label: 'modules.settings',
+        // The section is called Settings, so its own screen is not. `generalSettings`
+        // names what this child actually is — the platform's values — and leaves the
+        // section heading to mean the whole of it.
+        label: 'modules.generalSettings',
         icon: SlidersHorizontal,
+        group: 'settings',
         // Reading is the gate. Changing a value needs `settings.update`, and a
         // setting that names its own permission needs that one — both enforced per
         // key by the API, and reflected field by field rather than at this level.
@@ -93,6 +137,7 @@ export const MODULES: ModuleManifest[] = [
         path: '/access/users',
         label: 'modules.users',
         icon: Users,
+        group: 'settings',
         // Reading the list is the gate. Promoting an account needs `users.update`
         // and changing its roles needs `roles.update`, both enforced per operation
         // by the API and reflected control by control rather than at this level.
@@ -105,9 +150,24 @@ export const MODULES: ModuleManifest[] = [
         path: '/access/roles',
         label: 'modules.roles',
         icon: KeyRound,
+        group: 'settings',
         permission: 'roles.view',
         order: 40,
         component: RolesScreen,
+    },
+    {
+        id: 'permissions',
+        path: '/access/permissions',
+        label: 'modules.permissions',
+        icon: ShieldCheck,
+        group: 'settings',
+        // The catalogue is read-only everywhere, so `permissions.view` is the only
+        // permission this module can ask for. `permissions.update` exists in the
+        // platform's catalogue and no endpoint enforces it; naming it here would gate
+        // a screen on a permission that grants nothing.
+        permission: 'permissions.view',
+        order: 45,
+        component: PermissionsScreen,
     },
     {
         id: 'integrations',
@@ -198,4 +258,45 @@ export function visibleModules(
             (module) => module.permission === undefined || permissions.includes(module.permission),
         )
         .toSorted((a, b) => a.order - b.order);
+}
+
+/**
+ * One row of the navigation: a module on its own, or a group and the modules under it.
+ *
+ * Built from the same filtered list the router uses, so the navigation cannot show a
+ * module the router would refuse to mount, and a group cannot survive its children.
+ */
+export type NavigationEntry =
+    | { kind: 'module'; module: ModuleManifest }
+    | { kind: 'group'; group: ModuleGroup; children: ModuleManifest[] };
+
+export function navigationTree(
+    permissions: readonly string[],
+    modules: readonly ModuleManifest[] = MODULES,
+    groups: readonly ModuleGroup[] = MODULE_GROUPS,
+): NavigationEntry[] {
+    const visible = visibleModules(permissions, modules);
+    const known = new Map(groups.map((group) => [group.id, group]));
+
+    const entries: Array<NavigationEntry & { order: number }> = visible
+        // A module naming a group that does not exist stays where it is rather than
+        // vanishing into a heading nothing renders.
+        .filter((module) => module.group === undefined || !known.has(module.group))
+        .map((module) => ({ kind: 'module', module, order: module.order }));
+
+    for (const group of groups) {
+        const children = visible.filter((module) => module.group === group.id);
+
+        if (children.length > 0) {
+            entries.push({ kind: 'group', group, children, order: group.order });
+        }
+    }
+
+    return entries
+        .toSorted((a, b) => a.order - b.order)
+        .map((entry) =>
+            entry.kind === 'group'
+                ? { kind: 'group', group: entry.group, children: entry.children }
+                : { kind: 'module', module: entry.module },
+        );
 }
