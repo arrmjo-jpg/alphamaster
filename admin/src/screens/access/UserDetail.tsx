@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ScrollText, X } from 'lucide-react';
+import { Pencil, ScrollText, X } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
@@ -11,12 +11,16 @@ import { Alert } from '@/ui/Alert';
 import { Button } from '@/ui/Button';
 import { StatusBadge } from '@/ui/StatusBadge';
 
-import { demote, promote, roles as fetchRoles, syncRoles, user } from './api';
+import { demote, promote, roles as fetchRoles, setUserActive, syncRoles, user } from './api';
 
 export interface UserDetailProps {
     id: string;
     viewerPermissions: readonly string[];
     onClose: () => void;
+    /** Opens the identity form on this account. Absent where the viewer may not edit. */
+    onEdit?: (() => void) | undefined;
+    /** The signed-in account, so the panel can refuse to switch itself off. */
+    viewerId: string;
 }
 
 /**
@@ -35,7 +39,7 @@ export interface UserDetailProps {
  * Every gate here is presentation. The API refuses the same operations for the same
  * reasons whether or not this hides the button.
  */
-export function UserDetail({ id, viewerPermissions, onClose }: UserDetailProps) {
+export function UserDetail({ id, viewerPermissions, onClose, onEdit, viewerId }: UserDetailProps) {
     const { t } = useTranslation();
     const { locale } = useDirection();
     const queryClient = useQueryClient();
@@ -49,7 +53,7 @@ export function UserDetail({ id, viewerPermissions, onClose }: UserDetailProps) 
         queryFn: ({ signal }) => fetchRoles(signal),
     });
 
-    const mayChangeType = viewerPermissions.includes('users.update');
+    const mayUpdateAccount = viewerPermissions.includes('users.update');
     const mayChangeRoles = viewerPermissions.includes('roles.update');
 
     const refresh = async () => {
@@ -62,7 +66,16 @@ export function UserDetail({ id, viewerPermissions, onClose }: UserDetailProps) 
         onSuccess: refresh,
     });
 
+    const changeActive = useMutation({
+        mutationFn: (active: boolean) => setUserActive(id, active),
+        onSuccess: async () => {
+            setDeactivating(false);
+            await refresh();
+        },
+    });
+
     const [draftRoles, setDraftRoles] = useState<string[] | null>(null);
+    const [deactivating, setDeactivating] = useState(false);
 
     const saveRoles = useMutation({
         mutationFn: () => syncRoles(id, draftRoles ?? []),
@@ -116,6 +129,15 @@ export function UserDetail({ id, viewerPermissions, onClose }: UserDetailProps) 
                     <p className="text-(length:--text-xs) text-(--text-muted)" data-technical>
                         {data.id}
                     </p>
+
+                    {onEdit === undefined ? null : (
+                        <div className="mt-1">
+                            <Button onClick={onEdit} size="sm" variant="secondary">
+                                <Pencil aria-hidden className="size-3.5" />
+                                {t('access.users.edit')}
+                            </Button>
+                        </div>
+                    )}
                 </section>
 
                 <section className="flex flex-col gap-2 border-t border-(--border-default) pt-3">
@@ -144,6 +166,75 @@ export function UserDetail({ id, viewerPermissions, onClose }: UserDetailProps) 
                     <p className="text-(length:--text-xs) text-(--text-muted)">
                         {t('access.mfaNote')}
                     </p>
+
+                    {mayUpdateAccount ? (
+                        data.is_active ? (
+                            <div className="flex flex-col gap-2">
+                                {/* The trigger stays where it is and stays disabled
+                                    while the confirmation is open, so the confirmation
+                                    appears below it rather than under the pointer that
+                                    opened it. */}
+                                <div>
+                                    <Button
+                                        disabled={deactivating || viewerId === data.id}
+                                        onClick={() => setDeactivating(true)}
+                                        size="sm"
+                                        variant="secondary"
+                                    >
+                                        {t('access.users.deactivate')}
+                                    </Button>
+                                </div>
+
+                                {viewerId === data.id ? (
+                                    <p className="text-(length:--text-xs) text-(--text-muted)">
+                                        {t('access.users.cannotDeactivateSelf')}
+                                    </p>
+                                ) : null}
+
+                                {deactivating ? (
+                                    <div className="flex flex-col gap-2 border-s-(length:--rail-width) border-(--state-danger-rail) ps-2">
+                                        <p className="text-(length:--text-sm) text-(--state-danger-text)">
+                                            {t('access.users.deactivateWarning')}
+                                        </p>
+                                        {/* Cancel first: the cheapest mistake lands on
+                                            the reversible action. */}
+                                        <div className="flex flex-wrap gap-2">
+                                            <Button
+                                                onClick={() => setDeactivating(false)}
+                                                size="sm"
+                                                variant="secondary"
+                                            >
+                                                {t('access.users.cancel')}
+                                            </Button>
+                                            <Button
+                                                loading={changeActive.isPending}
+                                                onClick={() => changeActive.mutate(false)}
+                                                size="sm"
+                                                variant="danger"
+                                            >
+                                                {t('access.users.deactivateConfirm')}
+                                            </Button>
+                                        </div>
+                                    </div>
+                                ) : null}
+                            </div>
+                        ) : (
+                            <div>
+                                <Button
+                                    loading={changeActive.isPending}
+                                    onClick={() => changeActive.mutate(true)}
+                                    size="sm"
+                                    variant="primary"
+                                >
+                                    {t('access.users.activate')}
+                                </Button>
+                            </div>
+                        )
+                    ) : null}
+
+                    {changeActive.error instanceof ApiError ? (
+                        <Alert tone="danger">{changeActive.error.message}</Alert>
+                    ) : null}
                 </section>
 
                 <section className="flex flex-col gap-2 border-t border-(--border-default) pt-3">
@@ -153,7 +244,7 @@ export function UserDetail({ id, viewerPermissions, onClose }: UserDetailProps) 
                             {data.account_type_label}
                         </StatusBadge>
 
-                        {mayChangeType ? (
+                        {mayUpdateAccount ? (
                             <Button
                                 loading={changeType.isPending}
                                 onClick={() => changeType.mutate(isAdmin ? 'demote' : 'promote')}
@@ -171,7 +262,10 @@ export function UserDetail({ id, viewerPermissions, onClose }: UserDetailProps) 
                 </section>
 
                 <section className="flex flex-col gap-2 border-t border-(--border-default) pt-3">
-                    <p data-eyebrow>{t('access.roles')}</p>
+                    {/* `access.roles` is the roles *screen's* namespace, not a
+                        string: this heading has its own key so it cannot resolve to
+                        an object again. */}
+                    <p data-eyebrow>{t('access.rolesTitle')}</p>
 
                     {catalogue.data === undefined ? (
                         <p className="text-(--text-muted)">{t('state.loading')}</p>

@@ -5377,6 +5377,62 @@
                         "$ref": "#/components/responses/AuthenticationException"
                     }
                 }
+            },
+            "post": {
+                "operationId": "admin.users.store",
+                "description": "A regular account, always. `users.create` has been in the catalogue and on the\nseeded administrator role since Phase 6 with nothing serving it \u2014 a permission\ndescribing an intention the platform ignored \u2014 and this is where it is served.\nIt does not become a second route across the administrative boundary:\nAccountTypeManager remains the only one, so an administrator is still made by\ncreating an account and then promoting it, which needs `users.update` as well.\n\nThe address is not verified. Nothing here can confirm an address on somebody\nelse's behalf, and marking it verified because an administrator typed it would\nmake verification mean \"an administrator typed it\".",
+                "summary": "Create an account",
+                "tags": [
+                    "UserAdmin"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StoreUserRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/UserResource"
+                                        },
+                                        "meta": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "message",
+                                        "data",
+                                        "meta"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
             }
         },
         "/admin/users/{user}": {
@@ -5423,6 +5479,232 @@
                                         "message",
                                         "data",
                                         "meta"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            },
+            "put": {
+                "operationId": "admin.users.update",
+                "description": "Identity only. What the account may do is changed through promotion, role\nsynchronisation and activation, each behind its own operation and its own\npermission.\n\nChanging the address clears its verification, and that is a security property\nrather than an inconvenience: leaving `email_verified_at` set would let an\nadministrator move an account onto an address nobody has confirmed while the\nplatform went on treating it as confirmed \u2014 which for an administrative account\nis the difference between a verified identity and an asserted one (ADR 0012).\nThe account verifies the new address through the normal flow.",
+                "summary": "Change who an account is",
+                "tags": [
+                    "UserAdmin"
+                ],
+                "parameters": [
+                    {
+                        "name": "user",
+                        "in": "path",
+                        "required": true,
+                        "description": "The user ID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateUserRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/UserResource"
+                                        },
+                                        "meta": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "message",
+                                        "data",
+                                        "meta"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/admin/users/{user}/activate": {
+            "post": {
+                "operationId": "admin.users.activate",
+                "summary": "Let an account sign in again",
+                "tags": [
+                    "UserAdmin"
+                ],
+                "parameters": [
+                    {
+                        "name": "user",
+                        "in": "path",
+                        "required": true,
+                        "description": "The user ID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/UserResource"
+                                        },
+                                        "meta": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "message",
+                                        "data",
+                                        "meta"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/admin/users/{user}/deactivate": {
+            "post": {
+                "operationId": "admin.users.deactivate",
+                "description": "Existing tokens are revoked, matching promotion and demotion: the perimeter\nrefuses a suspended account on the next request either way, but a live token\nbelonging to an account that has been switched off is a loose end, and the two\noperations that already change standing do not leave one.\n\nAn administrator cannot deactivate themselves. The platform would accept it and\nthe next request would be refused, leaving somebody locked out of the console\nthey were administering with no way back in from it \u2014 so it is refused here,\nwhere the intent is still visible, rather than honoured and regretted.",
+                "summary": "Stop an account signing in",
+                "tags": [
+                    "UserAdmin"
+                ],
+                "parameters": [
+                    {
+                        "name": "user",
+                        "in": "path",
+                        "required": true,
+                        "description": "The user ID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/UserResource"
+                                        },
+                                        "meta": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "message",
+                                        "data",
+                                        "meta"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "error": {
+                                            "type": "object",
+                                            "properties": {
+                                                "code": {
+                                                    "type": "string",
+                                                    "description": "`code` is contract and is never localized (ADR 0031).",
+                                                    "const": "CANNOT_DEACTIVATE_SELF"
+                                                },
+                                                "message": {
+                                                    "type": "string"
+                                                },
+                                                "details": {
+                                                    "type": "null"
+                                                }
+                                            },
+                                            "required": [
+                                                "code",
+                                                "message",
+                                                "details"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "error"
                                     ]
                                 }
                             }
@@ -6599,6 +6881,45 @@
                 ],
                 "title": "StoreMediaRequest"
             },
+            "StoreUserRequest": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "maxLength": 255
+                    },
+                    "phone": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "The account's phone number. Stored canonically; the lookup hash is\nderived from it and is never accepted from outside."
+                    },
+                    "password": {
+                        "type": "string",
+                        "description": "The account's first password. Must be confirmed, and must meet the\nminimum length this platform is configured to require."
+                    },
+                    "is_active": {
+                        "type": "boolean"
+                    },
+                    "password_confirmation": {
+                        "type": "string",
+                        "minLength": 8
+                    }
+                },
+                "required": [
+                    "name",
+                    "email",
+                    "password",
+                    "password_confirmation"
+                ],
+                "title": "StoreUserRequest"
+            },
             "SyncUserRolesRequest": {
                 "type": "object",
                 "properties": {
@@ -6782,6 +7103,35 @@
                     }
                 },
                 "title": "UpdateNotificationTemplateRequest"
+            },
+            "UpdateUserRequest": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "maxLength": 255
+                    },
+                    "phone": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "The account's phone number, or null to remove it. Stored canonically;\nthe lookup hash is derived and is never accepted from outside."
+                    },
+                    "preferred_locale": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "The language the platform addresses this account in. Constrained to the\nlanguages table, so a preference can never name one the platform does\nnot serve."
+                    }
+                },
+                "title": "UpdateUserRequest"
             },
             "UserResource": {
                 "type": "object",
