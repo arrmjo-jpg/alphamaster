@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { HttpResponse, http } from 'msw';
 import { MemoryRouter } from 'react-router';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { AppProviders } from '@/app/AppProviders';
 import { AuthGate } from '@/auth/AuthGate';
@@ -21,6 +21,27 @@ import '@/i18n';
  * ships no catalogue for must say so rather than quietly producing a half-English
  * interface.
  */
+
+/**
+ * jsdom applies no CSS, so a layout that switches structure has to switch on
+ * `matchMedia` for a test to see either half of it.
+ */
+function viewport(wide: boolean) {
+    vi.stubGlobal(
+        'matchMedia',
+        (query: string): MediaQueryList =>
+            ({
+                matches: wide && query.includes('min-width'),
+                media: query,
+                addEventListener: () => {},
+                removeEventListener: () => {},
+            }) as unknown as MediaQueryList,
+    );
+}
+
+afterEach(() => {
+    vi.unstubAllGlobals();
+});
 
 const HEALTH = http.get('*/api/v1/health', () =>
     HttpResponse.json({
@@ -166,6 +187,25 @@ describe('the languages workspace', () => {
         await userEvent.type(code, 'ku');
 
         expect(screen.getByText(/ships no message catalogue for ku/)).toBeInTheDocument();
+    });
+
+    it('reaches a language from the keyboard on a wide screen, not only by pointer', async () => {
+        // A table row is not focusable and has no keyboard activation, so the row
+        // handler alone would leave this table reachable by pointer only.
+        viewport(true);
+
+        renderScreen();
+
+        const [row] = await screen.findAllByRole('button', { name: /English/ });
+
+        expect(row).toBeDefined();
+
+        row?.focus();
+        expect(row).toHaveFocus();
+
+        await userEvent.keyboard('{Enter}');
+
+        expect(await screen.findByText(/A language cannot be deleted/)).toBeInTheDocument();
     });
 
     it('marks which languages the console itself is translated into', async () => {

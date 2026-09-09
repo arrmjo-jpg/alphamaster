@@ -127,7 +127,18 @@ export function UsersScreen() {
                                         onClick={() => setSelected(account.id)}
                                     >
                                         <Td>
-                                            <span className="relative flex flex-col ps-3">
+                                            {/* A real control, not a clickable row. The
+                                                row keeps its own handler for the pointer,
+                                                but a table row is not focusable and has
+                                                no keyboard activation, so without this
+                                                the whole console was reachable by keyboard
+                                                and this table was not. Selecting twice is
+                                                a no-op, so the two paths can coexist. */}
+                                            <button
+                                                className="relative flex w-full flex-col ps-3 text-start focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-(--focus-ring)"
+                                                onClick={() => setSelected(account.id)}
+                                                type="button"
+                                            >
                                                 <span
                                                     aria-hidden
                                                     className={cn(
@@ -146,7 +157,7 @@ export function UsersScreen() {
                                                 >
                                                     {account.email}
                                                 </span>
-                                            </span>
+                                            </button>
                                         </Td>
                                         <Td>{account.account_type_label}</Td>
                                         <Td>
