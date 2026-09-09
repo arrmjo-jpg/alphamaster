@@ -152,7 +152,8 @@
         "integrations": "Integrations",
         "languages": "Languages",
         "media": "Media",
-        "notifications": "Notifications"
+        "notifications": "Notifications",
+        "operations": "Operations"
     },
     "dashboard": {
         "platform": {
@@ -703,6 +704,101 @@
         "inbox": {
             "region": "Received notifications",
             "absent": "There is no list of received notifications, because the platform publishes no endpoint that returns one. It does write an in-app record for every notification it raises — that is what the always-on channel above is — but nothing reads those records back yet. This is where that surface goes when it exists; an inbox built now would be a screen with nothing behind it."
+        }
+    },
+    "operations": {
+        "eyebrow": "Platform",
+        "cancel": "Cancel",
+        "audit": {
+            "region": "Administrative trail",
+            "intro": "Every administrative action the platform recorded, newest first. The trail is append-only: nothing here edits or removes an entry, and the filters below are the ones the platform indexes on, so an answer is drawn from the whole trail rather than from the page in front of you.",
+            "entry": "Trail entry",
+            "close": "Close the entry",
+            "choose": "Choose an entry to read what was recorded.",
+            "showAll": "Show every {{action}}",
+            "empty": {
+                "title": "Nothing matches.",
+                "body": "The platform answered this filter across the whole trail, not just this page, so this is the complete answer."
+            },
+            "outcome": {
+                "succeeded": "Succeeded",
+                "failed": "Failed"
+            },
+            "filters": {
+                "action": "Action",
+                "actionPlaceholder": "setting.updated",
+                "subject": "Subject",
+                "subjectPlaceholder": "branding.logo",
+                "actor": "Actor",
+                "actorPlaceholder": "Account identifier",
+                "outcome": "Outcome",
+                "anyOutcome": "Any",
+                "from": "From",
+                "to": "To",
+                "clear": "Clear",
+                "note": "These are the platform’s own filters. There is no free-text search: the trail is indexed on these columns, and searching the recorded context would be a scan over the one column whose contents differ for every action."
+            },
+            "fields": {
+                "subject": "Subject",
+                "noSubject": "No subject",
+                "actor": "Actor",
+                "systemActor": "The platform itself",
+                "correlation": "Correlation",
+                "noCorrelation": "Not correlated",
+                "recorded": "Recorded",
+                "context": "Recorded context",
+                "noContext": "Nothing beyond the fields above was recorded."
+            },
+            "pagination": {
+                "label": "Pages",
+                "previous": "Previous",
+                "next": "Next",
+                "position": "Page {{page}} of {{pages}} · {{total}} entries"
+            },
+            "archive": {
+                "action": "Archive old entries",
+                "warning": "This exports and then removes every entry older than the platform’s retention window, which is set in operations settings rather than chosen here. Verification runs before removal: if it fails, nothing is removed. Removed entries are not readable from this console again.",
+                "confirm": "Archive them",
+                "done": "The archive completed",
+                "failed": "The archive did not complete",
+                "moved_zero": "No entry was old enough to archive.",
+                "moved_one": "One entry was moved out of the active trail.",
+                "moved_other": "{{count}} entries were moved out of the active trail."
+            }
+        },
+        "configuration": {
+            "region": "Configuration transfer",
+            "intro": "Moving this deployment’s configuration in and out deliberately. Not a database backup — infrastructure takes those, on its own schedule and with its own retention. This is for seeding an environment, moving configuration between them, and answering what something was set to without restoring a database.",
+            "export": {
+                "title": "Export",
+                "body": "Writes a snapshot to the configured disk and answers with a receipt. It never contains decrypted secrets, audit records, second factors, or accounts — those exclusions are structural rather than filtered.",
+                "includeSecrets": "Carry encrypted credentials",
+                "includeSecretsNote": "A secret travels as the ciphertext already stored, or not at all. Portable within one deployment and worthless outside it — but worth stealing, so it has to be asked for.",
+                "action": "Write an export",
+                "written": "The export was written",
+                "sections": "Sections: {{sections}}",
+                "omitted": "Omitted secrets: {{keys}}. A restore elsewhere will need these supplied by hand."
+            },
+            "restore": {
+                "title": "Restore",
+                "body": "Reads an export back over what is running. It validates before it writes and reports what it declined rather than coercing it.",
+                "location": "Location on the configured disk",
+                "locationHint": "A path on the deployment’s own disk, which is where its access controls apply. There is no upload, because the endpoint takes none.",
+                "locationInvalid": "Letters, digits, dots, dashes and slashes. It cannot climb out of the disk.",
+                "action": "Restore from this location",
+                "warning": "This rewrites configuration wholesale from a document you may not have read. It is not reversible from here: settings history covers a group at a time, not a restore of everything at once.",
+                "confirm": "Restore it",
+                "done": "The restore completed",
+                "keyMatched": "The encryption key matched, so encrypted credentials in the export were restorable.",
+                "keyDiffered": "The encryption key differs from the one that wrote this export, so every encrypted credential was skipped. Everything else was restored.",
+                "restored_zero": "nothing restored",
+                "restored_one": "one value restored",
+                "restored_other": "{{count}} values restored"
+            }
+        },
+        "history": {
+            "region": "Configuration history",
+            "elsewhere": "Configuration history and rollback live in Settings, on the group they belong to, where the version an operator is rolling back to can be previewed against the values it would replace. There is deliberately no second history here: two accounts of the same change would disagree the first time either moved."
         }
     },
     "list": {

@@ -10,6 +10,7 @@ use App\Modules\Core\Backup\RestoreRefusedException;
 use App\Modules\Core\Controllers\BaseApiController;
 use App\Modules\Core\Requests\ExportConfigurationRequest;
 use App\Modules\Core\Requests\RestoreConfigurationRequest;
+use Dedoc\Scramble\Attributes\Response;
 use Illuminate\Http\JsonResponse;
 
 /**
@@ -29,6 +30,10 @@ class ConfigurationBackupController extends BaseApiController
      * export: the artefact on the disk is the artefact, and a response body reproducing
      * it would be a second copy travelling by a route with different access controls.
      */
+    // Spelled out because the outcome is a plain data class whose `toArray` widens to
+    // `array<string, mixed>`: the generator published `sections` and `omitted_secrets`
+    // as arrays of nothing, which is not enough for a client to render the receipt.
+    #[Response(200, type: 'array{success: bool, message: string, data: array{location: string, sections: list<string>, includes_secrets: bool, omitted_secrets: list<string>}}')]
     public function export(ExportConfigurationRequest $request, ConfigurationExporter $exporter): JsonResponse
     {
         // Whether to carry ciphertext is the operator's call, because the right answer
@@ -47,6 +52,9 @@ class ConfigurationBackupController extends BaseApiController
      * that is not encrypted and names every credential it could not, which is the usual
      * shape of seeding a new environment.
      */
+    // Likewise. A restore's whole value to an operator is the per-section report of
+    // what it declined and why, and that was published as an array of nothing.
+    #[Response(200, type: 'array{success: bool, message: string, data: array{location: string, encrypted_restorable: bool, sections: list<array{section: string, restored: int, skipped: list<array{key: string, reason: string}>}>}}')]
     public function restore(RestoreConfigurationRequest $request, ConfigurationRestorer $restorer): JsonResponse
     {
         try {
