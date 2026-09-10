@@ -7,6 +7,7 @@ use App\Modules\Media\Contracts\MediaServiceContract;
 use App\Modules\Media\Data\MediaUpload;
 use App\Modules\Media\Enums\MediaVisibility;
 use App\Modules\Media\Models\MediaFile;
+use App\Modules\Settings\Contracts\SettingServiceInterface;
 use App\Modules\Settings\Database\Seeders\SettingSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -198,4 +199,44 @@ test('the admin listing does not disclose storage paths either', function (): vo
     $response = $this->withToken($admin['token'])->getJson('/api/v1/admin/media');
 
     expect($response->getContent())->not->toContain($media->refresh()->path);
+});
+
+// ── The upload ceiling is the platform's, not a number written in a rule ──────
+
+/**
+ * A file of a given size, as a request would deliver it.
+ */
+function apiFileOfKilobytes(int $kilobytes): UploadedFile
+{
+    $path = tempnam(sys_get_temp_dir(), 'alpha_size_');
+    file_put_contents($path, str_repeat('a', $kilobytes * 1024));
+
+    return new UploadedFile($path, 'padding.txt', 'text/plain', null, true);
+}
+
+test('a file over the configured ceiling is refused', function (): void {
+    app(SettingServiceInterface::class)->set('branding', 'max_upload_kilobytes', 64);
+    Cache::flush();
+
+    $user = regularWithToken($this, 'ceiling-over@example.com');
+
+    // Well under the hundred megabytes the rule used to hard-code, which is the point:
+    // before this, lowering the setting changed nothing at all.
+    $this->withToken($user['token'])
+        ->post('/api/v1/media', ['file' => apiFileOfKilobytes(80)], ['Accept' => 'application/json'])
+        ->assertStatus(422)
+        ->assertJsonPath('error.code', 'VALIDATION_ERROR');
+
+    expect(MediaFile::query()->count())->toBe(0);
+});
+
+test('a file under the configured ceiling is accepted', function (): void {
+    app(SettingServiceInterface::class)->set('branding', 'max_upload_kilobytes', 64);
+    Cache::flush();
+
+    $user = regularWithToken($this, 'ceiling-under@example.com');
+
+    $this->withToken($user['token'])
+        ->post('/api/v1/media', ['file' => apiFileOfKilobytes(16)], ['Accept' => 'application/json'])
+        ->assertStatus(201);
 });
