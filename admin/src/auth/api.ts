@@ -5,6 +5,7 @@ import type {
     LoginPayload,
     MfaEnrolment,
     MfaVerified,
+    PhoneConfirmed,
     PublicAuthSettings,
 } from './contract';
 
@@ -81,6 +82,24 @@ export async function confirmMfaEnrolment(type: string, code: string): Promise<M
     return fetchData<MfaVerified>('/auth/mfa/verify', {
         method: 'POST',
         body: { type, code },
+    });
+}
+
+/**
+ * Ask for a code on the number this account already has.
+ *
+ * Takes no number: the endpoint acts on whoever is asking, so there is no way to aim
+ * a message at somebody else's handset. What comes back is masked — enough to say
+ * where it went, not a way of reading a number out of the platform.
+ */
+export async function sendPhoneVerificationCode(): Promise<{ destination: string }> {
+    return fetchData<{ destination: string }>('/auth/phone/verify/send', { method: 'POST' });
+}
+
+export async function confirmPhoneNumber(code: string): Promise<PhoneConfirmed> {
+    return fetchData<PhoneConfirmed>('/auth/phone/verify', {
+        method: 'POST',
+        body: { code },
     });
 }
 

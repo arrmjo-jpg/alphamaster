@@ -82,6 +82,10 @@ export interface AuthenticatedUser {
     is_active: boolean;
     email_verified: boolean;
     email_verified_at: string | null;
+    /** The account's own number, or null when the platform has none for it. */
+    phone: string | null;
+    phone_verified: boolean;
+    phone_verified_at: string | null;
     abilities: string[];
     roles: string[];
     permissions: string[];
@@ -122,4 +126,10 @@ export interface MfaVerified {
     /** Present only when an enrolment credential was exchanged for a real one. */
     token?: string;
     abilities?: string[];
+}
+
+/** What confirming a number answers with. */
+export interface PhoneConfirmed {
+    phone_verified: boolean;
+    phone_verified_at: string | null;
 }

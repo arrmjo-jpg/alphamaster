@@ -155,9 +155,15 @@ test('each resource exposes exactly its own fields, with the label beside the va
     // could otherwise only guess at. Every field added here is state the platform
     // already held; none of it is a secret, a destination or a recovery code, and
     // `mfa_enrolled` is a boolean by construction.
+    //
+    // `phone_verified` and its moment joined on 2026-09-10, beside `phone` and in
+    // the same shape as the email pair — a boolean a client branches on and the
+    // moment an interface renders. Deriving the first from the second in every
+    // client is how one of them ends up treating an empty string as verified.
     expect(array_keys($resources['user'][0]->toArray(request())))->toBe([
         'id', 'name', 'email', 'account_type', 'account_type_label', 'is_active',
-        'phone', 'email_verified', 'email_verified_at', 'mfa_enrolled',
+        'phone', 'phone_verified', 'phone_verified_at',
+        'email_verified', 'email_verified_at', 'mfa_enrolled',
         'roles', 'permissions',
     ]);
 

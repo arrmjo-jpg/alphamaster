@@ -28,6 +28,50 @@ class AuthCatalogue implements SettingCatalogue
                 nullable: false,
                 isPublic: true,
             ),
+            // The one-time code policy, read in one place by `OtpPolicy` so the code
+            // an MFA challenge sends and the code that confirms a phone number cannot
+            // drift into two different policies.
+            //
+            // None of the four is public. A sign-in page needs the password minimum to
+            // render a form; nothing unauthenticated needs to know how long a code
+            // lives or how many wrong answers it survives, and publishing the attempt
+            // limit tells an attacker exactly how much room they have.
+            new SettingDefinition(
+                group: 'auth',
+                key: 'otp_length',
+                type: SettingType::INTEGER,
+                default: 6,
+                nullable: false,
+                // Four is the shortest length in real use; beyond eight a recipient
+                // starts transcribing rather than reading.
+                rules: ['integer', 'between:4,8'],
+            ),
+            new SettingDefinition(
+                group: 'auth',
+                key: 'otp_lifetime_seconds',
+                type: SettingType::INTEGER,
+                default: 300,
+                nullable: false,
+                // A minute is the floor because a message has to arrive first, and a
+                // quarter of an hour is the ceiling because a code is not a session.
+                rules: ['integer', 'between:60,900'],
+            ),
+            new SettingDefinition(
+                group: 'auth',
+                key: 'otp_resend_cooldown_seconds',
+                type: SettingType::INTEGER,
+                default: 30,
+                nullable: false,
+                rules: ['integer', 'between:15,300'],
+            ),
+            new SettingDefinition(
+                group: 'auth',
+                key: 'otp_max_attempts',
+                type: SettingType::INTEGER,
+                default: 5,
+                nullable: false,
+                rules: ['integer', 'between:3,10'],
+            ),
             new SettingDefinition(
                 group: 'auth',
                 key: 'password_min_length',

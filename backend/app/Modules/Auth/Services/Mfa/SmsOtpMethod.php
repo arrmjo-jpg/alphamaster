@@ -10,6 +10,7 @@ use App\Modules\Auth\Data\MfaEnrolment;
 use App\Modules\Auth\Enums\MfaType;
 use App\Modules\Auth\Exceptions\MfaEnrolmentException;
 use App\Modules\Auth\Models\MfaMethod;
+use App\Modules\Auth\Services\OtpPolicy;
 use App\Modules\Integration\Contracts\SmsDispatcherContract;
 use App\Modules\Integration\Data\SmsMessage;
 use App\Modules\User\Models\User;
@@ -21,20 +22,18 @@ use Illuminate\Support\Facades\Hash;
  * This is the method ADR 0013 deferred until a delivery channel existed. It owns no
  * transport of its own: provider selection, failover and usage logging all belong to
  * Integration (ADR 0017), so a vendor change is invisible here.
+ *
+ * It owns no code policy either. Length, lifetime and cooldown were constants here
+ * until phone verification needed the same three; both read `OtpPolicy` now, so an
+ * operator changing the lifetime changes it for every code the platform sends rather
+ * than for one of the two places that send one.
  */
 class SmsOtpMethod implements DeliversMfaCodes, MfaMethodContract
 {
-    /**
-     * Digits in a delivered code. Six is the familiar length; the security comes from
-     * the short lifetime and the attempt throttle, not from length.
-     */
-    private const CODE_DIGITS = 6;
-
-    private const CODE_LIFETIME_SECONDS = 300; // 5 minutes
-
-    private const RESEND_COOLDOWN_SECONDS = 30;
-
-    public function __construct(private readonly SmsDispatcherContract $sms) {}
+    public function __construct(
+        private readonly SmsDispatcherContract $sms,
+        private readonly OtpPolicy $policy,
+    ) {}
 
     public function type(): MfaType
     {
@@ -43,12 +42,12 @@ class SmsOtpMethod implements DeliversMfaCodes, MfaMethodContract
 
     public function codeLifetimeSeconds(): int
     {
-        return self::CODE_LIFETIME_SECONDS;
+        return $this->policy->lifetimeSeconds();
     }
 
     public function resendCooldownSeconds(): int
     {
-        return self::RESEND_COOLDOWN_SECONDS;
+        return $this->policy->resendCooldownSeconds();
     }
 
     /**
@@ -91,18 +90,18 @@ class SmsOtpMethod implements DeliversMfaCodes, MfaMethodContract
      */
     public function deliver(User $user, MfaMethod $method): string
     {
-        $code = $this->generateCode();
+        $code = $this->policy->generate();
 
         $method->forceFill([
-            'otp_hash' => Hash::make($code),
-            'otp_expires_at' => now()->addSeconds(self::CODE_LIFETIME_SECONDS),
+            'otp_hash' => $this->policy->hash($code),
+            'otp_expires_at' => now()->addSeconds($this->policy->lifetimeSeconds()),
             'otp_sent_at' => now(),
         ])->save();
 
         $this->sms->send(new SmsMessage(
             $method->getDestination(),
             'Your '.config('app.name').' verification code is '.$code.'. It expires in '
-                .(self::CODE_LIFETIME_SECONDS / 60).' minutes.'
+                .$this->policy->lifetimeMinutes().' minutes.'
         ));
 
         return $method->maskedDestination();
@@ -133,15 +132,5 @@ class SmsOtpMethod implements DeliversMfaCodes, MfaMethodContract
         $method->clearOtp();
 
         return true;
-    }
-
-    /**
-     * A numeric code drawn from a cryptographically secure source.
-     */
-    private function generateCode(): string
-    {
-        $max = (10 ** self::CODE_DIGITS) - 1;
-
-        return str_pad((string) random_int(0, $max), self::CODE_DIGITS, '0', STR_PAD_LEFT);
     }
 }
