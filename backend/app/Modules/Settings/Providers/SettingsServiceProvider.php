@@ -22,6 +22,7 @@ use App\Modules\Settings\Definitions\SettingCatalogue;
 use App\Modules\Settings\Definitions\SettingRegistry;
 use App\Modules\Settings\Secrets\MailPasswordVerifier;
 use App\Modules\Settings\Secrets\SecretVerifierRegistry;
+use App\Modules\Settings\Services\MailRuntimeConfiguration;
 use App\Modules\Settings\Services\SettingService;
 use App\Modules\Settings\Services\SettingsRetentionPolicy;
 use App\Modules\Settings\Translation\SettingTranslationSource;
@@ -84,6 +85,18 @@ class SettingsServiceProvider extends ServiceProvider
         // and a central list would have to.
         $this->app->make(ConfigurationPortability::class)
             ->register($this->app->make(SettingsPortability::class));
+
+        // The mail configuration an operator entered, applied to the mail the platform
+        // actually sends. Eleven settings described an SMTP connection and only the
+        // "send a test message" button read them; everything else went out through the
+        // deployment's environment file, which no operator can reach.
+        //
+        // Hung off the resolution of the mail manager rather than done here, so a
+        // request that sends no mail reads no settings and a command that runs before
+        // the settings table exists never asks for one.
+        $this->app->resolving('mail.manager', function (): void {
+            $this->app->make(MailRuntimeConfiguration::class)->apply();
+        });
         // What this module has that a person reads, declared to the translation
         // workshop (ADR 0043). Registered here rather than listed centrally, because
         // Core may not import a domain module and a central list would have to.

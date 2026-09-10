@@ -6,6 +6,7 @@ namespace App\Modules\Settings\Definitions\Catalogues;
 
 use App\Modules\Settings\Definitions\SettingCatalogue;
 use App\Modules\Settings\Definitions\SettingDefinition;
+use App\Modules\Settings\Enums\SettingReach;
 use App\Modules\Settings\Enums\SettingType;
 
 /**
@@ -38,11 +39,17 @@ class SecurityCatalogue implements SettingCatalogue
             ),
             // Provisioned unset. Generating or rotating secret material is an operator
             // action, never a side effect of provisioning (ADR 0018).
+            //
+            // And nothing authenticates with it. There is no header check and no
+            // machine-to-machine path — this is a credential for a caller that does not
+            // exist yet, and it says so rather than sitting beside the sign-in limits
+            // as though it guarded something.
             new SettingDefinition(
                 group: 'security',
                 key: 'api_secret_key',
                 type: SettingType::STRING,
                 isSecret: true,
+                reach: SettingReach::AWAITING,
             ),
         ];
     }

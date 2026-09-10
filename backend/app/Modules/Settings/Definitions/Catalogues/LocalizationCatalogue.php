@@ -6,6 +6,7 @@ namespace App\Modules\Settings\Definitions\Catalogues;
 
 use App\Modules\Settings\Definitions\SettingCatalogue;
 use App\Modules\Settings\Definitions\SettingDefinition;
+use App\Modules\Settings\Enums\SettingReach;
 use App\Modules\Settings\Enums\SettingType;
 
 /**
@@ -28,6 +29,7 @@ class LocalizationCatalogue implements SettingCatalogue
                 nullable: false,
                 rules: ['string', 'timezone'],
                 isPublic: true,
+                reach: SettingReach::PUBLISHED,
             ),
             new SettingDefinition(
                 group: 'localization',
@@ -37,6 +39,7 @@ class LocalizationCatalogue implements SettingCatalogue
                 nullable: false,
                 rules: ['string', 'max:50'],
                 isPublic: true,
+                reach: SettingReach::PUBLISHED,
             ),
         ];
     }

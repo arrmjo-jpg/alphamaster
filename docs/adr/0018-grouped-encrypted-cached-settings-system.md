@@ -5,6 +5,7 @@
 * **Revised**: 2026-09-03 — aligned with the implemented Phase 4 contract
 * **Revised**: 2026-09-04 — extended after the foundation gap audit: setting classification, localized values, branding, mail, and site content settings
 * **Revised**: 2026-09-06 — a definition registry supersedes seeder provisioning; single-tenancy recorded in ADR 0034 removes scope from this engine
+* **Revised**: 2026-09-10 — a definition declares its reach; stored mail configuration applies to the platform's own mailer
 
 ## Context
 
@@ -215,6 +216,38 @@ Everything in this section is decided and none of it is built. It is scoped to P
 ### Scope, after ADR 0034
 
 The 2026-09-04 extension and this one both describe a settings engine with **no tenant dimension**. ADR 0034 records that AlphaMaster is single-tenant, so a definition declares no scope, there is no override table, and the effective value of a setting is the stored value once validated and cast. Nothing in this record should be read as leaving room for a workspace scope to be added quietly; adding one means superseding ADR 0034 first.
+
+## Extension — 2026-09-10: reach, and mail that reaches the mailer
+
+An audit of the catalogue asked a question nothing in this engine could answer: *what does changing this actually do?*
+
+For thirty of sixty-six settings the answer was "nothing, yet". Some are published for a public website that has not been built; some are declared ahead of a capability the platform does not have — the image pipeline, provider retry, public registration, a machine-to-machine caller; two are formatting a client does and that nothing here will ever read. Every one of them was presented in the console exactly like the setting that closes an account after five failed sign-ins.
+
+That is not a labelling problem. An operator reasonably assumes a control that can be changed does something, and a screen that presents thirty inert controls beside thirty-six live ones is lying by omission — which is worse than an honest absence, because the operator now believes something false about their own platform.
+
+### A definition declares its reach
+
+`SettingDefinition` carries a `SettingReach`: `PLATFORM` (the platform reads it and behaves differently), `PUBLISHED` (served through the settings API for a client to read; nothing here behaves differently), `AWAITING` (declared ahead of the thing that would read it).
+
+The set is small and closed on purpose. A setting is read by this platform, or served to something else, or waiting for something that does not exist — there is no fourth answer that is honest. A free-text note in its place would drift into a second help text.
+
+The catalogue publishes `reach` and a translated `reach_notice`, and the console renders both: a badge, because that is what an operator scanning a group of eighteen sees, and a sentence, because the badge alone does not explain.
+
+**A setting nothing reads yet is still editable.** The value is real: it persists, it is versioned, it exports and restores with the rest of the configuration, and it will be read the moment its reader exists. Disabling the control would say "you may not set this", which is a different and untrue statement.
+
+**A test pins the list.** Adding a setting nothing reads is then a deliberate act visible in a diff, rather than something that happens by not noticing — which is how the first twenty-nine arrived.
+
+### Mail configuration applies to the mail the platform sends
+
+Eleven settings described an SMTP connection and exactly one thing read them: the "send a test message" button. Everything else — email verification, notifications, announcements — went out through `config/mail.php`, which is environment-driven and unreachable from the console. An operator could configure a mail server, watch the test message arrive, and still have every real message leave through whatever the deployment's environment file said.
+
+The stored configuration is now applied to the mailer the rest of the platform resolves, with three properties that are decisions rather than details:
+
+* **Lazily**, when something first resolves the mail manager. A request that sends no mail reads no settings, and a console command running before the settings table exists never asks for one.
+* **Failing open to the environment.** If the settings store cannot be read, the deployment's own configuration stands — the same precedent the rate limiter and the maintenance middleware set. A platform whose mail configuration lives in a database should still send mail when the database is unreachable.
+* **`mail.enabled` off means "the platform has no opinion", not "send nothing".** Suppressing mail is `MAIL_MAILER=log`, which a deployment already has. Quietly swallowing a password-reset message is a worse failure than sending it from the wrong host.
+
+A half-configured connection — enabled, with no host or no sender — is not applied over a working one, because replacing a working mailer with one that cannot connect is worse than not applying at all.
 
 ## Consequences
 

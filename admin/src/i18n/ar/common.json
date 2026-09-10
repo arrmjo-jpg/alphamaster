@@ -482,7 +482,11 @@
             "rate_limit": "حدود المعدّل",
             "security": "الأمان"
         },
-        "eyebrow": "التهيئة"
+        "eyebrow": "التهيئة",
+        "reach": {
+            "published": "يقرأه العملاء",
+            "awaiting": "لا يُقرأ بعد"
+        }
     },
     "access": {
         "eyebrow": "الوصول",

@@ -333,5 +333,7 @@
     "translations.fields.label": "التسمية",
     "translations.fields.subject": "الموضوع",
     "translations.fields.body": "النص",
-    "api.error.translations.template_needs_both": "يحتاج القالب إلى موضوع ونص معاً بلغة :locale، أو لا شيء منهما."
+    "api.error.translations.template_needs_both": "يحتاج القالب إلى موضوع ونص معاً بلغة :locale، أو لا شيء منهما.",
+    "setting.reach.published": "يُقدَّم للعملاء الذين يقرأون واجهة الإعدادات. ولا يتغيّر شيء في سلوك هذه المنصّة عند تغييره.",
+    "setting.reach.awaiting": "يُحفَظ، لكن لا شيء يقرأه بعد. الجزء الذي سيستخدمه من المنصّة لم يُبنَ."
 }

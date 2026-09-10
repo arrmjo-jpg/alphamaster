@@ -398,7 +398,11 @@
             "rate_limit": "Rate limits",
             "security": "Security"
         },
-        "eyebrow": "Configuration"
+        "eyebrow": "Configuration",
+        "reach": {
+            "published": "Read by clients",
+            "awaiting": "Not read yet"
+        }
     },
     "access": {
         "eyebrow": "Access",

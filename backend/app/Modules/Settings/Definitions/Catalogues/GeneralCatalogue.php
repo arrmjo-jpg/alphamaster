@@ -6,6 +6,7 @@ namespace App\Modules\Settings\Definitions\Catalogues;
 
 use App\Modules\Settings\Definitions\SettingCatalogue;
 use App\Modules\Settings\Definitions\SettingDefinition;
+use App\Modules\Settings\Enums\SettingReach;
 use App\Modules\Settings\Enums\SettingType;
 
 /**
@@ -61,6 +62,7 @@ class GeneralCatalogue implements SettingCatalogue
                 rules: ['string', 'max:500'],
                 isPublic: true,
                 isLocalized: true,
+                reach: SettingReach::AWAITING,
             ),
         ];
     }
@@ -83,6 +85,7 @@ class GeneralCatalogue implements SettingCatalogue
                 type: SettingType::EMAIL,
                 rules: ['email:rfc', 'max:255'],
                 isPublic: true,
+                reach: SettingReach::AWAITING,
             ),
             new SettingDefinition(
                 group: 'general',
@@ -91,6 +94,7 @@ class GeneralCatalogue implements SettingCatalogue
                 default: [],
                 rules: ['array', 'max:10'],
                 isPublic: true,
+                reach: SettingReach::AWAITING,
             ),
             new SettingDefinition(
                 group: 'general',
@@ -98,6 +102,7 @@ class GeneralCatalogue implements SettingCatalogue
                 type: SettingType::STRING,
                 rules: ['string', 'max:150'],
                 isLocalized: true,
+                reach: SettingReach::AWAITING,
             ),
             new SettingDefinition(
                 group: 'general',
@@ -105,6 +110,7 @@ class GeneralCatalogue implements SettingCatalogue
                 type: SettingType::STRING,
                 rules: ['string', 'max:150'],
                 isLocalized: true,
+                reach: SettingReach::AWAITING,
             ),
             // Coordinates are floats rather than a single JSON pair, so each can be
             // range-validated on its own and a half-supplied location is visible.
@@ -114,6 +120,7 @@ class GeneralCatalogue implements SettingCatalogue
                 type: SettingType::FLOAT,
                 rules: ['numeric', 'between:-90,90'],
                 isPublic: true,
+                reach: SettingReach::AWAITING,
             ),
             new SettingDefinition(
                 group: 'general',
@@ -121,6 +128,7 @@ class GeneralCatalogue implements SettingCatalogue
                 type: SettingType::FLOAT,
                 rules: ['numeric', 'between:-180,180'],
                 isPublic: true,
+                reach: SettingReach::AWAITING,
             ),
         ];
     }
@@ -145,6 +153,7 @@ class GeneralCatalogue implements SettingCatalogue
                 type: SettingType::URL,
                 rules: ['url:http,https', 'max:255'],
                 isPublic: true,
+                reach: SettingReach::AWAITING,
             ),
             new SettingDefinition(
                 group: 'general',
@@ -152,12 +161,14 @@ class GeneralCatalogue implements SettingCatalogue
                 type: SettingType::URL,
                 rules: ['url:http,https', 'max:255'],
                 isPublic: true,
+                reach: SettingReach::AWAITING,
             ),
             new SettingDefinition(
                 group: 'general',
                 key: 'admin_url',
                 type: SettingType::URL,
                 rules: ['url:http,https', 'max:255'],
+                reach: SettingReach::AWAITING,
             ),
         ];
     }
@@ -175,6 +186,7 @@ class GeneralCatalogue implements SettingCatalogue
                 rules: ['string', 'max:255'],
                 isPublic: true,
                 isLocalized: true,
+                reach: SettingReach::AWAITING,
             ),
             new SettingDefinition(
                 group: 'general',
@@ -183,6 +195,7 @@ class GeneralCatalogue implements SettingCatalogue
                 rules: ['string', 'max:2000'],
                 isPublic: true,
                 isLocalized: true,
+                reach: SettingReach::AWAITING,
             ),
             new SettingDefinition(
                 group: 'general',
@@ -191,6 +204,7 @@ class GeneralCatalogue implements SettingCatalogue
                 rules: ['string', 'max:2000'],
                 isPublic: true,
                 isLocalized: true,
+                reach: SettingReach::AWAITING,
             ),
         ];
     }
@@ -238,6 +252,7 @@ class GeneralCatalogue implements SettingCatalogue
                 default: false,
                 nullable: false,
                 isPublic: true,
+                reach: SettingReach::AWAITING,
             ),
         ];
     }

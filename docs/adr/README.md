@@ -47,3 +47,5 @@ This directory maintains the architectural decision records for the **alphamaste
 | [0041](0041-deployment-network-and-exposure-topology.md) | Deployment Network and Exposure Topology | Accepted |
 | [0042](0042-admin-session-transport-same-origin-and-module-registry.md) | Admin Session Transport, Same-Origin Deployment, and the Module Registry | Accepted |
 | [0043](0043-translation-workshop-and-the-translatable-content-registry.md) | The Translation Workshop and the Translatable-Content Registry | Accepted |
+| [0044](0044-ai-capability-architecture.md) | AI as an Integration Capability | Accepted |
+| [0045](0045-push-notifications-device-registry-and-the-mobile-client.md) | Push Notifications, the Device Registry, and the Mobile Client | Accepted |

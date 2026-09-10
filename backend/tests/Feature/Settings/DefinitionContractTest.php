@@ -189,6 +189,10 @@ test('the definition payload keeps every field it had', function (): void {
             'key', 'group', 'name', 'label', 'help', 'type', 'type_label', 'nullable',
             'editable', 'is_secret', 'is_public', 'is_localized', 'default',
             'depends_on', 'rules', 'permission', 'deprecated',
+            // Added 2026-09-10: who reads this setting, and the sentence saying so.
+            // An addition is as much a contract change as a removal, which is what
+            // this assertion is for.
+            'reach', 'reach_notice',
         ]);
 });
 
