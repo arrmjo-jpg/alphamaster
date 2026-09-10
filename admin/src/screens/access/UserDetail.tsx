@@ -332,7 +332,7 @@ export function UserDetail({ id, viewerPermissions, onClose, onEdit, viewerId }:
                             <p className="text-(length:--text-sm) text-(--text-primary)">
                                 {data.roles.length === 0
                                     ? t('session.none')
-                                    : data.roles.join(', ')}
+                                    : data.roles.join(t('list.separator'))}
                             </p>
                             <p className="text-(length:--text-xs) text-(--text-muted)">
                                 {t('access.rolesReadOnly')}
