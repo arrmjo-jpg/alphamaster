@@ -6,7 +6,9 @@ use App\Modules\Authorization\Database\Seeders\AdminPermissionSeeder;
 use App\Modules\Localization\Database\Seeders\LanguageSeeder;
 use App\Modules\Settings\Contracts\SettingServiceInterface;
 use App\Modules\Settings\Database\Seeders\SettingSeeder;
+use App\Modules\Settings\Definitions\SettingDefinition;
 use App\Modules\Settings\Definitions\SettingRegistry;
+use App\Modules\Settings\Enums\SettingType;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 
@@ -79,11 +81,27 @@ test('the technical members keep their names and gain labels beside them', funct
 
 test('a label falls back to a humanised key rather than to blank', function (): void {
     // Translating is incremental; an interface has something readable the moment a
-    // setting is declared.
+    // setting is declared and before anybody has written its label.
+    //
+    // Asserted against a definition that is deliberately not in the catalogue. Every
+    // declared setting has a label now, so borrowing a real one — which this test used
+    // to do with `general.site_name` — would assert the translation rather than the
+    // fallback, and would pass whether or not the fallback still worked.
+    $undeclared = new SettingDefinition(
+        group: 'general',
+        key: 'a_setting_nobody_has_labelled',
+        type: SettingType::STRING,
+    );
+
+    expect($undeclared->label())->toBe('A Setting Nobody Has Labelled')
+        ->and($undeclared->label())->not->toStartWith('setting.')
+        ->and($undeclared->help())->toBeNull();
+
+    // And the real one now reads as words rather than as its key.
     $rows = collect(definitionRows($this))->keyBy('key');
 
-    expect($rows['general.site_name']['label'])->toBe('Site Name')
-        ->and($rows['general.site_name']['label'])->not->toStartWith('setting.');
+    expect($rows['general.site_name']['label'])->toBe('Site name')
+        ->and($rows['general.site_name']['help'])->not->toBeNull();
 });
 
 test('the definitions carry declared defaults but never configured values', function (): void {

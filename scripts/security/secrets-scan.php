@@ -99,6 +99,12 @@ $excludedFragments = [
     '/storage/logs/',
     '/storage/framework/',
     '/public/build/',
+    // A nested checkout is not this repository's content. Agent worktrees live here,
+    // each a full copy — including this scanner and its planted control samples, which
+    // the walk then reports as findings against a repository that does not contain
+    // them. The directory is excluded from git for the same reason it is excluded
+    // here: what is in it was never committed and cannot leak through a commit.
+    '/.claude/',
 ];
 
 /**
