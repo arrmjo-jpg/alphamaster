@@ -6,6 +6,7 @@ namespace App\Modules\Settings\Definitions\Catalogues;
 
 use App\Modules\Settings\Definitions\SettingCatalogue;
 use App\Modules\Settings\Definitions\SettingDefinition;
+use App\Modules\Settings\Enums\SettingReach;
 use App\Modules\Settings\Enums\SettingType;
 
 /**
@@ -58,6 +59,7 @@ class OperationsCatalogue implements SettingCatalogue
                 default: 2,
                 nullable: false,
                 rules: ['integer', 'between:0,10'],
+                reach: SettingReach::AWAITING,
             ),
         ];
     }

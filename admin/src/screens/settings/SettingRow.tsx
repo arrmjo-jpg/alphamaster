@@ -1,4 +1,4 @@
-import { AlertTriangle, Ban, Lock, Link2Off } from 'lucide-react';
+import { AlertTriangle, Ban, Clock, Lock, Link2Off, Radio } from 'lucide-react';
 import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -28,11 +28,16 @@ export interface SettingRowProps {
  * scans a long group with — which is why it is a rail and not a badge, and why the
  * word sits beside it rather than the colour carrying the meaning alone.
  *
- * Notes below the control are ordered by what stops you first: a value you may not
- * change, then a dependency that is not configured, then a setting that has been
- * withdrawn. Each says why rather than disabling the control silently — a field that
- * is simply dead reads as a broken interface, and the operator has no way to tell
- * that from a deliberate refusal.
+ * Notes below the control are ordered by what stops you first: a value nothing reads
+ * yet, then one you may not change, then a dependency that is not configured, then a
+ * setting that has been withdrawn. Each says why rather than disabling the control
+ * silently — a field that is simply dead reads as a broken interface, and the operator
+ * has no way to tell that from a deliberate refusal.
+ *
+ * The reach note is first because it is the one that changes what the operator should
+ * expect *after* saving. The others explain why a value cannot be written; this one
+ * explains that writing it succeeds and does nothing, which is the more surprising of
+ * the two and the one a platform is most tempted not to admit.
  */
 export function SettingRow({ field, group, version, onChange, onRotated }: SettingRowProps) {
     const { t } = useTranslation();
@@ -82,6 +87,23 @@ export function SettingRow({ field, group, version, onChange, onRotated }: Setti
                     </div>
 
                     <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+                        {definition.reach !== 'platform' ? (
+                            <StatusBadge
+                                icon={
+                                    definition.reach === 'published' ? (
+                                        <Radio className="size-3" />
+                                    ) : (
+                                        <Clock className="size-3" />
+                                    )
+                                }
+                                tone="neutral"
+                            >
+                                {definition.reach === 'published'
+                                    ? t('settings.reach.published')
+                                    : t('settings.reach.awaiting')}
+                            </StatusBadge>
+                        ) : null}
+
                         {field.deprecated ? (
                             <StatusBadge icon={<Ban className="size-3" />} tone="warning">
                                 {t('settings.deprecated')}
@@ -132,6 +154,24 @@ export function SettingRow({ field, group, version, onChange, onRotated }: Setti
                     <p className="text-(length:--text-sm) text-(--text-muted)" id={`${id}-help`}>
                         {definition.help}
                     </p>
+                ) : null}
+
+                {definition.reach_notice !== null ? (
+                    <Note
+                        icon={
+                            definition.reach === 'published' ? (
+                                <Radio className="size-3.5" />
+                            ) : (
+                                <Clock className="size-3.5" />
+                            )
+                        }
+                    >
+                        {/* The platform's own sentence, in the caller's language.
+                            Written where the setting is declared rather than here, so
+                            it cannot describe a different setting from the one it is
+                            attached to. */}
+                        {definition.reach_notice}
+                    </Note>
                 ) : null}
 
                 {field.readOnlyReason !== null ? (

@@ -1,6 +1,7 @@
 # AlphaMaster — product capability matrix
 
-Audited 2026-09-10 against the repository and the running platform. Every row is
+Audited 2026-09-10 against the repository and the running platform; revised the same
+day as rows 5, 6, 14 and 17 were completed. Every row is
 evidence-backed: a screen existing, an endpoint existing, a setting existing or a green
 CI run is **not** treated as proof of anything.
 
@@ -17,10 +18,14 @@ browser where a browser is involved.
 
 | | Count |
 | :--- | ---: |
-| GREEN | 17 |
-| YELLOW | 9 |
+| GREEN | 21 |
+| YELLOW | 5 |
 | RED | 9 |
 | GRAY | 4 |
+
+Four rows moved to GREEN on 2026-09-10: phone verification (5), OTP configuration (6),
+translation management (14) and general settings (17). Row 33 moved with them and did
+not improve — see its entry.
 
 The nine RED rows are not evenly weighted. **AI, Firebase, push notifications and
 device registration do not exist in any form** — no module, no table, no setting, no
@@ -39,8 +44,8 @@ else RED is a known, recorded gap with an argument attached.
 | 2 | MFA | **GREEN** | TOTP and SMS OTP; `mfa_methods` with `confirmed_at`, `last_used_slice` replay protection; mandatory for administrators (ADR 0013); enrol/verify/status/disable endpoints; Admin enrolment screen. |
 | 3 | CAPTCHA | **GREEN** | reCAPTCHA driver behind the provider manager, v2/v3 settings, site key public and secret encrypted on the provider row, throttled sign-in path, `Http::fake()` tests. |
 | 4 | Email verification | **GREEN** | Signed link, `POST /auth/email/verify/send`, administrators refused until verified, address change clears verification. |
-| 5 | Phone verification | **YELLOW** | A phone number is stored canonically with a keyed lookup hash and `User::findByPhone()` exists, and SMS-OTP enrolment proves possession of a number. But there is **no phone-verification flow of its own** and no `phone_verified_at`: a number set by an administrator is never confirmed by anyone. Sign-in by phone is unreachable — `LoginRequest` accepts an identifier and `AuthService` resolves it, but nothing marks a number trusted. |
-| 6 | OTP | **YELLOW** | Delivery, hashing, expiry (`otp_expires_at`), resend cooldown and single-use replay protection all exist and are tested. **None of it is configurable**: `codeLifetimeSeconds()` and `resendCooldownSeconds()` are constants in `SmsOtpMethod`, and there is no `otp.*` settings group. Attempt limiting applies to sign-in (`security.max_login_attempts`) and not to OTP verification specifically. |
+| 5 | Phone verification | **GREEN** | `phone_verified_at` on `users`, a `phone_verifications` table holding one hashed code per account with the keyed digest of the number it went to, and `POST /auth/phone/verify/send` + `/auth/phone/verify`. Neither route takes an account identifier, so nobody confirms somebody else's number; an administrator can see the state and cannot set it. A code sent to a number that has since changed is refused, and changing the number clears the confirmation in the model, so every write path is covered rather than every caller having to remember. A wrong answer costs an attempt *outside* the transaction — counting it inside one and then throwing rolled the count back, which made guessing free. Fifteen backend tests, four Admin tests, and the flow run in a browser: administrator sets a number, holder confirms it from **Your account**, badge and timestamp follow. |
+| 6 | OTP | **GREEN** | Length, lifetime, resend cooldown and the number of wrong answers a code survives are four settings in the `auth` group, read through one `OtpPolicy` that both flows use — MFA and phone verification cannot drift into two policies. Each is proven to change behaviour rather than merely exist: an eight-digit setting delivers eight digits and the eight-digit code is accepted; a ten-minute lifetime is announced in the message and honoured past the old five-minute ceiling; a two-minute cooldown refuses at sixty seconds and allows at a hundred and twenty-one; three attempts discards the code. |
 | 27 | Users | **GREEN** | Create, edit, activate/deactivate, promote/demote, role sync; identity-only edits; self-deactivation refused; 16 lifecycle tests; browser-verified end to end. |
 | 28 | Roles | **GREEN** | Create, edit, delete, permission assignment, label/identifier separation with a server-derived immutable identifier. |
 | 29 | Permissions | **GREEN** | Read-only catalogue grouped by module, role carriers named, orphan permissions called out. Dynamic creation is **intentionally** unsupported — `AdminPermission` is a code enum (ADR 0014) and the screen says so rather than offering CRUD. |
@@ -72,7 +77,7 @@ else RED is a known, recorded gap with an argument attached.
 | # | Capability | State | Evidence and what is missing |
 | --- | :--- | :---: | :--- |
 | 13 | Languages | **GREEN** | List, create, update, activate/deactivate, set default; deactivating the default refused; the console's own language list comes from the platform (ADR 0015). |
-| 14 | Translation management | **YELLOW** | Relational per-locale stores exist and work for the three things that have them — settings, notification templates, role labels. There is **no translation workspace**: no screen that shows what is untranslated across the platform, and no completeness figure in the API. The notifications screen computes template completeness client-side; nothing else does. |
+| 14 | Translation management | **GREEN** | A workshop at `/translations` over `GET /admin/translations` and `PUT /admin/translations/{source}/{id}`: source language beside target, per-source completeness counted in fields, and a filter to what is outstanding. Content declares itself through `TranslationSource` registered in Core (ADR 0043), so Localization serves a workshop over content it may not import and a fourth translatable module needs no edit here. Permissions are per source and are the owning module's — an operator with every settings permission is answered 404 for notification wording. Nothing falls back inside the workshop, deliberately: a fallback would put English in the Arabic column and make an untranslated item look finished. Eighteen backend tests, eight Admin tests, and a role label translated in a browser with the outstanding count moving 4 → 3. |
 | 16 | Manual language creation | **GREEN** | `POST /admin/languages` with name, native name, code, direction, activation, default and order, and the Admin form that drives it. |
 | 37 | RTL / LTR | **GREEN** | Direction comes from the active language, logical properties throughout, swept for horizontal overflow at 375 in both directions across all ten routes. |
 
@@ -80,15 +85,15 @@ else RED is a known, recorded gap with an argument attached.
 
 | # | Capability | State | Evidence and what is missing |
 | --- | :--- | :---: | :--- |
-| 17 | General settings | **YELLOW** | Sixty-two typed settings with grouping, per-locale values, secrets, history, rollback, backup/restore, optimistic concurrency, and — new — a label and help sentence for every one in both languages. **Nine settings are configured and not consumed** (row 33). |
-| 18 | Branding | **YELLOW** | Seven media-typed settings — logos in four combinations, favicon, social image, watermark image — each holding a validated `MediaFile` id, assigned through a picker. `max_image_dimension` is not enforced and the watermark is not applied. |
+| 17 | General settings | **GREEN** | Sixty-six typed settings with grouping, per-locale values, secrets, history, rollback, backup/restore, optimistic concurrency, a label and help sentence for every one in both languages, and — new — a declared **reach**: every definition says whether the platform reads it, a client does, or nothing does yet, and the console renders that as a badge and a sentence on the row. The capability is complete; what remains is row 33, which is a statement about how much of the catalogue has a reader rather than about this screen. |
+| 18 | Branding | **YELLOW** | Seven media-typed settings — logos in four combinations, favicon, social image, watermark image — each holding a validated `MediaFile` id, assigned through a picker. Nothing renders any of them: the console ships its own mark, and the public site that would read these is not started. `max_image_dimension` is not enforced and the watermark is not applied. Every one of them now says so on its own row rather than in its help text. |
 | 19 | Media | **GREEN** | Upload, scan, storage, delivery, listing with server-side filters, detail, soft delete, purge job, access policy seam, and — new — the upload ceiling read from configuration rather than hard-coded. |
 | 20 | Image processing | **RED** | `MediaProcessorContract` exists with one implementation, `GenericFileProcessor`. The container has no `gd`, `imagick` or `ffmpeg`: extensions are `pdo_pgsql, pgsql, pcntl, posix, bcmath, opcache, intl, zip, exif, redis, fileinfo`. |
 | 21 | Image variants | **RED** | ADR 0024's extension specifies the whole design — named vocabulary, policy seam, resolution rule — and states none of it is implemented. Blocked on row 20 and on a consumer. Decision 4. |
 | 22 | Watermarking | **RED** | Six settings configure it; nothing applies it. Watermarking is a step in deriving an image, so it is blocked behind rows 20 and 21. |
 | 31 | Operations | **GREEN** | Audit trail with eight server-side filters, archival with export-verify-remove, configuration export/restore, mail test. |
 | 32 | Maintenance mode | **GREEN** | 503 with the platform envelope and a localized message, `admin:access` bypass, fail-open when settings are unreadable, dashboard finding, browser-verified both ways. |
-| 33 | Configuration consumption | **YELLOW** | Nine settings exist and nothing reads them: `provider_retry_attempts`, `max_image_dimension`, six `watermark.*`, `registration_enabled`. Each now says so in its help text, which is honest but is not a resting place. |
+| 33 | Configuration consumption | **YELLOW** | The earlier count of nine was wrong, and the correction is the point of the row. A full audit — every reference in `app/` and `admin/src/`, including the rate limits that are read through a constructed key and would be missed by a naive search — puts it at **thirty of sixty-six**: twenty waiting on the public website, seven on the image pipeline, one on public registration, one on provider retry, one (`security.api_secret_key`) on a machine-to-machine caller that does not exist, and two (`localization.timezone`, `localization.date_format`) that are published for a client to format with and that nothing here will ever read. The secret was the one a search missed — a grep finds what reads a setting by name, and a secret's value never is. Each declares its reach in the definition, publishes it in the catalogue and shows it on the row; a test pins the list, so a thirtieth cannot be added by not noticing. It stays YELLOW because a classified gap is still a gap — the resting place is a reader, not a badge. **Eleven mail settings left this list on 2026-09-10**: they configured only the "send a test message" button, and every real message went out through the deployment's environment file; they now configure the mailer the whole platform resolves. |
 
 ### Surface
 
@@ -145,9 +150,13 @@ Ordered by dependency, then by how much of the product each unblocks.
 
 ### Track D — completion of what is already partly built
 
-9. OTP configuration (row 6): an `otp` settings group replacing two constants.
-10. Phone verification (row 5): the flow that makes a stored number trusted.
+9. ~~OTP configuration (row 6)~~ — done 2026-09-10. Four settings, one `OtpPolicy`,
+   both flows, each setting proven to change behaviour.
+10. ~~Phone verification (row 5)~~ — done 2026-09-10. End to end, browser-verified.
 11. Role-definition auditing (row 30).
-12. Translation workspace (row 14): completeness in the API, and a screen that shows
-    what is untranslated.
-13. The remaining unread settings (row 33), each either honoured or removed.
+12. ~~Translation workspace (row 14)~~ — done 2026-09-10. ADR 0043, three sources,
+    per-source permissions, browser-verified.
+13. The remaining unread settings (row 33). Thirty, not nine, and each now
+    declares what is missing rather than being presented as a working control. Thirty, and they
+    are unblocked by the capabilities they wait on — the public site, the image
+    pipeline, provider retry — not by more settings work.

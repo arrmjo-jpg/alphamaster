@@ -6,6 +6,7 @@ namespace App\Modules\Settings\Definitions\Catalogues;
 
 use App\Modules\Settings\Definitions\SettingCatalogue;
 use App\Modules\Settings\Definitions\SettingDefinition;
+use App\Modules\Settings\Enums\SettingReach;
 use App\Modules\Settings\Enums\SettingType;
 
 /**
@@ -27,6 +28,7 @@ class AuthCatalogue implements SettingCatalogue
                 default: true,
                 nullable: false,
                 isPublic: true,
+                reach: SettingReach::AWAITING,
             ),
             // The one-time code policy, read in one place by `OtpPolicy` so the code
             // an MFA challenge sends and the code that confirms a phone number cannot
