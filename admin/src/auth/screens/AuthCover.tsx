@@ -98,7 +98,7 @@ function IdentityField() {
             />
 
             <div className="flex items-center gap-3">
-                <span aria-hidden className="h-6 w-(--rail-width) bg-(--action-primary)" />
+                <span aria-hidden className="h-6 w-(--rail-width) bg-(--brand-on-chrome)" />
                 <span className="text-(length:--text-md) font-bold tracking-(--tracking-tight) text-(--text-on-chrome)">
                     {t('app.name')}
                 </span>
