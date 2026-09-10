@@ -158,6 +158,7 @@ describe('what a capability is actually doing', () => {
 
 const CLEAR = {
     reachable: true,
+    closed: false,
     accounts: [],
     capabilities: [],
     failedActions: [],
@@ -170,6 +171,7 @@ describe('what deserves attention', () => {
         expect(attention.findings).toEqual([]);
         expect(attention.checked).toEqual([
             'platform',
+            'maintenance',
             'administrators',
             'integrations',
             'actions',
@@ -185,6 +187,22 @@ describe('what deserves attention', () => {
         expect(attention.findings).toEqual([]);
         expect(attention.skipped).toEqual(['administrators', 'actions']);
         expect(attention.checked).not.toContain('administrators');
+    });
+
+    it('says the platform is closed, which nothing else on the board would show', () => {
+        // An administrator's own token bypasses maintenance, so every other panel
+        // looks healthy while the platform refuses everybody else.
+        const attention = assessAttention({ ...CLEAR, closed: true });
+
+        expect(attention.findings.map((finding) => finding.kind)).toEqual(['platform-closed']);
+        expect(attention.findings[0]?.severity).toBe('warning');
+    });
+
+    it('treats an unread maintenance setting as a check that has not run', () => {
+        const attention = assessAttention({ ...CLEAR, closed: null });
+
+        expect(attention.findings).toEqual([]);
+        expect(attention.skipped).toContain('maintenance');
     });
 
     it('counts an administrator the perimeter would refuse, for each reason', () => {
@@ -334,11 +352,17 @@ function admin(permissions: string[]) {
     };
 }
 
+/** Public settings. Read without a permission, so every render needs it. */
+const GENERAL_SETTINGS = http.get('*/api/v1/settings/general', () =>
+    HttpResponse.json({ success: true, data: { maintenance_mode: false } }),
+);
+
 function renderDashboard(permissions: string[]) {
     server.use(
         LANGUAGES,
         ADMIN_LANGUAGES,
         HEALTH,
+        GENERAL_SETTINGS,
         http.get('*/api/v1/auth/me', () =>
             HttpResponse.json({ success: true, data: admin(permissions) }),
         ),

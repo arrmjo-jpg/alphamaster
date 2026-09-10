@@ -14,6 +14,8 @@ use App\Modules\Integration\Services\Captcha\RecaptchaProvider;
 use App\Modules\Integration\Services\CaptchaManager;
 use App\Modules\Integration\Services\CaptchaVerifier;
 use App\Modules\Integration\Services\SmsManager;
+use App\Modules\Settings\Contracts\SettingServiceInterface;
+use App\Modules\Settings\Database\Seeders\SettingSeeder;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\ConnectionException;
@@ -434,4 +436,47 @@ test('the capability is labelled in both locales', function (): void {
     expect($english)->not->toBe('captcha')
         ->and($arabic)->not->toBe('captcha')
         ->and($arabic)->not->toBe($english);
+});
+
+// ── The timeout an operator configured is the timeout the vendor gets ─────────
+
+test('the driver waits as long as the platform is configured to wait', function (): void {
+    $this->seed(SettingSeeder::class);
+    app(SettingServiceInterface::class)->set('operations', 'provider_timeout_seconds', 42);
+    Cache::flush();
+
+    $seen = null;
+
+    // The fake's second argument is the request options, which is where the timeout
+    // lives. Asserting it here is the only way to see that the driver read the
+    // setting at all: nothing about a faked response differs otherwise.
+    Http::fake(function ($request, $options) use (&$seen) {
+        $seen = $options['timeout'] ?? null;
+
+        return Http::response(['success' => true, 'score' => 0.9]);
+    });
+
+    activateRecaptcha();
+    $this->verifier->verify(new CaptchaChallenge('token', 'login', '127.0.0.1'));
+
+    expect($seen)->toBe(42);
+});
+
+test('with no setting to read the driver falls back to the declared default', function (): void {
+    // No settings seeded at all, which is what an unconfigured or unreachable
+    // settings store looks like from inside a driver.
+    $seen = null;
+
+    Http::fake(function ($request, $options) use (&$seen) {
+        $seen = $options['timeout'] ?? null;
+
+        return Http::response(['success' => true, 'score' => 0.9]);
+    });
+
+    activateRecaptcha();
+    $this->verifier->verify(new CaptchaChallenge('token', 'login', '127.0.0.1'));
+
+    // Ten is `operations.provider_timeout_seconds`'s own default, so the fallback and
+    // the configured value agree on a fresh installation.
+    expect($seen)->toBe(10);
 });

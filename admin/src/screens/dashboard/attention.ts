@@ -18,10 +18,11 @@ import type { CapabilityRow } from '@/screens/integrations/capabilities';
  */
 
 /** The checks this screen knows how to make, whether or not it may make them. */
-export type CheckId = 'platform' | 'administrators' | 'integrations' | 'actions';
+export type CheckId = 'platform' | 'maintenance' | 'administrators' | 'integrations' | 'actions';
 
 export type FindingKind =
     | 'platform-silent'
+    | 'platform-closed'
     | 'administrator-blocked'
     | 'capability-failing'
     | 'capability-uncredentialed'
@@ -54,6 +55,14 @@ export interface Attention {
 export interface AttentionInput {
     /** `null` while the probe has not answered either way yet. */
     reachable: boolean | null;
+    /**
+     * Whether maintenance mode is on. `null` while the setting has not been read.
+     *
+     * Worth a finding of its own rather than folding into reachability: a platform in
+     * maintenance is answering perfectly and refusing everybody, and an administrator
+     * whose token bypasses it sees no sign of that anywhere else on the board.
+     */
+    closed: boolean | null;
     /** `null` where the account may not read what the check needs. */
     accounts: AdminUser[] | null;
     capabilities: CapabilityRow[] | null;
@@ -104,6 +113,26 @@ export function assessAttention(input: AttentionInput): Attention {
                 kind: 'platform-silent',
                 check: 'platform',
                 severity: 'critical',
+                count: 1,
+                subjects: [],
+            });
+        }
+    }
+
+    if (input.closed === null) {
+        skipped.push('maintenance');
+    } else {
+        checked.push('maintenance');
+
+        if (input.closed) {
+            findings.push({
+                id: 'platform-closed',
+                kind: 'platform-closed',
+                check: 'maintenance',
+                // Warning rather than critical: this is a state somebody chose, not a
+                // failure. It is on the board because choosing it and forgetting is
+                // the way a planned pause becomes an outage.
+                severity: 'warning',
                 count: 1,
                 subjects: [],
             });
@@ -226,6 +255,12 @@ export function destinationFor(finding: Finding): Destination | null {
     switch (finding.kind) {
         case 'administrator-blocked':
             return { path: '/access/users', permission: 'users.view' };
+
+        case 'platform-closed':
+            // The switch itself, in the general group. Reading settings is the gate;
+            // turning maintenance off needs `settings.update`, which the settings
+            // workspace enforces field by field rather than at this link.
+            return { path: '/settings/general', permission: 'settings.view' };
 
         case 'capability-failing':
         case 'capability-degraded':
