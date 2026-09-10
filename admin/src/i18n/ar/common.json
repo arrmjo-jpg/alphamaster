@@ -247,7 +247,8 @@
                 "platform": "فحص المنصّة",
                 "administrators": "حسابات المشرفين",
                 "integrations": "قدرات المزوّدين",
-                "actions": "سجلّ التدقيق"
+                "actions": "سجلّ التدقيق",
+                "maintenance": "وضع الصيانة"
             },
             "finding": {
                 "platform-silent": "المنصّة لا تستجيب.",
@@ -280,7 +281,8 @@
                 "capability-uncredentialed_two": "قدرتان بلا اعتمادات.",
                 "capability-uncredentialed_few": "{{count}} قدرات بلا اعتمادات.",
                 "capability-uncredentialed_many": "{{count}} قدرةً بلا اعتمادات.",
-                "capability-uncredentialed_other": "{{count}} قدرة بلا اعتمادات."
+                "capability-uncredentialed_other": "{{count}} قدرة بلا اعتمادات.",
+                "platform-closed": "المنصّة مغلقة للصيانة."
             },
             "why": {
                 "platform-silent": "لم يُبلّغ فحص الحياة عن تطبيق سليم.",
@@ -288,13 +290,15 @@
                 "capability-failing": "رُفضت كلّ محاولة حديثة عبر المزوّد النشط.",
                 "capability-degraded": "رُفض بعض المحاولات الحديثة عبر المزوّد النشط.",
                 "action-failed": "مسجَّل في سجلّ التدقيق بنتيجة فاشلة.",
-                "capability-uncredentialed": "لا يحمل المزوّد النشط أيّ اعتمادات، فتُرفض كلّ محاولة قبل إجرائها."
+                "capability-uncredentialed": "لا يحمل المزوّد النشط أيّ اعتمادات، فتُرفض كلّ محاولة قبل إجرائها.",
+                "platform-closed": "وضع الصيانة مفعّل، فترفض الواجهة كلّ متّصل عدا المسؤول الذي يتجاوزه رمزه — ولهذا لا يبدو أيّ شيء آخر هنا معطوبًا."
             },
             "go": {
                 "administrator-blocked": "فتح الحسابات",
                 "capability-failing": "فتح التكاملات",
                 "capability-degraded": "فتح التكاملات",
-                "capability-uncredentialed": "فتح التكاملات"
+                "capability-uncredentialed": "فتح التكاملات",
+                "platform-closed": "فتح إعدادات الصيانة"
             }
         },
         "state": {

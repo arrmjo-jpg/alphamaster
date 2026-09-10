@@ -7,6 +7,7 @@ use App\Modules\Core\Middleware\ApplyRateLimit;
 use App\Modules\Core\Middleware\AttachRequestContext;
 use App\Modules\Core\Middleware\EnsureAccountActive;
 use App\Modules\Core\Middleware\EnsureEmailVerified;
+use App\Modules\Core\Middleware\EnsureNotInMaintenance;
 use App\Modules\Core\Middleware\EnsureUserIsAdmin;
 use App\Modules\Core\Middleware\ForceJsonResponse;
 use App\Modules\Core\Middleware\SetLocale;
@@ -49,6 +50,12 @@ return Application::configure(basePath: dirname(__DIR__))
             ForceJsonResponse::class,
             AttachRequestContext::class,
             ApplyRateLimit::class,
+            // After the limiter, deliberately. A platform in maintenance still has to
+            // survive being hammered, and a refusal is an answer like any other — so
+            // maintenance responses are counted against the same budget rather than
+            // being free. It resolves the caller itself, through the guard, because
+            // the bypass is a property of the token rather than of the route.
+            EnsureNotInMaintenance::class,
         ]);
 
         // Register route middleware aliases

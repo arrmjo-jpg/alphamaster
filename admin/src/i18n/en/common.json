@@ -213,7 +213,8 @@
                 "platform": "the platform probe",
                 "administrators": "administrator accounts",
                 "integrations": "vendor capabilities",
-                "actions": "the audit trail"
+                "actions": "the audit trail",
+                "maintenance": "maintenance mode"
             },
             "finding": {
                 "platform-silent": "The platform is not answering.",
@@ -226,7 +227,8 @@
                 "action-failed_one": "One administrative action failed.",
                 "action-failed_other": "{{count}} administrative actions failed.",
                 "capability-uncredentialed_one": "One capability has no credentials.",
-                "capability-uncredentialed_other": "{{count}} capabilities have no credentials."
+                "capability-uncredentialed_other": "{{count}} capabilities have no credentials.",
+                "platform-closed": "The platform is closed for maintenance."
             },
             "why": {
                 "platform-silent": "The liveness probe did not report a healthy application.",
@@ -234,13 +236,15 @@
                 "capability-failing": "Every recent attempt through the active provider was refused.",
                 "capability-degraded": "Some recent attempts through the active provider were refused.",
                 "action-failed": "Recorded in the audit trail with a failed outcome.",
-                "capability-uncredentialed": "The active provider holds no credentials, so every attempt will be refused before it is made."
+                "capability-uncredentialed": "The active provider holds no credentials, so every attempt will be refused before it is made.",
+                "platform-closed": "Maintenance mode is on, so the API refuses every caller except an administrator whose token bypasses it — which is why nothing else here looks wrong."
             },
             "go": {
                 "administrator-blocked": "Open accounts",
                 "capability-failing": "Open integrations",
                 "capability-degraded": "Open integrations",
-                "capability-uncredentialed": "Open integrations"
+                "capability-uncredentialed": "Open integrations",
+                "platform-closed": "Open maintenance settings"
             }
         },
         "state": {
