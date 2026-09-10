@@ -46,7 +46,7 @@ export function Topbar({ navigationOpen, onToggleNavigation }: TopbarProps) {
             </button>
 
             <div className="flex items-center gap-2.5 px-4 md:w-(--nav-panel-width) md:border-e md:border-(--border-chrome)">
-                <span aria-hidden className="h-5 w-(--rail-width) bg-(--action-primary)" />
+                <span aria-hidden className="h-5 w-(--rail-width) bg-(--brand-on-chrome)" />
                 <span className="text-(length:--text-md) font-bold tracking-(--tracking-tight)">
                     {t('app.name')}
                 </span>
