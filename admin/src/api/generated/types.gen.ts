@@ -507,6 +507,21 @@ export type VerifyPhoneRequest = {
     code: string;
 };
 
+/**
+ * One item's translated fields, in one language.
+ */
+export type WriteTranslationRequest = {
+    /**
+     * Checked against the platform's active languages by the controller. The
+     * shape is all that is asserted here — a locale that exists is a question
+     * about data, not about the payload.
+     */
+    locale: string;
+    values: {
+        [key: string]: string | null;
+    };
+};
+
 export type HealthData = {
     body?: never;
     path?: never;
@@ -3511,6 +3526,168 @@ export type SettingsShowResponses = {
 };
 
 export type SettingsShowResponse = SettingsShowResponses[keyof SettingsShowResponses];
+
+export type AdminTranslationsIndexData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/admin/translations';
+};
+
+export type AdminTranslationsIndexErrors = {
+    /**
+     * Unauthenticated
+     */
+    401: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+};
+
+export type AdminTranslationsIndexError = AdminTranslationsIndexErrors[keyof AdminTranslationsIndexErrors];
+
+export type AdminTranslationsIndexResponses = {
+    200: {
+        success: boolean;
+        data: {
+            locales: Array<{
+                code: string;
+                name: string;
+                native_name: string;
+                direction: string;
+                is_default: boolean;
+            }>;
+            sources: Array<{
+                key: string;
+                label: string;
+                may_write: boolean;
+                entries: Array<{
+                    id: string;
+                    title: string;
+                    context: string | null;
+                    fields: Array<{
+                        name: string;
+                        label: string;
+                        multiline: boolean;
+                        values: {
+                            [key: string]: string;
+                        };
+                    }>;
+                }>;
+                completeness: {
+                    [key: string]: {
+                        total: number;
+                        translated: number;
+                    };
+                };
+            }>;
+        };
+    };
+};
+
+export type AdminTranslationsIndexResponse = AdminTranslationsIndexResponses[keyof AdminTranslationsIndexResponses];
+
+export type AdminTranslationsUpdateData = {
+    body: WriteTranslationRequest;
+    path: {
+        source: string;
+        id: string;
+    };
+    query?: never;
+    url: '/admin/translations/{source}/{id}';
+};
+
+export type AdminTranslationsUpdateErrors = {
+    /**
+     * Unauthenticated
+     */
+    401: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+    /**
+     * The caller may not change this kind of content.
+     */
+    403: {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'FORBIDDEN';
+            message: string;
+            details: null;
+        };
+    };
+    /**
+     * No such source, or no such item within it.
+     */
+    404: {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'UNKNOWN_TRANSLATION_TARGET';
+            message: string;
+            details: null;
+        };
+    } | {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'UNKNOWN_TRANSLATION_SOURCE';
+            message: string;
+            details: null;
+        };
+    };
+    /**
+     * The language is not served, or the write would leave the content in a state its owner does not allow.
+     */
+    422: {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'TRANSLATION_REFUSED';
+            message: string;
+            details: null;
+        };
+    } | {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'UNKNOWN_LOCALE';
+            message: string;
+            details: null;
+        };
+    };
+};
+
+export type AdminTranslationsUpdateError = AdminTranslationsUpdateErrors[keyof AdminTranslationsUpdateErrors];
+
+export type AdminTranslationsUpdateResponses = {
+    200: {
+        success: boolean;
+        message: string;
+        data: {
+            source: string;
+            id: string;
+            locale: string;
+        };
+    };
+};
+
+export type AdminTranslationsUpdateResponse = AdminTranslationsUpdateResponses[keyof AdminTranslationsUpdateResponses];
 
 export type AdminUsersIndexData = {
     body?: never;

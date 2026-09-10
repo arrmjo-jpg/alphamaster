@@ -30,9 +30,11 @@ interface SettingServiceInterface
      * Batch update an array of settings within a group atomically.
      *
      * @param  array<string, mixed>  $settings
+     * @param  string|null  $locale  which language a localized value lands in;
+     *                               the request's own when not named
      * @return array<string, mixed>
      */
-    public function updateGroup(string $group, array $settings): array;
+    public function updateGroup(string $group, array $settings, ?string $locale = null): array;
 
     /**
      * Retrieve all public settings grouped by group name for public API.

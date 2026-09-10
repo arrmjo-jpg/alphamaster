@@ -6,6 +6,7 @@ namespace App\Modules\Localization\Providers;
 
 use App\Modules\Core\Backup\ConfigurationPortability;
 use App\Modules\Core\Contracts\LocaleResolverInterface;
+use App\Modules\Core\Translation\TranslationRegistry;
 use App\Modules\Localization\Backup\LanguagePortability;
 use App\Modules\Localization\Services\LocaleResolver;
 use Illuminate\Support\Facades\Route;
@@ -21,6 +22,11 @@ class LocalizationServiceProvider extends ServiceProvider
         // Bind the Core LocaleResolverInterface to Localization's concrete LocaleResolver
         $this->app->singleton(LocaleResolverInterface::class, LocaleResolver::class);
         $this->app->singleton(LocaleResolver::class);
+
+        // The one registry of translatable content (ADR 0043). A singleton because a
+        // second copy would be a second answer to "what is translatable", and the
+        // modules that fill it register against whichever instance boots first.
+        $this->app->singleton(TranslationRegistry::class);
     }
 
     /**

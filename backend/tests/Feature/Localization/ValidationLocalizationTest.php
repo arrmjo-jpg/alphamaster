@@ -275,9 +275,10 @@ test('every FormRequest still validates', function (): void {
 
     // 14 through Phase 16A; Phase 16B-2 added the rollback request, 16B-3 the
     // credential-rotation one, and 16B-5 the export and restore pair. The account
-    // lifecycle added the create and update pair, M3-A the announcement, and phone
-    // verification the request that carries a code.
-    expect($requests)->toHaveCount(22);
+    // lifecycle added the create and update pair, M3-A the announcement, phone
+    // verification the request that carries a code, and the translation workshop its
+    // write.
+    expect($requests)->toHaveCount(23);
 
     foreach ($requests as $file) {
         $source = (string) file_get_contents($file);

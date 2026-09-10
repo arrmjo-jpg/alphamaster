@@ -174,7 +174,8 @@
         "operations": "العمليّات",
         "generalSettings": "الإعدادات العامة",
         "permissions": "الصلاحيات",
-        "account": "حسابك"
+        "account": "حسابك",
+        "translations": "الترجمات"
     },
     "dashboard": {
         "platform": {
@@ -1077,5 +1078,26 @@
         "codeHint": "الأرقام الواردة في الرسالة. تنتهي صلاحيته بعد وقت قصير من إرساله.",
         "confirm": "أكّد الرقم",
         "numberSetByAdministrator": "الرقم نفسه يضبطه مسؤول. اطلب منه تغييره، ثم أكّد الرقم الجديد من هنا."
+    },
+    "translations": {
+        "eyebrow": "التعريب",
+        "description": "ما تقوله المنصّة، بكل لغة تقوله بها. مساحة اللغات تحدّد اللغات الموجودة، وهذه المساحة لما هو مكتوب بها.",
+        "from": "الترجمة من",
+        "into": "إلى",
+        "untranslatedOnly": "غير المترجَم فقط",
+        "save": "حفظ",
+        "saved": "تم الحفظ",
+        "readOnly": "يمكنك قراءة هذا المحتوى لا تغييره.",
+        "nothingWritten": "لا يوجد نص",
+        "nothingReadable": "لا يوجد محتوى قابل للترجمة لديك صلاحية قراءته.",
+        "oneLanguage": "المنصّة تخدم لغة واحدة، فلا توجد لغة تُترجَم إليها.",
+        "noneOutstanding": "كل ما هنا مترجَم.",
+        "complete": "مترجَم بالكامل إلى {{language}}",
+        "outstanding_zero": "لا حقول متبقية من {{total}}",
+        "outstanding_one": "حقل واحد من {{total}} ما زال بلا ترجمة",
+        "outstanding_two": "حقلان من {{total}} ما زالا بلا ترجمة",
+        "outstanding_few": "{{count}} حقول من {{total}} ما زالت بلا ترجمة",
+        "outstanding_many": "{{count}} حقلاً من {{total}} ما زالت بلا ترجمة",
+        "outstanding_other": "{{count}} حقل من {{total}} ما زالت بلا ترجمة"
     }
 }

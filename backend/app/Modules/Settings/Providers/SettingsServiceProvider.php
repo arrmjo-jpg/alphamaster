@@ -6,6 +6,7 @@ namespace App\Modules\Settings\Providers;
 
 use App\Modules\Core\Backup\ConfigurationPortability;
 use App\Modules\Core\Contracts\RetentionPolicyContract;
+use App\Modules\Core\Translation\TranslationRegistry;
 use App\Modules\Settings\Backup\SettingsPortability;
 use App\Modules\Settings\Console\SynchroniseSettingsCommand;
 use App\Modules\Settings\Contracts\SettingServiceInterface;
@@ -23,6 +24,7 @@ use App\Modules\Settings\Secrets\MailPasswordVerifier;
 use App\Modules\Settings\Secrets\SecretVerifierRegistry;
 use App\Modules\Settings\Services\SettingService;
 use App\Modules\Settings\Services\SettingsRetentionPolicy;
+use App\Modules\Settings\Translation\SettingTranslationSource;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 
@@ -82,6 +84,12 @@ class SettingsServiceProvider extends ServiceProvider
         // and a central list would have to.
         $this->app->make(ConfigurationPortability::class)
             ->register($this->app->make(SettingsPortability::class));
+        // What this module has that a person reads, declared to the translation
+        // workshop (ADR 0043). Registered here rather than listed centrally, because
+        // Core may not import a domain module and a central list would have to.
+        $this->app->make(TranslationRegistry::class)
+            ->register($this->app->make(SettingTranslationSource::class));
+
         // Load module migrations
         $this->loadMigrationsFrom(dirname(__DIR__).'/Database/Migrations');
 

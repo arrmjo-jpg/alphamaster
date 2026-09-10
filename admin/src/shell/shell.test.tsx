@@ -283,6 +283,7 @@ describe('the navigation tree', () => {
             'dashboard',
             'integrations',
             'languages',
+            'translations',
             'media',
             'notifications',
             'operations',

@@ -46,3 +46,4 @@ This directory maintains the architectural decision records for the **alphamaste
 | [0040](0040-configuration-history-and-rollback.md) | Configuration History and Rollback | Accepted |
 | [0041](0041-deployment-network-and-exposure-topology.md) | Deployment Network and Exposure Topology | Accepted |
 | [0042](0042-admin-session-transport-same-origin-and-module-registry.md) | Admin Session Transport, Same-Origin Deployment, and the Module Registry | Accepted |
+| [0043](0043-translation-workshop-and-the-translatable-content-registry.md) | The Translation Workshop and the Translatable-Content Registry | Accepted |
