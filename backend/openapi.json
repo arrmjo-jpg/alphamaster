@@ -3917,6 +3917,120 @@
                 }
             }
         },
+        "/auth/phone/verify/send": {
+            "post": {
+                "operationId": "auth.phone.verify.send",
+                "description": "Throttled by a cooldown the platform is configured with, because every send\ncosts a real message: without one, anyone holding a session can spend an\noperator's SMS budget, and a client retrying on a spinner does it by accident.",
+                "summary": "Send a code to the number on this account",
+                "tags": [
+                    "PhoneVerification"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "destination": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "destination"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "message",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/auth/phone/verify": {
+            "post": {
+                "operationId": "auth.phone.verify",
+                "summary": "Answer the outstanding code",
+                "tags": [
+                    "PhoneVerification"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/VerifyPhoneRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "phone_verified": {
+                                                    "type": "boolean"
+                                                },
+                                                "phone_verified_at": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "phone_verified",
+                                                "phone_verified_at"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "message",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
         "/admin/roles": {
             "get": {
                 "operationId": "admin.roles.index",
@@ -6291,6 +6405,22 @@
                             "null"
                         ]
                     },
+                    "phone": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "The account's own number, in full. It is theirs; the masking on the\nverification endpoints exists because a *destination* echoed back is a\nway of reading a number out of the platform, and this is not that."
+                    },
+                    "phone_verified": {
+                        "type": "boolean"
+                    },
+                    "phone_verified_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
                     "abilities": {
                         "anyOf": [
                             {
@@ -6328,6 +6458,9 @@
                     "is_active",
                     "email_verified",
                     "email_verified_at",
+                    "phone",
+                    "phone_verified",
+                    "phone_verified_at",
                     "abilities",
                     "roles",
                     "permissions"
@@ -7520,6 +7653,16 @@
                         ],
                         "description": "The account's phone number in canonical form, or null."
                     },
+                    "phone_verified": {
+                        "type": "boolean",
+                        "description": "Whether anybody has answered a code sent to it, and when. Reported the\nsame way the address is, and for the same reason: an interface showing\nan account renders the moment, and a client that only needs the boolean\nshould not have to derive it from a null nobody documented."
+                    },
+                    "phone_verified_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
                     "email_verified": {
                         "type": "boolean",
                         "description": "Whether the address has been confirmed, and when."
@@ -7555,6 +7698,8 @@
                     "account_type_label",
                     "is_active",
                     "phone",
+                    "phone_verified",
+                    "phone_verified_at",
                     "email_verified",
                     "email_verified_at",
                     "mfa_enrolled",
@@ -7562,6 +7707,19 @@
                     "permissions"
                 ],
                 "title": "UserResource"
+            },
+            "VerifyPhoneRequest": {
+                "type": "object",
+                "properties": {
+                    "code": {
+                        "type": "string",
+                        "description": "The code delivered by SMS."
+                    }
+                },
+                "required": [
+                    "code"
+                ],
+                "title": "VerifyPhoneRequest"
             }
         },
         "responses": {

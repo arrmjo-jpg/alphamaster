@@ -286,6 +286,7 @@ describe('the navigation tree', () => {
             'media',
             'notifications',
             'operations',
+            'account',
         ]);
     });
 

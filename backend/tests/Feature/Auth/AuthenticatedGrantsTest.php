@@ -167,6 +167,7 @@ test('the payload carries exactly the declared fields and no others', function (
         ->toEqualCanonicalizing([
             'id', 'name', 'email', 'account_type', 'is_active',
             'email_verified', 'email_verified_at',
+            'phone', 'phone_verified', 'phone_verified_at',
             'abilities', 'roles', 'permissions',
         ]);
 });

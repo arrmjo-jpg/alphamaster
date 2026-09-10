@@ -56,6 +56,8 @@ function account(over: Record<string, unknown> = {}) {
         account_type_label: 'User',
         is_active: true,
         phone: null,
+        phone_verified: false,
+        phone_verified_at: null,
         email_verified: true,
         email_verified_at: '2026-01-01T00:00:00+00:00',
         mfa_enrolled: false,

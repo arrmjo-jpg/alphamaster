@@ -2,6 +2,7 @@ import type { LucideIcon } from 'lucide-react';
 import {
     Activity,
     Bell,
+    CircleUser,
     Globe,
     Images,
     KeyRound,
@@ -13,6 +14,7 @@ import {
 } from 'lucide-react';
 import type { ComponentType } from 'react';
 
+import { AccountScreen } from '@/screens/AccountScreen';
 import { DashboardScreen } from '@/screens/DashboardScreen';
 import { IntegrationsScreen } from '@/screens/IntegrationsScreen';
 import { LanguagesScreen } from '@/screens/LanguagesScreen';
@@ -237,6 +239,18 @@ export const MODULES: ModuleManifest[] = [
         permission: 'audit.view',
         order: 90,
         component: OperationsScreen,
+    },
+    {
+        id: 'account',
+        path: '/account',
+        label: 'modules.account',
+        icon: CircleUser,
+        // No permission, and there is none that would fit. Everything here is the
+        // viewer's own — the endpoints behind it take no account identifier, so there
+        // is nobody else's account to reach however they are called. Last in the
+        // order because it is the one workspace that is not about the platform.
+        order: 100,
+        component: AccountScreen,
     },
 ];
 

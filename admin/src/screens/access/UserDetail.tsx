@@ -152,6 +152,16 @@ export function UserDetail({ id, viewerPermissions, onClose, onEdit, viewerId }:
                         <StatusBadge tone={data.mfa_enrolled ? 'success' : 'warning'}>
                             {data.mfa_enrolled ? t('access.mfaOn') : t('access.mfaOff')}
                         </StatusBadge>
+                        {/* Only shown where there is a number: "not confirmed" beside
+                            an account that has no phone at all describes an absence
+                            rather than a problem. */}
+                        {data.phone !== null ? (
+                            <StatusBadge tone={data.phone_verified ? 'success' : 'warning'}>
+                                {data.phone_verified
+                                    ? t('access.phoneConfirmed')
+                                    : t('access.phoneUnconfirmed')}
+                            </StatusBadge>
+                        ) : null}
                     </div>
                     {data.email_verified_at !== null ? (
                         <p className="text-(length:--text-xs) text-(--text-muted)">
@@ -166,6 +176,13 @@ export function UserDetail({ id, viewerPermissions, onClose, onEdit, viewerId }:
                     <p className="text-(length:--text-xs) text-(--text-muted)">
                         {t('access.mfaNote')}
                     </p>
+                    {/* Said rather than left to be discovered: an operator looking at
+                        an unconfirmed number needs to know why there is no button. */}
+                    {data.phone !== null && !data.phone_verified ? (
+                        <p className="text-(length:--text-xs) text-(--text-muted)">
+                            {t('access.phoneConfirmNote')}
+                        </p>
+                    ) : null}
 
                     {mayUpdateAccount ? (
                         data.is_active ? (

@@ -173,7 +173,8 @@
         "notifications": "الإشعارات",
         "operations": "العمليّات",
         "generalSettings": "الإعدادات العامة",
-        "permissions": "الصلاحيات"
+        "permissions": "الصلاحيات",
+        "account": "حسابك"
     },
     "dashboard": {
         "platform": {
@@ -608,7 +609,10 @@
             "integration": "التكاملات",
             "notification": "الإشعارات",
             "media": "الوسائط"
-        }
+        },
+        "phoneConfirmed": "الرقم مُؤكَّد",
+        "phoneUnconfirmed": "الرقم غير مُؤكَّد",
+        "phoneConfirmNote": "صاحب الحساب وحده يستطيع تأكيد الرقم، من صفحة حسابه. وتغيير الرقم من هنا يُلغي التأكيد."
     },
     "integrations": {
         "eyebrow": "المنصّة",
@@ -1047,5 +1051,31 @@
     },
     "list": {
         "separator": "، "
+    },
+    "account": {
+        "eyebrow": "حسابك",
+        "description": "ما تعرفه المنصّة عن الحساب الذي سجّلت الدخول به.",
+        "identity": "الهوية",
+        "emailVerified": "البريد مُوثّق",
+        "emailUnverified": "البريد غير مُوثّق",
+        "phone": "رقم الهاتف",
+        "noPhone": "لا يوجد رقم هاتف لهذا الحساب في المنصّة.",
+        "phoneVerified": "الرقم مُؤكَّد",
+        "phoneUnverified": "الرقم غير مُؤكَّد",
+        "phoneVerifiedAt": "تم التأكيد في {{at}}.",
+        "phoneVerifiedNote": "ردّ أحدهم على رمز أُرسل إلى هذا الرقم.",
+        "confirmIntro": "اطلب إرسال رمز إلى هذا الرقم، ثم أدخله أدناه. هذا يُثبت أن الرقم يصلك.",
+        "sendCode": "أرسل رمزاً",
+        "sendAgainIn_zero": "أعد الإرسال خلال {{count}} ثانية",
+        "sendAgainIn_one": "أعد الإرسال خلال ثانية واحدة",
+        "sendAgainIn_two": "أعد الإرسال خلال ثانيتين",
+        "sendAgainIn_few": "أعد الإرسال خلال {{count}} ثوانٍ",
+        "sendAgainIn_many": "أعد الإرسال خلال {{count}} ثانية",
+        "sendAgainIn_other": "أعد الإرسال خلال {{count}} ثانية",
+        "sentTo": "أُرسل رمز إلى {{destination}}.",
+        "code": "رمز التحقق",
+        "codeHint": "الأرقام الواردة في الرسالة. تنتهي صلاحيته بعد وقت قصير من إرساله.",
+        "confirm": "أكّد الرقم",
+        "numberSetByAdministrator": "الرقم نفسه يضبطه مسؤول. اطلب منه تغييره، ثم أكّد الرقم الجديد من هنا."
     }
 }
