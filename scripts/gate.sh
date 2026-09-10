@@ -254,13 +254,55 @@ cmd_diff() {
 # The scan runs inside the project image so it does not depend on a PHP binary
 # happening to exist on the host or the runner, and mounts the repository root
 # because the compose mount only exposes backend/.
+# The image this scan runs in, resolved so that a stale answer is not a broken gate.
+#
+# `compose images -q` reports the image the *running container* was created from, and
+# that id stops existing the moment the image is rebuilt or pruned while the container
+# keeps running — compose then reports `<none>` for the repository and an id `docker
+# run` cannot resolve. The scan died with "No such image" on a developer machine in
+# exactly that state, and the gate was skipped rather than fixed, which is how a
+# secret reached CI that this scan exists to catch.
+#
+# So the tag is tried first, since it survives a rebuild, and the id is the fallback.
+# A state where neither resolves says what to run rather than failing obscurely.
+resolve_backend_image() {
+    local tag candidate
+
+    tag="${ALPHAMASTER_IMAGE_NAMESPACE:-alphamaster}/backend:${ALPHAMASTER_IMAGE_TAG:-latest}"
+
+    if docker image inspect "$tag" >/dev/null 2>&1; then
+        echo "$tag"
+
+        return 0
+    fi
+
+    candidate="$($COMPOSE images -q "$BACKEND_SERVICE" 2>/dev/null | head -1)"
+
+    if [ -n "$candidate" ] && docker image inspect "$candidate" >/dev/null 2>&1; then
+        echo "$candidate"
+
+        return 0
+    fi
+
+    return 1
+}
+
 cmd_secrets() {
     step "Secret scan"
     local image
-    image="$($COMPOSE images -q "$BACKEND_SERVICE" 2>/dev/null | head -1)"
 
-    if [ -z "$image" ]; then
-        echo "No built $BACKEND_SERVICE image found. Run: $COMPOSE build" >&2
+    if ! image="$(resolve_backend_image)"; then
+        cat >&2 <<'MISSING'
+No usable backend image to run the secret scan in.
+
+The tag is missing and the id compose reports does not resolve, which usually means
+the image was rebuilt or pruned while the container kept running. Rebuild it:
+
+    docker compose build backend
+
+This gate is not optional: skipping it is how a credential reaches CI.
+MISSING
+
         exit 1
     fi
 
