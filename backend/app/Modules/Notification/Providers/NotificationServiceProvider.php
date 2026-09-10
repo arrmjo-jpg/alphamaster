@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Modules\Notification\Providers;
 
+use App\Modules\Core\Translation\TranslationRegistry;
 use App\Modules\Notification\Contracts\NotifierContract;
 use App\Modules\Notification\Contracts\PreferenceResolverContract;
 use App\Modules\Notification\Contracts\TemplateRendererContract;
 use App\Modules\Notification\Services\Notifier;
 use App\Modules\Notification\Services\PreferenceResolver;
 use App\Modules\Notification\Services\TemplateRenderer;
+use App\Modules\Notification\Translation\NotificationTemplateTranslationSource;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 
@@ -31,6 +33,12 @@ class NotificationServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->loadMigrationsFrom(dirname(__DIR__).'/Database/Migrations');
+        // What this module has that a person reads, declared to the translation
+        // workshop (ADR 0043). Registered here rather than listed centrally, because
+        // Core may not import a domain module and a central list would have to.
+        $this->app->make(TranslationRegistry::class)
+            ->register($this->app->make(NotificationTemplateTranslationSource::class));
+
         $this->registerRoutes();
     }
 

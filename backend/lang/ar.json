@@ -319,5 +319,19 @@
     "settings.rollback.skipped.undeclared": "لم يعد هذا الإعداد معرَّفاً في المنصة.",
     "settings.secret.verification.failed": "لم تقبلها الخدمة.",
     "settings.secret.verification.unavailable": "خُزّنت دون تحقق — لا توجد وسيلة للتحقق من بيانات الاعتماد هذه.",
-    "settings.secret.verification.verified": "تم التحقق منها لدى الخدمة قبل تخزينها."
+    "settings.secret.verification.verified": "تم التحقق منها لدى الخدمة قبل تخزينها.",
+    "api.translations.written": "تم حفظ الترجمة.",
+    "api.error.translations.unknown_source": "لا يوجد محتوى قابل للترجمة باسم :source.",
+    "api.error.translations.unknown_item": "لا يوجد عنصر في :source بالمعرّف :id.",
+    "api.error.translations.unknown_field": "لا يوجد في :source حقل قابل للترجمة باسم :field.",
+    "api.error.translations.unknown_locale": ":locale ليست من لغات المنصّة المفعّلة.",
+    "api.error.translations.write_refused": "تغيير :source ليس مما يملكه هذا الحساب.",
+    "translations.sources.settings": "نصوص الإعدادات",
+    "translations.sources.roles": "تسميات الأدوار",
+    "translations.sources.notificationTemplates": "نصوص الإشعارات",
+    "translations.fields.value": "القيمة",
+    "translations.fields.label": "التسمية",
+    "translations.fields.subject": "الموضوع",
+    "translations.fields.body": "النص",
+    "api.error.translations.template_needs_both": "يحتاج القالب إلى موضوع ونص معاً بلغة :locale، أو لا شيء منهما."
 }
