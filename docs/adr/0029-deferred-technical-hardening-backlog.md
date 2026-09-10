@@ -168,25 +168,42 @@ One API Resource, from Phase 3, and six private `present()` methods written afte
 
 *Closed by*: converting the six controllers to Resources, which is also a prerequisite for ADR 0010 — Scramble infers a contract from Resources and infers nothing useful from a hand-built array.
 
-### 14. Settings cannot express a per-locale value
+### 14. Settings cannot express a per-locale value — CLOSED (2026-09-06)
 
-*Decision*: ADR 0018, extended 2026-09-04. *Implementation*: pending.
+*Decision*: ADR 0018, extended 2026-09-04. *Implementation*: shipped.
+
+`settings.is_localized` and `setting_translations` exist and resolve through the
+ADR 0015 fallback chain; nine settings are classified localized, and labels and help
+text are read from the language files. The admin settings workspace edits a localized
+value per active language.
 
 A setting holds one value. `site_name`, `site_description`, `maintenance_message`, `cookie_message`, `footer_text` and `footer_copyright` are content a visitor reads and need a value per active language. The `description` column holds a single-language English sentence that the admin API returns as if it were a display label.
 
 *Closed by*: an `is_localized` flag with a `setting_translations` table resolving through the ADR 0015 fallback chain; labels and help text moved to language files; the classification of every setting as technical, localized content, or secret.
 
-### 15. Branding assets have no home
+### 15. Branding assets have no home — CLOSED (2026-09-10, verified)
 
-*Decision*: ADR 0018, extended 2026-09-04. *Implementation*: pending.
+*Decision*: ADR 0018, extended 2026-09-04. *Implementation*: shipped.
+
+The `media` setting type exists and seven branding settings use it — the light and
+dark logos in both locales, the favicon, the Open Graph image and the watermark
+image. Each holds a `MediaFile` id validated as an existing record, and the admin
+assigns one through the media picker. Binary data never enters the settings table.
+
+The watermark image is configured and nothing applies it, which is item 17 below and
+not this one.
 
 Logos, favicons, application icons, default social images and the watermark image are all platform configuration that points at a file. Nothing supports it today.
 
 *Closed by*: a media-typed setting whose value is a `MediaFile` id, validated as an existing media record. Binary data never enters the settings table.
 
-### 16. Mail configuration is undecided in code
+### 16. Mail configuration is undecided in code — CLOSED (2026-09-10, verified)
 
-*Decision*: ADR 0018, extended 2026-09-04 — SMTP is platform configuration in Settings, not a provider behind ADR 0017; an API-driven transactional sender would be the reverse. *Implementation*: pending.
+*Decision*: ADR 0018, extended 2026-09-04 — SMTP is platform configuration in Settings, not a provider behind ADR 0017; an API-driven transactional sender would be the reverse. *Implementation*: shipped.
+
+An eleven-key `mail` group exists with the password held as a secret setting, and
+`POST /admin/settings/mail/test` sends a test message and reports what the transport
+said. The attempt is audited under `mail.test_sent`, including when it fails.
 
 *Closed by*: a `mail` settings group with the password as a secret setting, and the deferred capability to verify a configuration and send a test message.
 

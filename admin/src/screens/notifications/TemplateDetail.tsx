@@ -221,7 +221,9 @@ export function TemplateDetail({ template, mayUpdate, onClose }: TemplateDetailP
                     {incomplete.length > 0 ? (
                         <Alert tone="warning">
                             {t('notifications.templates.incomplete', {
-                                languages: incomplete.map(([code]) => code).join(', '),
+                                languages: incomplete
+                                    .map(([code]) => code)
+                                    .join(t('list.separator')),
                             })}
                         </Alert>
                     ) : null}
