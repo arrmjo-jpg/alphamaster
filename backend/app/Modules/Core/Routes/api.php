@@ -2,11 +2,23 @@
 
 declare(strict_types=1);
 
-use App\Modules\Authorization\Enums\AdminPermission;
 use App\Modules\Core\Controllers\Admin\AuditAdminController;
 use App\Modules\Core\Controllers\Admin\ConfigurationBackupController;
 use Illuminate\Support\Facades\Route;
 
+/*
+ * Permissions are named literally here, and only here.
+ *
+ * Every other module writes `AdminPermission::X->value` in its route file, and may:
+ * the class rules forbid Core from depending on Authorization and permit the rest.
+ * Importing the enum here would be exactly the dependency ADR 0029 item 1 describes —
+ * one the architecture rules cannot see, because they analyse classes and a route
+ * file is not one.
+ *
+ * The strings are checked against the catalogue by ArchitectureRouteFileTest, so a
+ * literal that stops naming a real permission fails a test rather than quietly
+ * leaving an endpoint unreachable.
+ */
 Route::prefix('v1')->group(function (): void {
     /**
      * Liveness probe.
@@ -37,13 +49,13 @@ Route::prefix('v1')->group(function (): void {
         ->middleware(['auth:sanctum', 'ability:admin:access', 'active', 'admin', 'email-verified'])
         ->group(function (): void {
             Route::get('/', [AuditAdminController::class, 'index'])
-                ->middleware('permission:'.AdminPermission::AUDIT_VIEW->value)
+                ->middleware('permission:audit.view')
                 ->name('admin.audit.index');
 
             // Triggered by a person, never scheduled. A silent periodic cleanup is
             // indistinguishable, from outside, from evidence disappearing.
             Route::post('/archive', [AuditAdminController::class, 'archive'])
-                ->middleware('permission:'.AdminPermission::AUDIT_MANAGE->value)
+                ->middleware('permission:audit.manage')
                 ->name('admin.audit.archive');
         });
 
@@ -54,7 +66,7 @@ Route::prefix('v1')->group(function (): void {
     // rewrites configuration wholesale.
     Route::prefix('admin/configuration')
         ->middleware(['auth:sanctum', 'ability:admin:access', 'active', 'admin', 'email-verified',
-            'permission:'.AdminPermission::SETTINGS_BACKUP_MANAGE->value])
+            'permission:settings.backup.manage'])
         ->group(function (): void {
             Route::post('/export', [ConfigurationBackupController::class, 'export'])
                 ->name('admin.configuration.export');

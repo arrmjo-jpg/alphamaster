@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Modules\Authorization\Enums\AdminPermission;
 use App\Modules\Settings\Controllers\Admin\SecretAdminController;
 use App\Modules\Settings\Controllers\Admin\SettingAdminController;
 use App\Modules\Settings\Controllers\Api\SettingApiController;
@@ -14,6 +13,16 @@ use Illuminate\Support\Facades\Route;
  */
 $groupPattern = '[a-z][a-z0-9_]{0,49}';
 
+/*
+ * Permissions are named literally here, for the reason Core's route file gives.
+ *
+ * The class rules say this module depends on Core and the framework and nothing else,
+ * Authorization included. Importing the enum would be a dependency those rules cannot
+ * see, because they analyse classes and a route file is not one (ADR 0029 item 1).
+ *
+ * ArchitectureRouteFileTest checks these strings against the catalogue, so a literal
+ * that stops naming a real permission fails a test.
+ */
 Route::prefix('v1')->group(function () use ($groupPattern): void {
     // Public Settings Endpoints (Minimal payload, zero secrets, zero internal flags)
     Route::get('/settings', [SettingApiController::class, 'index'])->name('api.settings.index');
@@ -31,23 +40,23 @@ Route::prefix('v1')->group(function () use ($groupPattern): void {
         ->middleware(['auth:sanctum', 'ability:admin:access', 'active', 'admin', 'email-verified'])
         ->group(function () use ($groupPattern): void {
             Route::get('/', [SettingAdminController::class, 'index'])
-                ->middleware('permission:'.AdminPermission::SETTINGS_VIEW->value)
+                ->middleware('permission:settings.view')
                 ->name('admin.settings.index');
 
             // Declared before the {group} route: the group pattern would otherwise
             // match "definitions" and answer 404 for a group nobody named.
             Route::get('/definitions', [SettingAdminController::class, 'definitions'])
-                ->middleware('permission:'.AdminPermission::SETTINGS_VIEW->value)
+                ->middleware('permission:settings.view')
                 ->name('admin.settings.definitions');
 
             // An operational action rather than a read, and it sends real mail, so it
             // needs the permission that changes configuration rather than the one that
             // looks at it.
             Route::post('/mail/test', [SettingAdminController::class, 'testMail'])
-                ->middleware('permission:'.AdminPermission::SETTINGS_UPDATE->value)
+                ->middleware('permission:settings.update')
                 ->name('admin.settings.mail.test');
             Route::get('/{group}', [SettingAdminController::class, 'show'])
-                ->middleware('permission:'.AdminPermission::SETTINGS_VIEW->value)
+                ->middleware('permission:settings.view')
                 ->where('group', $groupPattern)
                 ->name('admin.settings.show');
             // Updating requires the update permission alone: an administrator who may
@@ -56,7 +65,7 @@ Route::prefix('v1')->group(function () use ($groupPattern): void {
             // refused, which is not a state the seeded roles can express.
             // A deeper path than /{group}, so the group pattern does not swallow it.
             Route::get('/{group}/history', [SettingAdminController::class, 'history'])
-                ->middleware('permission:'.AdminPermission::SETTINGS_VIEW->value)
+                ->middleware('permission:settings.view')
                 ->where('group', $groupPattern)
                 ->name('admin.settings.history');
 
@@ -65,7 +74,7 @@ Route::prefix('v1')->group(function () use ($groupPattern): void {
             // (ADR 0038). Declared before /{group} so the group pattern cannot
             // swallow the deeper path.
             Route::post('/{group}/secrets/{key}/rotate', [SecretAdminController::class, 'rotate'])
-                ->middleware('permission:'.AdminPermission::SETTINGS_SECRETS_MANAGE->value)
+                ->middleware('permission:settings.secrets.manage')
                 ->where('group', $groupPattern)
                 ->where('key', '[a-z][a-z0-9_]{0,49}')
                 ->name('admin.settings.secrets.rotate');
@@ -80,17 +89,17 @@ Route::prefix('v1')->group(function () use ($groupPattern): void {
             // and a read rather than an action: it writes nothing and carries no
             // precondition.
             Route::get('/{group}/rollback/preview', [SettingAdminController::class, 'rollbackPreview'])
-                ->middleware('permission:'.AdminPermission::SETTINGS_ROLLBACK->value)
+                ->middleware('permission:settings.rollback')
                 ->where('group', $groupPattern)
                 ->name('admin.settings.rollback.preview');
 
             Route::post('/{group}/rollback', [SettingAdminController::class, 'rollback'])
-                ->middleware('permission:'.AdminPermission::SETTINGS_ROLLBACK->value)
+                ->middleware('permission:settings.rollback')
                 ->where('group', $groupPattern)
                 ->name('admin.settings.rollback');
 
             Route::put('/{group}', [SettingAdminController::class, 'update'])
-                ->middleware('permission:'.AdminPermission::SETTINGS_UPDATE->value)
+                ->middleware('permission:settings.update')
                 ->where('group', $groupPattern)
                 ->name('admin.settings.update');
         });
