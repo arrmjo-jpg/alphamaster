@@ -18,14 +18,18 @@ browser where a browser is involved.
 
 | | Count |
 | :--- | ---: |
-| GREEN | 21 |
+| GREEN | 24 |
 | YELLOW | 5 |
-| RED | 9 |
+| RED | 10 |
 | GRAY | 4 |
 
-Four rows moved to GREEN on 2026-09-10: phone verification (5), OTP configuration (6),
-translation management (14) and general settings (17). Row 33 moved with them and did
-not improve — see its entry.
+Six rows moved to GREEN on 2026-09-10: phone verification (5), OTP configuration (6),
+translation management (14), general settings (17), and — recording work this branch
+already carries — the visual identity (36) and the two themes (38). Row 33 moved with
+them and did not improve; see its entry.
+
+The counts above are recomputed from the table rather than kept beside it, because the
+previous ones had drifted from what the rows actually said.
 
 The nine RED rows are not evenly weighted. **AI, Firebase, push notifications and
 device registration do not exist in any form** — no module, no table, no setting, no
@@ -101,8 +105,8 @@ else RED is a known, recorded gap with an argument attached.
 | --- | :--- | :---: | :--- |
 | 34 | Dashboard | **GREEN** | Findings derived from published fields only, checks that could not run reported as not run, destinations gated on the permission the target needs. No invented metrics, no decorative charts. |
 | 35 | Admin navigation | **GREEN** | One Settings section over General settings, Users, Roles, Permissions; permission-filtered; direct URLs open their section; drawer at narrow widths. |
-| 36 | Theme / visual branding | **RED** | The current identity is **plum/violet** (`--plum-600: #553461` as the primary action) and is rejected. The brand must be `#335C67`. The token system is a sound three-layer structure, so this is a rebalance rather than a rebuild — but it is not started, and `--teal-600: #445f64` currently serves as the *info* accent and sits close enough to the new brand that the two would collide. |
-| 38 | Dark / light | **YELLOW** | Both themes exist and every screen was verified in both. Contrast has **not** been re-measured for the new brand, because the new brand does not exist yet. |
+| 36 | Theme / visual branding | **GREEN** | `--brand-600` is `#335C67`, and every step of the ramp is that hue at another lightness, so the family reads as one colour. Five named tokens — `--brand`, `--brand-hover`, `--brand-active`, `--brand-subtle`, `--brand-foreground` — sit above the ramp and are what every brand-coloured thing reads, so the identity moves in one place. Chosen by measurement: white on `--brand-600` is 7.32:1, brand on the page ground 6.68:1, and in dark the fill is `--brand-300` carrying `--slate-950` at 10.37:1. Info was a desaturated teal one shade away and would have been the same colour under a different name, so it moved to a true blue at hue 224 — 31° from the brand, 34° from `pending` — and is far more saturated at every step, so the two differ in more than hue. Zero radius throughout; Tajawal for both languages. |
+| 38 | Dark / light | **GREEN** | Both themes, every screen verified in both, and the contrast re-measured for the brand rather than assumed — the three figures are recorded in row 36. The chrome is near-black in both themes, which is why the active navigation rail and the wordmark read `--brand-on-chrome` rather than the page-ground brand: a defect the rebrand inherited and fixed rather than carried. |
 | 39 | Responsive behaviour | **GREEN** | Structural switches rather than CSS hiding, verified at 375 and desktop in both directions with no page-level horizontal overflow. |
 
 ### Out of scope, by record
