@@ -5,7 +5,9 @@ import { useTranslation } from 'react-i18next';
 import { ApiError } from '@/api/errors';
 import { useCurrentUser } from '@/auth/AuthProvider';
 import { cn } from '@/lib/cn';
+import { Announce } from '@/screens/notifications/Announce';
 import { templates as fetchTemplates } from '@/screens/notifications/api';
+import { Inbox } from '@/screens/notifications/Inbox';
 import { PreferenceMatrix } from '@/screens/notifications/PreferenceMatrix';
 import { TemplateDetail } from '@/screens/notifications/TemplateDetail';
 import { Alert } from '@/ui/Alert';
@@ -21,12 +23,14 @@ import { StatusBadge } from '@/ui/StatusBadge';
  * asking. Template wording is what every recipient reads, so it is administrative and
  * behind `notifications.view`, with editing behind `notifications.update`.
  *
- * There is no inbox, and the screen says so rather than leaving a reader to wonder.
- * The platform writes an in-app record for every notification it raises and the
- * `database` channel cannot be silenced, but it publishes no endpoint that reads those
- * records back — so a notification centre listing what an operator has received would
- * be a screen with nothing behind it. When the platform grows one, this is where it
- * goes.
+ * The inbox is here now. It used to be an explanation of an absence — the platform
+ * wrote an in-app record for every notification it raised and published nothing that
+ * read one back — and the endpoint that closes that gap makes this the reader. Like
+ * preferences, it is the caller's own and needs no permission.
+ *
+ * Announcements are the fourth surface and the only one that writes to other people,
+ * so they carry their own permission: correcting the wording of a template and sending
+ * a message to every account are different powers.
  */
 export function NotificationsScreen() {
     const { t } = useTranslation();
@@ -35,6 +39,7 @@ export function NotificationsScreen() {
 
     const mayReadTemplates = viewer.permissions.includes('notifications.view');
     const mayUpdateTemplates = viewer.permissions.includes('notifications.update');
+    const maySend = viewer.permissions.includes('notifications.send');
 
     const templates = useQuery({
         queryKey: ['notification-templates'],
@@ -63,6 +68,16 @@ export function NotificationsScreen() {
                 </p>
                 <PreferenceMatrix />
             </section>
+
+            {maySend ? (
+                <section className="flex min-w-0 flex-col gap-2">
+                    <h2 data-eyebrow>{t('notifications.announce.region')}</h2>
+                    <p className="max-w-prose text-(--text-secondary)">
+                        {t('notifications.announce.intro')}
+                    </p>
+                    <Announce />
+                </section>
+            ) : null}
 
             {mayReadTemplates ? (
                 <section className="flex min-w-0 flex-col gap-2">
@@ -173,13 +188,12 @@ export function NotificationsScreen() {
                 </section>
             ) : null}
 
-            <section className="flex flex-col gap-2">
+            <section className="flex min-w-0 flex-col gap-2">
                 <h2 data-eyebrow>{t('notifications.inbox.region')}</h2>
-                <div className="border border-(--border-default) bg-(--surface-default) p-4">
-                    <p className="max-w-prose text-(--text-secondary)">
-                        {t('notifications.inbox.absent')}
-                    </p>
-                </div>
+                <p className="max-w-prose text-(--text-secondary)">
+                    {t('notifications.inbox.intro')}
+                </p>
+                <Inbox />
             </section>
         </div>
     );
