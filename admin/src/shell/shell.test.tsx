@@ -284,6 +284,7 @@ describe('the navigation tree', () => {
             'integrations',
             'languages',
             'translations',
+            'ai',
             'media',
             'notifications',
             'operations',

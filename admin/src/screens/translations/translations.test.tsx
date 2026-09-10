@@ -90,10 +90,18 @@ function settingsSource(overrides: Record<string, unknown> = {}) {
     };
 }
 
-function renderScreen(sources: unknown[], extra: RequestHandler[] = []) {
+function renderScreen(
+    sources: unknown[],
+    extra: RequestHandler[] = [],
+    proposals: unknown[] = [],
+    permissions: string[] = ['settings.view', 'settings.update'],
+) {
     server.use(
         LANGUAGES,
         HEALTH,
+        http.get('*/api/v1/admin/translations/suggestions', () =>
+            HttpResponse.json({ success: true, data: proposals }),
+        ),
         http.get('*/api/v1/auth/me', () =>
             HttpResponse.json({
                 success: true,
@@ -110,7 +118,7 @@ function renderScreen(sources: unknown[], extra: RequestHandler[] = []) {
                     phone_verified_at: null,
                     abilities: ['admin:access'],
                     roles: [],
-                    permissions: ['settings.view', 'settings.update'],
+                    permissions,
                 },
             }),
         ),
@@ -244,5 +252,153 @@ describe('the translation workshop', () => {
             'dir',
             'ltr',
         );
+    });
+});
+
+/** One proposed translation of the site name into Arabic. */
+function proposal(overrides: Record<string, unknown> = {}) {
+    return {
+        id: '01hzzsuggestion',
+        source: 'settings',
+        item_id: 'general.site_name',
+        field: 'value',
+        locale: 'ar',
+        status: 'ready',
+        status_label: 'AI suggested',
+        source_text: 'AlphaMaster',
+        existing_text: null,
+        suggestion: 'ألفاماستر',
+        error_code: null,
+        error_message: null,
+        completed_at: '2026-09-10T10:00:00+00:00',
+        ...overrides,
+    };
+}
+
+describe('a proposed translation', () => {
+    it('is shown as a proposal and changes nothing until it is accepted', async () => {
+        renderScreen([settingsSource()], [], [proposal()]);
+
+        expect(await screen.findByText('AI suggested')).toBeInTheDocument();
+        expect(screen.getByText('Nothing is saved until you accept.')).toBeInTheDocument();
+
+        // The field is still empty. A suggestion sitting beside it is not a translation,
+        // and an interface that prefilled the field would be asserting otherwise.
+        expect((await screen.findAllByLabelText(/Value · العربية/))[0]).toHaveValue('');
+    });
+
+    it('fills the field when the translator takes it, and still saves nothing', async () => {
+        const sent: unknown[] = [];
+
+        renderScreen(
+            [settingsSource()],
+            [
+                http.post('*/api/v1/admin/translations/suggestions/:id/accept', () => {
+                    sent.push(true);
+
+                    return HttpResponse.json({ success: true, message: 'ok', data: {} });
+                }),
+            ],
+            [proposal()],
+        );
+
+        await userEvent.click(await screen.findByRole('button', { name: 'Use this text' }));
+
+        expect((await screen.findAllByLabelText(/Value · العربية/))[0]).toHaveValue('ألفاماستر');
+        expect(sent).toHaveLength(0);
+    });
+
+    it('sends what is in the field, not what the model said', async () => {
+        const sent: Array<Record<string, unknown>> = [];
+
+        renderScreen(
+            [settingsSource()],
+            [
+                http.post(
+                    '*/api/v1/admin/translations/suggestions/:id/accept',
+                    async ({ request }) => {
+                        sent.push((await request.json()) as Record<string, unknown>);
+
+                        return HttpResponse.json({ success: true, message: 'ok', data: {} });
+                    },
+                ),
+            ],
+            [proposal()],
+        );
+
+        const field = (await screen.findAllByLabelText(/Value · العربية/))[0]!;
+        await userEvent.type(field, 'نصّ من إنسان');
+
+        // The label changes the moment the two differ: "a person wrote this" and "a
+        // person let this through" are different facts about the same row.
+        expect(await screen.findByText('Edited')).toBeInTheDocument();
+
+        await userEvent.click(screen.getByRole('button', { name: 'Accept your version' }));
+
+        expect(sent).toHaveLength(1);
+        expect(sent[0]).toEqual({ text: 'نصّ من إنسان' });
+    });
+
+    it('shows a queued suggestion as waiting rather than as nothing', async () => {
+        renderScreen([settingsSource()], [], [proposal({ status: 'pending', suggestion: null })]);
+
+        expect(await screen.findByText('Waiting for the provider…')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Accept' })).not.toBeInTheDocument();
+    });
+
+    it('shows a failed suggestion with the vendor’s reason', async () => {
+        renderScreen(
+            [settingsSource()],
+            [],
+            [
+                proposal({
+                    status: 'failed',
+                    suggestion: null,
+                    error_code: 'model_not_found',
+                    error_message: 'No such model.',
+                }),
+            ],
+        );
+
+        // A translator who asked for thirty and got twenty-eight needs to know which two
+        // did not arrive, and why.
+        expect(await screen.findByText('This one was not generated.')).toBeInTheDocument();
+        expect(screen.getByText('No such model.')).toBeInTheDocument();
+    });
+
+    it('offers no way to ask without the permission that governs spending', async () => {
+        renderScreen([settingsSource()], [], [], ['settings.view', 'settings.update']);
+
+        expect(await screen.findByText('Site name')).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: /Suggest .* with AI/ }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('asks for a whole language, and says what it skipped', async () => {
+        renderScreen(
+            [settingsSource()],
+            [
+                http.post('*/api/v1/admin/translations/suggestions', () =>
+                    HttpResponse.json({
+                        success: true,
+                        message: 'queued',
+                        data: { queued: 3, skipped: 5 },
+                    }),
+                ),
+            ],
+            [],
+            ['settings.view', 'settings.update', 'ai.use'],
+        );
+
+        await userEvent.click(
+            await screen.findByRole('button', { name: 'Suggest العربية with AI' }),
+        );
+
+        expect(
+            await screen.findByText(
+                'Asked for 3; skipped 5 that were already translated or had nothing to translate from.',
+            ),
+        ).toBeInTheDocument();
     });
 });

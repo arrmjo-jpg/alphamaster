@@ -10,6 +10,7 @@ use App\Modules\Core\Translation\TranslationRegistry;
 use App\Modules\Settings\Backup\SettingsPortability;
 use App\Modules\Settings\Console\SynchroniseSettingsCommand;
 use App\Modules\Settings\Contracts\SettingServiceInterface;
+use App\Modules\Settings\Definitions\Catalogues\AiCatalogue;
 use App\Modules\Settings\Definitions\Catalogues\AuthCatalogue;
 use App\Modules\Settings\Definitions\Catalogues\BrandingCatalogue;
 use App\Modules\Settings\Definitions\Catalogues\GeneralCatalogue;
@@ -135,6 +136,7 @@ class SettingsServiceProvider extends ServiceProvider
             AuthCatalogue::class,
             SecurityCatalogue::class,
             RateLimitCatalogue::class,
+            AiCatalogue::class,
         ];
     }
 

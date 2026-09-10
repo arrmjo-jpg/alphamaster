@@ -90,6 +90,22 @@ enum AdminPermission: string
     case MEDIA_DELETE = 'media.delete';
 
     /**
+     * Ask the platform to generate something (ADR 0044).
+     *
+     * Its own permission because it is its own power: every request costs money on the
+     * operator's account with the vendor, and an administrator entrusted with
+     * correcting a translation is not thereby entrusted with spending on it.
+     *
+     * Distinct from configuring AI, which is `integrations.update` for the vendor and
+     * `settings.update` for the model — the two already exist and already mean the
+     * right thing, so this adds the one power neither of them covers.
+     *
+     * Not a permission to *apply* anything. AI proposes and a person accepts, and
+     * accepting is the owning content's own write permission.
+     */
+    case AI_USE = 'ai.use';
+
+    /**
      * The module that owns this permission.
      */
     public function module(): string
@@ -106,6 +122,7 @@ enum AdminPermission: string
             self::NOTIFICATIONS_VIEW, self::NOTIFICATIONS_UPDATE,
             self::NOTIFICATIONS_SEND => 'notification',
             self::MEDIA_VIEW, self::MEDIA_DELETE => 'media',
+            self::AI_USE => 'integration',
         };
     }
 
