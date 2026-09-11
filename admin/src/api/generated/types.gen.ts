@@ -14,6 +14,28 @@ export type AcceptSuggestionRequest = {
 };
 
 /**
+ * What a connection test asks about.
+ *
+ * With no body, the default provider is tested as saved. Naming a provider tests that
+ * one; adding a key or a model tests the form as it stands, before anything is saved —
+ * the key is used for this one call and never stored.
+ */
+export type AiCheckRequest = {
+    /**
+     * The provider to test, by driver name. Absent means the default provider.
+     */
+    provider?: string | null;
+    /**
+     * A key to test with instead of the stored one. Never stored.
+     */
+    api_key?: string | null;
+    /**
+     * A model to test with instead of the saved one.
+     */
+    model?: string | null;
+};
+
+/**
  * Who an announcement is addressed to. A closed set rather than a query an operator composes, and small on purpose. These are the two audiences the platform can describe without knowing what it is for: everyone who can sign in, and the people who run it. Anything narrower — a department, a cohort, a segment — is a property of an application built on this foundation and not of the foundation (ADR 0033).  Suspended accounts are in neither. A message to an account that cannot sign in is a message nobody will read, and the in-app record is the channel this notification defaults to.
  * | |
  * |---|
@@ -352,6 +374,25 @@ export type RotateSecretRequest = {
 };
 
 /**
+ * One AI provider's configuration, as the setup form submits it.
+ *
+ * The API key is its own named field rather than an entry in a credential map, so an
+ * administrator never needs to know what the driver calls it. Leaving it out keeps the
+ * stored key; it is never read back. Nothing about how the driver reaches the vendor —
+ * an address, a header — is accepted: that belongs to the driver.
+ */
+export type SaveAiProviderRequest = {
+    /**
+     * The vendor's API key. Omit it to keep the key already stored.
+     */
+    api_key?: string | null;
+    /**
+     * The model this provider answers with.
+     */
+    model: string;
+};
+
+/**
  * What a malware scanner concluded, if one ran. NOT_SCANNED exists so the platform never claims a guarantee nobody checked. No antivirus is available in this environment, so the null driver records this rather than CLEAN: a row asserting cleanliness on the strength of a scanner that did not run would be worse than an honest absence.
  *
  */
@@ -644,8 +685,18 @@ export type AdminAiShowResponses = {
                 driver: string;
                 label: string;
                 has_credentials: boolean;
+                model: string;
             } | null;
-            available_drivers: Array<string>;
+            providers: Array<{
+                driver: string;
+                label: string;
+                has_key: boolean;
+                is_default: boolean;
+                model: string | null;
+                effective_model: string;
+                default_model: string;
+                suggested_models: Array<string>;
+            }>;
             last_attempt: {
                 status: string;
                 at: string;
@@ -662,7 +713,7 @@ export type AdminAiShowResponses = {
 export type AdminAiShowResponse = AdminAiShowResponses[keyof AdminAiShowResponses];
 
 export type AdminAiCheckData = {
-    body?: never;
+    body?: AiCheckRequest;
     path?: never;
     query?: never;
     url: '/admin/ai/check';
@@ -678,6 +729,49 @@ export type AdminAiCheckErrors = {
          */
         message: string;
     };
+    /**
+     * Testing an unsaved key or model needs permission to change integrations.
+     */
+    403: {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'FORBIDDEN';
+            message: string;
+            details: null;
+        };
+    };
+    /**
+     * There is no such AI provider.
+     */
+    404: {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'AI_PROVIDER_UNKNOWN';
+            message: string;
+            details: null;
+        };
+    };
+    /**
+     * Validation error
+     */
+    422: {
+        /**
+         * Errors overview.
+         */
+        message: string;
+        /**
+         * A detailed description of each field that failed validation.
+         */
+        errors: {
+            [key: string]: Array<string>;
+        };
+    };
 };
 
 export type AdminAiCheckError = AdminAiCheckErrors[keyof AdminAiCheckErrors];
@@ -689,6 +783,7 @@ export type AdminAiCheckResponses = {
         data: {
             answered: boolean;
             driver: string;
+            model: string | null;
             units: number | null;
             error_code: string | null;
             error_message: string | null;
@@ -697,6 +792,202 @@ export type AdminAiCheckResponses = {
 };
 
 export type AdminAiCheckResponse = AdminAiCheckResponses[keyof AdminAiCheckResponses];
+
+export type AdminAiProvidersSaveData = {
+    body: SaveAiProviderRequest;
+    path: {
+        provider: string;
+    };
+    query?: never;
+    url: '/admin/ai/providers/{provider}';
+};
+
+export type AdminAiProvidersSaveErrors = {
+    /**
+     * Unauthenticated
+     */
+    401: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+    /**
+     * There is no such AI provider.
+     */
+    404: {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'AI_PROVIDER_UNKNOWN';
+            message: string;
+            details: null;
+        };
+    };
+    /**
+     * The provider has no API key stored and none was entered.
+     */
+    422: {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'AI_KEY_REQUIRED';
+            message: string;
+            details: null;
+        };
+    };
+};
+
+export type AdminAiProvidersSaveError = AdminAiProvidersSaveErrors[keyof AdminAiProvidersSaveErrors];
+
+export type AdminAiProvidersSaveResponses = {
+    200: {
+        success: boolean;
+        message: string;
+        data: {
+            driver: string;
+            label: string;
+            has_key: boolean;
+            is_default: boolean;
+            model: string | null;
+            effective_model: string;
+            default_model: string;
+            suggested_models: Array<string>;
+        };
+    };
+};
+
+export type AdminAiProvidersSaveResponse = AdminAiProvidersSaveResponses[keyof AdminAiProvidersSaveResponses];
+
+export type AdminAiProvidersKeyData = {
+    body?: never;
+    path: {
+        provider: string;
+    };
+    query?: never;
+    url: '/admin/ai/providers/{provider}/key';
+};
+
+export type AdminAiProvidersKeyErrors = {
+    /**
+     * Unauthenticated
+     */
+    401: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+    /**
+     * There is no such AI provider.
+     */
+    404: {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'AI_PROVIDER_UNKNOWN';
+            message: string;
+            details: null;
+        };
+    };
+};
+
+export type AdminAiProvidersKeyError = AdminAiProvidersKeyErrors[keyof AdminAiProvidersKeyErrors];
+
+export type AdminAiProvidersKeyResponses = {
+    200: {
+        success: boolean;
+        message: string;
+        data: {
+            driver: string;
+            label: string;
+            has_key: boolean;
+            is_default: boolean;
+            model: string | null;
+            effective_model: string;
+            default_model: string;
+            suggested_models: Array<string>;
+        };
+    };
+};
+
+export type AdminAiProvidersKeyResponse = AdminAiProvidersKeyResponses[keyof AdminAiProvidersKeyResponses];
+
+export type AdminAiProvidersDefaultData = {
+    body?: never;
+    path: {
+        provider: string;
+    };
+    query?: never;
+    url: '/admin/ai/providers/{provider}/default';
+};
+
+export type AdminAiProvidersDefaultErrors = {
+    /**
+     * Unauthenticated
+     */
+    401: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+    /**
+     * There is no such AI provider.
+     */
+    404: {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'AI_PROVIDER_UNKNOWN';
+            message: string;
+            details: null;
+        };
+    };
+    /**
+     * The provider has no API key.
+     */
+    422: {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'AI_PROVIDER_NOT_READY';
+            message: string;
+            details: null;
+        };
+    };
+};
+
+export type AdminAiProvidersDefaultError = AdminAiProvidersDefaultErrors[keyof AdminAiProvidersDefaultErrors];
+
+export type AdminAiProvidersDefaultResponses = {
+    200: {
+        success: boolean;
+        message: string;
+        data: {
+            driver: string;
+            label: string;
+            has_key: boolean;
+            is_default: boolean;
+            model: string | null;
+            effective_model: string;
+            default_model: string;
+            suggested_models: Array<string>;
+        };
+    };
+};
+
+export type AdminAiProvidersDefaultResponse = AdminAiProvidersDefaultResponses[keyof AdminAiProvidersDefaultResponses];
 
 export type AdminNotificationsAnnouncementsStoreData = {
     body: SendAnnouncementRequest;
@@ -1644,6 +1935,16 @@ export type AdminIntegrationsProvidersDefaultErrors = {
              * `code` is contract and is never localized (ADR 0031).
              */
             code: 'PROVIDER_INACTIVE';
+            message: string;
+            details: null;
+        };
+    } | {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'AI_CONFIGURED_IN_CONTROL_CENTRE';
             message: string;
             details: null;
         };

@@ -7,6 +7,7 @@ namespace App\Modules\Integration\Services;
 use App\Modules\Integration\Contracts\AiProviderContract;
 use App\Modules\Integration\Enums\IntegrationCapability;
 use App\Modules\Integration\Services\Ai\AnthropicProvider;
+use App\Modules\Integration\Services\Ai\GeminiProvider;
 use App\Modules\Integration\Services\Ai\OpenAiProvider;
 
 /**
@@ -36,5 +37,10 @@ class AiManager extends ProviderManager
     protected function createAnthropicDriver(): AiProviderContract
     {
         return $this->container->make(AnthropicProvider::class);
+    }
+
+    protected function createGeminiDriver(): AiProviderContract
+    {
+        return $this->container->make(GeminiProvider::class);
     }
 }

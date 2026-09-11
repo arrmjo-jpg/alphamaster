@@ -24,7 +24,9 @@ final readonly class TextGenerationRequest
     /**
      * @param  string  $instruction  the task's prompt; code, never configuration
      * @param  string  $content  the material to work on
-     * @param  string  $model  the vendor's model identifier
+     * @param  string|null  $model  the vendor's model identifier; null means the model saved
+     *                              with the provider that answers, so a task never names a
+     *                              model belonging to a different vendor
      * @param  int  $maxOutputTokens  the ceiling on what may come back
      * @param  float  $temperature  fixed per task, never an operator setting
      * @param  array<string, string>  $context  short labelled facts the prompt refers to
@@ -32,11 +34,27 @@ final readonly class TextGenerationRequest
     public function __construct(
         public string $instruction,
         public string $content,
-        public string $model,
+        public ?string $model = null,
         public int $maxOutputTokens = 512,
         public float $temperature = 0.2,
         public array $context = [],
     ) {}
+
+    /**
+     * The same request, for a named model. Used by the generator once it knows which
+     * provider answers and therefore which model applies.
+     */
+    public function withModel(string $model): self
+    {
+        return new self(
+            $this->instruction,
+            $this->content,
+            $model,
+            $this->maxOutputTokens,
+            $this->temperature,
+            $this->context,
+        );
+    }
 
     /**
      * The instruction with its context appended, as a driver sends it.

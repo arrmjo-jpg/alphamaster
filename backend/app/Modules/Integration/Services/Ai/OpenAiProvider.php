@@ -13,18 +13,39 @@ use App\Modules\Integration\Services\ProviderHttp;
 /**
  * OpenAI's chat completions API, over the HTTP client rather than the vendor SDK.
  *
- * The base URL is a provider setting rather than a constant, because every
- * OpenAI-compatible gateway — Azure's deployment endpoints, a self-hosted proxy, a
- * corporate egress gateway — speaks this shape at a different address. A constant
- * would mean a second driver for what is the same protocol.
+ * The endpoint, the authentication and the wire format belong to the driver, not to
+ * configuration: an administrator sets up OpenAI with a key and a model, and never
+ * with an address or a header (ADR 0044).
  */
 class OpenAiProvider implements AiProviderContract
 {
-    private const DEFAULT_BASE_URL = 'https://api.openai.com/v1';
+    private const BASE_URL = 'https://api.openai.com/v1';
+
+    /**
+     * OpenAI's cost-optimised current chat model, which is what short translations
+     * need. Checked against the vendor's model list on 2026-09-11.
+     *
+     * Chat models only. A reasoning model rejects `max_tokens` and `temperature`, which
+     * this driver sends, so none is suggested — one typed by hand is refused by the
+     * vendor, and the connection test says so before anything is saved.
+     */
+    private const DEFAULT_MODEL = 'gpt-5.6-luna';
+
+    private const SUGGESTED_MODELS = ['gpt-5.6-luna', 'gpt-5.6-terra', 'gpt-5.6-sol'];
 
     public function driver(): string
     {
         return 'openai';
+    }
+
+    public function defaultModel(): string
+    {
+        return self::DEFAULT_MODEL;
+    }
+
+    public function suggestedModels(): array
+    {
+        return self::SUGGESTED_MODELS;
     }
 
     public function generate(TextGenerationRequest $request, IntegrationProvider $provider): TextGenerationResult
@@ -35,16 +56,14 @@ class OpenAiProvider implements AiProviderContract
             return TextGenerationResult::failure(
                 $this->driver(),
                 'MISCONFIGURED',
-                'The OpenAI provider needs an api_key credential.'
+                'The OpenAI provider needs an API key.'
             );
         }
-
-        $base = $this->baseUrl($provider);
 
         try {
             $response = ProviderHttp::client(AiTimeout::seconds())
                 ->withToken($apiKey)
-                ->post($base.'/chat/completions', [
+                ->post(self::BASE_URL.'/chat/completions', [
                     'model' => $request->model,
                     'max_tokens' => $request->maxOutputTokens,
                     'temperature' => $request->temperature,
@@ -85,24 +104,6 @@ class OpenAiProvider implements AiProviderContract
             $this->driver(),
             trim($text),
             is_int($units) ? $units : null
-        );
-    }
-
-    /**
-     * The endpoint to call.
-     *
-     * A provider setting rather than a constant, because every OpenAI-compatible
-     * gateway speaks this protocol at a different address. Blank means the vendor's
-     * own: the row ships with an empty string so an operator can see the field exists,
-     * and an empty string is the absence of a choice rather than a choice of nothing.
-     */
-    private function baseUrl(IntegrationProvider $provider): string
-    {
-        $configured = $provider->settings['base_url'] ?? null;
-
-        return rtrim(
-            is_string($configured) && trim($configured) !== '' ? trim($configured) : self::DEFAULT_BASE_URL,
-            '/'
         );
     }
 }

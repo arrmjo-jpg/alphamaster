@@ -278,8 +278,9 @@ test('every FormRequest still validates', function (): void {
     // lifecycle added the create and update pair, M3-A the announcement, phone
     // verification the request that carries a code, and the translation workshop its
     // write. AI added asking for suggestions and accepting one, push the device
-    // registration, and the language workflow the workshop's query (ADR 0048).
-    expect($requests)->toHaveCount(27);
+    // registration, the language workflow the workshop's query (ADR 0048), and the AI
+    // setup the provider save and the connection test.
+    expect($requests)->toHaveCount(29);
 
     foreach ($requests as $file) {
         $source = (string) file_get_contents($file);

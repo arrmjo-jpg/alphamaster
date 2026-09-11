@@ -4,13 +4,16 @@ declare(strict_types=1);
 
 namespace App\Modules\Integration\Services;
 
+use App\Modules\Core\Ai\ErrorRedactor;
 use App\Modules\Core\Ai\TextGenerationRequest;
 use App\Modules\Core\Ai\TextGenerationResult;
 use App\Modules\Core\Ai\TextGeneratorContract;
+use App\Modules\Integration\Contracts\AiProviderContract;
 use App\Modules\Integration\Enums\UsageStatus;
 use App\Modules\Integration\Exceptions\CredentialDecryptionException;
 use App\Modules\Integration\Models\IntegrationProvider;
 use App\Modules\Integration\Models\IntegrationUsageLog;
+use InvalidArgumentException;
 
 /**
  * Generation through the configured provider, recorded, and with no failover.
@@ -22,8 +25,12 @@ use App\Modules\Integration\Models\IntegrationUsageLog;
  * irreproducible and a quality problem impossible to attribute. An operator who has
  * configured two vendors has expressed a preference, not a redundancy.
  *
- * Selection is unchanged — the provider marked default answers, and changing it in the
- * Admin changes which vendor does. Only the walk-on-failure is gone.
+ * Several providers may be configured at once, each with its own key and model; the one
+ * marked default answers the platform's AI tasks.
+ *
+ * **The model belongs to the provider.** A task may name one; otherwise the model saved
+ * with the answering provider applies, and failing that the driver's own default — so a
+ * provider is never sent another vendor's model.
  *
  * Every attempt is recorded, successful or not, with the units the vendor reported.
  * What is never recorded is the prompt or the answer: a usage log exists to operate
@@ -49,10 +56,22 @@ class TextGenerator implements TextGeneratorContract
             );
         }
 
+        return $this->generateWith($provider, $request);
+    }
+
+    /**
+     * Generate through one named provider — the default for a task, or a provider being
+     * tested before it is saved, which may carry a key and model held only in memory.
+     */
+    public function generateWith(IntegrationProvider $provider, TextGenerationRequest $request): TextGenerationResult
+    {
         $startedAt = hrtime(true);
 
         try {
-            $result = $this->manager->driver($provider->driver)->generate($request, $provider);
+            $result = $this->driverFor($provider)->generate(
+                $request->withModel($this->modelFor($provider, $request->model)),
+                $provider
+            );
         } catch (CredentialDecryptionException $e) {
             // Unreadable credentials are a configuration fault for this provider. With
             // no chain to fall down, it is simply the outcome.
@@ -61,9 +80,48 @@ class TextGenerator implements TextGeneratorContract
             $result = TextGenerationResult::failure($provider->driver, 'DRIVER_ERROR', $e->getMessage());
         }
 
+        // Nothing a vendor said reaches the log, the caller or the Admin until anything
+        // shaped like a secret is out of it — the provider's own key above all, which a
+        // vendor may quote back when it refuses it. Every AI failure passes this point.
+        if (! $result->successful) {
+            $secrets = $this->secretsOf($provider);
+
+            $result = TextGenerationResult::failure(
+                $result->driver,
+                ErrorRedactor::code($result->errorCode, $secrets),
+                ErrorRedactor::message($result->errorMessage, $secrets),
+            );
+        }
+
         $this->record($provider, $result, (int) ((hrtime(true) - $startedAt) / 1_000_000));
 
         return $result;
+    }
+
+    /**
+     * The model a provider answers with: the one a task asked for, else the one saved
+     * with the provider, else the driver's own default.
+     */
+    public function modelFor(IntegrationProvider $provider, ?string $requested = null): string
+    {
+        foreach ([$requested, $provider->settings['model'] ?? null] as $candidate) {
+            if (is_string($candidate) && trim($candidate) !== '') {
+                return trim($candidate);
+            }
+        }
+
+        return $this->driverFor($provider)->defaultModel();
+    }
+
+    public function driverFor(IntegrationProvider $provider): AiProviderContract
+    {
+        $driver = $this->manager->driver($provider->driver);
+
+        if (! $driver instanceof AiProviderContract) {
+            throw new InvalidArgumentException("[{$provider->driver}] is not an AI driver.");
+        }
+
+        return $driver;
     }
 
     /**
@@ -78,6 +136,24 @@ class TextGenerator implements TextGeneratorContract
         $provider = $this->manager->defaultProvider();
 
         return $provider !== null && $provider->hasCredentials();
+    }
+
+    /**
+     * Every credential value this provider holds — including a key being tested before
+     * it is saved — so that none can be quoted back. A key that cannot be decrypted
+     * cannot be quoted either, and the format patterns still apply.
+     *
+     * @return array<int, string>
+     */
+    private function secretsOf(IntegrationProvider $provider): array
+    {
+        try {
+            $credentials = $provider->getCredentials();
+        } catch (CredentialDecryptionException) {
+            return [];
+        }
+
+        return array_values(array_filter($credentials, static fn (mixed $value): bool => is_string($value)));
     }
 
     private function record(IntegrationProvider $provider, TextGenerationResult $result, int $durationMs): void

@@ -2,6 +2,7 @@
 
 * **Status**: Accepted
 * **Date**: 2026-09-10
+* **Amended**: 2026-09-11 — the model belongs to the provider, not to a global setting: each provider keeps its own model (in its `settings`), a task that names none gets the answering provider's, and failing that the driver's default, so one vendor is never sent another's model; `ai.translation_model` is removed and an operator's choice carried onto the provider that used it. Google Gemini joins OpenAI and Anthropic as a third driver. AI providers are set up in the AI control centre with one form — provider, API key, model, test before save — replacing the generic credential editor and its failover priority, which meant nothing for AI. The endpoint, the authentication and the wire format belong to each driver and are not configuration: no base URL is stored or offered, and the name the driver gives its credential is never shown. A provider is ready when it holds a key; there is no separate enabled switch. Several providers may be configured at once, and choosing the default never deactivates the others; the default answers the platform's tasks, and there is still no failover (§3). Saving, removing a key and changing the default are audited without the key.
 
 ## Context
 
@@ -79,6 +80,8 @@ What an operator *does* control: whether the capability is active, which vendor 
 ### 7. Model is per task, not per platform
 
 A cheap fast model is right for a translation suggestion and wrong for something else. `ai.translation_model` rather than `ai.model`, and a new task brings its own key.
+
+*Superseded by the 2026-09-11 amendment: a platform-wide model was sent to whichever provider was the default, so the model now belongs to the provider and `ai.translation_model` is removed. A task may still name a model; none does today.*
 
 The model is a setting rather than a driver constant because it changes on the vendor's schedule, not ours: a model is deprecated with a few months' notice and an operator must be able to move without a deployment.
 

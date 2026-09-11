@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Localization\Jobs;
 
+use App\Modules\Core\Ai\ErrorRedactor;
 use App\Modules\Core\Ai\TextGeneratorContract;
 use App\Modules\Localization\Enums\SuggestionStatus;
 use App\Modules\Localization\Models\Language;
@@ -74,7 +75,8 @@ class GenerateTranslationSuggestion implements ShouldQueue
             from: $from,
             into: $into,
             fieldLabel: $suggestion->field,
-            model: $this->model(),
+            // No model named: the provider that answers uses its own (ADR 0044,
+            // amended), so the job can never send one vendor's model to another.
             maxOutputTokens: $this->maxOutputTokens(),
         ));
 
@@ -115,12 +117,17 @@ class GenerateTranslationSuggestion implements ShouldQueue
         $this->fail($suggestion, 'JOB_FAILED', $exception->getMessage());
     }
 
+    /**
+     * The reason is shown to translators in the workshop. A generator's failure arrives
+     * already clean; an exception caught here does not, so both pass the same filter
+     * before they are kept.
+     */
     private function fail(TranslationSuggestion $suggestion, string $code, string $message): void
     {
         $suggestion->forceFill([
             'status' => SuggestionStatus::FAILED,
-            'error_code' => $code,
-            'error_message' => $message,
+            'error_code' => ErrorRedactor::code($code),
+            'error_message' => ErrorRedactor::message($message, fallback: 'The provider did not answer.'),
             'completed_at' => now(),
         ])->save();
     }
@@ -131,13 +138,6 @@ class GenerateTranslationSuggestion implements ShouldQueue
         $language = Language::query()->where('is_default', true)->first();
 
         return $language;
-    }
-
-    private function model(): string
-    {
-        $configured = setting('ai.translation_model', 'gpt-4o-mini');
-
-        return is_string($configured) && $configured !== '' ? $configured : 'gpt-4o-mini';
     }
 
     private function maxOutputTokens(): int

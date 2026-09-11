@@ -49,7 +49,7 @@ function configuredAi(): IntegrationProvider
     return $provider->refresh();
 }
 
-test('a fresh platform reports AI as unconfigured, with the drivers it could use', function (): void {
+test('a fresh platform reports AI as unconfigured, with the providers it could set up', function (): void {
     $token = tokenWithPermissions(['integrations.view']);
 
     $response = $this->withToken($token)->getJson('/api/v1/admin/ai')->assertOk();
@@ -58,10 +58,10 @@ test('a fresh platform reports AI as unconfigured, with the drivers it could use
         // No provider is *default and active*, which is the honest answer for a
         // platform where an operator has switched nothing on.
         ->and($response->json('data.provider'))->toBeNull()
-        // What is possible, rather than only what somebody has already created: an
-        // operator choosing a vendor should see the choice.
-        ->and($response->json('data.available_drivers'))->toContain('openai')
-        ->and($response->json('data.available_drivers'))->toContain('anthropic');
+        // What can be set up, each with its own state — not a list of rows that reads
+        // like a list of working vendors.
+        ->and(array_column($response->json('data.providers'), 'driver'))->toBe(['openai', 'anthropic', 'gemini'])
+        ->and(array_column($response->json('data.providers'), 'has_key'))->toBe([false, false, false]);
 });
 
 test('an active provider with no credential is reported as selected and unusable', function (): void {

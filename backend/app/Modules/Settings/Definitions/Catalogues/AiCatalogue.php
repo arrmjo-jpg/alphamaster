@@ -11,12 +11,13 @@ use App\Modules\Settings\Enums\SettingType;
 /**
  * What an operator decides about AI, and nothing else.
  *
- * Three settings, and the list is short on purpose. ADR 0044 says what an operator
+ * Two settings, and the list is short on purpose. ADR 0044 says what an operator
  * controls — "whether the capability is active, which vendor and model answer, the
- * per-task ceiling on output size, and the timeout" — and two of those four are
- * already answered elsewhere: activation and vendor are the provider row, exactly as
- * they are for SMS and CAPTCHA. Duplicating them here would give one fact two
- * switches, and the one an operator did not use would be the one that was wrong.
+ * per-task ceiling on output size, and the timeout" — and three of those four are
+ * answered by the provider itself, in the AI control centre: whether it is enabled,
+ * its key, and its model. The model used to be a setting here, and a single global
+ * model was sent to whichever vendor answered — an OpenAI model name to Anthropic. It
+ * now belongs to the provider it works with.
  *
  * What is deliberately absent:
  *
@@ -36,19 +37,6 @@ class AiCatalogue implements SettingCatalogue
     public function definitions(): array
     {
         return [
-            // Per task rather than per platform. A model is deprecated on the vendor's
-            // schedule with a few months' notice, so an operator has to be able to move
-            // without a deployment; and the right model for a short translation is not
-            // the right model for something else, so a second task brings its own key.
-            new SettingDefinition(
-                group: 'ai',
-                key: 'translation_model',
-                type: SettingType::STRING,
-                default: 'gpt-4o-mini',
-                nullable: false,
-                rules: ['string', 'max:100'],
-            ),
-
             // The ceiling on what may come back. A translation of a label is short;
             // without a ceiling a model that misreads the instruction can return an
             // essay, and the operator pays for every token of it.
