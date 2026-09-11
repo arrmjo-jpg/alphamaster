@@ -81,6 +81,20 @@ class IntegrationProviderSeeder extends Seeder
                 'priority' => 0,
             ],
             [
+                // Inactive and credential-less, like every other vendor row. The
+                // credential this one takes is unusual and worth naming: FCM v1
+                // authenticates with a Google service account — a JSON document
+                // containing a private key — rather than an API key, so the Admin's
+                // secret field has to accept a paste rather than a line (ADR 0045 §2).
+                'capability' => IntegrationCapability::PUSH,
+                'driver' => 'fcm',
+                'label' => 'Firebase Cloud Messaging',
+                'settings' => null,
+                'is_active' => false,
+                'is_default' => true,
+                'priority' => 0,
+            ],
+            [
                 'capability' => IntegrationCapability::AI,
                 'driver' => 'anthropic',
                 'label' => 'Anthropic',

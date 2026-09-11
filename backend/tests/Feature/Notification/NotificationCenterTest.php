@@ -205,6 +205,27 @@ test('a security alert cannot be silenced on any channel', function (): void {
         ->and($channels)->toContain(NotificationChannel::MAIL);
 });
 
+test('a mandatory notification can still be added to a channel the recipient chose', function (): void {
+    // The rule is one-directional. Nobody may switch off the message telling them their
+    // account was compromised; somebody asking to receive it on their phone as well is
+    // making the choice the rule exists to protect. This used to be discarded: the
+    // resolver returned the defaults for a mandatory type and ignored every row.
+    NotificationPreference::query()->create([
+        'user_id' => $this->user->id,
+        'type' => NotificationType::SECURITY_ALERT->value,
+        'channel' => NotificationChannel::PUSH->value,
+        'enabled' => true,
+    ]);
+
+    $channels = $this->preferences->channelsFor($this->user, NotificationType::SECURITY_ALERT);
+
+    expect($channels)->toContain(NotificationChannel::PUSH)
+        ->and($channels)->toContain(NotificationChannel::MAIL)
+        ->and($channels)->toContain(NotificationChannel::DATABASE)
+        // And a channel nobody asked for stays off.
+        ->and($channels)->not->toContain(NotificationChannel::SMS);
+});
+
 test('a preference row written before the rules tightened cannot suppress a mandatory notification', function (): void {
     // Force the row the API refuses to create.
     NotificationPreference::query()->create([

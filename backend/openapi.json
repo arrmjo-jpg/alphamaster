@@ -4231,6 +4231,575 @@
                 }
             }
         },
+        "/admin/notifications/devices": {
+            "get": {
+                "operationId": "admin.notifications.devices.index",
+                "description": "Both in one response because the two are read together: a registry of forty\ndevices means nothing if no provider is configured, and a configured provider\nmeans nothing if nobody has registered.",
+                "summary": "The registry, and whether anything could be delivered through it",
+                "tags": [
+                    "PushAdmin"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The capability's own status \u2014 vendor selected, credential held, last answer \u2014\nbeside the registry, because the two are read together: forty devices mean\nnothing if no provider is configured, and a configured provider means nothing\nif nobody has registered.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "configured": {
+                                                    "type": "boolean"
+                                                },
+                                                "provider": {
+                                                    "type": [
+                                                        "object",
+                                                        "null"
+                                                    ],
+                                                    "properties": {
+                                                        "driver": {
+                                                            "type": "string"
+                                                        },
+                                                        "label": {
+                                                            "type": "string"
+                                                        },
+                                                        "has_credentials": {
+                                                            "type": "boolean"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "driver",
+                                                        "label",
+                                                        "has_credentials"
+                                                    ]
+                                                },
+                                                "available_drivers": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "last_attempt": {
+                                                    "type": [
+                                                        "object",
+                                                        "null"
+                                                    ],
+                                                    "properties": {
+                                                        "status": {
+                                                            "type": "string"
+                                                        },
+                                                        "at": {
+                                                            "type": "string"
+                                                        },
+                                                        "error_code": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "error_message": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "duration_ms": {
+                                                            "type": [
+                                                                "integer",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "units": {
+                                                            "type": [
+                                                                "integer",
+                                                                "null"
+                                                            ]
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "status",
+                                                        "at",
+                                                        "error_code",
+                                                        "error_message",
+                                                        "duration_ms",
+                                                        "units"
+                                                    ]
+                                                },
+                                                "recent_failures": {
+                                                    "type": "integer"
+                                                },
+                                                "devices": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "string"
+                                                            },
+                                                            "user_id": {
+                                                                "type": "string"
+                                                            },
+                                                            "platform": {
+                                                                "type": "string"
+                                                            },
+                                                            "platform_label": {
+                                                                "type": "string"
+                                                            },
+                                                            "label": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "token_hint": {
+                                                                "type": "string"
+                                                            },
+                                                            "last_seen_at": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "registered_at": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "stale": {
+                                                                "type": "boolean"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "id",
+                                                            "user_id",
+                                                            "platform",
+                                                            "platform_label",
+                                                            "label",
+                                                            "token_hint",
+                                                            "last_seen_at",
+                                                            "registered_at",
+                                                            "stale"
+                                                        ]
+                                                    }
+                                                },
+                                                "total": {
+                                                    "type": "integer"
+                                                },
+                                                "stale": {
+                                                    "type": "integer"
+                                                }
+                                            },
+                                            "required": [
+                                                "configured",
+                                                "provider",
+                                                "available_drivers",
+                                                "last_attempt",
+                                                "recent_failures",
+                                                "devices",
+                                                "total",
+                                                "stale"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/admin/notifications/devices/{device}": {
+            "delete": {
+                "operationId": "admin.notifications.devices.destroy",
+                "description": "Not a way to stop somebody being notified \u2014 that is what preferences are for, and\na client that is still installed will re-register on its next run. It is for the\nrows that should not be there: a handset that was handed on, a token nothing has\nreached in months.",
+                "summary": "Remove one device from the registry",
+                "tags": [
+                    "PushAdmin"
+                ],
+                "parameters": [
+                    {
+                        "name": "device",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "id": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "id"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "message",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "No device with that identifier.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "error": {
+                                            "type": "object",
+                                            "properties": {
+                                                "code": {
+                                                    "type": "string",
+                                                    "description": "`code` is contract and is never localized (ADR 0031).",
+                                                    "const": "DEVICE_NOT_FOUND"
+                                                },
+                                                "message": {
+                                                    "type": "string"
+                                                },
+                                                "details": {
+                                                    "type": "null"
+                                                }
+                                            },
+                                            "required": [
+                                                "code",
+                                                "message",
+                                                "details"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "error"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/notifications/devices": {
+            "get": {
+                "operationId": "notifications.devices.index",
+                "description": "The registration token is never returned \u2014 it is a delivery address for a\nspecific handset, and anybody holding it could send to that device directly.\nA hint of the last few characters is enough to tell two rows apart.",
+                "summary": "The caller's own devices",
+                "tags": [
+                    "PushDevice"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "string"
+                                                    },
+                                                    "device_id": {
+                                                        "type": "string"
+                                                    },
+                                                    "platform": {
+                                                        "type": "string"
+                                                    },
+                                                    "platform_label": {
+                                                        "type": "string"
+                                                    },
+                                                    "label": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "token_hint": {
+                                                        "type": "string"
+                                                    },
+                                                    "last_seen_at": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "registered_at": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": [
+                                                    "id",
+                                                    "device_id",
+                                                    "platform",
+                                                    "platform_label",
+                                                    "label",
+                                                    "token_hint",
+                                                    "last_seen_at",
+                                                    "registered_at"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            },
+            "post": {
+                "operationId": "notifications.devices.store",
+                "summary": "Register this device, or replace the token it registered with last time",
+                "tags": [
+                    "PushDevice"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RegisterPushDeviceRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "id": {
+                                                    "type": "string"
+                                                },
+                                                "device_id": {
+                                                    "type": "string"
+                                                },
+                                                "platform": {
+                                                    "type": "string"
+                                                },
+                                                "platform_label": {
+                                                    "type": "string"
+                                                },
+                                                "label": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "token_hint": {
+                                                    "type": "string"
+                                                },
+                                                "last_seen_at": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "registered_at": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "id",
+                                                "device_id",
+                                                "platform",
+                                                "platform_label",
+                                                "label",
+                                                "token_hint",
+                                                "last_seen_at",
+                                                "registered_at"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "message",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/notifications/devices/{device}": {
+            "delete": {
+                "operationId": "notifications.devices.destroy",
+                "description": "Scoped to the caller's own rows in the query rather than checked afterwards:\nthat is the whole of the authorization here, so it belongs where it cannot be\nforgotten.",
+                "summary": "Stop delivering to one of the caller's devices",
+                "tags": [
+                    "PushDevice"
+                ],
+                "parameters": [
+                    {
+                        "name": "device",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "id": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "id"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "message",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "The caller has no device with that identifier.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "error": {
+                                            "type": "object",
+                                            "properties": {
+                                                "code": {
+                                                    "type": "string",
+                                                    "description": "`code` is contract and is never localized (ADR 0031).",
+                                                    "const": "DEVICE_NOT_FOUND"
+                                                },
+                                                "message": {
+                                                    "type": "string"
+                                                },
+                                                "details": {
+                                                    "type": "null"
+                                                }
+                                            },
+                                            "required": [
+                                                "code",
+                                                "message",
+                                                "details"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "error"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
         "/admin/roles": {
             "get": {
                 "operationId": "admin.roles.index",
@@ -8115,11 +8684,12 @@
             },
             "NotificationChannel": {
                 "type": "string",
-                "description": "A route a notification can take to a recipient. Only channels the platform can actually deliver on exist here. WhatsApp and push arrive when the Integration capabilities they need do (ADR 0017).\n",
+                "description": "A route a notification can take to a recipient. Only channels the platform can actually deliver on exist here. Push arrived with the Integration capability it needed (ADR 0045); WhatsApp arrives when its own does (ADR 0017).\n| |\n|---|\n| `database` <br/>  |\n| `mail` <br/>  |\n| `sms` <br/>  |\n| `push` <br/> A registered device (ADR 0045). What travels is a type and a record id \u2014 the device fetches the message over the authenticated API, because a push payload passes through Google and Apple and a lock screen is a public surface. |",
                 "enum": [
                     "database",
                     "mail",
-                    "sms"
+                    "sms",
+                    "push"
                 ],
                 "title": "NotificationChannel"
             },
@@ -8244,6 +8814,44 @@
                     "admin.announcement"
                 ],
                 "title": "NotificationType"
+            },
+            "RegisterPushDeviceRequest": {
+                "type": "object",
+                "description": "A device asking to be reachable.",
+                "properties": {
+                    "token": {
+                        "type": "string",
+                        "description": "The vendor's registration token. Long, and lengthened by vendors before\nnow, so the ceiling is generous rather than exact.",
+                        "maxLength": 512
+                    },
+                    "device_id": {
+                        "type": "string",
+                        "description": "Generated and kept by the client. This is what makes a token replaceable\nrather than additive: FCM rotates tokens, and without a stable handle for\nthe handset a rotation leaves two rows and delivers twice.",
+                        "maxLength": 128
+                    },
+                    "platform": {
+                        "type": "string",
+                        "enum": [
+                            "ios",
+                            "android",
+                            "web"
+                        ]
+                    },
+                    "label": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "What a person would recognise in a list of their own devices. Display\nonly, and never trusted for anything else.",
+                        "maxLength": 120
+                    }
+                },
+                "required": [
+                    "token",
+                    "device_id",
+                    "platform"
+                ],
+                "title": "RegisterPushDeviceRequest"
             },
             "RequestSuggestionsRequest": {
                 "type": "object",
@@ -8769,7 +9377,8 @@
                                     "enum": [
                                         "database",
                                         "mail",
-                                        "sms"
+                                        "sms",
+                                        "push"
                                     ]
                                 },
                                 "enabled": {
