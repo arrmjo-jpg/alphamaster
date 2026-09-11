@@ -6,6 +6,7 @@ import { ApiError } from '@/api/errors';
 import { useCurrentUser } from '@/auth/AuthProvider';
 import { cn } from '@/lib/cn';
 import { Announce } from '@/screens/notifications/Announce';
+import { DeviceRegistry } from '@/screens/notifications/DeviceRegistry';
 import { templates as fetchTemplates } from '@/screens/notifications/api';
 import { Inbox } from '@/screens/notifications/Inbox';
 import { PreferenceMatrix } from '@/screens/notifications/PreferenceMatrix';
@@ -68,6 +69,18 @@ export function NotificationsScreen() {
                 </p>
                 <PreferenceMatrix />
             </section>
+
+            {mayReadTemplates ? (
+                <section className="flex min-w-0 flex-col gap-2">
+                    <h2 className="text-(length:--text-lg) text-(--text-primary)">
+                        {t('notifications.devices.title')}
+                    </h2>
+                    <p className="max-w-prose text-(length:--text-sm) text-(--text-secondary)">
+                        {t('notifications.devices.description')}
+                    </p>
+                    <DeviceRegistry mayUpdate={mayUpdateTemplates} />
+                </section>
+            ) : null}
 
             {maySend ? (
                 <section className="flex min-w-0 flex-col gap-2">

@@ -1,6 +1,7 @@
 import { fetchData, request } from '@/api/client';
 import type {
     AdminNotificationsAnnouncementsStoreResponses,
+    AdminNotificationsDevicesIndexResponses,
     AdminNotificationsTemplatesIndexResponses,
     NotificationsIndexResponses,
     NotificationsPreferencesIndexResponses,
@@ -31,6 +32,7 @@ export type Announcement = SendAnnouncementRequest;
 export type AnnouncementOutcome = AdminNotificationsAnnouncementsStoreResponses[200]['data'];
 export type NotificationTemplate = AdminNotificationsTemplatesIndexResponses[200]['data'][number];
 export type TemplateChanges = UpdateNotificationTemplateRequest;
+export type DeviceRegistryState = AdminNotificationsDevicesIndexResponses[200]['data'];
 
 /** One row of the update body, from the contract rather than restated. */
 export type PreferenceChange = {
@@ -160,5 +162,29 @@ export async function announce(body: Announcement): Promise<AnnouncementOutcome>
     return fetchData<AnnouncementOutcome>('/admin/notifications/announcements', {
         method: 'POST',
         body,
+    });
+}
+
+/**
+ * The push capability's status and the device registry, together (ADR 0045).
+ *
+ * Administrative and read-mostly. No registration token comes back — a hint of its
+ * last characters is all the registry publishes.
+ */
+export async function devices(signal?: AbortSignal): Promise<DeviceRegistryState> {
+    return fetchData<DeviceRegistryState>('/admin/notifications/devices', {
+        ...(signal ? { signal } : {}),
+    });
+}
+
+/**
+ * Remove one device from the registry.
+ *
+ * For rows that should not be there. A client that is still installed re-registers on
+ * its next run, so this is not a way to stop somebody being notified — preferences are.
+ */
+export async function forgetDevice(id: string): Promise<void> {
+    await request(`/admin/notifications/devices/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
     });
 }

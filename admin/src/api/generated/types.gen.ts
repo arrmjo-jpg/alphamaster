@@ -207,10 +207,15 @@ export type MfaEnrolRequest = {
 };
 
 /**
- * A route a notification can take to a recipient. Only channels the platform can actually deliver on exist here. WhatsApp and push arrive when the Integration capabilities they need do (ADR 0017).
- *
+ * A route a notification can take to a recipient. Only channels the platform can actually deliver on exist here. Push arrived with the Integration capability it needed (ADR 0045); WhatsApp arrives when its own does (ADR 0017).
+ * | |
+ * |---|
+ * | `database` <br/>  |
+ * | `mail` <br/>  |
+ * | `sms` <br/>  |
+ * | `push` <br/> A registered device (ADR 0045). What travels is a type and a record id — the device fetches the message over the authenticated API, because a push payload passes through Google and Apple and a lock screen is a public surface. |
  */
-export type NotificationChannel = 'database' | 'mail' | 'sms';
+export type NotificationChannel = 'database' | 'mail' | 'sms' | 'push';
 
 export type NotificationRecordResource = {
     id: string;
@@ -249,6 +254,29 @@ export type NotificationTemplateResource = {
  *
  */
 export type NotificationType = 'security.alert' | 'account.updated' | 'admin.announcement';
+
+/**
+ * A device asking to be reachable.
+ */
+export type RegisterPushDeviceRequest = {
+    /**
+     * The vendor's registration token. Long, and lengthened by vendors before
+     * now, so the ceiling is generous rather than exact.
+     */
+    token: string;
+    /**
+     * Generated and kept by the client. This is what makes a token replaceable
+     * rather than additive: FCM rotates tokens, and without a stable handle for
+     * the handset a rotation leaves two rows and delivers twice.
+     */
+    device_id: string;
+    platform: 'ios' | 'android' | 'web';
+    /**
+     * What a person would recognise in a list of their own devices. Display
+     * only, and never trusted for anything else.
+     */
+    label?: string | null;
+};
 
 /**
  * Ask for translations of what is missing in one language.
@@ -482,7 +510,7 @@ export type UpdateLanguageRequest = {
 export type UpdateNotificationPreferencesRequest = {
     preferences: Array<{
         type: 'security.alert' | 'account.updated' | 'admin.announcement';
-        channel: 'database' | 'mail' | 'sms';
+        channel: 'database' | 'mail' | 'sms' | 'push';
         enabled: boolean;
     }>;
 };
@@ -2844,6 +2872,264 @@ export type AuthPhoneVerifyResponses = {
 };
 
 export type AuthPhoneVerifyResponse = AuthPhoneVerifyResponses[keyof AuthPhoneVerifyResponses];
+
+export type AdminNotificationsDevicesIndexData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/admin/notifications/devices';
+};
+
+export type AdminNotificationsDevicesIndexErrors = {
+    /**
+     * Unauthenticated
+     */
+    401: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+};
+
+export type AdminNotificationsDevicesIndexError = AdminNotificationsDevicesIndexErrors[keyof AdminNotificationsDevicesIndexErrors];
+
+export type AdminNotificationsDevicesIndexResponses = {
+    /**
+     * The capability's own status — vendor selected, credential held, last answer —
+     * beside the registry, because the two are read together: forty devices mean
+     * nothing if no provider is configured, and a configured provider means nothing
+     * if nobody has registered.
+     */
+    200: {
+        success: boolean;
+        data: {
+            configured: boolean;
+            provider: {
+                driver: string;
+                label: string;
+                has_credentials: boolean;
+            } | null;
+            available_drivers: Array<string>;
+            last_attempt: {
+                status: string;
+                at: string;
+                error_code: string | null;
+                error_message: string | null;
+                duration_ms: number | null;
+                units: number | null;
+            } | null;
+            recent_failures: number;
+            devices: Array<{
+                id: string;
+                user_id: string;
+                platform: string;
+                platform_label: string;
+                label: string | null;
+                token_hint: string;
+                last_seen_at: string | null;
+                registered_at: string | null;
+                stale: boolean;
+            }>;
+            total: number;
+            stale: number;
+        };
+    };
+};
+
+export type AdminNotificationsDevicesIndexResponse = AdminNotificationsDevicesIndexResponses[keyof AdminNotificationsDevicesIndexResponses];
+
+export type AdminNotificationsDevicesDestroyData = {
+    body?: never;
+    path: {
+        device: string;
+    };
+    query?: never;
+    url: '/admin/notifications/devices/{device}';
+};
+
+export type AdminNotificationsDevicesDestroyErrors = {
+    /**
+     * Unauthenticated
+     */
+    401: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+    /**
+     * No device with that identifier.
+     */
+    404: {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'DEVICE_NOT_FOUND';
+            message: string;
+            details: null;
+        };
+    };
+};
+
+export type AdminNotificationsDevicesDestroyError = AdminNotificationsDevicesDestroyErrors[keyof AdminNotificationsDevicesDestroyErrors];
+
+export type AdminNotificationsDevicesDestroyResponses = {
+    200: {
+        success: boolean;
+        message: string;
+        data: {
+            id: string;
+        };
+    };
+};
+
+export type AdminNotificationsDevicesDestroyResponse = AdminNotificationsDevicesDestroyResponses[keyof AdminNotificationsDevicesDestroyResponses];
+
+export type NotificationsDevicesIndexData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/notifications/devices';
+};
+
+export type NotificationsDevicesIndexErrors = {
+    /**
+     * Unauthenticated
+     */
+    401: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+};
+
+export type NotificationsDevicesIndexError = NotificationsDevicesIndexErrors[keyof NotificationsDevicesIndexErrors];
+
+export type NotificationsDevicesIndexResponses = {
+    200: {
+        success: boolean;
+        data: Array<{
+            id: string;
+            device_id: string;
+            platform: string;
+            platform_label: string;
+            label: string | null;
+            token_hint: string;
+            last_seen_at: string | null;
+            registered_at: string | null;
+        }>;
+    };
+};
+
+export type NotificationsDevicesIndexResponse = NotificationsDevicesIndexResponses[keyof NotificationsDevicesIndexResponses];
+
+export type NotificationsDevicesStoreData = {
+    body: RegisterPushDeviceRequest;
+    path?: never;
+    query?: never;
+    url: '/notifications/devices';
+};
+
+export type NotificationsDevicesStoreErrors = {
+    /**
+     * Unauthenticated
+     */
+    401: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+    /**
+     * Validation error
+     */
+    422: {
+        /**
+         * Errors overview.
+         */
+        message: string;
+        /**
+         * A detailed description of each field that failed validation.
+         */
+        errors: {
+            [key: string]: Array<string>;
+        };
+    };
+};
+
+export type NotificationsDevicesStoreError = NotificationsDevicesStoreErrors[keyof NotificationsDevicesStoreErrors];
+
+export type NotificationsDevicesStoreResponses = {
+    200: {
+        success: boolean;
+        message: string;
+        data: {
+            id: string;
+            device_id: string;
+            platform: string;
+            platform_label: string;
+            label: string | null;
+            token_hint: string;
+            last_seen_at: string | null;
+            registered_at: string | null;
+        };
+    };
+};
+
+export type NotificationsDevicesStoreResponse = NotificationsDevicesStoreResponses[keyof NotificationsDevicesStoreResponses];
+
+export type NotificationsDevicesDestroyData = {
+    body?: never;
+    path: {
+        device: string;
+    };
+    query?: never;
+    url: '/notifications/devices/{device}';
+};
+
+export type NotificationsDevicesDestroyErrors = {
+    /**
+     * Unauthenticated
+     */
+    401: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+    /**
+     * The caller has no device with that identifier.
+     */
+    404: {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'DEVICE_NOT_FOUND';
+            message: string;
+            details: null;
+        };
+    };
+};
+
+export type NotificationsDevicesDestroyError = NotificationsDevicesDestroyErrors[keyof NotificationsDevicesDestroyErrors];
+
+export type NotificationsDevicesDestroyResponses = {
+    200: {
+        success: boolean;
+        message: string;
+        data: {
+            id: string;
+        };
+    };
+};
+
+export type NotificationsDevicesDestroyResponse = NotificationsDevicesDestroyResponses[keyof NotificationsDevicesDestroyResponses];
 
 export type AdminRolesIndexData = {
     body?: never;

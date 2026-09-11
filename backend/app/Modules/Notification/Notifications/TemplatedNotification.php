@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Notification\Notifications;
 
 use App\Modules\Core\Contracts\LocaleResolverInterface;
+use App\Modules\Notification\Channels\PushChannel;
 use App\Modules\Notification\Channels\SmsChannel;
 use App\Modules\Notification\Contracts\PreferenceResolverContract;
 use App\Modules\Notification\Contracts\TemplateRendererContract;
@@ -65,6 +66,7 @@ class TemplatedNotification extends Notification implements ShouldQueue
         return array_map(
             static fn (NotificationChannel $channel): string => match ($channel) {
                 NotificationChannel::SMS => SmsChannel::class,
+                NotificationChannel::PUSH => PushChannel::class,
                 default => $channel->value,
             },
             $channels
@@ -100,6 +102,22 @@ class TemplatedNotification extends Notification implements ShouldQueue
     public function toSms(mixed $notifiable): string
     {
         return $this->render($notifiable)->body;
+    }
+
+    /**
+     * What a push carries: the notification's type, and nothing else.
+     *
+     * Not the rendered subject and not the body. A push payload passes through Google
+     * and Apple, and a lock screen is a public surface — so the device is told which
+     * kind of message arrived and fetches the message itself over the authenticated
+     * API (ADR 0045 §4). The record id travels with it, added by the channel.
+     *
+     * The one visible consequence: a device that is offline when it tries to fetch
+     * shows something generic. That is the right trade.
+     */
+    public function toPush(mixed $notifiable): string
+    {
+        return $this->type->value;
     }
 
     /**

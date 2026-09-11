@@ -130,6 +130,23 @@ function renderScreen(
         http.get('*/api/v1/notifications/preferences', () =>
             HttpResponse.json({ success: true, data: matrix }),
         ),
+        // The devices section renders for anybody who may read templates, so the
+        // registry is served here too; its own behaviour is asserted in devices.test.
+        http.get('*/api/v1/admin/notifications/devices', () =>
+            HttpResponse.json({
+                success: true,
+                data: {
+                    configured: false,
+                    provider: null,
+                    available_drivers: ['fcm'],
+                    last_attempt: null,
+                    recent_failures: 0,
+                    devices: [],
+                    total: 0,
+                    stale: 0,
+                },
+            }),
+        ),
         http.get('*/api/v1/admin/notifications/templates', () =>
             HttpResponse.json({ success: true, data: templates }),
         ),

@@ -351,5 +351,13 @@
     "enum.localization.suggestion_status.ready": "AI suggested",
     "enum.localization.suggestion_status.failed": "Not generated",
     "enum.localization.suggestion_status.accepted": "Accepted",
-    "enum.localization.suggestion_status.dismissed": "Discarded"
+    "enum.localization.suggestion_status.dismissed": "Discarded",
+    "api.notifications.device_registered": "This device will receive notifications.",
+    "api.notifications.device_forgotten": "This device will no longer receive notifications.",
+    "api.error.notifications.device_not_found": "There is no registered device with that identifier.",
+    "enum.integration.integration_capability.push": "Push notifications",
+    "enum.notification.notification_channel.push": "Push",
+    "enum.notification.device_platform.ios": "iPhone or iPad",
+    "enum.notification.device_platform.android": "Android",
+    "enum.notification.device_platform.web": "Browser"
 }
