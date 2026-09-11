@@ -67,8 +67,7 @@
         "/admin/ai": {
             "get": {
                 "operationId": "admin.ai.show",
-                "description": "Answers three separate questions rather than one summary: whether a vendor is\nselected, whether it holds a credential, and whether it last answered. An\ninterface that ran them together would send somebody to fix the wrong thing.",
-                "summary": "What the platform can currently do with AI",
+                "summary": "Every AI provider with its own configuration, and what the platform can currently\ndo: which provider answers, whether it holds a key, and what the last attempt did",
                 "tags": [
                     "AiAdmin"
                 ],
@@ -103,18 +102,64 @@
                                                         },
                                                         "has_credentials": {
                                                             "type": "boolean"
+                                                        },
+                                                        "model": {
+                                                            "type": "string"
                                                         }
                                                     },
                                                     "required": [
                                                         "driver",
                                                         "label",
-                                                        "has_credentials"
+                                                        "has_credentials",
+                                                        "model"
                                                     ]
                                                 },
-                                                "available_drivers": {
+                                                "providers": {
                                                     "type": "array",
                                                     "items": {
-                                                        "type": "string"
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "driver": {
+                                                                "type": "string"
+                                                            },
+                                                            "label": {
+                                                                "type": "string"
+                                                            },
+                                                            "has_key": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "is_default": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "model": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "effective_model": {
+                                                                "type": "string"
+                                                            },
+                                                            "default_model": {
+                                                                "type": "string"
+                                                            },
+                                                            "suggested_models": {
+                                                                "type": "array",
+                                                                "items": {
+                                                                    "type": "string"
+                                                                }
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "driver",
+                                                            "label",
+                                                            "has_key",
+                                                            "is_default",
+                                                            "model",
+                                                            "effective_model",
+                                                            "default_model",
+                                                            "suggested_models"
+                                                        ]
                                                     }
                                                 },
                                                 "last_attempt": {
@@ -170,7 +215,7 @@
                                             "required": [
                                                 "configured",
                                                 "provider",
-                                                "available_drivers",
+                                                "providers",
                                                 "last_attempt",
                                                 "recent_failures"
                                             ]
@@ -193,11 +238,20 @@
         "/admin/ai/check": {
             "post": {
                 "operationId": "admin.ai.check",
-                "description": "A real call with a real cost \u2014 a handful of tokens \u2014 because a health check that\ndid not call the vendor would only re-report the configuration the operator is\nalready looking at. The prompt is fixed here and trivially small: it exists to\nexercise credentials, network and model name, not to be useful.",
-                "summary": "Ask the configured vendor to answer, and report what happened",
+                "description": "With no body, the default provider as saved \u2014 `ai.use`, because it is a real call\nwith a real cost. With a provider named, that provider as saved. With a key or a\nmodel as well, the setup form as it stands before saving \u2014 which also needs\n`integrations.update`, because it is configuring a vendor. A key sent here is used\nfor this one call and never stored.",
+                "summary": "Ask a provider a trivial question and report what happened",
                 "tags": [
                     "AiAdmin"
                 ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AiCheckRequest"
+                            }
+                        }
+                    }
+                },
                 "responses": {
                     "200": {
                         "description": "",
@@ -221,6 +275,12 @@
                                                 "driver": {
                                                     "type": "string"
                                                 },
+                                                "model": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
                                                 "units": {
                                                     "type": [
                                                         "integer",
@@ -243,6 +303,7 @@
                                             "required": [
                                                 "answered",
                                                 "driver",
+                                                "model",
                                                 "units",
                                                 "error_code",
                                                 "error_message"
@@ -253,6 +314,576 @@
                                         "success",
                                         "message",
                                         "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "There is no such AI provider.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "error": {
+                                            "type": "object",
+                                            "properties": {
+                                                "code": {
+                                                    "type": "string",
+                                                    "description": "`code` is contract and is never localized (ADR 0031).",
+                                                    "const": "AI_PROVIDER_UNKNOWN"
+                                                },
+                                                "message": {
+                                                    "type": "string"
+                                                },
+                                                "details": {
+                                                    "type": "null"
+                                                }
+                                            },
+                                            "required": [
+                                                "code",
+                                                "message",
+                                                "details"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "error"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Testing an unsaved key or model needs permission to change integrations.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "error": {
+                                            "type": "object",
+                                            "properties": {
+                                                "code": {
+                                                    "type": "string",
+                                                    "description": "`code` is contract and is never localized (ADR 0031).",
+                                                    "const": "FORBIDDEN"
+                                                },
+                                                "message": {
+                                                    "type": "string"
+                                                },
+                                                "details": {
+                                                    "type": "null"
+                                                }
+                                            },
+                                            "required": [
+                                                "code",
+                                                "message",
+                                                "details"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "error"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/admin/ai/providers/{provider}": {
+            "put": {
+                "operationId": "admin.ai.providers.save",
+                "description": "The key is optional after the first save; leaving it out keeps the stored one. A\nprovider is ready once it holds a key \u2014 there is no separate switch \u2014 and saving\none never touches another. A provider saved while no ready provider is the default\nbecomes the default, so the first provider configured is the one that answers\nwithout a second step.",
+                "summary": "Save one provider's configuration",
+                "tags": [
+                    "AiAdmin"
+                ],
+                "parameters": [
+                    {
+                        "name": "provider",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SaveAiProviderRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "driver": {
+                                                    "type": "string"
+                                                },
+                                                "label": {
+                                                    "type": "string"
+                                                },
+                                                "has_key": {
+                                                    "type": "boolean"
+                                                },
+                                                "is_default": {
+                                                    "type": "boolean"
+                                                },
+                                                "model": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "effective_model": {
+                                                    "type": "string"
+                                                },
+                                                "default_model": {
+                                                    "type": "string"
+                                                },
+                                                "suggested_models": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string"
+                                                    }
+                                                }
+                                            },
+                                            "required": [
+                                                "driver",
+                                                "label",
+                                                "has_key",
+                                                "is_default",
+                                                "model",
+                                                "effective_model",
+                                                "default_model",
+                                                "suggested_models"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "message",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "The provider has no API key stored and none was entered.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "error": {
+                                            "type": "object",
+                                            "properties": {
+                                                "code": {
+                                                    "type": "string",
+                                                    "description": "`code` is contract and is never localized (ADR 0031).",
+                                                    "const": "AI_KEY_REQUIRED"
+                                                },
+                                                "message": {
+                                                    "type": "string"
+                                                },
+                                                "details": {
+                                                    "type": "null"
+                                                }
+                                            },
+                                            "required": [
+                                                "code",
+                                                "message",
+                                                "details"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "error"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "There is no such AI provider.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "error": {
+                                            "type": "object",
+                                            "properties": {
+                                                "code": {
+                                                    "type": "string",
+                                                    "description": "`code` is contract and is never localized (ADR 0031).",
+                                                    "const": "AI_PROVIDER_UNKNOWN"
+                                                },
+                                                "message": {
+                                                    "type": "string"
+                                                },
+                                                "details": {
+                                                    "type": "null"
+                                                }
+                                            },
+                                            "required": [
+                                                "code",
+                                                "message",
+                                                "details"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "error"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/admin/ai/providers/{provider}/key": {
+            "delete": {
+                "operationId": "admin.ai.providers.key",
+                "summary": "Remove a provider's API key. Without a key it cannot answer, so it stops being\nready; every other provider is left as it is. If it was the default, AI stays off\nuntil another provider is made the default or a key is saved again \u2014 nothing is\nswitched over automatically (ADR 0044 \u00a73)",
+                "tags": [
+                    "AiAdmin"
+                ],
+                "parameters": [
+                    {
+                        "name": "provider",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "driver": {
+                                                    "type": "string"
+                                                },
+                                                "label": {
+                                                    "type": "string"
+                                                },
+                                                "has_key": {
+                                                    "type": "boolean"
+                                                },
+                                                "is_default": {
+                                                    "type": "boolean"
+                                                },
+                                                "model": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "effective_model": {
+                                                    "type": "string"
+                                                },
+                                                "default_model": {
+                                                    "type": "string"
+                                                },
+                                                "suggested_models": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string"
+                                                    }
+                                                }
+                                            },
+                                            "required": [
+                                                "driver",
+                                                "label",
+                                                "has_key",
+                                                "is_default",
+                                                "model",
+                                                "effective_model",
+                                                "default_model",
+                                                "suggested_models"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "message",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "There is no such AI provider.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "error": {
+                                            "type": "object",
+                                            "properties": {
+                                                "code": {
+                                                    "type": "string",
+                                                    "description": "`code` is contract and is never localized (ADR 0031).",
+                                                    "const": "AI_PROVIDER_UNKNOWN"
+                                                },
+                                                "message": {
+                                                    "type": "string"
+                                                },
+                                                "details": {
+                                                    "type": "null"
+                                                }
+                                            },
+                                            "required": [
+                                                "code",
+                                                "message",
+                                                "details"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "error"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/admin/ai/providers/{provider}/default": {
+            "post": {
+                "operationId": "admin.ai.providers.default",
+                "summary": "Make a provider the one the platform's AI tasks use. It must hold a key: a default\nthat cannot answer would switch AI off without saying so. The previous default\nkeeps its key and model and stays ready \u2014 only which one answers changes",
+                "tags": [
+                    "AiAdmin"
+                ],
+                "parameters": [
+                    {
+                        "name": "provider",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "driver": {
+                                                    "type": "string"
+                                                },
+                                                "label": {
+                                                    "type": "string"
+                                                },
+                                                "has_key": {
+                                                    "type": "boolean"
+                                                },
+                                                "is_default": {
+                                                    "type": "boolean"
+                                                },
+                                                "model": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "effective_model": {
+                                                    "type": "string"
+                                                },
+                                                "default_model": {
+                                                    "type": "string"
+                                                },
+                                                "suggested_models": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string"
+                                                    }
+                                                }
+                                            },
+                                            "required": [
+                                                "driver",
+                                                "label",
+                                                "has_key",
+                                                "is_default",
+                                                "model",
+                                                "effective_model",
+                                                "default_model",
+                                                "suggested_models"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "message",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "The provider has no API key.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "error": {
+                                            "type": "object",
+                                            "properties": {
+                                                "code": {
+                                                    "type": "string",
+                                                    "description": "`code` is contract and is never localized (ADR 0031).",
+                                                    "const": "AI_PROVIDER_NOT_READY"
+                                                },
+                                                "message": {
+                                                    "type": "string"
+                                                },
+                                                "details": {
+                                                    "type": "null"
+                                                }
+                                            },
+                                            "required": [
+                                                "code",
+                                                "message",
+                                                "details"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "error"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "There is no such AI provider.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "error": {
+                                            "type": "object",
+                                            "properties": {
+                                                "code": {
+                                                    "type": "string",
+                                                    "description": "`code` is contract and is never localized (ADR 0031).",
+                                                    "const": "AI_PROVIDER_UNKNOWN"
+                                                },
+                                                "message": {
+                                                    "type": "string"
+                                                },
+                                                "details": {
+                                                    "type": "null"
+                                                }
+                                            },
+                                            "required": [
+                                                "code",
+                                                "message",
+                                                "details"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "error"
                                     ]
                                 }
                             }
@@ -2294,14 +2925,14 @@
                             }
                         }
                     },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
                     "404": {
                         "$ref": "#/components/responses/ModelNotFoundException"
                     },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
-                    },
-                    "422": {
-                        "$ref": "#/components/responses/ValidationException"
                     }
                 }
             }
@@ -2361,36 +2992,73 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean"
-                                        },
-                                        "error": {
+                                    "anyOf": [
+                                        {
                                             "type": "object",
                                             "properties": {
-                                                "code": {
-                                                    "type": "string",
-                                                    "description": "`code` is contract and is never localized (ADR 0031).",
-                                                    "const": "PROVIDER_INACTIVE"
+                                                "success": {
+                                                    "type": "boolean"
                                                 },
-                                                "message": {
-                                                    "type": "string"
-                                                },
-                                                "details": {
-                                                    "type": "null"
+                                                "error": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "code": {
+                                                            "type": "string",
+                                                            "description": "`code` is contract and is never localized (ADR 0031).",
+                                                            "const": "PROVIDER_INACTIVE"
+                                                        },
+                                                        "message": {
+                                                            "type": "string"
+                                                        },
+                                                        "details": {
+                                                            "type": "null"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "code",
+                                                        "message",
+                                                        "details"
+                                                    ]
                                                 }
                                             },
                                             "required": [
-                                                "code",
-                                                "message",
-                                                "details"
+                                                "success",
+                                                "error"
+                                            ]
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "success": {
+                                                    "type": "boolean"
+                                                },
+                                                "error": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "code": {
+                                                            "type": "string",
+                                                            "description": "`code` is contract and is never localized (ADR 0031).",
+                                                            "const": "AI_CONFIGURED_IN_CONTROL_CENTRE"
+                                                        },
+                                                        "message": {
+                                                            "type": "string"
+                                                        },
+                                                        "details": {
+                                                            "type": "null"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "code",
+                                                        "message",
+                                                        "details"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "success",
+                                                "error"
                                             ]
                                         }
-                                    },
-                                    "required": [
-                                        "success",
-                                        "error"
                                     ]
                                 }
                             }
@@ -8342,6 +9010,38 @@
                 ],
                 "title": "AcceptSuggestionRequest"
             },
+            "AiCheckRequest": {
+                "type": "object",
+                "description": "What a connection test asks about.\n\nWith no body, the default provider is tested as saved. Naming a provider tests that\none; adding a key or a model tests the form as it stands, before anything is saved \u2014\nthe key is used for this one call and never stored.",
+                "properties": {
+                    "provider": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "The provider to test, by driver name. Absent means the default provider.",
+                        "maxLength": 50
+                    },
+                    "api_key": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "A key to test with instead of the stored one. Never stored.",
+                        "maxLength": 500
+                    },
+                    "model": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "A model to test with instead of the saved one.",
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:\\/@-]*$",
+                        "maxLength": 200
+                    }
+                },
+                "title": "AiCheckRequest"
+            },
             "AnnouncementAudience": {
                 "type": "string",
                 "description": "Who an announcement is addressed to. A closed set rather than a query an operator composes, and small on purpose. These are the two audiences the platform can describe without knowing what it is for: everyone who can sign in, and the people who run it. Anything narrower \u2014 a department, a cohort, a segment \u2014 is a property of an application built on this foundation and not of the foundation (ADR 0033).  Suspended accounts are in neither. A message to an account that cannot sign in is a message nobody will read, and the in-app record is the channel this notification defaults to.\n| |\n|---|\n| `everyone` <br/> Every active account, administrators included. |\n| `administrators` <br/> Active administrative accounts only. |",
@@ -9295,6 +9995,30 @@
                     "credential"
                 ],
                 "title": "RotateSecretRequest"
+            },
+            "SaveAiProviderRequest": {
+                "type": "object",
+                "description": "One AI provider's configuration, as the setup form submits it.\n\nThe API key is its own named field rather than an entry in a credential map, so an\nadministrator never needs to know what the driver calls it. Leaving it out keeps the\nstored key; it is never read back. Nothing about how the driver reaches the vendor \u2014\nan address, a header \u2014 is accepted: that belongs to the driver.",
+                "properties": {
+                    "api_key": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "The vendor's API key. Omit it to keep the key already stored.",
+                        "maxLength": 500
+                    },
+                    "model": {
+                        "type": "string",
+                        "description": "The model this provider answers with.",
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:\\/@-]*$",
+                        "maxLength": 200
+                    }
+                },
+                "required": [
+                    "model"
+                ],
+                "title": "SaveAiProviderRequest"
             },
             "ScanStatus": {
                 "type": "string",

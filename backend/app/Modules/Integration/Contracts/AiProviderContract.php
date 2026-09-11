@@ -28,7 +28,26 @@ interface AiProviderContract
     public function driver(): string;
 
     /**
-     * Ask the vendor for text.
+     * The model used when an administrator has not chosen one for this provider.
+     *
+     * One of this vendor's own models, so a provider can never be asked for another
+     * vendor's model by default.
+     */
+    public function defaultModel(): string;
+
+    /**
+     * A short list of this vendor's models to offer in the Admin.
+     *
+     * Suggestions, not a catalogue: vendors rename and retire models on their own
+     * schedule, so the Admin also accepts any model identifier typed by hand.
+     *
+     * @return list<string>
+     */
+    public function suggestedModels(): array;
+
+    /**
+     * Ask the vendor for text. The request's model is always set by the time it
+     * arrives here.
      */
     public function generate(TextGenerationRequest $request, IntegrationProvider $provider): TextGenerationResult;
 }

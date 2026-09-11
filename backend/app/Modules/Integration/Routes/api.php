@@ -54,4 +54,19 @@ Route::prefix('v1/admin/ai')
         Route::post('/check', [AiAdminController::class, 'check'])
             ->middleware('permission:'.AdminPermission::AI_USE->value)
             ->name('admin.ai.check');
+
+        // Setting up a provider is configuring a vendor, so it is the permission that
+        // changes integrations. Each provider keeps its own key and model; saving one
+        // never touches another.
+        Route::put('/providers/{provider}', [AiAdminController::class, 'save'])
+            ->middleware('permission:'.AdminPermission::INTEGRATIONS_UPDATE->value)
+            ->name('admin.ai.providers.save');
+
+        Route::delete('/providers/{provider}/key', [AiAdminController::class, 'removeKey'])
+            ->middleware('permission:'.AdminPermission::INTEGRATIONS_UPDATE->value)
+            ->name('admin.ai.providers.key');
+
+        Route::post('/providers/{provider}/default', [AiAdminController::class, 'makeDefault'])
+            ->middleware('permission:'.AdminPermission::INTEGRATIONS_UPDATE->value)
+            ->name('admin.ai.providers.default');
     });

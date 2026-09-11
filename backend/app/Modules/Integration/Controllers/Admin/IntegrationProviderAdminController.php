@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Integration\Controllers\Admin;
 
 use App\Modules\Core\Controllers\BaseApiController;
+use App\Modules\Integration\Enums\IntegrationCapability;
 use App\Modules\Integration\Models\IntegrationProvider;
 use App\Modules\Integration\Models\IntegrationUsageLog;
 use App\Modules\Integration\Requests\UpdateIntegrationProviderRequest;
@@ -36,6 +37,10 @@ class IntegrationProviderAdminController extends BaseApiController
      */
     public function update(UpdateIntegrationProviderRequest $request, IntegrationProvider $provider): JsonResponse
     {
+        if ($provider->capability === IntegrationCapability::AI) {
+            return $this->configuredInAiControlCentre();
+        }
+
         $validated = $request->validated();
 
         return DB::transaction(function () use ($validated, $provider): JsonResponse {
@@ -67,6 +72,10 @@ class IntegrationProviderAdminController extends BaseApiController
      */
     public function makeDefault(IntegrationProvider $provider): JsonResponse
     {
+        if ($provider->capability === IntegrationCapability::AI) {
+            return $this->configuredInAiControlCentre();
+        }
+
         if (! $provider->is_active) {
             return $this->errorResponse(
                 'PROVIDER_INACTIVE',
@@ -86,6 +95,22 @@ class IntegrationProviderAdminController extends BaseApiController
         });
 
         return $this->successResponse(new IntegrationProviderResource($provider->refresh()), 'Default provider updated.');
+    }
+
+    /**
+     * AI providers have one setup form — provider, API key, model — in the AI control
+     * centre. The generic editor here takes free-form credential names and a failover
+     * priority, neither of which means anything for AI, and a second way to write the
+     * same row is a second way to leave it half configured.
+     */
+    private function configuredInAiControlCentre(): JsonResponse
+    {
+        return $this->errorResponse(
+            'AI_CONFIGURED_IN_CONTROL_CENTRE',
+            'api.error.integration.ai_managed_elsewhere',
+            null,
+            422
+        );
     }
 
     /**

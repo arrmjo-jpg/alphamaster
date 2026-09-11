@@ -74,7 +74,8 @@ class GenerateTranslationSuggestion implements ShouldQueue
             from: $from,
             into: $into,
             fieldLabel: $suggestion->field,
-            model: $this->model(),
+            // No model named: the provider that answers uses its own (ADR 0044,
+            // amended), so the job can never send one vendor's model to another.
             maxOutputTokens: $this->maxOutputTokens(),
         ));
 
@@ -131,13 +132,6 @@ class GenerateTranslationSuggestion implements ShouldQueue
         $language = Language::query()->where('is_default', true)->first();
 
         return $language;
-    }
-
-    private function model(): string
-    {
-        $configured = setting('ai.translation_model', 'gpt-4o-mini');
-
-        return is_string($configured) && $configured !== '' ? $configured : 'gpt-4o-mini';
     }
 
     private function maxOutputTokens(): int

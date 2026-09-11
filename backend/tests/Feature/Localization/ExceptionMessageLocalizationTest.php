@@ -363,7 +363,7 @@ test('every key this scope introduced exists in both dictionaries', function ():
     $keys = array_values(array_filter(
         array_keys($en),
         static fn (string $key): bool => (bool) preg_match(
-            '/^api\.error\.(auth|authorization|media|settings|integration|notification|translations)\./',
+            '/^api\.error\.(auth|authorization|media|settings|integration|notification|translations|ai)\./',
             $key
         )
     ));
@@ -374,8 +374,10 @@ test('every key this scope introduced exists in both dictionaries', function ():
     // invalid-link messages, and the rollback preview the one asking which revision
     // to preview. Phone verification added four, the translation workshop six, and AI two —
     // the scope grew to include those, because a workshop for translations that
-    // refuses in one language only would be a poor joke.
-    expect($keys)->toHaveCount(53);
+    // refuses in one language only would be a poor joke. The AI setup added five of its
+    // own, under a prefix the scope now covers, and the integrations refusal that sends
+    // AI providers to the control centre.
+    expect($keys)->toHaveCount(58);
 
     foreach ($keys as $key) {
         expect($ar)->toHaveKey($key)

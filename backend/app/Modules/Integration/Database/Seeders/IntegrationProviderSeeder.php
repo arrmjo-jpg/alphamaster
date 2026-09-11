@@ -68,14 +68,13 @@ class IntegrationProviderSeeder extends Seeder
                 // relationship to the request, which is worse than no answer when the
                 // answer is a translation somebody may accept.
                 //
-                // `base_url` is a setting rather than a constant because every
-                // OpenAI-compatible gateway — Azure, a proxy, a corporate egress —
-                // speaks this protocol at a different address. Empty means the
-                // vendor's own.
+                // No settings: the endpoint and the authentication belong to the
+                // driver, and the model is written when the provider is set up in the
+                // AI control centre (ADR 0044).
                 'capability' => IntegrationCapability::AI,
                 'driver' => 'openai',
                 'label' => 'OpenAI',
-                'settings' => ['base_url' => ''],
+                'settings' => null,
                 'is_active' => false,
                 'is_default' => true,
                 'priority' => 0,
@@ -98,10 +97,19 @@ class IntegrationProviderSeeder extends Seeder
                 'capability' => IntegrationCapability::AI,
                 'driver' => 'anthropic',
                 'label' => 'Anthropic',
-                'settings' => ['base_url' => ''],
+                'settings' => null,
                 'is_active' => false,
                 'is_default' => false,
                 'priority' => 10,
+            ],
+            [
+                'capability' => IntegrationCapability::AI,
+                'driver' => 'gemini',
+                'label' => 'Google Gemini',
+                'settings' => null,
+                'is_active' => false,
+                'is_default' => false,
+                'priority' => 20,
             ],
         ];
     }

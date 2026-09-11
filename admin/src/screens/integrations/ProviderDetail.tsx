@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { KeyRound, ShieldCheck, ShieldOff, Star, X } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router';
 
 import { ApiError } from '@/api/errors';
 import { absoluteTime, relativeTime } from '@/lib/time';
@@ -59,6 +60,7 @@ export function ProviderDetail({ provider, usage, mayUpdate, onClose }: Provider
     const { t } = useTranslation();
     const { locale } = useDirection();
     const queryClient = useQueryClient();
+    const navigate = useNavigate();
 
     const [label, setLabel] = useState(provider.label);
     const [priority, setPriority] = useState(String(provider.priority));
@@ -193,7 +195,26 @@ export function ProviderDetail({ provider, usage, mayUpdate, onClose }: Provider
                     </dd>
                 </dl>
 
-                {mayUpdate ? (
+                {provider.capability === 'ai' ? (
+                    // AI providers have one setup form — provider, API key, model, test —
+                    // in the AI control centre. The generic editor below asks for
+                    // free-form credential names and a failover priority, neither of
+                    // which means anything for AI, and the API refuses it for AI rows.
+                    <section className="flex flex-col gap-2 border-t border-(--border-default) pt-3">
+                        <p className="text-(length:--text-sm) text-(--text-secondary)">
+                            {t('integrations.aiHandoff')}
+                        </p>
+                        <div>
+                            <Button
+                                onClick={() => void navigate('/ai')}
+                                size="sm"
+                                variant="secondary"
+                            >
+                                {t('integrations.openAi')}
+                            </Button>
+                        </div>
+                    </section>
+                ) : mayUpdate ? (
                     <>
                         <section className="flex flex-col gap-2">
                             <h3 data-eyebrow>{t('integrations.stateSection')}</h3>
