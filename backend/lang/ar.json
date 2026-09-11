@@ -108,6 +108,8 @@
     "audit.action.configuration.exported": "تم تصدير الإعدادات",
     "audit.action.configuration.restored": "تمت استعادة الإعدادات",
     "audit.action.mail.test_sent": "تم اختبار إعداد البريد",
+    "audit.action.integration.provider_updated": "تم تحديث مزوّد تكامل",
+    "audit.action.notification.announcement_sent": "أُرسل إعلان",
     "audit.action.role.created": "تم إنشاء دور",
     "audit.action.role.deleted": "تم حذف دور",
     "audit.action.role.permissions_changed": "تغيّرت صلاحيات دور",

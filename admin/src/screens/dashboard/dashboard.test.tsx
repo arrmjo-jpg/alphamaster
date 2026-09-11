@@ -33,6 +33,7 @@ function provider(overrides: Partial<IntegrationProvider>): IntegrationProvider 
         label: 'Twilio',
         settings: null,
         has_credentials: true,
+        credential_summary: null,
         is_active: true,
         is_default: true,
         priority: 1,

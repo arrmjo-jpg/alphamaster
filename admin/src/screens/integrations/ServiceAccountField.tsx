@@ -4,28 +4,33 @@ import { useTranslation } from 'react-i18next';
 import { Alert } from '@/ui/Alert';
 import { Button } from '@/ui/Button';
 
-/** The three fields FCM v1 needs from a Google service-account document. */
+/** The fields FCM v1 needs from a Google service-account document. */
 const REQUIRED = ['project_id', 'client_email', 'private_key'] as const;
 
 export interface ServiceAccountFieldProps {
     busy: boolean;
-    onSubmit: (credentials: Record<string, string>) => void;
+    /** The platform's refusal of the last submission, where there was one. */
+    error?: string;
+    /** Receives the document exactly as pasted. */
+    onSubmit: (document: string) => void;
     onCancel: () => void;
 }
 
 /**
- * A Google service-account document, pasted whole.
+ * A Google service-account file, pasted whole.
  *
  * Firebase authenticates with a JSON file containing a private key rather than with an
- * API key (ADR 0045 §2), and a private key is multi-line PEM — which the key-value
- * editor's single-line inputs cannot hold without mangling it. So this driver takes a
- * paste of the file, parses it here, and sends only the three fields the driver uses.
+ * API key (ADR 0045 §2). The operator pastes the file as Firebase issued it and the
+ * document is sent as it is: the platform is what validates it and decides what to keep
+ * — the project, the client address and the private key, encrypted — so there is one
+ * definition of a usable service account, not one here and another on the server.
  *
- * Nothing is echoed back. The panel names which of the required fields it found, never
- * their values, and the text is dropped the moment it is sent or cancelled. The key
- * itself is never rendered anywhere but the textarea the operator pasted it into.
+ * What this component checks is only enough to say something useful before sending:
+ * that the text is JSON and names the fields a service account has. It names which of
+ * them it found, never their values, and the key itself is never rendered anywhere but
+ * the textarea the operator pasted it into.
  */
-export function ServiceAccountField({ busy, onSubmit, onCancel }: ServiceAccountFieldProps) {
+export function ServiceAccountField({ busy, error, onSubmit, onCancel }: ServiceAccountFieldProps) {
     const { t } = useTranslation();
     const id = useId();
     const [text, setText] = useState('');
@@ -76,29 +81,19 @@ export function ServiceAccountField({ busy, onSubmit, onCancel }: ServiceAccount
                 </p>
             ) : null}
 
+            {error === undefined ? null : <Alert tone="danger">{error}</Alert>}
+
             <div className="flex flex-wrap gap-2">
                 <Button
                     disabled={parsed === null || missing.length > 0}
                     loading={busy}
-                    onClick={() => {
-                        if (parsed === null) {
-                            return;
-                        }
-
-                        // Only what the driver reads. A service-account file carries a
-                        // dozen other fields, and storing what nothing uses is keeping
-                        // secret material for no reason.
-                        onSubmit({
-                            project_id: parsed.project_id ?? '',
-                            client_email: parsed.client_email ?? '',
-                            private_key: parsed.private_key ?? '',
-                        });
-                        setText('');
-                    }}
+                    // The text stays until the platform accepts it, so a refusal can be
+                    // corrected in place; the panel closes on success and takes it along.
+                    onClick={() => onSubmit(text.trim())}
                     size="sm"
                     variant="primary"
                 >
-                    {t('integrations.credentials.submit')}
+                    {t('integrations.serviceAccount.save')}
                 </Button>
                 <Button
                     onClick={() => {

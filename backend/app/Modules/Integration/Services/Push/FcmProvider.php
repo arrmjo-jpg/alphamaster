@@ -94,6 +94,13 @@ class FcmProvider implements PushProviderContract
                         // said is rendered by the operating system from the payload —
                         // the client decides what a lock screen shows, from the type.
                         'data' => $message->data(),
+                        // Delivery urgency, not content. A data-only message is sent at
+                        // normal priority unless asked otherwise, and Android holds those
+                        // back while a phone dozes — so the client, which renders a
+                        // notification for every push it receives, would learn of it
+                        // minutes late. High is the priority FCM documents for exactly
+                        // this: a message that results in something the user sees.
+                        'android' => ['priority' => 'HIGH'],
                     ],
                 ]);
         } catch (\Throwable $e) {
