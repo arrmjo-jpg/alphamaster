@@ -79,7 +79,7 @@ export function SegmentedControl<T extends string>({
                             'transition-colors duration-100 ease-out',
                             'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-(--focus-ring)',
                             selected
-                                ? 'bg-(--surface-default) text-(--text-primary)'
+                                ? 'bg-(--surface-default) text-(--text-primary) shadow-(--shadow-card)'
                                 : 'text-(--text-secondary) hover:text-(--text-primary)',
                         )}
                         key={option.value}

@@ -27,21 +27,26 @@ function claims(path: string, pathname: string): boolean {
  * signed-in account lacks the permission it named. Nothing in this file knows what
  * any module is.
  *
- * Some of them sit under a section now. A section is a heading with children and no
+ * Some of them sit under a section. A section is a heading with children and no
  * screen of its own — there is nothing at it to navigate to — so it renders as a
  * disclosure rather than a link, and it disappears entirely when the viewer may see
  * none of its children. Grouping is presentation and only presentation: each child
- * keeps its own address, so a bookmark saved before the section existed still opens
- * the same screen, and the router still mounts it whether or not this file ever drew
- * the parent.
+ * keeps its own address, so a bookmark still opens the same screen.
  *
- * Visually it is part of the console rather than a panel beside it: the same
- * near-black surface the sign-in cover uses, in both themes, so the frame stays put
- * while the work inside it changes. The active item is marked by a filled rail on the
- * inline-start edge — the same device the rest of the product uses for state — plus
- * weight and a lighter ground. Three signals, none of them colour alone, and none of
- * them a rounded pill. A section whose child is active carries a receded rail of its
- * own, so a collapsed drawer still says where you are.
+ * Items are blocks inset from the sidebar's edges rather than full-bleed rows, so the
+ * active destination reads as a shape and not only as a colour change. Three states,
+ * each more than a colour:
+ *
+ *   resting   secondary text and a muted icon
+ *   hover     a faint brand wash — the item is answering the pointer
+ *   active    filled with the brand, in white and bold, with a darker brand edge
+ *             on the inline-start side — the one solid block in the sidebar, so it
+ *             is the first thing the eye lands on, and it reads by shape and weight
+ *             as well as colour
+ *
+ * A section whose child is active carries full-strength text of its own, so a
+ * collapsed drawer still says where you are. Children hang from a guide line, which is
+ * what makes a section read as a structure rather than as indented text.
  */
 export function Navigation({ permissions, onNavigate, modules, groups }: NavigationProps) {
     const { t } = useTranslation();
@@ -72,8 +77,8 @@ export function Navigation({ permissions, onNavigate, modules, groups }: Navigat
     }, [activeGroupId]);
 
     return (
-        <nav aria-label={t('shell.navigation')} className="flex flex-col py-3">
-            <p className="px-4 pb-2 text-(--text-on-chrome-muted)" data-eyebrow>
+        <nav aria-label={t('shell.navigation')} className="flex flex-col gap-0.5 px-3 py-5">
+            <p className="px-3 pb-2" data-eyebrow>
                 {t('shell.navigation')}
             </p>
 
@@ -105,6 +110,14 @@ export function Navigation({ permissions, onNavigate, modules, groups }: Navigat
     );
 }
 
+const ITEM = cn(
+    'group relative flex w-full items-center gap-3 text-start',
+    'text-(length:--text-base) transition-colors duration-100 ease-out',
+);
+
+const RESTING =
+    'font-medium text-(--shell-text-muted) hover:bg-(--shell-hover) hover:text-(--shell-text)';
+
 function ModuleLink({
     module,
     onNavigate,
@@ -112,7 +125,7 @@ function ModuleLink({
 }: {
     module: ModuleManifest;
     onNavigate?: () => void;
-    /** A child of a section: indented to sit under its heading, in either direction. */
+    /** A child of a section: indented past the guide line, in either direction. */
     nested?: boolean;
 }) {
     const { t } = useTranslation();
@@ -122,12 +135,9 @@ function ModuleLink({
         <NavLink
             className={({ isActive }) =>
                 cn(
-                    'group relative flex items-center gap-2.5 py-2 pe-3',
-                    nested ? 'ps-9' : 'ps-4',
-                    'text-(length:--text-base) transition-colors duration-100 ease-out',
-                    isActive
-                        ? 'bg-(--surface-chrome-hover) font-bold text-(--text-on-chrome)'
-                        : 'font-normal text-(--text-on-chrome-muted) hover:bg-(--surface-chrome-hover) hover:text-(--text-on-chrome)',
+                    ITEM,
+                    nested ? 'h-9 ps-10 pe-3' : 'h-10 px-3',
+                    isActive ? 'bg-(--nav-active-bg) font-bold text-(--nav-active-text)' : RESTING,
                 )
             }
             onClick={onNavigate}
@@ -139,12 +149,18 @@ function ModuleLink({
                         aria-hidden
                         className={cn(
                             'absolute inset-y-0 start-0 w-(--rail-width)',
-                            isActive
-                                ? 'bg-(--brand-on-chrome)'
-                                : 'bg-transparent group-hover:bg-(--border-chrome)',
+                            isActive ? 'bg-(--nav-active-rail)' : 'bg-transparent',
                         )}
                     />
-                    <Icon aria-hidden className="size-4 shrink-0" />
+                    <Icon
+                        aria-hidden
+                        className={cn(
+                            'size-4 shrink-0',
+                            isActive
+                                ? 'text-(--nav-active-text)'
+                                : 'text-(--text-muted) group-hover:text-(--shell-text)',
+                        )}
+                    />
                     <span className="truncate">{t(module.label)}</span>
                 </>
             )}
@@ -182,39 +198,43 @@ function Group({
                     group: label,
                 })}
                 className={cn(
-                    'group relative flex w-full items-center gap-2.5 py-2 ps-4 pe-3 text-start',
-                    'text-(length:--text-base) transition-colors duration-100 ease-out',
+                    ITEM,
+                    'h-10 px-3',
+                    // A section is never itself the destination, so it takes no wash
+                    // even when a child is active: the filled child below is the one
+                    // that says which screen is open. Full-strength text is enough to
+                    // say the section holds it.
                     holdsActive
-                        ? 'font-bold text-(--text-on-chrome)'
-                        : 'font-normal text-(--text-on-chrome-muted) hover:bg-(--surface-chrome-hover) hover:text-(--text-on-chrome)',
+                        ? 'font-bold text-(--shell-text) hover:bg-(--shell-hover)'
+                        : RESTING,
                 )}
                 onClick={onToggle}
                 type="button"
             >
-                {/* A section is never itself the destination, so its rail is receded
-                    even when a child is active: the filled rail below is the one that
-                    says which screen is open. */}
-                <span
+                <Icon
                     aria-hidden
                     className={cn(
-                        'absolute inset-y-0 start-0 w-(--rail-width)',
+                        'size-4 shrink-0',
                         holdsActive
-                            ? 'bg-(--border-chrome)'
-                            : 'bg-transparent group-hover:bg-(--border-chrome)',
+                            ? 'text-(--text-brand)'
+                            : 'text-(--text-muted) group-hover:text-(--shell-text)',
                     )}
                 />
-                <Icon aria-hidden className="size-4 shrink-0" />
                 <span className="truncate">{label}</span>
                 <ChevronDown
                     aria-hidden
                     className={cn(
-                        'ms-auto size-3.5 shrink-0 transition-transform duration-100 ease-out',
+                        'ms-auto size-4 shrink-0 text-(--text-muted) transition-transform duration-150 ease-out',
                         expanded ? 'rotate-180' : '',
                     )}
                 />
             </button>
 
-            <div hidden={!expanded} id={panelId}>
+            <div
+                className="relative flex flex-col gap-0.5 pb-1 before:absolute before:inset-y-1 before:start-5 before:w-px before:bg-(--shell-border)"
+                hidden={!expanded}
+                id={panelId}
+            >
                 {modules.map((module) => (
                     <ModuleLink
                         key={module.id}
