@@ -7,6 +7,7 @@ namespace App\Modules\Settings\Controllers\Admin;
 use App\Modules\Core\Controllers\BaseApiController;
 use App\Modules\Settings\Concerns\AssertsSettingPrecondition;
 use App\Modules\Settings\Contracts\SettingServiceInterface;
+use App\Modules\Settings\Definitions\SettingRegistry;
 use App\Modules\Settings\Exceptions\UnknownSettingKeyException;
 use App\Modules\Settings\Requests\RotateSecretRequest;
 use App\Modules\Settings\Services\SecretRotationService;
@@ -29,6 +30,7 @@ class SecretAdminController extends BaseApiController
     public function __construct(
         protected SecretRotationService $rotation,
         protected SettingServiceInterface $settingService,
+        protected SettingRegistry $registry,
     ) {}
 
     /**
@@ -62,6 +64,21 @@ class SecretAdminController extends BaseApiController
         if (! $result->permitsCommit()) {
             // 422, and nothing was written. The stored credential is exactly what it
             // was: not cleared, not replaced, not partially applied (ADR 0038).
+            //
+            // One code, two messages. The code stays SECRET_VERIFICATION_FAILED for both
+            // so a client that branches on it keeps working; the message says which
+            // refusal this was, because "not accepted" sends an operator after the
+            // password when the real problem is a setting they have not saved.
+            if ($result->isIncomplete()) {
+                return $this->errorResponse(
+                    'SECRET_VERIFICATION_FAILED',
+                    'api.error.settings.secret_verification_incomplete',
+                    $result->toArray(),
+                    422,
+                    ['settings' => $this->labels($result->missing)],
+                );
+            }
+
             return $this->errorResponse(
                 'SECRET_VERIFICATION_FAILED',
                 'api.error.settings.secret_verification_failed',
@@ -78,5 +95,31 @@ class SecretAdminController extends BaseApiController
             replace: ['key' => $group.'.'.$key],
             meta: ['version' => $version],
         )->header('ETag', '"'.$version.'"');
+    }
+
+    /**
+     * The missing settings, named the way the Settings screen names them.
+     *
+     * Labels rather than references, because the operator reading the message is going
+     * to look for these on a form — "mail.from_address" is an identifier, "From address"
+     * is a field. A reference the catalogue does not know is shown as itself rather
+     * than dropped, so the list is never shorter than the problem.
+     *
+     * @param  list<string>  $references
+     */
+    private function labels(array $references): string
+    {
+        $labels = array_map(
+            fn (string $reference): string => $this->registry->has($reference)
+                ? $this->registry->get($reference)->label()
+                : $reference,
+            $references,
+        );
+
+        // Arabic separates a list with its own comma. Written here rather than as a
+        // translation because it is punctuation, not wording.
+        $separator = str_starts_with(app()->getLocale(), 'ar') ? '، ' : ', ';
+
+        return implode($separator, $labels);
     }
 }
