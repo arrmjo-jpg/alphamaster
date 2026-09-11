@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Modules\Localization\Controllers\Admin\LanguageAdminController;
+use App\Modules\Localization\Controllers\Admin\TranslationSuggestionController;
 use App\Modules\Localization\Controllers\Admin\TranslationWorkshopController;
 use App\Modules\Localization\Controllers\Api\LanguageApiController;
 use Illuminate\Support\Facades\Route;
@@ -38,5 +39,35 @@ Route::prefix('v1')->group(function (): void {
 
             Route::put('/{source}/{id}', [TranslationWorkshopController::class, 'update'])
                 ->name('admin.translations.update');
+        });
+
+    // Proposed translations (ADR 0044).
+    //
+    // Asking carries `ai.use` on the route, because a request costs money on the
+    // operator's account with the vendor and that is a power of its own. Which content
+    // may be proposed for — and read, and accepted — is the owning module's write
+    // permission, asked per source in the controller for the reason the workshop's own
+    // routes give: one endpoint serves several modules' content, and one middleware
+    // could only ever ask one of their questions.
+    //
+    // The permission is a literal, not `AdminPermission::AI_USE`: Localization may not
+    // import Authorization, in a route file any more than in a class, and the
+    // route-file guard reads every `permission:` literal against the catalogue so a
+    // typo still fails a test.
+    Route::prefix('admin/translations/suggestions')
+        ->middleware(['auth:sanctum', 'ability:admin:access', 'active', 'admin', 'email-verified'])
+        ->group(function (): void {
+            Route::get('/', [TranslationSuggestionController::class, 'index'])
+                ->name('admin.translations.suggestions.index');
+
+            Route::post('/', [TranslationSuggestionController::class, 'store'])
+                ->middleware('permission:ai.use')
+                ->name('admin.translations.suggestions.store');
+
+            Route::post('/{suggestion}/accept', [TranslationSuggestionController::class, 'accept'])
+                ->name('admin.translations.suggestions.accept');
+
+            Route::delete('/{suggestion}', [TranslationSuggestionController::class, 'destroy'])
+                ->name('admin.translations.suggestions.destroy');
         });
 });

@@ -2,6 +2,7 @@ import type { LucideIcon } from 'lucide-react';
 import {
     Activity,
     Bell,
+    BrainCircuit,
     CircleUser,
     Languages as LanguagesIcon,
     Globe,
@@ -16,6 +17,7 @@ import {
 import type { ComponentType } from 'react';
 
 import { AccountScreen } from '@/screens/AccountScreen';
+import { AiScreen } from '@/screens/AiScreen';
 import { DashboardScreen } from '@/screens/DashboardScreen';
 import { IntegrationsScreen } from '@/screens/IntegrationsScreen';
 import { LanguagesScreen } from '@/screens/LanguagesScreen';
@@ -172,6 +174,20 @@ export const MODULES: ModuleManifest[] = [
         permission: 'permissions.view',
         order: 45,
         component: PermissionsScreen,
+    },
+    {
+        id: 'ai',
+        path: '/ai',
+        label: 'modules.ai',
+        icon: BrainCircuit,
+        // Reading the state is reading a vendor's configuration, so it is the same
+        // permission the integrations workspace asks for. Running a check needs
+        // `ai.use` and is gated inside the screen — naming that permission here would
+        // hide the whole workspace from an operator who may look and not spend, which
+        // is exactly the operator who most needs to see whether AI is configured.
+        permission: 'integrations.view',
+        order: 55,
+        component: AiScreen,
     },
     {
         id: 'integrations',

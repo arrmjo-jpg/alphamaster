@@ -64,6 +64,206 @@
                 "security": []
             }
         },
+        "/admin/ai": {
+            "get": {
+                "operationId": "admin.ai.show",
+                "description": "Answers three separate questions rather than one summary: whether a vendor is\nselected, whether it holds a credential, and whether it last answered. An\ninterface that ran them together would send somebody to fix the wrong thing.",
+                "summary": "What the platform can currently do with AI",
+                "tags": [
+                    "AiAdmin"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "configured": {
+                                                    "type": "boolean"
+                                                },
+                                                "provider": {
+                                                    "type": [
+                                                        "object",
+                                                        "null"
+                                                    ],
+                                                    "properties": {
+                                                        "driver": {
+                                                            "type": "string"
+                                                        },
+                                                        "label": {
+                                                            "type": "string"
+                                                        },
+                                                        "has_credentials": {
+                                                            "type": "boolean"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "driver",
+                                                        "label",
+                                                        "has_credentials"
+                                                    ]
+                                                },
+                                                "available_drivers": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "last_attempt": {
+                                                    "type": [
+                                                        "object",
+                                                        "null"
+                                                    ],
+                                                    "properties": {
+                                                        "status": {
+                                                            "type": "string"
+                                                        },
+                                                        "at": {
+                                                            "type": "string"
+                                                        },
+                                                        "error_code": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "error_message": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "duration_ms": {
+                                                            "type": [
+                                                                "integer",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "units": {
+                                                            "type": [
+                                                                "integer",
+                                                                "null"
+                                                            ]
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "status",
+                                                        "at",
+                                                        "error_code",
+                                                        "error_message",
+                                                        "duration_ms",
+                                                        "units"
+                                                    ]
+                                                },
+                                                "recent_failures": {
+                                                    "type": "integer"
+                                                }
+                                            },
+                                            "required": [
+                                                "configured",
+                                                "provider",
+                                                "available_drivers",
+                                                "last_attempt",
+                                                "recent_failures"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/admin/ai/check": {
+            "post": {
+                "operationId": "admin.ai.check",
+                "description": "A real call with a real cost \u2014 a handful of tokens \u2014 because a health check that\ndid not call the vendor would only re-report the configuration the operator is\nalready looking at. The prompt is fixed here and trivially small: it exists to\nexercise credentials, network and model name, not to be useful.",
+                "summary": "Ask the configured vendor to answer, and report what happened",
+                "tags": [
+                    "AiAdmin"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "answered": {
+                                                    "type": "boolean"
+                                                },
+                                                "driver": {
+                                                    "type": "string"
+                                                },
+                                                "units": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "error_code": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "error_message": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "answered",
+                                                "driver",
+                                                "units",
+                                                "error_code",
+                                                "error_message"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "message",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
         "/admin/notifications/announcements": {
             "post": {
                 "operationId": "admin.notifications.announcements.store",
@@ -5714,6 +5914,525 @@
                 "security": []
             }
         },
+        "/admin/translations/suggestions": {
+            "get": {
+                "operationId": "admin.translations.suggestions.index",
+                "description": "Includes the failed ones. A translator who asked for thirty and got twenty-eight\nneeds to know which two did not arrive and why, and a list that quietly omitted\nthem would look like the request had been smaller than it was.",
+                "summary": "Every suggestion the caller may see for one language",
+                "tags": [
+                    "TranslationSuggestion"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "string"
+                                                    },
+                                                    "source": {
+                                                        "type": "string"
+                                                    },
+                                                    "item_id": {
+                                                        "type": "string"
+                                                    },
+                                                    "field": {
+                                                        "type": "string"
+                                                    },
+                                                    "locale": {
+                                                        "type": "string"
+                                                    },
+                                                    "status": {
+                                                        "type": "string"
+                                                    },
+                                                    "status_label": {
+                                                        "type": "string"
+                                                    },
+                                                    "source_text": {
+                                                        "type": "string"
+                                                    },
+                                                    "existing_text": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "suggestion": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "error_code": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "error_message": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "completed_at": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": [
+                                                    "id",
+                                                    "source",
+                                                    "item_id",
+                                                    "field",
+                                                    "locale",
+                                                    "status",
+                                                    "status_label",
+                                                    "source_text",
+                                                    "existing_text",
+                                                    "suggestion",
+                                                    "error_code",
+                                                    "error_message",
+                                                    "completed_at"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            },
+            "post": {
+                "operationId": "admin.translations.suggestions.store",
+                "description": "Answers immediately with what was queued. Nothing is generated yet \u2014 a\ngeneration takes seconds and belongs on a queue (ADR 0044 \u00a74) \u2014 so the reply is\nan acknowledgement rather than a result, and the client polls.",
+                "summary": "Ask for translations of what is missing in a language",
+                "tags": [
+                    "TranslationSuggestion"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RequestSuggestionsRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "queued": {
+                                                    "type": "integer"
+                                                },
+                                                "skipped": {
+                                                    "type": "integer"
+                                                }
+                                            },
+                                            "required": [
+                                                "queued",
+                                                "skipped"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "message",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "The language is not served, or no AI provider is configured.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "anyOf": [
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "success": {
+                                                    "type": "boolean"
+                                                },
+                                                "error": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "code": {
+                                                            "type": "string",
+                                                            "description": "`code` is contract and is never localized (ADR 0031).",
+                                                            "const": "UNKNOWN_LOCALE"
+                                                        },
+                                                        "message": {
+                                                            "type": "string"
+                                                        },
+                                                        "details": {
+                                                            "type": "null"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "code",
+                                                        "message",
+                                                        "details"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "success",
+                                                "error"
+                                            ]
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "success": {
+                                                    "type": "boolean"
+                                                },
+                                                "error": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "code": {
+                                                            "type": "string",
+                                                            "description": "`code` is contract and is never localized (ADR 0031).",
+                                                            "const": "AI_NOT_CONFIGURED"
+                                                        },
+                                                        "message": {
+                                                            "type": "string"
+                                                        },
+                                                        "details": {
+                                                            "type": "null"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "code",
+                                                        "message",
+                                                        "details"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "success",
+                                                "error"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/admin/translations/suggestions/{suggestion}/accept": {
+            "post": {
+                "operationId": "admin.translations.suggestions.accept",
+                "description": "The text comes from the request rather than from the row, because the whole point\nis that a person may have edited it before deciding. What is stored is which of\nthose happened: a suggestion accepted unchanged and one a translator rewrote are\ndifferent facts about the same row.",
+                "summary": "Write a suggestion through, as the person accepting it wants it",
+                "tags": [
+                    "TranslationSuggestion"
+                ],
+                "parameters": [
+                    {
+                        "name": "suggestion",
+                        "in": "path",
+                        "required": true,
+                        "description": "The suggestion ID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AcceptSuggestionRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "id": {
+                                                    "type": "string"
+                                                },
+                                                "status": {
+                                                    "type": "string"
+                                                },
+                                                "edited": {
+                                                    "type": "boolean"
+                                                }
+                                            },
+                                            "required": [
+                                                "id",
+                                                "status",
+                                                "edited"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "message",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "409": {
+                        "description": "The translation changed after this suggestion was made.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "error": {
+                                            "type": "object",
+                                            "properties": {
+                                                "code": {
+                                                    "type": "string",
+                                                    "description": "`code` is contract and is never localized (ADR 0031).",
+                                                    "const": "TRANSLATION_MOVED"
+                                                },
+                                                "message": {
+                                                    "type": "string"
+                                                },
+                                                "details": {
+                                                    "type": "null"
+                                                }
+                                            },
+                                            "required": [
+                                                "code",
+                                                "message",
+                                                "details"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "error"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "error": {
+                                            "type": "object",
+                                            "properties": {
+                                                "code": {
+                                                    "type": "string",
+                                                    "description": "`code` is contract and is never localized (ADR 0031).",
+                                                    "const": "FORBIDDEN"
+                                                },
+                                                "message": {
+                                                    "type": "string"
+                                                },
+                                                "details": {
+                                                    "type": "null"
+                                                }
+                                            },
+                                            "required": [
+                                                "code",
+                                                "message",
+                                                "details"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "error"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/admin/translations/suggestions/{suggestion}": {
+            "delete": {
+                "operationId": "admin.translations.suggestions.destroy",
+                "summary": "Discard a suggestion without writing anything",
+                "tags": [
+                    "TranslationSuggestion"
+                ],
+                "parameters": [
+                    {
+                        "name": "suggestion",
+                        "in": "path",
+                        "required": true,
+                        "description": "The suggestion ID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "id": {
+                                                    "type": "string"
+                                                },
+                                                "status": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "id",
+                                                "status"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "message",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "error": {
+                                            "type": "object",
+                                            "properties": {
+                                                "code": {
+                                                    "type": "string",
+                                                    "description": "`code` is contract and is never localized (ADR 0031).",
+                                                    "const": "FORBIDDEN"
+                                                },
+                                                "message": {
+                                                    "type": "string"
+                                                },
+                                                "details": {
+                                                    "type": "null"
+                                                }
+                                            },
+                                            "required": [
+                                                "code",
+                                                "message",
+                                                "details"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "error"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
         "/admin/translations": {
             "get": {
                 "operationId": "admin.translations.index",
@@ -6747,6 +7466,21 @@
             }
         },
         "schemas": {
+            "AcceptSuggestionRequest": {
+                "type": "object",
+                "description": "Accept a proposed translation, as the person accepting it wants it.",
+                "properties": {
+                    "text": {
+                        "type": "string",
+                        "description": "The text comes from the request rather than from the stored suggestion,\nbecause the whole point is that a person may have edited it before\ndeciding. Accepting something the platform did not propose is the normal\ncase, not an edge one.",
+                        "maxLength": 20000
+                    }
+                },
+                "required": [
+                    "text"
+                ],
+                "title": "AcceptSuggestionRequest"
+            },
             "AnnouncementAudience": {
                 "type": "string",
                 "description": "Who an announcement is addressed to. A closed set rather than a query an operator composes, and small on purpose. These are the two audiences the platform can describe without knowing what it is for: everyone who can sign in, and the people who run it. Anything narrower \u2014 a department, a cohort, a segment \u2014 is a property of an application built on this foundation and not of the foundation (ADR 0033).  Suspended accounts are in neither. A message to an account that cannot sign in is a message nobody will read, and the in-app record is the channel this notification defaults to.\n| |\n|---|\n| `everyone` <br/> Every active account, administrators included. |\n| `administrators` <br/> Active administrative accounts only. |",
@@ -7511,6 +8245,40 @@
                 ],
                 "title": "NotificationType"
             },
+            "RequestSuggestionsRequest": {
+                "type": "object",
+                "description": "Ask for translations of what is missing in one language.",
+                "properties": {
+                    "locale": {
+                        "type": "string",
+                        "description": "Checked against the platform's active languages by the controller. The\nshape is all that is asserted here.",
+                        "maxLength": 16
+                    },
+                    "source": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "Narrow to one body of content, or one item within it. Absent means\neverything the caller may write.",
+                        "maxLength": 64
+                    },
+                    "item": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 200
+                    },
+                    "include_translated": {
+                        "type": "boolean",
+                        "description": "Off by default, and deliberately: asking for a language means filling\nthe gaps. Paying a vendor to replace text a person already wrote is a\nrequest an operator makes on purpose."
+                    }
+                },
+                "required": [
+                    "locale"
+                ],
+                "title": "RequestSuggestionsRequest"
+            },
             "RestoreConfigurationRequest": {
                 "type": "object",
                 "properties": {
@@ -7562,7 +8330,8 @@
                                 "notifications.update",
                                 "notifications.send",
                                 "media.view",
-                                "media.delete"
+                                "media.delete",
+                                "ai.use"
                             ]
                         },
                         "maxItems": 100
