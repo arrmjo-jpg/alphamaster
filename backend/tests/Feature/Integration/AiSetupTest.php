@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Modules\Authorization\Database\Seeders\AdminPermissionSeeder;
+use App\Modules\Core\Ai\ErrorRedactor;
 use App\Modules\Core\Ai\TextGenerationRequest;
 use App\Modules\Core\Ai\TextGeneratorContract;
 use App\Modules\Core\Audit\AuditAction;
@@ -10,6 +11,7 @@ use App\Modules\Core\Models\AuditRecord;
 use App\Modules\Integration\Database\Seeders\IntegrationProviderSeeder;
 use App\Modules\Integration\Enums\IntegrationCapability;
 use App\Modules\Integration\Models\IntegrationProvider;
+use App\Modules\Integration\Models\IntegrationUsageLog;
 use App\Modules\Localization\Database\Seeders\LanguageSeeder;
 use App\Modules\Settings\Database\Seeders\SettingSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -270,6 +272,296 @@ test('each provider is called at its vendor’s own address, and a stored addres
     'Google Gemini' => ['gemini', 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent', 'gemini-3.5-flash-lite'],
 ]);
 
+// ── Vendor errors are cleaned before they are kept or shown ─────────────────
+//
+// Keys here are assembled from parts so that the repository's secret scan, which
+// rightly flags a key-shaped literal, does not mistake a fixture for a leak.
+
+test('the redactor keeps the diagnosis and removes every shape a secret takes', function (): void {
+    $key = implode('-', ['sk', 'ant', 'api03', str_repeat('Ab3', 12)]);
+    $google = 'AIza'.str_repeat('Sy9', 10);
+    $token = str_repeat('a1', 20);
+
+    $clean = ErrorRedactor::message(
+        "Refused {$key} with Authorization: Bearer abc.def.ghi, x-api-key: {$key}, "
+        ."url https://example.test/v1?key={$google}&alt=json and token {$token}",
+        [$key]
+    );
+
+    expect($clean)->toContain('Refused')
+        ->toContain('Bearer [redacted]')
+        ->toContain('key=[redacted]')
+        ->not->toContain($key)
+        ->not->toContain('abc.def.ghi')
+        ->not->toContain($google)
+        ->not->toContain($token);
+});
+
+test('a raw body, a private key and an overlong message are not kept as they came', function (): void {
+    // A PEM block of realistic shape — four 64-character lines between the armour —
+    // whose body is plainly not key material. The armour is assembled from parts, like
+    // the keys above, so the repository's secret scan does not read the fixture as a
+    // committed key.
+    $armour = static fn (string $edge): string => "-----{$edge} ".'PRIVATE KEY-----';
+    $pem = implode("\n", [$armour('BEGIN'), ...array_fill(0, 4, str_repeat('FAKE', 16)), $armour('END')]);
+
+    expect(ErrorRedactor::message('{"error":{"message":"boom","api_key":"x"}}'))->toBe('[body omitted]')
+        ->and(ErrorRedactor::message($pem))->toBe('[redacted]')
+        ->and(ErrorRedactor::message("Could not sign the assertion with {$pem}"))->toBe('Could not sign the assertion with [redacted]')
+        ->and(ErrorRedactor::message('<html><body>Bad gateway</body></html>'))->toBe('Bad gateway')
+        ->and(mb_strlen(ErrorRedactor::message(str_repeat('word ', 200))))->toBe(300)
+        ->and(ErrorRedactor::message(''))->toBe('The provider returned an error.')
+        // An ordinary vendor diagnosis passes through untouched.
+        ->and(ErrorRedactor::message('No such model.'))->toBe('No such model.');
+});
+
+test('an error code is an identifier, or a generic one', function (): void {
+    expect(ErrorRedactor::code('invalid_api_key'))->toBe('invalid_api_key')
+        ->and(ErrorRedactor::code('401'))->toBe('401')
+        ->and(ErrorRedactor::code('INVALID_ARGUMENT'))->toBe('INVALID_ARGUMENT')
+        ->and(ErrorRedactor::code('a code with spaces'))->toBe('PROVIDER_ERROR')
+        ->and(ErrorRedactor::code(null))->toBe('PROVIDER_ERROR')
+        ->and(ErrorRedactor::code('sk-'.str_repeat('x9', 10)))->toBe('PROVIDER_ERROR');
+});
+
+test('a vendor that quotes the stored key back is recorded without it', function (string $driver, string $url, array $error, int $status): void {
+    $key = implode('-', ['key', 'for', $driver, str_repeat('Q7w', 8)]);
+
+    IntegrationProvider::query()->forCapability(IntegrationCapability::AI)->update(['is_default' => false]);
+    $row = aiRow($driver);
+    $row->setCredentials(['api_key' => $key]);
+    $row->forceFill(['is_active' => true, 'is_default' => true])->save();
+
+    Http::fake([$url => Http::response([
+        'error' => array_map(fn (string $value): string => str_replace('{key}', $key, $value), $error),
+    ], $status)]);
+
+    $result = app(TextGeneratorContract::class)->generate(new TextGenerationRequest(instruction: 'x', content: 'y'));
+    $logged = IntegrationUsageLog::query()->sole();
+
+    expect($result->successful)->toBeFalse()
+        ->and($result->errorMessage)->toContain('[redacted]');
+
+    foreach ([(string) $result->errorMessage, (string) $logged->error_message, (string) $logged->error_code] as $text) {
+        expect($text)->not->toContain($key)
+            ->not->toContain(substr($key, 0, 8))
+            ->not->toContain(substr($key, -6));
+    }
+})->with([
+    'OpenAI' => ['openai', 'api.openai.com/*', ['code' => 'invalid_api_key', 'message' => 'Incorrect API key provided: {key}.'], 401],
+    'Anthropic' => ['anthropic', 'api.anthropic.com/*', ['type' => 'authentication_error', 'message' => 'invalid x-api-key {key}'], 401],
+    'Google Gemini' => ['gemini', 'generativelanguage.googleapis.com/*', ['status' => 'INVALID_ARGUMENT', 'message' => 'API key not valid: {key}'], 400],
+]);
+
+test('an unsaved key the vendor quotes back is never shown in the Admin', function (): void {
+    $typed = implode('-', ['sk', 'proj', str_repeat('Vx4', 12)]);
+
+    // OpenAI's own habit: the first characters and the last four around a mask — and,
+    // for good measure, the whole key in a quoted header.
+    Http::fake(['api.openai.com/*' => Http::response(['error' => [
+        'code' => 'invalid_api_key',
+        'message' => 'Incorrect API key provided: '.substr($typed, 0, 8).str_repeat('*', 24).substr($typed, -4)
+            .'. Sent as Authorization: Bearer '.$typed.'.',
+    ]], 401)]);
+
+    $token = tokenWithPermissions(CONFIGURE);
+
+    $check = $this->withToken($token)->postJson('/api/v1/admin/ai/check', [
+        'provider' => 'openai',
+        'api_key' => $typed,
+        'model' => 'gpt-5.6-luna',
+    ])
+        ->assertOk()
+        ->assertJsonPath('data.answered', false)
+        ->assertJsonPath('data.error_code', 'invalid_api_key');
+
+    // The diagnosis survives; the key does not.
+    expect($check->json('data.error_message'))->toStartWith('Incorrect API key provided: [redacted]');
+
+    $shown = [
+        $check->content(),
+        $this->withToken($token)->getJson('/api/v1/admin/ai')->assertOk()->content(),
+        $this->withToken($token)->getJson('/api/v1/admin/integrations/usage')->assertOk()->content(),
+        (string) IntegrationUsageLog::query()->sole()->error_message,
+    ];
+
+    foreach ($shown as $text) {
+        expect($text)->not->toContain($typed)
+            ->not->toContain(substr($typed, -4))
+            ->not->toContain('****');
+    }
+
+    expect(aiRow('openai')->hasCredentials())->toBeFalse();
+});
+
+// ── The provider's own key, where no pattern would find it ──────────────────
+//
+// Every key above carries a prefix or a length the generic rules recognise, so none of
+// them proves that the provider's credentials reach the redactor. These do: a key
+// shorter than the long-token rule, with no vendor prefix, generated at run time so
+// that no key-shaped literal sits in the repository.
+
+function patternFreeKey(string $seed): string
+{
+    return 'vault-'.substr(hash('sha256', $seed), 0, 18);
+}
+
+test('the provider’s own key is redacted where no generic pattern would find it', function (string $driver, string $url, string $codeField, string $code, int $status): void {
+    $key = patternFreeKey($driver);
+    $masked = substr($key, 0, 8).'...'.substr($key, -6);
+    $quote = "Key {$key} was rejected; it was also seen as {$masked}.";
+
+    // The control: without the provider's credentials the generic rules leave this key
+    // alone, so only the credential-aware path can remove it.
+    expect(strlen($key))->toBeLessThan(32)
+        ->and(ErrorRedactor::message($quote))->toContain($key)->toContain($masked);
+
+    IntegrationProvider::query()->forCapability(IntegrationCapability::AI)->update(['is_default' => false]);
+    $row = aiRow($driver);
+    $row->setCredentials(['api_key' => $key]);
+    $row->forceFill(['is_active' => true, 'is_default' => true])->save();
+
+    Http::fake([$url => Http::response(['error' => [$codeField => $code, 'message' => $quote]], $status)]);
+
+    $result = app(TextGeneratorContract::class)->generate(new TextGenerationRequest(instruction: 'x', content: 'y'));
+    $logged = IntegrationUsageLog::query()->sole();
+
+    $expected = 'Key [redacted] was rejected; it was also seen as [redacted]...[redacted].';
+
+    expect($result->successful)->toBeFalse()
+        ->and($result->errorCode)->toBe($code)
+        ->and($result->errorMessage)->toBe($expected)
+        ->and($logged->error_message)->toBe($expected);
+})->with([
+    'OpenAI' => ['openai', 'api.openai.com/*', 'code', 'invalid_api_key', 401],
+    'Anthropic' => ['anthropic', 'api.anthropic.com/*', 'type', 'authentication_error', 401],
+    'Google Gemini' => ['gemini', 'generativelanguage.googleapis.com/*', 'status', 'INVALID_ARGUMENT', 400],
+]);
+
+test('an Admin test shows the diagnosis without the key the vendor quoted, saved or not', function (): void {
+    $saved = patternFreeKey('saved');
+    $typed = patternFreeKey('typed');
+
+    // The vendor quotes back whatever key it received — in full, and as its first and
+    // last characters.
+    Http::fake(['api.openai.com/*' => function ($request) {
+        $sent = substr((string) $request->header('Authorization')[0], strlen('Bearer '));
+
+        return Http::response(['error' => [
+            'code' => 'invalid_api_key',
+            'message' => "Key {$sent} was rejected; also seen as ".substr($sent, 0, 8).'...'.substr($sent, -6).'.',
+        ]], 401);
+    }]);
+
+    $token = tokenWithPermissions(CONFIGURE);
+    setUpProvider($this, $token, 'openai', ['api_key' => $saved, 'model' => 'gpt-5.6-luna'])->assertOk();
+
+    $expected = 'Key [redacted] was rejected; also seen as [redacted]...[redacted].';
+
+    // The saved key, tested by name…
+    $this->withToken($token)->postJson('/api/v1/admin/ai/check', ['provider' => 'openai'])
+        ->assertOk()
+        ->assertJsonPath('data.error_message', $expected);
+
+    // …and a key typed into the form and never saved.
+    $this->withToken($token)->postJson('/api/v1/admin/ai/check', [
+        'provider' => 'openai',
+        'api_key' => $typed,
+        'model' => 'gpt-5.6-luna',
+    ])
+        ->assertOk()
+        ->assertJsonPath('data.error_message', $expected);
+
+    $shown = [
+        $this->withToken($token)->getJson('/api/v1/admin/ai')->assertOk()->content(),
+        $this->withToken($token)->getJson('/api/v1/admin/integrations/usage')->assertOk()->content(),
+        (string) json_encode(IntegrationUsageLog::query()->pluck('error_message')->all()),
+    ];
+
+    foreach ($shown as $text) {
+        foreach ([$saved, $typed] as $key) {
+            expect($text)->not->toContain($key)
+                ->not->toContain(substr($key, 0, 8))
+                ->not->toContain(substr($key, -6));
+        }
+    }
+
+    // The typed key was used for one call and not kept.
+    expect(aiRow('openai')->getCredentials())->toBe(['api_key' => $saved]);
+});
+
+// ── A credential is not a model ─────────────────────────────────────────────
+
+test('a model ID shaped like a credential is refused, and nothing is stored or sent', function (string $pasted): void {
+    Http::fake();
+    $token = tokenWithPermissions(CONFIGURE);
+
+    $saved = setUpProvider($this, $token, 'openai', ['api_key' => 'sk-1', 'model' => $pasted])
+        ->assertStatus(422)
+        ->assertJsonPath('error.code', 'VALIDATION_ERROR');
+
+    $tested = $this->withToken($token)->postJson('/api/v1/admin/ai/check', ['provider' => 'openai', 'model' => $pasted])
+        ->assertStatus(422)
+        ->assertJsonPath('error.code', 'VALIDATION_ERROR');
+
+    foreach ([$saved, $tested] as $response) {
+        // Says what went wrong without repeating what was typed.
+        expect($response->content())->toContain('looks like an API key')
+            ->not->toContain($pasted);
+    }
+
+    expect(aiRow('openai')->settings)->toBeNull()
+        ->and(aiRow('openai')->hasCredentials())->toBeFalse();
+
+    Http::assertNothingSent();
+})->with([
+    'an OpenAI key' => [implode('-', ['sk', 'proj', str_repeat('Mq4', 10)])],
+    'an Anthropic key' => [implode('-', ['sk', 'ant', 'api03', str_repeat('Lw8', 10)])],
+    'a Google key' => ['AIza'.str_repeat('Rt7', 12)],
+    'a named credential' => [implode(':', ['api_key', str_repeat('z9', 6)])],
+]);
+
+test('ordinary model IDs, including long and qualified ones, are still accepted', function (string $model): void {
+    setUpProvider($this, tokenWithPermissions(CONFIGURE), 'openai', ['api_key' => 'sk-1', 'model' => $model])->assertOk();
+
+    expect(aiRow('openai')->settings)->toBe(['model' => $model]);
+})->with([
+    'gpt-5.6-terra',
+    'claude-haiku-4-5',
+    'gemini-3.5-flash-lite',
+    'models/gemini-2.5-pro',
+    'gpt-4o-mini-search-preview-2025-03-11',
+    'ft:gpt-4o-mini-2024-07-18:acme:support:9aBcD1eF',
+    'claude-3-5-sonnet@20241022',
+    'anthropic.claude-3-5-sonnet-20241022-v2:0',
+]);
+
+// ── Authorization values, whatever the scheme ───────────────────────────────
+
+test('an Authorization value is removed whatever its scheme', function (string $message, string $clean): void {
+    expect(ErrorRedactor::message($message))->toBe($clean);
+})->with([
+    'Bearer' => ['Rejected Authorization: Bearer abc.def.ghi for this project.', 'Rejected Authorization: Bearer [redacted] for this project.'],
+    'Basic' => ['Rejected Authorization: Basic dXNlcjpwYXNz for this project.', 'Rejected Authorization: Basic [redacted] for this project.'],
+    'Token' => ['Rejected Authorization: Token 9f86d081884c7d65 for this project.', 'Rejected Authorization: Token [redacted] for this project.'],
+    'Digest' => [
+        'Rejected Authorization: Digest username="svc", realm="api", nonce="dcd98b71", response="6629fae4" for this project.',
+        'Rejected Authorization: Digest [redacted] for this project.',
+    ],
+    'Negotiate, as a proxy header' => ['Rejected Proxy-Authorization: Negotiate YIIHwgYGKwYB for this project.', 'Rejected Proxy-Authorization: Negotiate [redacted] for this project.'],
+    'a quoted header' => ['Sent "authorization": "Basic dXNlcjpwYXNz", then refused.', 'Sent "authorization": "Basic [redacted]", then refused.'],
+    'an unregistered scheme' => ['Rejected Authorization: Custom abc123def456 for this project.', 'Rejected Authorization: [redacted] [redacted] for this project.'],
+    'no scheme at all' => ['Rejected Authorization: 9f86d081884c7d65 for this project.', 'Rejected Authorization: [redacted] for this project.'],
+]);
+
+test('text that only mentions authorization is left alone', function (string $message): void {
+    expect(ErrorRedactor::message($message))->toBe($message);
+})->with([
+    'Authorization header is missing.',
+    'The authorization failed for this project.',
+    'Check your authorization settings: they are incomplete.',
+]);
+
 // ── Gemini ───────────────────────────────────────────────────────────────────
 
 test('Gemini is asked in its own shape, and its answer is read across parts', function (): void {
@@ -386,8 +678,14 @@ test('the default is chosen explicitly, and must be able to answer', function ()
 
     expect(aiRow('anthropic')->is_default)->toBeFalse()
         ->and(aiRow('anthropic')->is_active)->toBeTrue()
-        ->and(AuditRecord::query()->where('action', AuditAction::AI_DEFAULT_CHANGED)->sole()->context)
-        ->toBe(['provider' => 'openai', 'previous' => 'anthropic']);
+        ->and(AuditRecord::query()->where('action', AuditAction::AI_DEFAULT_CHANGED)->orderBy('id')->pluck('context')->all())
+        ->toBe([
+            // Anthropic, saved first, took the default from the keyless seeded row —
+            // implicitly, and still recorded as the change it is…
+            ['previous_default' => 'openai', 'default' => 'anthropic'],
+            // …and OpenAI took it explicitly.
+            ['previous_default' => 'anthropic', 'default' => 'openai'],
+        ]);
 
     $this->withToken($token)->postJson('/api/v1/admin/ai/providers/gemini/default')
         ->assertStatus(422)
@@ -456,12 +754,15 @@ test('every save is recorded with what changed, and the key never is', function 
     expect($records)->toHaveCount(3)
         ->and($records[0]->context)->toBe([
             'provider' => 'openai',
+            'previous_model' => null,
             'model' => 'gpt-5.6-luna',
             'key' => 'set',
             'is_default' => true,
         ])
         ->and($records[1]->context['key'])->toBe('replaced')
+        // A change of model reads as one: what it was, and what it became.
         ->and($records[2]->context['key'])->toBe('unchanged')
+        ->and($records[2]->context['previous_model'])->toBe('gpt-5.6-luna')
         ->and($records[2]->context['model'])->toBe('gpt-5.6-terra');
 
     $trail = (string) json_encode(AuditRecord::query()->get()->toArray());

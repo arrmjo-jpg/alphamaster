@@ -81,6 +81,8 @@ What an operator *does* control: whether the capability is active, which vendor 
 
 A cheap fast model is right for a translation suggestion and wrong for something else. `ai.translation_model` rather than `ai.model`, and a new task brings its own key.
 
+*Superseded by the 2026-09-11 amendment: a platform-wide model was sent to whichever provider was the default, so the model now belongs to the provider and `ai.translation_model` is removed. A task may still name a model; none does today.*
+
 The model is a setting rather than a driver constant because it changes on the vendor's schedule, not ours: a model is deprecated with a few months' notice and an operator must be able to move without a deployment.
 
 ### 8. Usage is logged in units, and cost is not stored

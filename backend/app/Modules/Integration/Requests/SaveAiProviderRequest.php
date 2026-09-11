@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Modules\Integration\Requests;
 
+use App\Modules\Core\Ai\ErrorRedactor;
+use Closure;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
@@ -22,6 +24,22 @@ class SaveAiProviderRequest extends FormRequest
      */
     public const MODEL_PATTERN = '/^[A-Za-z0-9][A-Za-z0-9._:\/@-]*$/';
 
+    /**
+     * A model ID shaped like a credential is refused.
+     *
+     * The field sits beside the API key, and a key pasted into it by mistake would be
+     * stored in the clear, shown back to the browser and written to the audit trail. The
+     * message never repeats what was typed.
+     */
+    public static function notACredential(): Closure
+    {
+        return static function (string $attribute, mixed $value, Closure $fail): void {
+            if (is_string($value) && ErrorRedactor::isCredentialShaped($value)) {
+                $fail(__('validation.custom.ai_model.credential'));
+            }
+        };
+    }
+
     public function authorize(): bool
     {
         return true;
@@ -36,7 +54,7 @@ class SaveAiProviderRequest extends FormRequest
             /** The vendor's API key. Omit it to keep the key already stored. */
             'api_key' => ['sometimes', 'nullable', 'string', 'max:500'],
             /** The model this provider answers with. */
-            'model' => ['required', 'string', 'max:200', 'regex:'.self::MODEL_PATTERN],
+            'model' => ['required', 'string', 'max:200', 'regex:'.self::MODEL_PATTERN, self::notACredential()],
         ];
     }
 }

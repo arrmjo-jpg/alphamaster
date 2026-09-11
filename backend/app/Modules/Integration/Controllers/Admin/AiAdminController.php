@@ -94,6 +94,7 @@ class AiAdminController extends BaseApiController
         $key = trim((string) $request->validated('api_key', ''));
         $model = trim((string) $request->validated('model'));
         $hadKey = $row->hasCredentials();
+        $previousModel = $this->savedModel($row);
 
         if ($key === '' && ! $hadKey) {
             return $this->errorResponse('AI_KEY_REQUIRED', 'api.error.ai.key_required', null, 422, [
@@ -101,7 +102,7 @@ class AiAdminController extends BaseApiController
             ]);
         }
 
-        $isDefault = DB::transaction(function () use ($row, $key, $model, $hadKey): bool {
+        $isDefault = DB::transaction(function () use ($row, $key, $model, $hadKey, $previousModel): bool {
             if ($key !== '') {
                 $row->setCredentials(['api_key' => $key]);
             }
@@ -113,19 +114,25 @@ class AiAdminController extends BaseApiController
             $row->is_active = true;
             $row->save();
 
-            if (! $row->is_default && ! $this->defaultIsUsable()) {
-                $this->swapDefaultTo($row);
-            }
+            // The first provider set up answers without a second step. That is a change
+            // of default, and it is recorded as one below.
+            $becomesDefault = ! $row->is_default && ! $this->defaultIsUsable();
 
             $this->audit->succeeded(AuditAction::AI_PROVIDER_SAVED, $row->driver, [
                 'provider' => $row->driver,
+                // Before and after, so a change of model reads as one.
+                'previous_model' => $previousModel,
                 'model' => $model,
                 // That it changed, never what it is.
                 'key' => $key === '' ? 'unchanged' : ($hadKey ? 'replaced' : 'set'),
                 // Whether this provider answers the platform's AI tasks after the save —
                 // the fact an operator reading the trail is asking about.
-                'is_default' => $row->is_default,
+                'is_default' => $row->is_default || $becomesDefault,
             ]);
+
+            if ($becomesDefault) {
+                $this->makeTheDefault($row);
+            }
 
             return $row->is_default;
         });
@@ -194,22 +201,7 @@ class AiAdminController extends BaseApiController
         }
 
         if (! $row->is_default) {
-            DB::transaction(function () use ($row): void {
-                $previous = IntegrationProvider::query()
-                    ->forCapability(IntegrationCapability::AI)
-                    ->where('is_default', true)
-                    ->value('driver');
-
-                // Holding a key is what makes a provider ready, so a row that has one
-                // is ready by definition; saved with the default flag below.
-                $row->is_active = true;
-                $this->swapDefaultTo($row);
-
-                $this->audit->succeeded(AuditAction::AI_DEFAULT_CHANGED, $row->driver, [
-                    'provider' => $row->driver,
-                    'previous' => is_string($previous) ? $previous : null,
-                ]);
-            });
+            DB::transaction(fn () => $this->makeTheDefault($row));
         }
 
         return $this->successResponse($this->present($row->refresh()), 'api.ai.default_changed', replace: [
@@ -327,14 +319,13 @@ class AiAdminController extends BaseApiController
     private function present(IntegrationProvider $row): array
     {
         $driver = $this->generator->driverFor($row);
-        $saved = $row->settings['model'] ?? null;
 
         return [
             'driver' => $row->driver,
             'label' => $row->label,
             'has_key' => $row->hasCredentials(),
             'is_default' => $row->is_default,
-            'model' => is_string($saved) && trim($saved) !== '' ? $saved : null,
+            'model' => $this->savedModel($row),
             'effective_model' => $this->generator->modelFor($row),
             'default_model' => $driver->defaultModel(),
             'suggested_models' => $driver->suggestedModels(),
@@ -350,6 +341,36 @@ class AiAdminController extends BaseApiController
         $default = $this->manager->defaultProvider();
 
         return $default !== null && $default->hasCredentials();
+    }
+
+    /** The model saved with a provider, if one was chosen. */
+    private function savedModel(IntegrationProvider $row): ?string
+    {
+        $saved = $row->settings['model'] ?? null;
+
+        return is_string($saved) && trim($saved) !== '' ? $saved : null;
+    }
+
+    /**
+     * Make one provider the default, and record which one it replaced. Every other
+     * provider keeps its key and model; only which one answers changes.
+     */
+    private function makeTheDefault(IntegrationProvider $row): void
+    {
+        $previous = IntegrationProvider::query()
+            ->forCapability(IntegrationCapability::AI)
+            ->where('is_default', true)
+            ->value('driver');
+
+        // Holding a key is what makes a provider ready, so a row that has one is ready
+        // by definition; saved with the default flag below.
+        $row->is_active = true;
+        $this->swapDefaultTo($row);
+
+        $this->audit->succeeded(AuditAction::AI_DEFAULT_CHANGED, $row->driver, [
+            'previous_default' => is_string($previous) ? $previous : null,
+            'default' => $row->driver,
+        ]);
     }
 
     /**

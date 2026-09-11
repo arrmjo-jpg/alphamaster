@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Integration\Services;
 
+use App\Modules\Core\Ai\ErrorRedactor;
 use App\Modules\Core\Ai\TextGenerationRequest;
 use App\Modules\Core\Ai\TextGenerationResult;
 use App\Modules\Core\Ai\TextGeneratorContract;
@@ -79,6 +80,19 @@ class TextGenerator implements TextGeneratorContract
             $result = TextGenerationResult::failure($provider->driver, 'DRIVER_ERROR', $e->getMessage());
         }
 
+        // Nothing a vendor said reaches the log, the caller or the Admin until anything
+        // shaped like a secret is out of it — the provider's own key above all, which a
+        // vendor may quote back when it refuses it. Every AI failure passes this point.
+        if (! $result->successful) {
+            $secrets = $this->secretsOf($provider);
+
+            $result = TextGenerationResult::failure(
+                $result->driver,
+                ErrorRedactor::code($result->errorCode, $secrets),
+                ErrorRedactor::message($result->errorMessage, $secrets),
+            );
+        }
+
         $this->record($provider, $result, (int) ((hrtime(true) - $startedAt) / 1_000_000));
 
         return $result;
@@ -122,6 +136,24 @@ class TextGenerator implements TextGeneratorContract
         $provider = $this->manager->defaultProvider();
 
         return $provider !== null && $provider->hasCredentials();
+    }
+
+    /**
+     * Every credential value this provider holds — including a key being tested before
+     * it is saved — so that none can be quoted back. A key that cannot be decrypted
+     * cannot be quoted either, and the format patterns still apply.
+     *
+     * @return array<int, string>
+     */
+    private function secretsOf(IntegrationProvider $provider): array
+    {
+        try {
+            $credentials = $provider->getCredentials();
+        } catch (CredentialDecryptionException) {
+            return [];
+        }
+
+        return array_values(array_filter($credentials, static fn (mixed $value): bool => is_string($value)));
     }
 
     private function record(IntegrationProvider $provider, TextGenerationResult $result, int $durationMs): void

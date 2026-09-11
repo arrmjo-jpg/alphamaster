@@ -31,7 +31,7 @@ class AiCheckRequest extends FormRequest
             /** A key to test with instead of the stored one. Never stored. */
             'api_key' => ['sometimes', 'nullable', 'string', 'max:500'],
             /** A model to test with instead of the saved one. */
-            'model' => ['sometimes', 'nullable', 'string', 'max:200', 'regex:'.SaveAiProviderRequest::MODEL_PATTERN],
+            'model' => ['sometimes', 'nullable', 'string', 'max:200', 'regex:'.SaveAiProviderRequest::MODEL_PATTERN, SaveAiProviderRequest::notACredential()],
         ];
     }
 }

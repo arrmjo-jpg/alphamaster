@@ -186,6 +186,9 @@ return [
         'label' => [
             'unusable' => 'The role label must contain at least one letter that can be used to build an identifier.',
         ],
+        'ai_model' => [
+            'credential' => 'The model ID looks like an API key. Enter the model name here, and the key in the API key field.',
+        ],
         'name' => [
             'regex' => 'A role name must be a lowercase identifier, e.g. content_editor.',
         ],

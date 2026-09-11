@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Localization\Jobs;
 
+use App\Modules\Core\Ai\ErrorRedactor;
 use App\Modules\Core\Ai\TextGeneratorContract;
 use App\Modules\Localization\Enums\SuggestionStatus;
 use App\Modules\Localization\Models\Language;
@@ -116,12 +117,17 @@ class GenerateTranslationSuggestion implements ShouldQueue
         $this->fail($suggestion, 'JOB_FAILED', $exception->getMessage());
     }
 
+    /**
+     * The reason is shown to translators in the workshop. A generator's failure arrives
+     * already clean; an exception caught here does not, so both pass the same filter
+     * before they are kept.
+     */
     private function fail(TranslationSuggestion $suggestion, string $code, string $message): void
     {
         $suggestion->forceFill([
             'status' => SuggestionStatus::FAILED,
-            'error_code' => $code,
-            'error_message' => $message,
+            'error_code' => ErrorRedactor::code($code),
+            'error_message' => ErrorRedactor::message($message, fallback: 'The provider did not answer.'),
             'completed_at' => now(),
         ])->save();
     }
