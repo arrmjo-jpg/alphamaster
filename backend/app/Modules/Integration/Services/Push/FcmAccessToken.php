@@ -7,7 +7,7 @@ namespace App\Modules\Integration\Services\Push;
 use App\Modules\Core\Cache\CacheNamespace;
 use App\Modules\Core\Contracts\PlatformCacheContract;
 use App\Modules\Integration\Models\IntegrationProvider;
-use Illuminate\Support\Facades\Http;
+use App\Modules\Integration\Services\ProviderHttp;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -56,7 +56,7 @@ class FcmAccessToken
         }
 
         try {
-            $response = Http::asForm()->timeout(10)->post($endpoint, [
+            $response = ProviderHttp::client(10)->asForm()->post($endpoint, [
                 'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
                 'assertion' => $assertion,
             ]);

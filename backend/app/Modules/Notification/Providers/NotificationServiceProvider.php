@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Modules\Notification\Providers;
 
+use App\Modules\Core\Contracts\PlatformNotifierContract;
 use App\Modules\Core\Contracts\PushDeviceRegistrarContract;
 use App\Modules\Core\Translation\TranslationRegistry;
 use App\Modules\Notification\Contracts\NotifierContract;
 use App\Modules\Notification\Contracts\PreferenceResolverContract;
 use App\Modules\Notification\Contracts\TemplateRendererContract;
 use App\Modules\Notification\Services\Notifier;
+use App\Modules\Notification\Services\PlatformNotifier;
 use App\Modules\Notification\Services\PreferenceResolver;
 use App\Modules\Notification\Services\PushDeviceRegistrar;
 use App\Modules\Notification\Services\TemplateRenderer;
@@ -32,6 +34,10 @@ class NotificationServiceProvider extends ServiceProvider
         // out, which must stop delivery to a handset the session registered (ADR 0045
         // §5). Declared in Core because Auth may not depend on Notification.
         $this->app->singleton(PushDeviceRegistrarContract::class, PushDeviceRegistrar::class);
+
+        // How every other module raises a notification: through Core, by type name,
+        // because none of them may import this module (M3 decision 1).
+        $this->app->singleton(PlatformNotifierContract::class, PlatformNotifier::class);
     }
 
     /**

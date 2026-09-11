@@ -76,7 +76,6 @@ function settingsNothingReadsYet(): array
 
         // ── Decided and unbuilt ──
         'auth.registration_enabled' => 'public registration',
-        'operations.provider_retry_attempts' => 'provider retry policy',
         // A grep for a key name finds what reads a setting, and a secret's value is
         // never read by name — so this one looked used because it was mentioned.
         // Nothing authenticates with it: no header check, no middleware, no caller.

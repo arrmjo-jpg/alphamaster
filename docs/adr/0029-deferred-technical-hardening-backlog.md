@@ -6,6 +6,7 @@
 * **Revised**: 2026-09-04 — foundation gap audit items added as a second section, separating decision from implementation
 * **Revised**: 2026-09-05 — items 11 and 13 closed by Phase 13, item 12 partially; item 19 recorded from the stranded Phase 12 branch; items 20 and 21 added
 * **Revised**: 2026-09-05 — item 4 closed by Phase 14; items 7, 12, 20 and 21 closed by Phase 15, with items 7 and 21 corrected where they described the problem inaccurately; item 22 added
+* **Revised**: 2026-09-11 — item 22 closed by ADR 0046
 * **Revised**: 2026-09-06 — item 12 reopened as partial on API-contract review: the permission catalogue and the role request were corrected to ADR 0031, and the labelled arrays on the user payload were found to have no contract to be built against
 
 ## Context
@@ -273,9 +274,9 @@ This is an environment concern rather than an application one. The automated tes
 
 *Closed by*: `tests/bootstrap.php` in Phase 15, which points a run at its own logical databases before Laravel reads the environment — the same mechanism, and for the same reason, as the database redirection already there. Real Redis is kept, because the rate limiter and the localization cache are only meaningfully covered against it (ADR 0027). `REDIS_TEST_DB` and `REDIS_TEST_CACHE_DB` override the defaults where a caller needs a different index — necessary because the indexes belong to a run's configuration rather than to a process, so two suites started at the same time still share them. The gate runs its suites in sequence; the collision was reproduced by running a filtered suite by hand alongside a full one, and it fails a cache test rather than passing quietly. The same sentinel experiment that demonstrated the loss now survives a test run, and `tests/Feature/Core/RedisIsolationTest.php` asserts the redirection took effect rather than trusting that the bootstrap ran.
 
-### 22. A failed authentication is not rate limited — OPEN
+### 22. A failed authentication is not rate limited — CLOSED
 
-*Decision*: none yet. *Implementation*: not designed.
+*Decision*: ADR 0046. *Implementation*: `Core\Middleware\LimitRejectedAuthentication`, 2026-09-11.
 
 The central limiter of item 4 is `api`-group middleware, and Laravel's middleware priority hoists `Authenticate` ahead of the group. A request carrying an invalid or expired bearer token is therefore answered 401 before the limiter is reached, so those requests are unlimited. The endpoint-specific throttles do not cover the gap either: they guard login, MFA challenge and MFA delivery, not every authenticated route rejected at the door.
 
@@ -284,6 +285,8 @@ Found while building item 4 and confirmed during its review, where the same prio
 *Deferred because*: Phase 14 was scoped to the central limiter, and answering this properly means deciding how the platform treats pre-authentication traffic in general, including the requests that match no route at all.
 
 *Closed by*: a decision on pre-authentication limiting, recorded as an ADR, and an implementation that keys on something available before `Authenticate` runs without giving an attacker a way to exhaust a shared bucket on another caller's behalf.
+
+*Closed by*, as built: ADR 0046. The answer to the shared-bucket question turned out to be that the limiter should never refuse on the way *in*. Global middleware wraps `Authenticate`, and counts — per hashed address, against the anonymous ceiling — only requests that authentication already refused; past the ceiling those refusals are answered 429 instead of 401. A credential that authenticates is never touched, so a hostile caller behind a shared address can exhaust nothing but its own refusals. A wrong password and a failed second factor are not counted: they answer 401 too, but they are not rejected credentials, and each has its own throttle. Requests that match no route remain the edge's to limit, as ADR 0046 records.
 
 ## Consequences
 

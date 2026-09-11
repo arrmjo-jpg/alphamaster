@@ -8,7 +8,7 @@ use App\Modules\Core\Ai\TextGenerationRequest;
 use App\Modules\Core\Ai\TextGenerationResult;
 use App\Modules\Integration\Contracts\AiProviderContract;
 use App\Modules\Integration\Models\IntegrationProvider;
-use Illuminate\Support\Facades\Http;
+use App\Modules\Integration\Services\ProviderHttp;
 
 /**
  * Anthropic's messages API, over the HTTP client rather than the vendor SDK.
@@ -53,11 +53,11 @@ class AnthropicProvider implements AiProviderContract
         $base = $this->baseUrl($provider);
 
         try {
-            $response = Http::withHeaders([
-                'x-api-key' => $apiKey,
-                'anthropic-version' => self::API_VERSION,
-            ])
-                ->timeout(AiTimeout::seconds())
+            $response = ProviderHttp::client(AiTimeout::seconds())
+                ->withHeaders([
+                    'x-api-key' => $apiKey,
+                    'anthropic-version' => self::API_VERSION,
+                ])
                 ->post($base.'/messages', [
                     'model' => $request->model,
                     'max_tokens' => $request->maxOutputTokens,
