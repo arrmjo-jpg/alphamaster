@@ -10,6 +10,7 @@ use App\Modules\Core\Middleware\EnsureEmailVerified;
 use App\Modules\Core\Middleware\EnsureNotInMaintenance;
 use App\Modules\Core\Middleware\EnsureUserIsAdmin;
 use App\Modules\Core\Middleware\ForceJsonResponse;
+use App\Modules\Core\Middleware\LimitRejectedAuthentication;
 use App\Modules\Core\Middleware\SetLocale;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
@@ -42,6 +43,12 @@ return Application::configure(basePath: dirname(__DIR__))
         // in the configuration default with no Content-Language header — a
         // response declaring a language it had never negotiated (ADR 0015).
         $middleware->append(SetLocale::class);
+
+        // Global, around routing, so it wraps `Authenticate` — which Laravel sorts
+        // ahead of the api group, leaving a request refused at authentication outside
+        // the central limiter's reach. It acts only on refusals (ADR 0046). After
+        // SetLocale, so the 429 it may produce is written in the negotiated language.
+        $middleware->append(LimitRejectedAuthentication::class);
 
         // Append core middleware to API group. The limiter is last: it needs the
         // resolved route to choose a class, and the resolved user to choose an
@@ -89,6 +96,10 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         $exceptions->render(function (AuthenticationException $e, Request $request): JsonResponse {
+            // The one place that knows this 401 is a rejected credential rather than
+            // a wrong password or a failed second factor, which answer 401 too.
+            $request->attributes->set(LimitRejectedAuthentication::REJECTED, true);
+
             return response()->json([
                 'success' => false,
                 'error' => [

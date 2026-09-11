@@ -13,7 +13,9 @@ use App\Modules\Auth\Requests\MfaCodeRequest;
 use App\Modules\Auth\Requests\MfaEnrolRequest;
 use App\Modules\Auth\Services\MfaManager;
 use App\Modules\Auth\Support\AuthCookie;
+use App\Modules\Core\Contracts\PlatformNotifierContract;
 use App\Modules\Core\Controllers\BaseApiController;
+use App\Modules\Core\Translation\Phrase;
 use Dedoc\Scramble\Attributes\Response;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -25,6 +27,7 @@ class MfaController extends BaseApiController
     public function __construct(
         protected MfaManagerContract $mfa,
         protected AuthServiceContract $auth,
+        protected PlatformNotifierContract $notifier,
     ) {}
 
     /**
@@ -101,6 +104,13 @@ class MfaController extends BaseApiController
         } catch (MfaEnrolmentException $e) {
             return $this->errorResponse('MFA_ENROLMENT_INVALID', $e->translationKey(), null, 422, $e->translationParameters());
         }
+
+        // A second factor now guards this account. Somebody who did not add it needs
+        // to hear about it, because from here on it decides who can sign in — so the
+        // account is told on every channel it has, and cannot opt out (ADR 0019).
+        $this->notifier->notify($request->user(), 'security.alert', [
+            'event' => new Phrase('notifications.event.mfa_method_added'),
+        ]);
 
         $payload = [
             'enabled' => true,
@@ -182,6 +192,13 @@ class MfaController extends BaseApiController
         }
 
         $this->mfa->disable($user);
+
+        // The protection that just came off is the one that would have stopped a
+        // stolen password. A code was required to get here, but a code can be read
+        // off a phone left unlocked — the owner hears about it either way.
+        $this->notifier->notify($user, 'security.alert', [
+            'event' => new Phrase('notifications.event.mfa_disabled'),
+        ]);
 
         // MFA is mandatory for administrators, so one who disables it must not keep
         // the access token they already hold. Revoking every token means the invariant

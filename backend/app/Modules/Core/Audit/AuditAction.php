@@ -118,5 +118,40 @@ final class AuditAction
      */
     public const ACCOUNT_ROLES_CHANGED = 'account.roles_changed';
 
+    /**
+     * A role was defined. The context names its identifier and the permissions it was
+     * created with — the grant is the consequential part, and the identifier is what
+     * every later record of the role refers to. The label is not recorded: it is
+     * readable from the role, and it is not what anybody audits.
+     */
+    public const ROLE_CREATED = 'role.created';
+
+    /**
+     * A role's label changed in one language.
+     *
+     * Only the label: the identifier is immutable, and a change of permissions is its
+     * own action. Neither the old nor the new wording is recorded — which locale moved
+     * is the answer, and the role carries the value.
+     */
+    public const ROLE_UPDATED = 'role.updated';
+
+    /**
+     * What a role grants changed.
+     *
+     * Everybody holding the role gained or lost these at once, which makes this the
+     * role-side twin of `account.roles_changed` and recorded the same way: permissions
+     * added and removed, not the resulting set. Permission names are catalogue
+     * identifiers (ADR 0014), not values the redaction rule protects.
+     */
+    public const ROLE_PERMISSIONS_CHANGED = 'role.permissions_changed';
+
+    /**
+     * A role was removed, and with it every grant it made.
+     *
+     * The context keeps what nothing else will once the row is gone: the identifier,
+     * the permissions it carried, and how many accounts held it.
+     */
+    public const ROLE_DELETED = 'role.deleted';
+
     private function __construct() {}
 }
