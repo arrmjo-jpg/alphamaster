@@ -44,7 +44,7 @@ export function Checkbox({ className, pending = false, locked = false, ...props 
                               'bg-(--surface-default) text-transparent',
                               pending
                                   ? 'border-(--state-pending-rail)'
-                                  : 'border-(--border-strong) peer-hover:border-(--border-focus)',
+                                  : 'border-(--border-control) peer-hover:border-(--border-focus)',
                           ),
                 )}
             >

@@ -13,6 +13,7 @@ import {
     ShieldCheck,
     SlidersHorizontal,
     Users,
+    UsersRound,
 } from 'lucide-react';
 import type { ComponentType } from 'react';
 
@@ -80,6 +81,16 @@ export interface ModuleManifest {
      * mean. Without it those paths would fall through to the not-found screen.
      */
     nested?: boolean;
+    /**
+     * `false` keeps the module routable and out of the navigation.
+     *
+     * For a screen that is somewhere a person can go but not somewhere in the system —
+     * the signed-in account's own page is the one case. The navigation answers "where do
+     * I go in this system"; the account is whose session this is, and it is reached from
+     * the account menu instead. The router and the "Go to" search still see it, because
+     * both are about what exists and may be opened, not about what the sidebar lists.
+     */
+    navigation?: false;
     component: ComponentType;
 }
 
@@ -101,14 +112,39 @@ export interface ModuleGroup {
     order: number;
 }
 
+/**
+ * The sections, and the line between them.
+ *
+ * `settings` is how the platform is configured — its own values, the languages it
+ * serves, the library it stores, the messages it sends, the vendors it talks to — and the operations screen where that configuration
+ * is audited and moved.
+ * `access` is who may sign in and what they may do once they have.
+ *
+ * They are deliberately not one section. Access management is not a preference with
+ * consequences for how a screen looks; it is the set of people who can perform every
+ * operation the rest of the console offers, which is why it is audited (ADR 0037) and
+ * why it carries its own permissions (ADR 0014). Filing it under Settings invites an
+ * operator to read "who is an administrator" as configuration of the same kind as
+ * "which date format", and those are not the same kind of question.
+ *
+ * Access comes first: who may act on the platform is read before how it behaves.
+ *
+ * Orders are spaced by a hundred so a section and a top-level module can never
+ * collide on one: a tie would be resolved by insertion order, which is not a thing
+ * this file should depend on.
+ */
 export const MODULE_GROUPS: ModuleGroup[] = [
     {
         id: 'settings',
         label: 'modules.settings',
         icon: SlidersHorizontal,
-        // Everything that configures the platform rather than operating it: its own
-        // values, the accounts that may reach it, and what those accounts may do.
-        order: 20,
+        order: 200,
+    },
+    {
+        id: 'access',
+        label: 'modules.access',
+        icon: UsersRound,
+        order: 100,
     },
 ];
 
@@ -118,6 +154,8 @@ export const MODULES: ModuleManifest[] = [
         path: '/dashboard',
         label: 'modules.dashboard',
         icon: LayoutDashboard,
+        // Above both sections: it is the one screen that is neither configuration nor
+        // access, and it is where `/` lands.
         order: 10,
         component: DashboardScreen,
     },
@@ -134,7 +172,7 @@ export const MODULES: ModuleManifest[] = [
         // setting that names its own permission needs that one — both enforced per
         // key by the API, and reflected field by field rather than at this level.
         permission: 'settings.view',
-        order: 20,
+        order: 210,
         nested: true,
         component: SettingsScreen,
     },
@@ -143,12 +181,12 @@ export const MODULES: ModuleManifest[] = [
         path: '/access/users',
         label: 'modules.users',
         icon: Users,
-        group: 'settings',
+        group: 'access',
         // Reading the list is the gate. Promoting an account needs `users.update`
         // and changing its roles needs `roles.update`, both enforced per operation
         // by the API and reflected control by control rather than at this level.
         permission: 'users.view',
-        order: 30,
+        order: 110,
         component: UsersScreen,
     },
     {
@@ -156,9 +194,9 @@ export const MODULES: ModuleManifest[] = [
         path: '/access/roles',
         label: 'modules.roles',
         icon: KeyRound,
-        group: 'settings',
+        group: 'access',
         permission: 'roles.view',
-        order: 40,
+        order: 120,
         component: RolesScreen,
     },
     {
@@ -166,13 +204,13 @@ export const MODULES: ModuleManifest[] = [
         path: '/access/permissions',
         label: 'modules.permissions',
         icon: ShieldCheck,
-        group: 'settings',
+        group: 'access',
         // The catalogue is read-only everywhere, so `permissions.view` is the only
         // permission this module can ask for. `permissions.update` exists in the
         // platform's catalogue and no endpoint enforces it; naming it here would gate
         // a screen on a permission that grants nothing.
         permission: 'permissions.view',
-        order: 45,
+        order: 130,
         component: PermissionsScreen,
     },
     {
@@ -186,7 +224,8 @@ export const MODULES: ModuleManifest[] = [
         // hide the whole workspace from an operator who may look and not spend, which
         // is exactly the operator who most needs to see whether AI is configured.
         permission: 'integrations.view',
-        order: 55,
+        group: 'settings',
+        order: 270,
         component: AiScreen,
     },
     {
@@ -198,7 +237,8 @@ export const MODULES: ModuleManifest[] = [
         // `integrations.update`, enforced per operation by the API and reflected
         // control by control rather than at this level.
         permission: 'integrations.view',
-        order: 50,
+        group: 'settings',
+        order: 260,
         component: IntegrationsScreen,
     },
     {
@@ -212,7 +252,8 @@ export const MODULES: ModuleManifest[] = [
         // every administrator who can reach the Admin can reach them. Naming one here
         // would hide the module from accounts the API would happily serve, which is a
         // gate that only looks like security.
-        order: 60,
+        group: 'settings',
+        order: 220,
         component: LanguagesScreen,
     },
     {
@@ -226,7 +267,8 @@ export const MODULES: ModuleManifest[] = [
         // them. The API answers per body of content and the screen renders what it is
         // given — an operator holding none of the three sees the screen and nothing
         // in it, which is a truthful answer rather than a hidden one.
-        order: 65,
+        group: 'settings',
+        order: 230,
         component: TranslationsScreen,
     },
     {
@@ -239,7 +281,8 @@ export const MODULES: ModuleManifest[] = [
         // than at this level. Uploading needs neither: media is a platform capability
         // and any signed-in account may add to it.
         permission: 'media.view',
-        order: 70,
+        group: 'settings',
+        order: 240,
         component: MediaScreen,
     },
     {
@@ -253,7 +296,8 @@ export const MODULES: ModuleManifest[] = [
         // recipient reads — is administrative, and is gated inside the screen on
         // `notifications.view`. Naming that permission here would hide an operator's
         // own settings from them because they may not edit everyone's templates.
-        order: 80,
+        group: 'settings',
+        order: 250,
         component: NotificationsScreen,
     },
     {
@@ -268,8 +312,17 @@ export const MODULES: ModuleManifest[] = [
         // Archiving needs `audit.manage` and moving configuration needs
         // `settings.backup.manage`; both are enforced per operation by the API and
         // reflected section by section rather than at this level.
+        //
+        // A child of Settings, and its last. What an operator reaches here is the
+        // audit trail and the configuration transfer — export and restore — and both
+        // are regions of this one screen rather than separate addresses, so it is one
+        // entry. It sits with Settings because moving configuration across the edge is
+        // configuration work, and the trail is where every setting change is read
+        // back. The address stays `/operations`, so a bookmark made before the move
+        // still opens it.
+        group: 'settings',
         permission: 'audit.view',
-        order: 90,
+        order: 280,
         component: OperationsScreen,
     },
     {
@@ -281,6 +334,9 @@ export const MODULES: ModuleManifest[] = [
         // viewer's own — the endpoints behind it take no account identifier, so there
         // is nobody else's account to reach however they are called. Last in the
         // order because it is the one workspace that is not about the platform.
+        // Out of the navigation and reached from the account menu: the sidebar says
+        // where to go in the system, and an account is not a place in it.
+        navigation: false,
         order: 100,
         component: AccountScreen,
     },
@@ -321,7 +377,9 @@ export function navigationTree(
     modules: readonly ModuleManifest[] = MODULES,
     groups: readonly ModuleGroup[] = MODULE_GROUPS,
 ): NavigationEntry[] {
-    const visible = visibleModules(permissions, modules);
+    const visible = visibleModules(permissions, modules).filter(
+        (module) => module.navigation !== false,
+    );
     const known = new Map(groups.map((group) => [group.id, group]));
 
     const entries: Array<NavigationEntry & { order: number }> = visible

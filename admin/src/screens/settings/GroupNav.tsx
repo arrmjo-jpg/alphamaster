@@ -38,10 +38,10 @@ export function GroupNav({ catalogue, pendingByGroup, onNavigate }: GroupNavProp
                     <NavLink
                         className={({ isActive }) =>
                             cn(
-                                'group relative flex items-baseline justify-between gap-2 border-b border-(--border-default) py-2.5 ps-4 pe-3 last:border-b-0',
+                                'group relative flex items-baseline justify-between gap-2 border-b border-(--border-subtle) py-2.5 ps-4 pe-3 last:border-b-0',
                                 'transition-colors duration-100 ease-out',
                                 isActive
-                                    ? 'bg-(--action-secondary) font-bold text-(--text-primary)'
+                                    ? 'bg-(--nav-active-bg) font-bold text-(--nav-active-text)'
                                     : 'text-(--text-secondary) hover:bg-(--action-ghost-hover) hover:text-(--text-primary)',
                             )
                         }
@@ -58,7 +58,7 @@ export function GroupNav({ catalogue, pendingByGroup, onNavigate }: GroupNavProp
                                         pending > 0
                                             ? 'bg-(--state-pending-rail)'
                                             : isActive
-                                              ? 'bg-(--action-primary)'
+                                              ? 'bg-(--nav-active-rail)'
                                               : 'bg-transparent group-hover:bg-(--border-strong)',
                                     )}
                                 />
@@ -67,7 +67,16 @@ export function GroupNav({ catalogue, pendingByGroup, onNavigate }: GroupNavProp
                                     {t(`settings.group.${name}`, { defaultValue: name })}
                                 </span>
 
-                                <span className="shrink-0 text-(length:--text-xs) text-(--text-muted)">
+                                <span
+                                    className={cn(
+                                        'shrink-0 text-(length:--text-xs)',
+                                        // Muted grey on the brand fill would not be
+                                        // read; the count takes the label's colour.
+                                        isActive
+                                            ? 'text-(--nav-active-text)'
+                                            : 'text-(--text-muted)',
+                                    )}
+                                >
                                     {pending > 0
                                         ? t('settings.pendingCount', { count: pending })
                                         : count}

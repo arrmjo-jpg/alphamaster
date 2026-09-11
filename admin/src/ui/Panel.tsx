@@ -26,12 +26,19 @@ export interface PanelProps {
 }
 
 /**
- * A bounded region with its own four states.
+ * A card: a bounded region with its own four states.
  *
- * Loading, failed, empty and loaded belong to the panel rather than to the screen,
+ * Loading, failed, empty and loaded belong to the card rather than to the screen,
  * because one endpoint being down must not take the dashboard with it — an operator
  * checking on a failing integration cannot be shown a blank page because an unrelated
- * query timed out. Each panel reports its own condition and offers its own retry.
+ * query timed out. Each card reports its own condition and offers its own retry.
+ *
+ * Visually it is an object now, where it used to be a region. Square as ever, but it
+ * declares itself three ways at once — the white surface against the cool ground, a
+ * soft edge, and a lift of a pixel or two — so no single one of them has to be heavy.
+ * Its title is a real heading at card weight rather than the small capitalised
+ * eyebrow it used to wear: the eyebrow still names a *region* of a page, and a card
+ * inside that region is the thing a reader scans for, so it gets the stronger voice.
  */
 export function Panel({
     title,
@@ -51,16 +58,12 @@ export function Panel({
     return (
         <section
             className={cn(
-                // A rule on every side and a flat fill. No radius, no shadow: a panel
-                // is a region of the page, not an object resting on it.
-                'flex flex-col border border-(--border-default) bg-(--surface-default)',
+                'flex min-w-0 flex-col border border-(--border-default) bg-(--surface-default) shadow-(--shadow-card)',
                 className,
             )}
         >
-            <header className="flex items-baseline justify-between gap-3 border-b border-(--border-default) px-3 py-2.5">
-                {/* The eyebrow, not a heading-sized title: a panel names its region
-                    without competing with the page it sits on. */}
-                <Heading className="min-w-0 truncate" data-eyebrow>
+            <header className="flex min-h-12 items-center justify-between gap-3 border-b border-(--border-subtle) px-(--card-padding) py-3">
+                <Heading className="min-w-0 truncate text-(length:--text-md) font-bold tracking-normal text-(--text-primary)">
                     {title}
                 </Heading>
                 {aside !== undefined ? (
@@ -70,7 +73,7 @@ export function Panel({
                 ) : null}
             </header>
 
-            <div className="p-3">
+            <div className="p-(--card-padding)">
                 {error !== undefined && error !== null ? (
                     <PanelError error={error} {...(onRetry ? { onRetry } : {})} />
                 ) : loading ? (
@@ -118,10 +121,10 @@ function Skeleton() {
     const { t } = useTranslation();
 
     return (
-        <div aria-label={t('state.loading')} className="flex flex-col gap-2" role="status">
-            <span className="h-4 w-2/3 animate-pulse bg-(--action-secondary)" />
-            <span className="h-4 w-1/2 animate-pulse bg-(--action-secondary)" />
-            <span className="h-4 w-3/5 animate-pulse bg-(--action-secondary)" />
+        <div aria-label={t('state.loading')} className="flex flex-col gap-2.5" role="status">
+            <span className="h-3.5 w-2/3 animate-pulse bg-(--action-secondary)" />
+            <span className="h-3.5 w-1/2 animate-pulse bg-(--action-secondary)" />
+            <span className="h-3.5 w-3/5 animate-pulse bg-(--action-secondary)" />
         </div>
     );
 }

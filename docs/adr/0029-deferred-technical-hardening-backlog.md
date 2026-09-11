@@ -8,6 +8,7 @@
 * **Revised**: 2026-09-05 — item 4 closed by Phase 14; items 7, 12, 20 and 21 closed by Phase 15, with items 7 and 21 corrected where they described the problem inaccurately; item 22 added
 * **Revised**: 2026-09-11 — item 22 closed by ADR 0046
 * **Revised**: 2026-09-06 — item 12 reopened as partial on API-contract review: the permission catalogue and the role request were corrected to ADR 0031, and the labelled arrays on the user payload were found to have no contract to be built against
+* **Revised**: 2026-09-11 — items 23 and 24 added from the Admin redesign: an account page that can read the account and not amend it, and a language that cannot name its region
 
 ## Context
 
@@ -287,6 +288,84 @@ Found while building item 4 and confirmed during its review, where the same prio
 *Closed by*: a decision on pre-authentication limiting, recorded as an ADR, and an implementation that keys on something available before `Authenticate` runs without giving an attacker a way to exhaust a shared bucket on another caller's behalf.
 
 *Closed by*, as built: ADR 0046. The answer to the shared-bucket question turned out to be that the limiter should never refuse on the way *in*. Global middleware wraps `Authenticate`, and counts — per hashed address, against the anonymous ceiling — only requests that authentication already refused; past the ceiling those refusals are answered 429 instead of 401. A credential that authenticates is never touched, so a hostile caller behind a shared address can exhaust nothing but its own refusals. A wrong password and a failed second factor are not counted: they answer 401 too, but they are not rejected credentials, and each has its own throttle. Requests that match no route remain the edge's to limit, as ADR 0046 records.
+
+### 23. An administrator can see their own account but cannot change it — OPEN
+
+*Decision*: none yet. *Implementation*: partially built — a page that reads, and a
+second-factor API no screen manages.
+
+The console has an account page at `/account`, reached from the account menu rather than
+the navigation. It shows the signed-in identity from `/auth/me` and confirms a phone
+number through `/auth/phone/verify`, and that is everything it can do, because it is
+everything the platform lets the account do to itself. `PUT /admin/users/{user}` is the
+administrative edit, gated on `users.update`, and it deliberately excludes `password` —
+so an administrator holding no `users.update` cannot correct their own name, and one
+holding it edits themselves through the same endpoint they edit a stranger with. There
+is no password change, and no password reset flow for one to belong to.
+
+The second factor is the half that is built on the server and not in the console.
+`GET /auth/mfa` reports the enrolment state, `POST /auth/mfa/enrol` and
+`/auth/mfa/verify` accept an ordinary access token so an account can enrol voluntarily,
+and `DELETE /auth/mfa` disables with a current code or an unused recovery code. The
+console calls enrol and verify only from the sign-in enrolment step and never calls
+status or disable, so once signed in an administrator cannot see whether they are
+enrolled or change the method from the console.
+
+Found while reorganising the Admin's information architecture, and rewritten when that
+work moved onto M3, which added the account page. The account menu links the page and
+carries no Security entry: a menu item that opens a screen unable to do what it names
+reads as a capability, which is worse than an absence.
+
+*Deferred because*: this is a product surface with real security decisions inside it —
+whether an administrator may change their own address without re-verification, whether
+changing a password revokes other sessions, whether a second factor may be replaced
+using only the current session or needs a challenge first — and none of them should be
+settled as a side effect of moving a menu.
+
+*Closed by*: an ADR deciding the self-service perimeter; endpoints for the account to
+amend its identity and change its password, distinct from the administrative ones; a
+Security section on the account page over those and the existing second-factor
+endpoints; and the Security entry the account menu already has a place for.
+
+### 24. A language cannot say which region it is for — OPEN
+
+*Decision*: none yet. *Implementation*: partially built, on the client only.
+
+`LanguageResource` publishes `id`, `code`, `name`, `native_name`, `direction`,
+`is_active`, `is_default`, `sort_order` and timestamps. Nothing on it names a region or
+a country, so the platform can say a language exists and cannot say which locale of it
+this entry is. `ar` is Arabic; whether that is Arabic as written in Jordan or in Egypt
+is not a question the current contract can answer.
+
+Found while building the language selector, which wanted a flag. A flag is a country and
+a language is not one, so the console derives a flag only from region metadata and shows
+a neutral globe otherwise — `admin/src/shell/languageRegion.ts`, which reads an explicit
+`region` field if one ever appears and otherwise the region subtag of `code` itself.
+`code` is validated as `string|min:2|max:10` with no format constraint, so `ar-JO` is
+already storable and would already produce a flag; the two seeded languages are `en` and
+`ar`, so today every row correctly shows the globe.
+
+Two things stand between that and flags appearing in practice, and they want deciding
+together rather than one at a time:
+
+* **No region to read.** Either `code` carries a BCP 47 region subtag, or the resource
+  grows an explicit region alongside a plain language code. The second is cleaner —
+  a code that is sometimes a language and sometimes a locale is a field with two
+  meanings — and it is the one a `flag` or `region` column would serve.
+* **The console matches catalogues on the whole code.** `SUPPORTED_LOCALES` is
+  `['en', 'ar']` and the switcher offers the intersection of that with the platform's
+  active languages, compared exactly. A language coded `ar-JO` would therefore be
+  filtered out of the switcher rather than read using the Arabic catalogue. Making
+  region-qualified codes usable means matching on the primary subtag and letting
+  i18next fall back, which touches locale persistence and direction lookup.
+
+*Deferred because*: the UI work that surfaced it is presentation, and this is a contract
+question with a migration behind it. The client is already written so that neither
+answer requires changing it.
+
+*Closed by*: a decision on where region lives, the column and resource field to carry
+it, and — if the answer is a region subtag on `code` rather than a separate field —
+primary-subtag catalogue matching in the Admin.
 
 ## Consequences
 
