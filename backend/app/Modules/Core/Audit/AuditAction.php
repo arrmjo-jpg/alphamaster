@@ -153,5 +153,15 @@ final class AuditAction
      */
     public const ROLE_DELETED = 'role.deleted';
 
+    /**
+     * Content was translated, by hand or by accepting an AI suggestion (ADR 0048 §6).
+     *
+     * The context names the source, the item, the language, the fields that changed,
+     * and whether a person wrote the text or accepted a suggestion — edited or not. It
+     * never carries the wording, old or new: the content holds that, and a trail that
+     * copied it would be a second, unversioned copy of every translation.
+     */
+    public const TRANSLATION_UPDATED = 'translation.updated';
+
     private function __construct() {}
 }

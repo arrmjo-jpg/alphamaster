@@ -48,13 +48,15 @@ test('the workshop reports the platform’s active languages', function (): void
 test('a localized setting appears with only what has actually been written', function (): void {
     $token = tokenWithPermissions(['settings.view']);
 
-    $response = $this->withToken($token)->getJson('/api/v1/admin/translations')->assertOk();
+    $response = $this->withToken($token)
+        ->getJson('/api/v1/admin/translations?target=ar&source=settings&per_page=100')
+        ->assertOk();
 
     $settings = collect($response->json('data.sources'))->firstWhere('key', 'settings');
 
     expect($settings)->not->toBeNull();
 
-    $entry = collect($settings['entries'])->firstWhere('id', 'general.site_name');
+    $entry = collect($response->json('data.entries'))->firstWhere('id', 'general.site_name');
 
     expect($entry)->not->toBeNull()
         // Nothing has been translated yet, and the column is empty rather than
@@ -66,10 +68,11 @@ test('a localized setting appears with only what has actually been written', fun
 test('a setting with no per-locale value of its own is not offered for translation', function (): void {
     $token = tokenWithPermissions(['settings.view']);
 
-    $response = $this->withToken($token)->getJson('/api/v1/admin/translations')->assertOk();
+    $response = $this->withToken($token)
+        ->getJson('/api/v1/admin/translations?target=ar&source=settings&per_page=100')
+        ->assertOk();
 
-    $settings = collect($response->json('data.sources'))->firstWhere('key', 'settings');
-    $ids = array_column($settings['entries'], 'id');
+    $ids = array_column($response->json('data.entries'), 'id');
 
     // A retention period is a number, not language. Offering a translation of it would
     // invite somebody to keep records for a different number of days in Arabic.
@@ -254,7 +257,7 @@ test('an unknown item is refused rather than quietly discarded', function (): vo
     ])->assertNotFound()->assertJsonPath('error.code', 'UNKNOWN_TRANSLATION_TARGET');
 });
 
-test('a language the platform does not serve is refused', function (): void {
+test('a code that is not a language is refused', function (): void {
     $token = tokenWithPermissions(['settings.view', 'settings.update']);
 
     $this->withToken($token)->putJson('/api/v1/admin/translations/settings/general.site_name', [
@@ -278,10 +281,10 @@ test('completeness counts fields rather than items', function (): void {
     $template = NotificationTemplate::query()->firstOrFail();
 
     $translated = function () use ($token): int {
-        $response = $this->withToken($token)->getJson('/api/v1/admin/translations')->assertOk();
+        $response = $this->withToken($token)->getJson('/api/v1/admin/translations?target=ar')->assertOk();
         $source = collect($response->json('data.sources'))->firstWhere('key', 'notification-templates');
 
-        return (int) $source['completeness']['ar']['translated'];
+        return (int) $source['completeness']['translated'];
     };
 
     $write = fn (array $values) => $this->withToken($token)
@@ -303,13 +306,15 @@ test('completeness counts fields rather than items', function (): void {
 
     expect($translated())->toBe($before);
 
-    $response = $this->withToken($token)->getJson('/api/v1/admin/translations')->assertOk();
+    $response = $this->withToken($token)
+        ->getJson('/api/v1/admin/translations?target=ar&source=notification-templates&per_page=100')
+        ->assertOk();
     $source = collect($response->json('data.sources'))->firstWhere('key', 'notification-templates');
 
     // Fields, not items: a template counts twice, because a subject in one language
     // over a body in another is not half a translated template in any sense a
     // recipient would recognise.
-    expect($source['completeness']['ar']['total'])->toBe(count($source['entries']) * 2);
+    expect($source['completeness']['total'])->toBe(count($response->json('data.entries')) * 2);
 });
 
 test('a language is taken back whole, or not at all', function (): void {

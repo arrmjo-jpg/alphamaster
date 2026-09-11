@@ -19,10 +19,17 @@ browser where a browser is involved.
 
 | | Count |
 | :--- | ---: |
-| GREEN | 30 |
-| YELLOW | 8 |
-| RED | 3 |
+| GREEN | 27 |
+| YELLOW | 11 |
+| RED | 4 |
 | GRAY | 4 |
+
+**Later on 2026-09-11 — the language workflow (ADR 0048).** Languages (13), translation
+management (14) and manual language creation (16) were rebuilt — drafts, coverage,
+a queried workshop, a guided next step, translation auditing — and moved from GREEN to
+YELLOW for one reason only: the rebuilt screens are tested but have not been seen in a
+browser. Interface translations (42) were added RED: ADR 0049 proposes how, and nothing
+is built.
 
 On 2026-09-11: AI settings (12), notifications (23), notification producers (24),
 provider retry (26) and the audit trail (30) moved to GREEN, and pre-authentication
@@ -92,9 +99,10 @@ previous ones had drifted from what the rows actually said.
 
 | # | Capability | State | Evidence and what is missing |
 | --- | :--- | :---: | :--- |
-| 13 | Languages | **GREEN** | List, create, update, activate/deactivate, set default; deactivating the default refused; the console's own language list comes from the platform (ADR 0015). |
-| 14 | Translation management | **GREEN** | A workshop at `/translations` over `GET /admin/translations` and `PUT /admin/translations/{source}/{id}`: source language beside target, per-source completeness counted in fields, and a filter to what is outstanding. Content declares itself through `TranslationSource` registered in Core (ADR 0043), so Localization serves a workshop over content it may not import and a fourth translatable module needs no edit here. Permissions are per source and are the owning module's — an operator with every settings permission is answered 404 for notification wording. Nothing falls back inside the workshop, deliberately: a fallback would put English in the Arabic column and make an untranslated item look finished. Eighteen backend tests, eight Admin tests, and a role label translated in a browser with the outstanding count moving 4 → 3. |
-| 16 | Manual language creation | **GREEN** | `POST /admin/languages` with name, native name, code, direction, activation, default and order, and the Admin form that drives it. |
+| 13 | Languages | **YELLOW** | List, create, update, activate/deactivate, set default; deactivating the default refused; the console's own language list comes from the platform (ADR 0015). New on 2026-09-11 (ADR 0048): an inactive language is a **draft** — it exists and can be translated, and is never negotiated, listed to clients or fallen back to; the Admin creates languages as drafts unless "serve it immediately" is chosen, and the API default is unchanged. Each row shows coverage from the workshop's own calculation (`GET /admin/translations/overview`), whether AI can help, and the next step; the detail offers **Translate manually**, **Translate with AI** (disabled with its reason when no provider is configured or the operator may not use AI) and **Manage translations**, plus AI progress by the states the platform stores. Backend and Admin tests cover each. **Missing: the new screens have not been seen in a browser** — the browser pane is signed out and signing in is the operator's to do. |
+| 14 | Translation management | **YELLOW** | **Changed 2026-09-11 (ADR 0048): the workshop is queried, not downloaded** — `GET /admin/translations?target=&state=&search=&source=&page=&per_page=` returns one page for one language, with `state` one of all / missing / needs review / translated / failed (the states the platform stores) and search over title, context, source and target text, all answered on the server; a draft language can be the target; coverage comes from one service shared with the Languages page; every save and every accepted suggestion is recorded as `translation.updated` (fields, language, manual or AI, edited — never the text). The boundary is written down: sources still enumerate in memory, fine to roughly ten thousand fields. **Missing: the new filters, search and paging have not been seen in a browser.** Before that change: a workshop at `/translations` over `GET /admin/translations` and `PUT /admin/translations/{source}/{id}`: source language beside target, per-source completeness counted in fields, and a filter to what is outstanding. Content declares itself through `TranslationSource` registered in Core (ADR 0043), so Localization serves a workshop over content it may not import and a fourth translatable module needs no edit here. Permissions are per source and are the owning module's — an operator with every settings permission is answered 404 for notification wording. Nothing falls back inside the workshop, deliberately: a fallback would put English in the Arabic column and make an untranslated item look finished. Eighteen backend tests, eight Admin tests, and a role label translated in a browser with the outstanding count moving 4 → 3. |
+| 16 | Manual language creation | **YELLOW** | `POST /admin/languages` with name, native name, code, direction, activation, default and order, and the Admin form that drives it — which now creates a draft unless told to serve it (ADR 0048 §1). No catalogue rows are created: missing entries are derived, and the workshop counts total, translated and missing from the content itself. **Missing: the draft-by-default form has not been seen in a browser.** |
+| 42 | Interface translations | **RED** | The console's own wording and the API's messages are code-owned files (`admin/src/i18n/{en,ar}`, `backend/lang/{en,ar}.json`); a new language's interface falls back to English, and the Languages page says so on each row. ADR 0049 proposes shipped catalogues with database overlays and names the decisions it needs — chiefly how the Admin's key catalogue reaches the backend. **Proposed, not built.** |
 | 37 | RTL / LTR | **GREEN** | Direction comes from the active language, logical properties throughout, swept for horizontal overflow at 375 in both directions across all ten routes. |
 
 ### Configuration and platform

@@ -15,6 +15,7 @@ use App\Modules\Localization\Models\TranslationSuggestion;
 use App\Modules\Localization\Requests\AcceptSuggestionRequest;
 use App\Modules\Localization\Requests\RequestSuggestionsRequest;
 use App\Modules\Localization\Services\SuggestionCoordinator;
+use App\Modules\Localization\Services\TranslationAudit;
 use Dedoc\Scramble\Attributes\Response;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -47,6 +48,7 @@ class TranslationSuggestionController extends BaseApiController
         private readonly SuggestionCoordinator $coordinator,
         private readonly TranslationRegistry $registry,
         private readonly EffectiveGrants $grants,
+        private readonly TranslationAudit $audit,
     ) {}
 
     /**
@@ -57,7 +59,7 @@ class TranslationSuggestionController extends BaseApiController
      * an acknowledgement rather than a result, and the client polls.
      */
     #[Response(200, type: 'array{success: bool, message: string, data: array{queued: int, skipped: int}}')]
-    #[Response(422, description: 'The language is not served, or no AI provider is configured.')]
+    #[Response(422, description: 'The language does not exist, or no AI provider is configured.')]
     public function store(RequestSuggestionsRequest $request): JsonResponse
     {
         if (! $this->coordinator->available()) {
@@ -74,7 +76,8 @@ class TranslationSuggestionController extends BaseApiController
 
         $locale = (string) $request->validated('locale');
 
-        if (! $this->isActiveLocale($locale)) {
+        // Any language the platform knows, served or not (ADR 0048 §2).
+        if (! $this->isKnownLocale($locale)) {
             return $this->errorResponse(
                 'UNKNOWN_LOCALE',
                 'api.error.translations.unknown_locale',
@@ -163,7 +166,9 @@ class TranslationSuggestionController extends BaseApiController
         // The guard that makes this safe. A suggestion is generated against what the
         // field held at the time; if somebody wrote a translation while it was queued,
         // applying it would overwrite work nobody was shown (ADR 0044 §5).
-        if ($suggestion->targetMoved($this->currentValue($suggestion))) {
+        $current = $this->currentValue($suggestion);
+
+        if ($suggestion->targetMoved($current)) {
             return $this->errorResponse(
                 'TRANSLATION_MOVED',
                 'api.error.translations.suggestion_stale',
@@ -182,11 +187,24 @@ class TranslationSuggestionController extends BaseApiController
             return $this->errorResponse('TRANSLATION_REFUSED', $e->translationKey(), null, 422, $e->translationParameters());
         }
 
+        $edited = trim($text) !== trim((string) $suggestion->suggestion);
+
         $suggestion->forceFill([
             'status' => SuggestionStatus::ACCEPTED,
-            'edited' => trim($text) !== trim((string) $suggestion->suggestion),
+            'edited' => $edited,
             'resolved_at' => now(),
+            // Who decided, beside who asked (ADR 0048 §6).
+            'accepted_by' => $request->user()?->getAuthIdentifier(),
         ])->save();
+
+        $this->audit->record(
+            $suggestion->source_key,
+            $suggestion->item_id,
+            $suggestion->locale,
+            $this->audit->changedFields([$suggestion->field => $current], [$suggestion->field => $text]),
+            TranslationAudit::ORIGIN_AI,
+            $edited
+        );
 
         return $this->successResponse(
             ['id' => $suggestion->id, 'status' => $suggestion->status->value, 'edited' => $suggestion->edited],
@@ -275,8 +293,8 @@ class TranslationSuggestionController extends BaseApiController
         ];
     }
 
-    private function isActiveLocale(string $locale): bool
+    private function isKnownLocale(string $locale): bool
     {
-        return Language::query()->where('is_active', true)->where('code', $locale)->exists();
+        return Language::query()->where('code', $locale)->exists();
     }
 }

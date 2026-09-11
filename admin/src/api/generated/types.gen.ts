@@ -3941,6 +3941,56 @@ export type SettingsShowResponses = {
 
 export type SettingsShowResponse = SettingsShowResponses[keyof SettingsShowResponses];
 
+export type AdminTranslationsOverviewData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/admin/translations/overview';
+};
+
+export type AdminTranslationsOverviewErrors = {
+    /**
+     * Unauthenticated
+     */
+    401: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+};
+
+export type AdminTranslationsOverviewError = AdminTranslationsOverviewErrors[keyof AdminTranslationsOverviewErrors];
+
+export type AdminTranslationsOverviewResponses = {
+    200: {
+        success: boolean;
+        data: {
+            source_locale: string | null;
+            ai: {
+                available: boolean;
+                may_use: boolean;
+            };
+            languages: Array<{
+                code: string;
+                coverage: {
+                    total: number;
+                    translated: number;
+                };
+                suggestions: {
+                    pending: number;
+                    ready: number;
+                    failed: number;
+                    accepted: number;
+                    dismissed: number;
+                };
+            }>;
+        };
+    };
+};
+
+export type AdminTranslationsOverviewResponse = AdminTranslationsOverviewResponses[keyof AdminTranslationsOverviewResponses];
+
 export type AdminTranslationsSuggestionsIndexData = {
     body?: never;
     path?: never;
@@ -4003,7 +4053,7 @@ export type AdminTranslationsSuggestionsStoreErrors = {
         message: string;
     };
     /**
-     * The language is not served, or no AI provider is configured.
+     * The language does not exist, or no AI provider is configured.
      */
     422: {
         success: boolean;
@@ -4194,7 +4244,18 @@ export type AdminTranslationsSuggestionsDestroyResponse = AdminTranslationsSugge
 export type AdminTranslationsIndexData = {
     body?: never;
     path?: never;
-    query?: never;
+    query?: {
+        /**
+         * The language being written. Absent means the first language that is not
+         * the default one; a code that is not a language is refused.
+         */
+        target?: string | null;
+        state?: 'all' | 'missing' | 'translated' | 'needs_review' | 'failed' | null;
+        search?: string | null;
+        source?: string | null;
+        page?: number;
+        per_page?: number;
+    };
     url: '/admin/translations';
 };
 
@@ -4207,6 +4268,20 @@ export type AdminTranslationsIndexErrors = {
          * Error overview.
          */
         message: string;
+    };
+    /**
+     * The target is not a language the platform knows.
+     */
+    422: {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'UNKNOWN_LOCALE';
+            message: string;
+            details: null;
+        };
     };
 };
 
@@ -4222,31 +4297,43 @@ export type AdminTranslationsIndexResponses = {
                 native_name: string;
                 direction: string;
                 is_default: boolean;
+                is_active: boolean;
             }>;
+            source_locale: string | null;
+            target: string | null;
+            coverage: {
+                total: number;
+                translated: number;
+            };
             sources: Array<{
                 key: string;
                 label: string;
                 may_write: boolean;
-                entries: Array<{
-                    id: string;
-                    title: string;
-                    context: string | null;
-                    fields: Array<{
-                        name: string;
-                        label: string;
-                        multiline: boolean;
-                        values: {
-                            [key: string]: string;
-                        };
-                    }>;
-                }>;
                 completeness: {
-                    [key: string]: {
-                        total: number;
-                        translated: number;
-                    };
+                    total: number;
+                    translated: number;
                 };
             }>;
+            entries: Array<{
+                source: string;
+                id: string;
+                title: string;
+                context: string | null;
+                fields: Array<{
+                    name: string;
+                    label: string;
+                    multiline: boolean;
+                    values: {
+                        [key: string]: string;
+                    };
+                }>;
+            }>;
+            pagination: {
+                page: number;
+                per_page: number;
+                total: number;
+                last_page: number;
+            };
         };
     };
 };
@@ -4312,7 +4399,7 @@ export type AdminTranslationsUpdateErrors = {
         };
     };
     /**
-     * The language is not served, or the write would leave the content in a state its owner does not allow.
+     * The language does not exist, or the write would leave the content in a state its owner does not allow.
      */
     422: {
         success: boolean;

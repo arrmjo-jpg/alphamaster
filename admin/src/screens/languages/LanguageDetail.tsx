@@ -1,17 +1,21 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Sparkles, Star, X } from 'lucide-react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { ClipboardList, PenLine, RotateCcw, Sparkles, Star, X } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router';
 
 import { ApiError } from '@/api/errors';
-import { useCurrentUser } from '@/auth/AuthProvider';
-import { aiState, requestSuggestions } from '@/screens/ai/api';
 import { isSupportedLocale } from '@/i18n';
+import { requestSuggestions } from '@/screens/ai/api';
+import { CoverageMeter } from '@/screens/languages/Coverage';
+import type { LanguageStanding, Overview } from '@/screens/translations/api';
 import { Alert } from '@/ui/Alert';
 import { Button } from '@/ui/Button';
+import { Checkbox } from '@/ui/Checkbox';
 import { Field } from '@/ui/Field';
 import { Input } from '@/ui/Input';
 import { SegmentedControl } from '@/ui/SegmentedControl';
+import type { StateTone } from '@/ui/state';
 import { StatusBadge } from '@/ui/StatusBadge';
 
 import {
@@ -29,6 +33,10 @@ export interface LanguageDetailProps {
     onClose: () => void;
     /** Called with the new language once the platform has accepted it. */
     onCreated: (language: AdminLanguage) => void;
+    /** Coverage and AI progress, from the platform; absent until it has answered. */
+    standing?: LanguageStanding;
+    /** Whether AI is there, and whether this operator may use it. */
+    ai?: Overview['ai'];
 }
 
 interface Draft {
@@ -51,31 +59,48 @@ function draftFrom(language: AdminLanguage | null): Draft {
     };
 }
 
+/** The suggestion states the platform stores, in the order a reviewer reads them. */
+const PROGRESS: { key: keyof LanguageStanding['suggestions']; tone: StateTone }[] = [
+    { key: 'pending', tone: 'pending' },
+    { key: 'ready', tone: 'info' },
+    { key: 'failed', tone: 'danger' },
+    { key: 'accepted', tone: 'success' },
+    { key: 'dismissed', tone: 'neutral' },
+];
+
 /**
- * One language, or the one being added.
+ * One language: who it is, how far it has got, and what to do next.
  *
- * The same form serves both, because the platform takes the same fields either way —
- * a create is a `POST` of the whole record and an edit is a `PUT` of the parts that
- * changed. Two nearly identical forms would drift the first time a field moved.
+ * The next step is the point. A language that has just been added is at 0% and is a
+ * draft (ADR 0048), and an operator looking at it should not have to know that the
+ * Translations screen exists to find out how to fill it — so the two ways to translate
+ * it are offered here, each mapped to what the platform actually does: one opens the
+ * missing entries for a person to write, the other queues AI suggestions a person then
+ * reviews. Neither saves anything on its own.
  *
- * `is_active` and `is_default` are not fields here even though the create endpoint
- * accepts them. They are states with rules attached — the default must be active, and
- * the active default cannot be switched off — and the platform has an endpoint for
- * each. Editing them as checkboxes beside `sort_order` would put those rules in this
- * client, where they would be a second, quieter copy of the server's.
- *
- * The caller keys this component by language, so a draft never survives a change of
- * selection, and nothing resets the form on a refetch.
+ * `is_active` and `is_default` are not form fields. They are states with rules — the
+ * default must be served, and cannot be switched off — and the platform has an
+ * endpoint for each. The one exception is creation, where "serve it immediately" is an
+ * explicit choice, off by default, so a new language starts as a draft.
  */
-export function LanguageDetail({ language, onClose, onCreated }: LanguageDetailProps) {
+export function LanguageDetail({
+    language,
+    onClose,
+    onCreated,
+    standing,
+    ai,
+}: LanguageDetailProps) {
     const { t } = useTranslation();
     const queryClient = useQueryClient();
+    const navigate = useNavigate();
 
     const creating = language === null;
     const [draft, setDraft] = useState<Draft>(() => draftFrom(language));
+    const [serveNow, setServeNow] = useState(false);
 
     const refresh = async () => {
         await queryClient.invalidateQueries({ queryKey: ['admin-languages'] });
+        await queryClient.invalidateQueries({ queryKey: ['translation-overview'] });
         // The public list drives the console's own language switcher, so it has to be
         // re-read too — otherwise activating a language leaves the switcher offering
         // the old set until the page is reloaded.
@@ -93,6 +118,9 @@ export function LanguageDetail({ language, onClose, onCreated }: LanguageDetailP
                     native_name: draft.native_name.trim(),
                     direction: draft.direction,
                     sort_order: sortOrder,
+                    // Said explicitly rather than left to the API's default, which
+                    // serves a new language at once (ADR 0048 §1).
+                    is_active: serveNow,
                 });
             }
 
@@ -128,6 +156,11 @@ export function LanguageDetail({ language, onClose, onCreated }: LanguageDetailP
         onSuccess: refresh,
     });
 
+    const fill = useMutation({
+        mutationFn: (locale: string) => requestSuggestions({ locale }),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['translation-overview'] }),
+    });
+
     const set = (patch: Partial<Draft>) => setDraft((current) => ({ ...current, ...patch }));
 
     const sortOrder = Number.parseInt(draft.sort_order, 10);
@@ -150,20 +183,25 @@ export function LanguageDetail({ language, onClose, onCreated }: LanguageDetailP
 
     const translated = isSupportedLocale(draft.code.trim());
 
-    const viewer = useCurrentUser();
-    const mayUseAi = viewer.permissions.includes('ai.use');
+    // Why AI cannot help here, if it cannot. Read from the platform, never assumed —
+    // the action is disabled with its reason rather than hidden or left to fail.
+    const aiBlocked =
+        ai === undefined
+            ? null
+            : !ai.available
+              ? t('languages.aiUnavailableNotConfigured')
+              : !ai.may_use
+                ? t('languages.aiUnavailableNoPermission')
+                : null;
 
-    // Only asked when the panel could offer the action, so a console whose operator
-    // cannot spend on AI never calls the endpoint that describes it.
-    const ai = useQuery({
-        queryKey: ['ai-state'],
-        queryFn: ({ signal }) => aiState(signal),
-        enabled: mayUseAi && !creating,
-    });
+    const counts = standing?.suggestions;
+    const anySuggestions = counts !== undefined && Object.values(counts).some((n) => n > 0);
 
-    const fill = useMutation({
-        mutationFn: (locale: string) => requestSuggestions({ locale }),
-    });
+    const openTranslations = (code: string, state?: string): void => {
+        void navigate(
+            `/translations?target=${encodeURIComponent(code)}${state === undefined ? '' : `&state=${state}`}`,
+        );
+    };
 
     return (
         <div className="flex flex-col border border-(--border-default) bg-(--surface-default)">
@@ -176,8 +214,11 @@ export function LanguageDetail({ language, onClose, onCreated }: LanguageDetailP
                         {creating ? t('languages.add') : language.name}
                     </h2>
                     {creating ? null : (
-                        <p className="text-(length:--text-sm) text-(--text-muted)" data-technical>
-                            {language.code}
+                        <p className="text-(length:--text-sm) text-(--text-muted)">
+                            <span dir={language.direction} lang={language.code}>
+                                {language.native_name}
+                            </span>{' '}
+                            · <span data-technical>{language.code}</span>
                         </p>
                     )}
                 </div>
@@ -195,11 +236,13 @@ export function LanguageDetail({ language, onClose, onCreated }: LanguageDetailP
                 {creating ? null : (
                     <>
                         <div className="flex flex-wrap gap-1.5">
-                            <StatusBadge tone={language.is_active ? 'success' : 'neutral'}>
-                                {language.is_active
-                                    ? t('languages.active')
-                                    : t('languages.inactive')}
-                            </StatusBadge>
+                            {language.is_active ? (
+                                <StatusBadge tone="success">{t('languages.active')}</StatusBadge>
+                            ) : (
+                                <StatusBadge tone="pending">
+                                    {t('languages.draft')} · {t('languages.draftHint')}
+                                </StatusBadge>
+                            )}
                             {language.is_default ? (
                                 <StatusBadge icon={<Star className="size-3" />} tone="info">
                                     {t('languages.default')}
@@ -211,7 +254,153 @@ export function LanguageDetail({ language, onClose, onCreated }: LanguageDetailP
                         </div>
 
                         <section className="flex flex-col gap-2">
+                            <h3 data-eyebrow>{t('languages.coverage')}</h3>
+                            {standing === undefined ? (
+                                <p className="text-(length:--text-sm) text-(--text-muted)">
+                                    {t('state.loading')}
+                                </p>
+                            ) : (
+                                <CoverageMeter counts={standing.coverage} />
+                            )}
+                            <p className="text-(length:--text-xs) text-(--text-muted)">
+                                {language.is_default
+                                    ? t('languages.sourceExplained')
+                                    : t('languages.coverageNote')}
+                            </p>
+                        </section>
+
+                        {language.is_default ? null : (
+                            <section className="flex flex-col gap-3 border border-(--border-default) bg-(--surface-raised) p-3">
+                                <h3 className="text-(length:--text-md) font-medium text-(--text-primary)">
+                                    {t('languages.workflowTitle')}
+                                </h3>
+
+                                <div className="flex flex-col gap-1.5">
+                                    <div>
+                                        <Button
+                                            onClick={() =>
+                                                openTranslations(language.code, 'missing')
+                                            }
+                                            size="sm"
+                                            variant="primary"
+                                        >
+                                            <PenLine aria-hidden className="size-3.5" />
+                                            {t('languages.translateManually')}
+                                        </Button>
+                                    </div>
+                                    <p className="text-(length:--text-xs) text-(--text-muted)">
+                                        {t('languages.translateManuallyNote')}
+                                    </p>
+                                </div>
+
+                                <div className="flex flex-col gap-1.5">
+                                    <div>
+                                        <Button
+                                            disabled={aiBlocked !== null || ai === undefined}
+                                            loading={fill.isPending}
+                                            onClick={() => fill.mutate(language.code)}
+                                            size="sm"
+                                            variant="secondary"
+                                        >
+                                            <Sparkles aria-hidden className="size-3.5" />
+                                            {t('languages.translateWithAi')}
+                                        </Button>
+                                    </div>
+                                    <p className="text-(length:--text-xs) text-(--text-muted)">
+                                        {aiBlocked ?? t('languages.translateWithAiNote')}
+                                    </p>
+                                </div>
+
+                                {fill.data !== undefined ? (
+                                    <Alert tone="info">
+                                        {t('languages.aiQueued', {
+                                            queued: fill.data.queued,
+                                            skipped: fill.data.skipped,
+                                        })}
+                                    </Alert>
+                                ) : null}
+
+                                {fill.error instanceof ApiError ? (
+                                    <Alert tone="danger">{fill.error.message}</Alert>
+                                ) : null}
+
+                                <div className="border-t border-(--border-default) pt-3">
+                                    <Button
+                                        onClick={() => openTranslations(language.code)}
+                                        size="sm"
+                                        variant="ghost"
+                                    >
+                                        <ClipboardList aria-hidden className="size-3.5" />
+                                        {t('languages.manageTranslations')}
+                                    </Button>
+                                </div>
+                            </section>
+                        )}
+
+                        {anySuggestions && counts !== undefined ? (
+                            <section className="flex flex-col gap-2">
+                                <h3 data-eyebrow>{t('languages.progressTitle')}</h3>
+                                <dl className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                                    {PROGRESS.map(({ key, tone }) => (
+                                        <div
+                                            className="flex flex-col gap-1 border border-(--border-default) p-2"
+                                            key={key}
+                                        >
+                                            <dt>
+                                                <StatusBadge tone={tone}>
+                                                    {t(`languages.progress.${key}`)}
+                                                </StatusBadge>
+                                            </dt>
+                                            <dd
+                                                className="text-(length:--text-lg) text-(--text-primary)"
+                                                data-technical
+                                            >
+                                                {counts[key]}
+                                            </dd>
+                                        </div>
+                                    ))}
+                                </dl>
+                                <p className="text-(length:--text-xs) text-(--text-muted)">
+                                    {t('languages.progressNote')}
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                    {counts.ready > 0 ? (
+                                        <Button
+                                            onClick={() =>
+                                                openTranslations(language.code, 'needs_review')
+                                            }
+                                            size="sm"
+                                            variant="secondary"
+                                        >
+                                            {t('languages.reviewSuggestions')}
+                                        </Button>
+                                    ) : null}
+                                    {counts.failed > 0 && aiBlocked === null && ai !== undefined ? (
+                                        // Asking again for what is missing is the retry: a
+                                        // failed field is still missing, so it is queued
+                                        // again, and nothing already translated is touched.
+                                        <Button
+                                            loading={fill.isPending}
+                                            onClick={() => fill.mutate(language.code)}
+                                            size="sm"
+                                            variant="ghost"
+                                        >
+                                            <RotateCcw aria-hidden className="size-3.5" />
+                                            {t('languages.retryFailed')}
+                                        </Button>
+                                    ) : null}
+                                </div>
+                            </section>
+                        ) : null}
+
+                        <section className="flex flex-col gap-2">
                             <h3 data-eyebrow>{t('languages.stateSection')}</h3>
+
+                            {language.is_active ? null : (
+                                <p className="text-(length:--text-sm) text-(--text-secondary)">
+                                    {t('languages.draftExplained')}
+                                </p>
+                            )}
 
                             <div className="flex flex-wrap gap-2">
                                 <Button
@@ -253,51 +442,6 @@ export function LanguageDetail({ language, onClose, onCreated }: LanguageDetailP
                                     {t('languages.makeDefaultActivates')}
                                 </p>
                             )}
-
-                            {mayUseAi && language.is_active && !language.is_default ? (
-                                <div className="mt-1 flex flex-col gap-2 border-t border-(--border-default) pt-3">
-                                    <h3 data-eyebrow>{t('languages.fillSection')}</h3>
-
-                                    {ai.data?.configured === true ? (
-                                        <>
-                                            <p className="text-(length:--text-sm) text-(--text-secondary)">
-                                                {t('languages.fillDescription')}
-                                            </p>
-
-                                            <div>
-                                                <Button
-                                                    loading={fill.isPending}
-                                                    onClick={() => fill.mutate(language.code)}
-                                                    size="sm"
-                                                    variant="secondary"
-                                                >
-                                                    <Sparkles aria-hidden className="size-3.5" />
-                                                    {t('languages.fillWithAi')}
-                                                </Button>
-                                            </div>
-
-                                            {fill.data !== undefined ? (
-                                                <Alert tone="info">
-                                                    {t('languages.filled', {
-                                                        queued: fill.data.queued,
-                                                    })}
-                                                </Alert>
-                                            ) : null}
-
-                                            {fill.error instanceof ApiError ? (
-                                                <Alert tone="danger">{fill.error.message}</Alert>
-                                            ) : null}
-                                        </>
-                                    ) : (
-                                        // The manual workflow is unaffected and stays
-                                        // available; the action explains its own absence
-                                        // rather than being a button that always fails.
-                                        <p className="text-(length:--text-sm) text-(--text-muted)">
-                                            {t('languages.fillUnavailable')}
-                                        </p>
-                                    )}
-                                </div>
-                            ) : null}
 
                             {toggle.error instanceof ApiError ? (
                                 <Alert tone="danger">{toggle.error.message}</Alert>
@@ -393,9 +537,26 @@ export function LanguageDetail({ language, onClose, onCreated }: LanguageDetailP
                         )}
                     </Field>
 
+                    {creating ? (
+                        <label className="flex items-start gap-2 text-(length:--text-sm) text-(--text-secondary)">
+                            <Checkbox
+                                checked={serveNow}
+                                onChange={(event) => setServeNow(event.target.checked)}
+                            />
+                            <span className="flex flex-col gap-0.5">
+                                <span className="text-(--text-primary)">
+                                    {t('languages.serveImmediately')}
+                                </span>
+                                <span className="text-(length:--text-xs) text-(--text-muted)">
+                                    {t('languages.serveImmediatelyHint')}
+                                </span>
+                            </span>
+                        </label>
+                    ) : null}
+
                     {/* Said where the decision is made, because the two are easy to
-                        confuse: adding a language here makes the platform serve it, and
-                        does not make this console speak it. */}
+                        confuse: adding a language here makes the platform able to serve
+                        it, and does not make this console speak it (ADR 0049). */}
                     {draft.code.trim() === '' || translated ? null : (
                         <Alert tone="info">
                             {t('languages.noInterfaceTranslation', { code: draft.code.trim() })}
