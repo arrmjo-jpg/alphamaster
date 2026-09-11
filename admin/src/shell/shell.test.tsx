@@ -282,9 +282,11 @@ describe('the navigation tree', () => {
         ).toEqual([
             'dashboard',
             'integrations',
+            // Beside the vendor configuration it depends on, not beside the workshop
+            // that is its first consumer.
+            'ai',
             'languages',
             'translations',
-            'ai',
             'media',
             'notifications',
             'operations',
