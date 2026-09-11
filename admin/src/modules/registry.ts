@@ -1,8 +1,9 @@
 import type { LucideIcon } from 'lucide-react';
-import { KeyRound, LayoutDashboard, SlidersHorizontal, Users } from 'lucide-react';
+import { KeyRound, LayoutDashboard, Plug, SlidersHorizontal, Users } from 'lucide-react';
 import type { ComponentType } from 'react';
 
 import { DashboardScreen } from '@/screens/DashboardScreen';
+import { IntegrationsScreen } from '@/screens/IntegrationsScreen';
 import { RolesScreen } from '@/screens/RolesScreen';
 import { SettingsScreen } from '@/screens/SettingsScreen';
 import { UsersScreen } from '@/screens/UsersScreen';
@@ -93,6 +94,18 @@ export const MODULES: ModuleManifest[] = [
         permission: 'roles.view',
         order: 40,
         component: RolesScreen,
+    },
+    {
+        id: 'integrations',
+        path: '/integrations',
+        label: 'modules.integrations',
+        icon: Plug,
+        // Reading which vendors exist is the gate. Changing one needs
+        // `integrations.update`, enforced per operation by the API and reflected
+        // control by control rather than at this level.
+        permission: 'integrations.view',
+        order: 50,
+        component: IntegrationsScreen,
     },
 ];
 

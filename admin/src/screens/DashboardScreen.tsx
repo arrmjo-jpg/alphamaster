@@ -7,7 +7,7 @@ import { ActivityPanel } from '@/screens/dashboard/ActivityPanel';
 import { assessAttention } from '@/screens/dashboard/attention';
 import { AttentionPanel } from '@/screens/dashboard/AttentionPanel';
 import { integrationProviders, integrationUsage, recentAudit } from '@/screens/dashboard/api';
-import { summarise } from '@/screens/dashboard/capabilities';
+import { summarise } from '@/screens/integrations/capabilities';
 import { IntegrationsPanel } from '@/screens/dashboard/IntegrationsPanel';
 import { NextActionsPanel } from '@/screens/dashboard/NextActionsPanel';
 import { StatePanel } from '@/screens/dashboard/StatePanel';

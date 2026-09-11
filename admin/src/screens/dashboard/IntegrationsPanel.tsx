@@ -8,7 +8,7 @@ import { StateRail } from '@/ui/StateRail';
 import { StatusBadge } from '@/ui/StatusBadge';
 
 import { integrationProviders, integrationUsage } from './api';
-import { summarise } from './capabilities';
+import { summarise } from '@/screens/integrations/capabilities';
 
 /**
  * What each vendor capability is doing, rendered.

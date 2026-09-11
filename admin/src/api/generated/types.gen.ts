@@ -56,7 +56,12 @@ export type IntegrationProviderResource = {
     capability_label: string;
     driver: string;
     label: string;
-    settings: Array<unknown> | null;
+    /**
+     * Non-secret configuration, keyed by setting name.
+     */
+    settings: {
+        [key: string]: string | null;
+    } | null;
     has_credentials: boolean;
     is_active: boolean;
     is_default: boolean;
@@ -300,8 +305,18 @@ export type UpdateGroupSettingsRequest = {
 
 export type UpdateIntegrationProviderRequest = {
     label?: string;
-    settings?: Array<string | null> | null;
-    credentials?: Array<string> | null;
+    /**
+     * Non-secret configuration, keyed by setting name. Sending null clears every setting.
+     */
+    settings?: {
+        [key: string]: string | null;
+    } | null;
+    /**
+     * Vendor credentials, keyed by credential name. Omitting the field leaves the stored credentials untouched; sending null clears them. They are never read back.
+     */
+    credentials?: {
+        [key: string]: string;
+    } | null;
     is_active?: boolean;
     priority?: number;
 };

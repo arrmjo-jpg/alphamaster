@@ -6,7 +6,7 @@ import { Panel } from '@/ui/Panel';
 
 import type { Attention } from './attention';
 import { destinationFor } from './attention';
-import type { CapabilityRow } from './capabilities';
+import type { CapabilityRow } from '@/screens/integrations/capabilities';
 
 export interface NextActionsPanelProps {
     attention: Attention;
@@ -33,10 +33,11 @@ interface Action {
  * suggestions to fill itself.
  *
  * It is deliberately not a copy of the attention panel. A finding can be urgent with
- * nowhere in this product to act on it (a failing SMS vendor, say — providers have an
- * API but no screen yet), and a next action can be worth doing without anything being
- * wrong: mail configured and never once exercised is the state most easily mistaken
- * for working, and sending a test is exactly what to do about it.
+ * nowhere in this product to act on it — a silent platform is the standing example,
+ * since nothing in an admin console restarts one — and a next action can be worth
+ * doing without anything being wrong: mail configured and never once exercised is the
+ * state most easily mistaken for working, and sending a test is exactly what to do
+ * about it.
  */
 export function NextActionsPanel({
     attention,

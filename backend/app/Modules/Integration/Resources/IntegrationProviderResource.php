@@ -32,6 +32,11 @@ class IntegrationProviderResource extends JsonResource
             'capability_label' => $this->resource->capability->label(),
             'driver' => $this->resource->driver,
             'label' => $this->resource->label,
+            /**
+             * Non-secret configuration, keyed by setting name.
+             *
+             * @var array<string, string|null>|null
+             */
             'settings' => $this->resource->settings,
             'has_credentials' => $this->resource->hasCredentials(),
             'is_active' => $this->resource->is_active,

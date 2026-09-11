@@ -1,14 +1,19 @@
 import { fetchData, request } from '@/api/client';
-import type {
-    AdminAuditIndexResponses,
-    AdminIntegrationsProvidersIndexResponses,
-    AdminIntegrationsUsageResponses,
-    AdminLanguagesIndexResponses,
-} from '@/api/generated';
+import type { AdminAuditIndexResponses, AdminLanguagesIndexResponses } from '@/api/generated';
 
 // The liveness probe is shared with the sign-in cover, so it lives beside the client
 // rather than inside this screen.
 export { platformHealth, type PlatformHealth } from '@/api/health';
+
+// Integrations are a module of their own now, and the dashboard summarises them
+// rather than owning them. Re-exported so the panels here keep one import, and so
+// that there is one definition of what a provider is rather than a dashboard copy.
+export {
+    integrationProviders,
+    integrationUsage,
+    type IntegrationProvider,
+    type IntegrationUsage,
+} from '@/screens/integrations/api';
 
 /**
  * What the dashboard asks the platform, and nothing it invents.
@@ -19,24 +24,10 @@ export { platformHealth, type PlatformHealth } from '@/api/health';
  */
 
 export type AuditRecord = AdminAuditIndexResponses[200]['data'][number];
-export type IntegrationProvider = AdminIntegrationsProvidersIndexResponses[200]['data'][number];
-export type IntegrationUsage = AdminIntegrationsUsageResponses[200]['data'][number];
 export type AdminLanguage = AdminLanguagesIndexResponses[200]['data'][number];
 
 export async function adminLanguages(signal?: AbortSignal): Promise<AdminLanguage[]> {
     return fetchData<AdminLanguage[]>('/admin/languages', { ...(signal ? { signal } : {}) });
-}
-
-export async function integrationProviders(signal?: AbortSignal): Promise<IntegrationProvider[]> {
-    return fetchData<IntegrationProvider[]>('/admin/integrations/providers', {
-        ...(signal ? { signal } : {}),
-    });
-}
-
-export async function integrationUsage(signal?: AbortSignal): Promise<IntegrationUsage[]> {
-    return fetchData<IntegrationUsage[]>('/admin/integrations/usage', {
-        ...(signal ? { signal } : {}),
-    });
 }
 
 export interface AuditPage {

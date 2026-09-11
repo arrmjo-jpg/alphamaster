@@ -13,7 +13,7 @@ import type { AdminUser } from '@/screens/access/api';
 
 import type { AuditRecord, IntegrationProvider, IntegrationUsage } from './api';
 import { assessAttention } from './attention';
-import { summarise } from './capabilities';
+import { summarise } from '@/screens/integrations/capabilities';
 
 import '@/i18n';
 

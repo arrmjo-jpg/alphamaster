@@ -147,7 +147,8 @@
         "dashboard": "Dashboard",
         "settings": "Settings",
         "users": "Users",
-        "roles": "Roles & permissions"
+        "roles": "Roles & permissions",
+        "integrations": "Integrations"
     },
     "dashboard": {
         "platform": {
@@ -228,9 +229,9 @@
             },
             "go": {
                 "administrator-blocked": "Open accounts",
-                "capability-failing": "Open mail settings",
-                "capability-degraded": "Open mail settings",
-                "capability-uncredentialed": "Open mail settings"
+                "capability-failing": "Open integrations",
+                "capability-degraded": "Open integrations",
+                "capability-uncredentialed": "Open integrations"
             }
         },
         "state": {
@@ -250,17 +251,17 @@
             "action": {
                 "administrator-blocked_one": "Restore access for one administrator",
                 "administrator-blocked_other": "Restore access for {{count}} administrators",
-                "capability-failing": "Check mail delivery",
-                "capability-degraded": "Check mail delivery",
+                "capability-failing": "Review the failing capability",
+                "capability-degraded": "Review the degraded capability",
                 "test-mail": "Send a test message",
-                "capability-uncredentialed": "Check mail delivery"
+                "capability-uncredentialed": "Supply the missing credentials"
             },
             "because": {
                 "administrator-blocked": "They are refused at sign-in until the account is active, the address confirmed and a second factor enrolled.",
-                "capability-failing": "Every recent send was refused. The mail group holds the settings and a test message.",
-                "capability-degraded": "Some recent sends were refused. The mail group holds the settings and a test message.",
+                "capability-failing": "Every recent attempt was refused. Integrations shows which provider is answering and what it returned.",
+                "capability-degraded": "Some recent attempts were refused. Integrations shows which provider is answering and what it returned.",
                 "test-mail": "Mail is configured and has never been used, which is the state most easily mistaken for working.",
-                "capability-uncredentialed": "The active provider has no credentials. The mail group holds the settings and a test message."
+                "capability-uncredentialed": "The active provider holds no credentials, so every attempt will be refused before it is made."
             }
         }
     },
@@ -425,6 +426,93 @@
         "noUsers": "No accounts yet.",
         "noMatches": "No account matches that.",
         "noRoles": "No roles are defined."
+    },
+    "integrations": {
+        "eyebrow": "Platform",
+        "noProviders": "No vendor provider is configured on this deployment.",
+        "noProvidersNote": "Providers are shipped with the platform for the capabilities it can consume. There is no way to add one from here, and no endpoint behind such a control if there were.",
+        "unavailable": "The provider list could not be read.",
+        "detail": "Provider detail",
+        "activityUnavailable": "The activity log could not be read, so what this provider has actually done is unknown.",
+        "activityUnavailableShort": "Activity unknown",
+        "chooseProvider": "Choose a provider to inspect or configure it.",
+        "close": "Close the provider",
+        "cancel": "Cancel",
+        "active": "Active",
+        "inactive": "Inactive",
+        "default": "Default",
+        "activate": "Activate",
+        "deactivate": "Deactivate",
+        "makeDefault": "Make default",
+        "defaultNeedsActive": "A provider has to be active before its capability can be pointed at it.",
+        "stateSection": "State",
+        "configuration": "Configuration",
+        "label": "Label",
+        "priority": "Failover position",
+        "priorityHint": "Lower runs first when the default is unavailable. 0 to 1000.",
+        "settings": "Settings",
+        "settingsHint": "Non-secret configuration this driver reads. The platform does not publish which names a driver expects, so they are typed rather than chosen.",
+        "settingsAdd": "Add a setting",
+        "settingsNone": "This provider has no settings.",
+        "name": "Name",
+        "value": "Value",
+        "save": "Save configuration",
+        "discard": "Discard",
+        "saved": "The provider was updated.",
+        "readOnly": "You may read this provider but not change it. Changing one needs the integrations.update permission.",
+        "attemptsLabel": "Recent attempts",
+        "attemptsValue_zero": "None recorded",
+        "attemptsValue_one": "{{count}} attempt, {{failures}} failed",
+        "attemptsValue_other": "{{count}} attempts, {{failures}} failed",
+        "updatedAt": "Last changed",
+        "recentAttempts": "Recent attempts",
+        "noAttempts": "Nothing has been sent through this provider in the recorded window.",
+        "noFailures": "No failure is recorded in the window.",
+        "state": {
+            "healthy": "Working",
+            "degraded": "Some failures",
+            "failing": "Failing",
+            "idle": "Unused",
+            "unconfigured": "Not configured",
+            "unknown": "Condition unknown"
+        },
+        "credentials": {
+            "title": "Credentials",
+            "configured": "Credentials set",
+            "unconfigured": "No credentials",
+            "explanation": "Stored encrypted and never returned by the platform, so they cannot be shown here. What is stored can be replaced or removed, not read.",
+            "set": "Set credentials",
+            "replace": "Replace credentials",
+            "replaceWarning": "What you submit becomes the whole credential set for this provider. Anything stored under a name you do not repeat is removed.",
+            "startEmpty": "Add each credential this driver needs.",
+            "add": "Add a credential",
+            "value": "Secret",
+            "submit": "Replace credentials",
+            "clear": "Remove credentials",
+            "clearWarning": "This removes every stored credential for this provider. Calls through it will be refused until new ones are supplied.",
+            "clearConfirm": "Remove them",
+            "removeRow": "Remove {{name}}"
+        },
+        "usage": {
+            "title": "Vendor activity",
+            "window_zero": "The platform publishes the most recent attempts across every capability. None is recorded.",
+            "window_one": "The platform publishes the most recent attempts across every capability. {{count}} is recorded, and the filter applies to those.",
+            "window_other": "The platform publishes the most recent attempts across every capability. {{count}} are recorded, and the filter applies to those.",
+            "filter": "Filter attempts",
+            "all": "All",
+            "failuresOnly": "Failures",
+            "success": "Succeeded",
+            "failure": "Failed",
+            "duration": "{{ms}} ms",
+            "noDetail": "No detail",
+            "columns": {
+                "outcome": "Outcome",
+                "capability": "Capability",
+                "driver": "Driver",
+                "detail": "Detail",
+                "when": "When"
+            }
+        }
     },
     "list": {
         "separator": ", "

@@ -1,7 +1,7 @@
 import type { AdminUser } from '@/screens/access/api';
 
 import type { AuditRecord } from './api';
-import type { CapabilityRow } from './capabilities';
+import type { CapabilityRow } from '@/screens/integrations/capabilities';
 
 /**
  * What, out of everything the platform publishes, an operator should look at now.
@@ -230,13 +230,12 @@ export function destinationFor(finding: Finding): Destination | null {
         case 'capability-failing':
         case 'capability-degraded':
         case 'capability-uncredentialed':
-            // The mail group is the one place this console can act on a capability: it
-            // holds the delivery settings and the test-message control. Providers
-            // themselves have an API but no screen yet, so every other capability gets
-            // no destination rather than a misleading one.
-            return finding.subjects.some((label) => /mail/i.test(label))
-                ? { path: '/settings/mail', permission: 'settings.view' }
-                : null;
+            // Where the provider itself is configured. Every one of these findings is
+            // about a provider — which one is answering, whether it holds credentials,
+            // what happened when it was called — and the integrations workspace is the
+            // screen that shows exactly that, so it is the destination for all three
+            // rather than for some of them.
+            return { path: '/integrations', permission: 'integrations.view' };
 
         case 'action-failed':
         case 'platform-silent':

@@ -5758,10 +5758,16 @@
                     },
                     "settings": {
                         "type": [
-                            "array",
+                            "object",
                             "null"
                         ],
-                        "items": {}
+                        "description": "Non-secret configuration, keyed by setting name.",
+                        "additionalProperties": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
                     },
                     "has_credentials": {
                         "type": "boolean"
@@ -6524,25 +6530,25 @@
                     },
                     "settings": {
                         "type": [
-                            "array",
+                            "object",
                             "null"
                         ],
-                        "items": {
+                        "description": "Non-secret configuration, keyed by setting name. Sending null clears every setting.",
+                        "additionalProperties": {
                             "type": [
                                 "string",
                                 "null"
-                            ],
-                            "maxLength": 500
+                            ]
                         }
                     },
                     "credentials": {
                         "type": [
-                            "array",
+                            "object",
                             "null"
                         ],
-                        "items": {
-                            "type": "string",
-                            "maxLength": 500
+                        "description": "Vendor credentials, keyed by credential name. Omitting the field leaves the stored credentials untouched; sending null clears them. They are never read back.",
+                        "additionalProperties": {
+                            "type": "string"
                         }
                     },
                     "is_active": {
