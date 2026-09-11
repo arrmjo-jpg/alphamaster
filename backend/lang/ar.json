@@ -162,6 +162,7 @@
     "enum.settings.setting_type.url": "رابط",
     "enum.user.account_type.admin": "مدير",
     "enum.user.account_type.user": "مستخدم",
+    "list.separator": "، ",
     "notifications.event.account_address_changed": "غيّر أحد المسؤولين عنوان بريدك الإلكتروني، ويجب تأكيد العنوان الجديد قبل استخدامه",
     "notifications.event.account_details_changed": "حدّث أحد المسؤولين بيانات حسابك",
     "notifications.event.mfa_disabled": "أُوقفت المصادقة الثنائية",

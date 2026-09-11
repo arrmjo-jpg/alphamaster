@@ -158,6 +158,7 @@
     "enum.settings.setting_type.url": "Web Address",
     "enum.user.account_type.admin": "Administrator",
     "enum.user.account_type.user": "User",
+    "list.separator": ", ",
     "notifications.event.account_address_changed": "an administrator changed your email address, and the new address must be confirmed before it can be used",
     "notifications.event.account_details_changed": "an administrator updated the details on your account",
     "notifications.event.mfa_disabled": "two-factor authentication was turned off",

@@ -213,6 +213,29 @@ test('an incomplete configuration names the settings to save first', function ()
         ->and($message)->not->toBe(__('api.error.settings.secret_verification_failed'));
 });
 
+test('an incomplete configuration is named in the language of the reader', function (): void {
+    fakeVerifier('mail.password', SecretVerificationResult::incomplete(['mail.host', 'mail.from_address']));
+
+    resetClient($this);
+
+    $response = $this->withToken(adminToken(roles: ['super_admin']))
+        ->withHeader('If-Match', '"'.settingsVersion('mail').'"')
+        ->withHeader('X-Locale', 'ar')
+        ->postJson('/api/v1/admin/settings/mail/secrets/password/rotate', ['credential' => CANDIDATE])
+        ->assertStatus(422);
+
+    // The Arabic labels the Settings screen shows, joined by the catalogue's separator —
+    // not an English name inside an Arabic sentence, and not a Latin comma.
+    app()->setLocale('ar');
+    $registry = app(SettingRegistry::class);
+    $expected = $registry->get('mail.host')->label()
+        .__('list.separator')
+        .$registry->get('mail.from_address')->label();
+
+    expect((string) $response->json('error.message'))->toContain($expected)
+        ->and($registry->get('mail.host')->label())->not->toBe('Host');
+});
+
 test('a rejected credential is not reported as an incomplete configuration', function (): void {
     fakeVerifier('mail.password', SecretVerificationResult::failed('TransportException'));
 

@@ -116,10 +116,11 @@ class SecretAdminController extends BaseApiController
             $references,
         );
 
-        // Arabic separates a list with its own comma. Written here rather than as a
-        // translation because it is punctuation, not wording.
-        $separator = str_starts_with(app()->getLocale(), 'ar') ? '، ' : ', ';
+        // From the catalogue — the same `list.separator` the admin joins its lists with —
+        // so a message is punctuated in its reader's language without this file knowing
+        // which languages exist. The literal is only for a catalogue missing the key.
+        $separator = __('list.separator');
 
-        return implode($separator, $labels);
+        return implode(is_string($separator) ? $separator : ', ', $labels);
     }
 }
