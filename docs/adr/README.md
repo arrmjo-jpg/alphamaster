@@ -51,3 +51,5 @@ This directory maintains the architectural decision records for the **alphamaste
 | [0045](0045-push-notifications-device-registry-and-the-mobile-client.md) | Push Notifications, the Device Registry, and the Mobile Client | Accepted |
 | [0046](0046-pre-authentication-rate-limiting.md) | Pre-Authentication Rate Limiting | Accepted |
 | [0047](0047-retrying-the-same-provider.md) | Retrying the Same Provider | Accepted |
+| [0048](0048-language-lifecycle-coverage-and-the-workshop-query.md) | Language Lifecycle, Translation Coverage, and the Workshop's Query Contract | Accepted |
+| [0049](0049-interface-translations-shipped-catalogues-with-database-overlays.md) | Interface Translations — Shipped Catalogues with Database Overlays | Proposed |

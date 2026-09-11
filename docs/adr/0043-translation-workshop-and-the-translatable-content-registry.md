@@ -2,6 +2,7 @@
 
 * **Status**: Accepted
 * **Date**: 2026-09-10
+* **Amended by**: ADR 0048 — the workshop may target languages that are not yet served, is queried a page at a time rather than downloaded, shares one coverage calculation with the Languages page, and records translations in the audit trail
 
 ## Context
 

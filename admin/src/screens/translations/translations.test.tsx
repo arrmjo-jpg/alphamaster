@@ -16,9 +16,9 @@ import '@/i18n';
  * The translation workshop, against the shape the platform actually publishes.
  *
  * What is asserted here is mostly what the screen refuses to do: prefill an empty
- * target with the source, offer a save on content the caller may not write, or send a
- * field nobody touched. Each of those is a way of turning "untranslated" into
- * something that looks finished.
+ * target with the source, offer a save on content the caller may not write, send a
+ * field nobody touched, or filter a catalogue it was never given. The workshop is
+ * queried (ADR 0048 §4) — every filter, search and page is a request.
  */
 
 const LANGUAGES = http.get('*/api/v1/languages', () =>
@@ -48,59 +48,103 @@ const HEALTH = http.get('*/api/v1/health', () =>
 );
 
 const LOCALES = [
-    { code: 'en', name: 'English', native_name: 'English', direction: 'ltr', is_default: true },
-    { code: 'ar', name: 'Arabic', native_name: 'العربية', direction: 'rtl', is_default: false },
+    {
+        code: 'en',
+        name: 'English',
+        native_name: 'English',
+        direction: 'ltr',
+        is_default: true,
+        is_active: true,
+    },
+    {
+        code: 'ar',
+        name: 'Arabic',
+        native_name: 'العربية',
+        direction: 'rtl',
+        is_default: false,
+        is_active: true,
+    },
+    {
+        code: 'fr',
+        name: 'French',
+        native_name: 'Français',
+        direction: 'ltr',
+        is_default: false,
+        is_active: false,
+    },
 ];
 
-function settingsSource(overrides: Record<string, unknown> = {}) {
+function entries() {
+    return [
+        {
+            source: 'settings',
+            id: 'general.site_name',
+            title: 'Site name',
+            context: 'The name a visitor reads.',
+            fields: [
+                { name: 'value', label: 'Value', multiline: false, values: { en: 'AlphaMaster' } },
+            ],
+        },
+        {
+            source: 'settings',
+            id: 'general.tagline',
+            title: 'Tagline',
+            context: null,
+            fields: [
+                {
+                    name: 'value',
+                    label: 'Value',
+                    multiline: false,
+                    values: { en: 'Everything in one place', ar: 'كل شيء في مكان واحد' },
+                },
+            ],
+        },
+    ];
+}
+
+function workshop(overrides: Record<string, unknown> = {}) {
     return {
-        key: 'settings',
-        label: 'Settings copy',
-        may_write: true,
-        entries: [
+        locales: LOCALES,
+        source_locale: 'en',
+        target: 'ar',
+        coverage: { total: 2, translated: 1 },
+        sources: [
             {
-                id: 'general.site_name',
-                title: 'Site name',
-                context: 'The name a visitor reads.',
-                fields: [
-                    {
-                        name: 'value',
-                        label: 'Value',
-                        multiline: false,
-                        values: { en: 'AlphaMaster' },
-                    },
-                ],
-            },
-            {
-                id: 'general.tagline',
-                title: 'Tagline',
-                context: null,
-                fields: [
-                    {
-                        name: 'value',
-                        label: 'Value',
-                        multiline: false,
-                        values: { en: 'Everything in one place', ar: 'كل شيء في مكان واحد' },
-                    },
-                ],
+                key: 'settings',
+                label: 'Settings copy',
+                may_write: true,
+                completeness: { total: 2, translated: 1 },
             },
         ],
-        completeness: { en: { total: 2, translated: 2 }, ar: { total: 2, translated: 1 } },
+        entries: entries(),
+        pagination: { page: 1, per_page: 25, total: 2, last_page: 1 },
         ...overrides,
     };
 }
 
 function renderScreen(
-    sources: unknown[],
+    body: unknown = workshop(),
     extra: RequestHandler[] = [],
     proposals: unknown[] = [],
     permissions: string[] = ['settings.view', 'settings.update'],
+    entry = '/translations',
+    aiAvailable = true,
 ) {
     server.use(
         LANGUAGES,
         HEALTH,
         http.get('*/api/v1/admin/translations/suggestions', () =>
             HttpResponse.json({ success: true, data: proposals }),
+        ),
+        http.get('*/api/v1/admin/translations/overview', () =>
+            HttpResponse.json({
+                success: true,
+                data: {
+                    source_locale: 'en',
+                    ai: { available: aiAvailable, may_use: permissions.includes('ai.use') },
+                    languages: [],
+                },
+            }),
         ),
         http.get('*/api/v1/auth/me', () =>
             HttpResponse.json({
@@ -123,13 +167,13 @@ function renderScreen(
             }),
         ),
         http.get('*/api/v1/admin/translations', () =>
-            HttpResponse.json({ success: true, data: { locales: LOCALES, sources } }),
+            HttpResponse.json({ success: true, data: body }),
         ),
         ...extra,
     );
 
     render(
-        <MemoryRouter>
+        <MemoryRouter initialEntries={[entry]}>
             <AppProviders>
                 <AuthGate>
                     <TranslationsScreen />
@@ -139,9 +183,29 @@ function renderScreen(
     );
 }
 
+/** Wait for the workshop to have been asked for something matching. */
+async function workshopRequest(fragment: string): Promise<URL> {
+    for (let attempt = 0; attempt < 100; attempt += 1) {
+        const match = observed
+            .map((request) => new URL(request.url))
+            .find(
+                (url) =>
+                    url.pathname.endsWith('/admin/translations') && url.search.includes(fragment),
+            );
+
+        if (match !== undefined) {
+            return match;
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+
+    throw new Error(`The workshop was never asked for ${fragment}.`);
+}
+
 describe('the translation workshop', () => {
     it('translates from the default language into another, without offering a choice of source', async () => {
-        renderScreen([settingsSource()]);
+        renderScreen();
 
         expect(await screen.findByText('Translating from')).toBeInTheDocument();
 
@@ -152,10 +216,8 @@ describe('the translation workshop', () => {
     });
 
     it('leaves an untranslated field empty rather than seeding it with the source', async () => {
-        renderScreen([settingsSource()]);
+        renderScreen();
 
-        // Both entries carry a field with this label, and the first is the one with
-        // nothing written for it.
         const field = (await screen.findAllByLabelText(/Value · العربية/))[0]!;
 
         // Prefilling with the English is how a platform ends up with English inside its
@@ -163,29 +225,28 @@ describe('the translation workshop', () => {
         expect(field).toHaveValue('');
     });
 
-    it('counts fields rather than items when it says what is outstanding', async () => {
-        renderScreen([settingsSource()]);
+    it('counts fields rather than items, and shows the coverage the server counted', async () => {
+        renderScreen();
 
         expect(await screen.findByText('1 of 2 fields still untranslated')).toBeInTheDocument();
+        expect(screen.getByText('50%')).toBeInTheDocument();
+        expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '50');
     });
 
     it('sends only the field that changed, for the language being written', async () => {
         const sent: Array<Record<string, unknown>> = [];
 
-        renderScreen(
-            [settingsSource()],
-            [
-                http.put('*/api/v1/admin/translations/settings/:id', async ({ request }) => {
-                    sent.push((await request.json()) as Record<string, unknown>);
+        renderScreen(workshop(), [
+            http.put('*/api/v1/admin/translations/settings/:id', async ({ request }) => {
+                sent.push((await request.json()) as Record<string, unknown>);
 
-                    return HttpResponse.json({
-                        success: true,
-                        message: 'saved',
-                        data: { source: 'settings', id: 'general.site_name', locale: 'ar' },
-                    });
-                }),
-            ],
-        );
+                return HttpResponse.json({
+                    success: true,
+                    message: 'saved',
+                    data: { source: 'settings', id: 'general.site_name', locale: 'ar' },
+                });
+            }),
+        ]);
 
         const fields = await screen.findAllByLabelText(/Value · العربية/);
 
@@ -196,16 +257,21 @@ describe('the translation workshop', () => {
 
         expect(sent).toHaveLength(1);
         expect(sent[0]).toEqual({ locale: 'ar', values: { value: 'ألفاماستر' } });
-
-        const requests = observed.filter((request) =>
-            request.url.includes('/admin/translations/settings/'),
-        );
-
-        expect(requests[0]?.url).toContain('general.site_name');
     });
 
     it('offers no way to save content the platform says may not be written', async () => {
-        renderScreen([settingsSource({ may_write: false })]);
+        renderScreen(
+            workshop({
+                sources: [
+                    {
+                        key: 'settings',
+                        label: 'Settings copy',
+                        may_write: false,
+                        completeness: { total: 2, translated: 1 },
+                    },
+                ],
+            }),
+        );
 
         expect(
             await screen.findByText('You can read this content but not change it.'),
@@ -215,19 +281,88 @@ describe('the translation workshop', () => {
         expect(screen.getAllByLabelText(/Value · العربية/)[0]).toBeDisabled();
     });
 
-    it('hides the finished entries when only the outstanding ones are wanted', async () => {
-        renderScreen([settingsSource()]);
+    it('asks the server for a state rather than filtering what it was given', async () => {
+        renderScreen();
 
-        expect(await screen.findByText('Tagline')).toBeInTheDocument();
+        await userEvent.click(await screen.findByRole('radio', { name: 'Missing' }));
 
-        await userEvent.click(screen.getByRole('checkbox', { name: 'Only what is untranslated' }));
+        const url = await workshopRequest('state=missing');
 
-        expect(screen.getByText('Site name')).toBeInTheDocument();
-        expect(screen.queryByText('Tagline')).not.toBeInTheDocument();
+        expect(url.searchParams.get('page')).toBe('1');
+        expect(screen.getByRole('radio', { name: 'Missing' })).toHaveAttribute(
+            'aria-checked',
+            'true',
+        );
+    });
+
+    it('offers only the states the platform stores', async () => {
+        renderScreen();
+
+        const group = await screen.findByRole('radiogroup', { name: 'Show' });
+
+        expect(
+            within(group)
+                .getAllByRole('radio')
+                .map((radio) => radio.textContent),
+        ).toEqual(['All', 'Missing', 'Needs review', 'Translated', 'Failed']);
+    });
+
+    it('moves between the filters from the keyboard', async () => {
+        renderScreen();
+
+        const all = await screen.findByRole('radio', { name: 'All' });
+        all.focus();
+
+        await userEvent.keyboard('{ArrowRight}');
+
+        expect(screen.getByRole('radio', { name: 'Missing' })).toHaveFocus();
+        await workshopRequest('state=missing');
+    });
+
+    it('searches on the server', async () => {
+        renderScreen();
+
+        await userEvent.type(await screen.findByRole('searchbox', { name: 'Search' }), 'tag');
+        await userEvent.click(screen.getByRole('button', { name: 'Search' }));
+
+        await workshopRequest('search=tag');
+    });
+
+    it('pages through the server’s pages', async () => {
+        renderScreen(workshop({ pagination: { page: 1, per_page: 25, total: 30, last_page: 2 } }));
+
+        expect(await screen.findAllByText('Page 1 of 2')).not.toHaveLength(0);
+
+        await userEvent.click(screen.getByRole('button', { name: 'Next' }));
+
+        await workshopRequest('page=2');
+    });
+
+    it('offers a draft language as a target and says it is not served', async () => {
+        renderScreen(
+            workshop({ target: 'fr', coverage: { total: 2, translated: 0 } }),
+            [],
+            [],
+            undefined,
+            '/translations?target=fr',
+        );
+
+        expect(
+            await screen.findByRole('option', { name: 'Français · draft, not served' }),
+        ).toBeInTheDocument();
+        expect(screen.getByText(/Français is a draft/)).toBeInTheDocument();
+        expect(screen.getByLabelText('Into')).toHaveValue('fr');
     });
 
     it('says so plainly when there is nothing the operator may read', async () => {
-        renderScreen([]);
+        renderScreen(
+            workshop({
+                sources: [],
+                entries: [],
+                coverage: { total: 0, translated: 0 },
+                pagination: { page: 1, per_page: 25, total: 0, last_page: 1 },
+            }),
+        );
 
         expect(
             await screen.findByText(
@@ -237,7 +372,7 @@ describe('the translation workshop', () => {
     });
 
     it('marks each column with its own language and direction', async () => {
-        renderScreen([settingsSource()]);
+        renderScreen();
 
         const target = (await screen.findAllByLabelText(/Value · العربية/))[0]!;
 
@@ -277,13 +412,12 @@ function proposal(overrides: Record<string, unknown> = {}) {
 
 describe('a proposed translation', () => {
     it('is shown as a proposal and changes nothing until it is accepted', async () => {
-        renderScreen([settingsSource()], [], [proposal()]);
+        renderScreen(workshop(), [], [proposal()]);
 
         expect(await screen.findByText('AI suggested')).toBeInTheDocument();
         expect(screen.getByText('Nothing is saved until you accept.')).toBeInTheDocument();
 
-        // The field is still empty. A suggestion sitting beside it is not a translation,
-        // and an interface that prefilled the field would be asserting otherwise.
+        // The field is still empty. A suggestion sitting beside it is not a translation.
         expect((await screen.findAllByLabelText(/Value · العربية/))[0]).toHaveValue('');
     });
 
@@ -291,9 +425,14 @@ describe('a proposed translation', () => {
         const sent: unknown[] = [];
 
         renderScreen(
-            [settingsSource()],
+            workshop(),
             [
                 http.post('*/api/v1/admin/translations/suggestions/:id/accept', () => {
+                    sent.push(true);
+
+                    return HttpResponse.json({ success: true, message: 'ok', data: {} });
+                }),
+                http.put('*/api/v1/admin/translations/settings/:id', () => {
                     sent.push(true);
 
                     return HttpResponse.json({ success: true, message: 'ok', data: {} });
@@ -312,7 +451,7 @@ describe('a proposed translation', () => {
         const sent: Array<Record<string, unknown>> = [];
 
         renderScreen(
-            [settingsSource()],
+            workshop(),
             [
                 http.post(
                     '*/api/v1/admin/translations/suggestions/:id/accept',
@@ -329,8 +468,7 @@ describe('a proposed translation', () => {
         const field = (await screen.findAllByLabelText(/Value · العربية/))[0]!;
         await userEvent.type(field, 'نصّ من إنسان');
 
-        // The label changes the moment the two differ: "a person wrote this" and "a
-        // person let this through" are different facts about the same row.
+        // "A person wrote this" and "a person let this through" are different facts.
         expect(await screen.findByText('Edited')).toBeInTheDocument();
 
         await userEvent.click(screen.getByRole('button', { name: 'Accept your version' }));
@@ -339,8 +477,35 @@ describe('a proposed translation', () => {
         expect(sent[0]).toEqual({ text: 'نصّ من إنسان' });
     });
 
+    it('discards a suggestion without writing anything', async () => {
+        const writes: unknown[] = [];
+        let dismissed = false;
+
+        renderScreen(
+            workshop(),
+            [
+                http.delete('*/api/v1/admin/translations/suggestions/:id', () => {
+                    dismissed = true;
+
+                    return HttpResponse.json({ success: true, message: 'ok', data: {} });
+                }),
+                http.put('*/api/v1/admin/translations/settings/:id', () => {
+                    writes.push(true);
+
+                    return HttpResponse.json({ success: true, message: 'ok', data: {} });
+                }),
+            ],
+            [proposal()],
+        );
+
+        await userEvent.click(await screen.findByRole('button', { name: 'Discard' }));
+
+        await expect.poll(() => dismissed).toBe(true);
+        expect(writes).toHaveLength(0);
+    });
+
     it('shows a queued suggestion as waiting rather than as nothing', async () => {
-        renderScreen([settingsSource()], [], [proposal({ status: 'pending', suggestion: null })]);
+        renderScreen(workshop(), [], [proposal({ status: 'pending', suggestion: null })]);
 
         expect(await screen.findByText('Waiting for the provider…')).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Accept' })).not.toBeInTheDocument();
@@ -348,7 +513,7 @@ describe('a proposed translation', () => {
 
     it('shows a failed suggestion with the vendor’s reason', async () => {
         renderScreen(
-            [settingsSource()],
+            workshop(),
             [],
             [
                 proposal({
@@ -360,14 +525,12 @@ describe('a proposed translation', () => {
             ],
         );
 
-        // A translator who asked for thirty and got twenty-eight needs to know which two
-        // did not arrive, and why.
         expect(await screen.findByText('This one was not generated.')).toBeInTheDocument();
         expect(screen.getByText('No such model.')).toBeInTheDocument();
     });
 
     it('offers no way to ask without the permission that governs spending', async () => {
-        renderScreen([settingsSource()], [], [], ['settings.view', 'settings.update']);
+        renderScreen(workshop(), [], [], ['settings.view', 'settings.update']);
 
         expect(await screen.findByText('Site name')).toBeInTheDocument();
         expect(
@@ -375,9 +538,25 @@ describe('a proposed translation', () => {
         ).not.toBeInTheDocument();
     });
 
+    it('disables asking, with the reason, when no provider is configured', async () => {
+        renderScreen(
+            workshop(),
+            [],
+            [],
+            ['settings.view', 'settings.update', 'ai.use'],
+            '/translations',
+            false,
+        );
+
+        const ask = await screen.findByRole('button', { name: 'Suggest العربية with AI' });
+
+        await expect.poll(() => (ask as HTMLButtonElement).disabled).toBe(true);
+        expect(screen.getByText(/AI provider not configured/)).toBeInTheDocument();
+    });
+
     it('asks for a whole language, and says what it skipped', async () => {
         renderScreen(
-            [settingsSource()],
+            workshop(),
             [
                 http.post('*/api/v1/admin/translations/suggestions', () =>
                     HttpResponse.json({

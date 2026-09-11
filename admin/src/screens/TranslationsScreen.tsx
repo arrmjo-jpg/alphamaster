@@ -1,7 +1,8 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Sparkles } from 'lucide-react';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Search, Sparkles } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router';
 
 import { ApiError } from '@/api/errors';
 import { useCurrentUser } from '@/auth/AuthProvider';
@@ -12,17 +13,29 @@ import {
     suggestions as fetchSuggestions,
     type Suggestion,
 } from '@/screens/ai/api';
+import { CoverageMeter } from '@/screens/languages/Coverage';
 import { TranslationEntryRow } from '@/screens/translations/TranslationEntryRow';
 import {
+    overview as fetchOverview,
     workshop as fetchWorkshop,
     writeTranslation,
-    type TranslationLocale,
+    WORKSHOP_STATES,
+    type TranslationEntry,
     type TranslationSource,
+    type WorkshopQuery,
+    type WorkshopState,
 } from '@/screens/translations/api';
 import { Alert } from '@/ui/Alert';
 import { Button } from '@/ui/Button';
-import { Checkbox } from '@/ui/Checkbox';
+import { Input } from '@/ui/Input';
+import { SegmentedControl } from '@/ui/SegmentedControl';
 import { StateRail } from '@/ui/StateRail';
+
+const PER_PAGE = 25;
+
+function isWorkshopState(value: string | null): value is WorkshopState {
+    return value !== null && (WORKSHOP_STATES as string[]).includes(value);
+}
 
 /**
  * What the platform says, in every language it says it in.
@@ -32,59 +45,93 @@ import { StateRail } from '@/ui/StateRail';
  * nothing to the roles, the settings copy or the notification wording, and no screen
  * anywhere reported that.
  *
- * Three bodies of content appear here and they belong to three other modules. This
- * screen renders what the platform declares rather than knowing what any of them are
- * (ADR 0043), so a module that becomes translatable later appears without an edit
- * here.
+ * Queried, not downloaded (ADR 0048 §4). The target, the filter, the search and the
+ * page live in the address, so the Languages screen can link straight to "what is
+ * missing in French" and a reload lands where the operator was. Every one of them is
+ * answered by the server; the browser holds one page.
  *
- * Permissions are per body of content, not per screen. Translating notification
- * wording *is* editing notification wording, so an operator without
- * `notifications.update` sees it and cannot save it — and an operator without
- * `notifications.view` does not see it at all. The API decides both; this reflects
- * the decision rather than making one.
+ * Permissions are per body of content, not per screen (ADR 0043 §3). The API decides
+ * what is visible and what is writable; this reflects the decision rather than making
+ * one.
  */
 export function TranslationsScreen() {
     const { t } = useTranslation();
     const queryClient = useQueryClient();
-
-    const [targetCode, setTargetCode] = useState<string | null>(null);
-    const [untranslatedOnly, setUntranslatedOnly] = useState(false);
+    const [params, setParams] = useSearchParams();
 
     const viewer = useCurrentUser();
     const mayUseAi = viewer.permissions.includes('ai.use');
 
-    const state = useQuery({
-        queryKey: ['translations'],
-        queryFn: ({ signal }) => fetchWorkshop(signal),
+    const requestedTarget = params.get('target') ?? '';
+    const stateParam = params.get('state');
+    const state: WorkshopState = isWorkshopState(stateParam) ? stateParam : 'all';
+    const search = params.get('search') ?? '';
+    const page = Math.max(1, Number.parseInt(params.get('page') ?? '1', 10) || 1);
+
+    const [searchDraft, setSearchDraft] = useState(search);
+
+    const update = (changes: Record<string, string | null>) => {
+        const next = new URLSearchParams(params);
+
+        for (const [key, value] of Object.entries(changes)) {
+            if (value === null || value === '') {
+                next.delete(key);
+            } else {
+                next.set(key, value);
+            }
+        }
+
+        setParams(next, { replace: true });
+    };
+
+    const query: WorkshopQuery = {
+        ...(requestedTarget === '' ? {} : { target: requestedTarget }),
+        ...(state === 'all' ? {} : { state }),
+        ...(search === '' ? {} : { search }),
+        page,
+        per_page: PER_PAGE,
+    };
+
+    const view = useQuery({
+        queryKey: ['translations', query],
+        queryFn: ({ signal }) => fetchWorkshop(query, signal),
+        // The previous page stays on screen while the next loads, so paging and
+        // filtering do not flash an empty workshop between answers.
+        placeholderData: keepPreviousData,
     });
 
-    // Resolved here rather than after the early returns, because the suggestions query
-    // keys on it and hooks cannot come after a return. The picker's own state is only a
-    // preference: until somebody expresses one, the target is the first language that
-    // is not the one everything is translated from.
-    const locales = state.data?.locales ?? [];
-    const sourceLocale = locales.find((language) => language.is_default) ?? locales[0];
-    const targetLocales = locales.filter((language) => language.code !== sourceLocale?.code);
-    const targetLocale =
-        targetLocales.find((language) => language.code === targetCode) ?? targetLocales[0];
+    const targetCode = view.data?.target ?? null;
 
     // Suggestions arrive asynchronously — a generation takes seconds and runs on a
-    // queue (ADR 0044 §4) — so the client polls instead of waiting. Polling stops as
-    // soon as nothing is outstanding, because a screen that keeps asking about work
-    // that has finished is a screen that never goes quiet.
+    // queue (ADR 0044 §4) — so the client polls instead of waiting, and stops as soon
+    // as nothing is outstanding.
     const proposals = useQuery({
-        queryKey: ['translation-suggestions', targetLocale?.code],
-        queryFn: ({ signal }) => fetchSuggestions(targetLocale?.code ?? '', signal),
-        enabled: targetLocale !== undefined,
-        refetchInterval: (query) =>
-            (query.state.data ?? []).some((row: Suggestion) => row.status === 'pending')
+        queryKey: ['translation-suggestions', targetCode],
+        queryFn: ({ signal }) => fetchSuggestions(targetCode ?? '', signal),
+        enabled: targetCode !== null,
+        refetchInterval: (current) =>
+            (current.state.data ?? []).some((row: Suggestion) => row.status === 'pending')
                 ? 3000
                 : false,
     });
 
+    // Whether AI is there at all, read from the platform rather than assumed, so the
+    // action explains its own absence instead of being a button that always fails.
+    const standing = useQuery({
+        queryKey: ['translation-overview'],
+        queryFn: ({ signal }) => fetchOverview(signal),
+        enabled: mayUseAi,
+    });
+
+    const refreshAll = async () => {
+        await queryClient.invalidateQueries({ queryKey: ['translations'] });
+        await queryClient.invalidateQueries({ queryKey: ['translation-suggestions'] });
+        await queryClient.invalidateQueries({ queryKey: ['translation-overview'] });
+    };
+
     const ask = useMutation({
         mutationFn: (locale: string) => requestSuggestions({ locale }),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['translation-suggestions'] }),
+        onSuccess: refreshAll,
     });
 
     const decide = useMutation({
@@ -97,12 +144,9 @@ export function TranslationsScreen() {
 
             await acceptSuggestion(decision.id, decision.text);
         },
-        onSuccess: async () => {
-            // Both: accepting writes a translation, so the workshop's own view of the
-            // content is stale as well as the suggestion list.
-            await queryClient.invalidateQueries({ queryKey: ['translation-suggestions'] });
-            await queryClient.invalidateQueries({ queryKey: ['translations'] });
-        },
+        // Accepting writes a translation, so the workshop's own view of the content
+        // and the coverage are stale as well as the suggestion list.
+        onSuccess: refreshAll,
     });
 
     const save = useMutation({
@@ -117,29 +161,27 @@ export function TranslationsScreen() {
             locale: string;
             values: Record<string, string>;
         }) => writeTranslation(source, id, { locale, values }),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['translations'] }),
+        onSuccess: refreshAll,
     });
 
-    if (state.isPending) {
+    if (view.isPending) {
         return <StateRail tone="info">{t('state.loading')}</StateRail>;
     }
 
-    if (state.error !== null) {
+    if (view.error !== null) {
         return (
-            <Alert tone="danger">
-                {state.error instanceof ApiError ? state.error.message : t('state.error')}
-            </Alert>
+            <div className="flex min-w-0 flex-col gap-(--section-gap)">
+                <Header />
+                <Alert tone="danger">
+                    {view.error instanceof ApiError ? view.error.message : t('state.error')}
+                </Alert>
+            </div>
         );
     }
 
-    const { sources } = state.data;
-
-    // The default language is what everything else is translated *from*: it is the one
-    // the platform falls back to, so it is the one an operator is reading when they
-    // write another.
-    const source = sourceLocale;
-    const targets = targetLocales;
-    const target = targetLocale;
+    const data = view.data;
+    const source = data.locales.find((language) => language.code === data.source_locale);
+    const target = data.locales.find((language) => language.code === data.target);
 
     if (source === undefined || target === undefined) {
         return (
@@ -150,72 +192,136 @@ export function TranslationsScreen() {
         );
     }
 
+    const targets = data.locales.filter((language) => language.code !== source.code);
+    const aiAvailable = standing.data?.ai.available;
+    const groups = groupBySource(data.entries, data.sources);
+
     return (
         <div className="flex min-w-0 flex-col gap-(--section-gap)">
             <Header />
 
-            <section className="flex flex-wrap items-end gap-4 border border-(--border-default) bg-(--surface-raised) p-3">
-                <div className="flex flex-col gap-1">
-                    <span className="text-(length:--text-xs) text-(--text-muted)">
-                        {t('translations.from')}
-                    </span>
-                    {/* Not a control. There is one default language and it is the one
-                        everything falls back to; offering a choice here would imply
-                        the platform could be read from somewhere else. */}
-                    <span className="text-(length:--text-sm) text-(--text-primary)">
-                        {source.native_name}
-                    </span>
-                </div>
-
-                <div className="flex flex-col gap-1">
-                    <label
-                        className="text-(length:--text-xs) text-(--text-muted)"
-                        htmlFor="translation-target"
-                    >
-                        {t('translations.into')}
-                    </label>
-                    <select
-                        className="h-(--field-height) border border-(--border-strong) bg-(--surface-default) px-2 text-(length:--text-sm) text-(--text-primary) focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-(--focus-ring)"
-                        id="translation-target"
-                        onChange={(event) => setTargetCode(event.target.value)}
-                        value={target.code}
-                    >
-                        {targets.map((language) => (
-                            <option key={language.code} value={language.code}>
-                                {language.native_name}
-                            </option>
-                        ))}
-                    </select>
-                </div>
-
-                <label className="flex items-center gap-2 text-(length:--text-sm) text-(--text-secondary)">
-                    <Checkbox
-                        checked={untranslatedOnly}
-                        onChange={(event) => setUntranslatedOnly(event.target.checked)}
-                    />
-                    {t('translations.untranslatedOnly')}
-                </label>
-
-                {mayUseAi ? (
+            <section className="flex flex-col gap-3 border border-(--border-default) bg-(--surface-raised) p-3">
+                <div className="flex flex-wrap items-end gap-4">
                     <div className="flex flex-col gap-1">
-                        <Button
-                            loading={ask.isPending}
-                            onClick={() => ask.mutate(target.code)}
-                            size="sm"
-                            variant="secondary"
-                        >
-                            <Sparkles aria-hidden className="size-3.5" />
-                            {t('translations.suggestion.askFor', {
-                                language: target.native_name,
-                            })}
-                        </Button>
-                        {/* Said before it is pressed, because the alternative is an
-                            operator discovering it after a bill. */}
-                        <span className="text-(length:--text-2xs) text-(--text-muted)">
-                            {t('translations.suggestion.askNote')}
+                        <span className="text-(length:--text-xs) text-(--text-muted)">
+                            {t('translations.from')}
+                        </span>
+                        {/* Not a control. There is one default language and it is the
+                            one everything falls back to; offering a choice here would
+                            imply the platform could be read from somewhere else. */}
+                        <span className="text-(length:--text-sm) text-(--text-primary)">
+                            {source.native_name}
                         </span>
                     </div>
-                ) : null}
+
+                    <div className="flex flex-col gap-1">
+                        <label
+                            className="text-(length:--text-xs) text-(--text-muted)"
+                            htmlFor="translation-target"
+                        >
+                            {t('translations.into')}
+                        </label>
+                        <select
+                            className="h-(--field-height) border border-(--border-strong) bg-(--surface-default) px-2 text-(length:--text-sm) text-(--text-primary) focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-(--focus-ring)"
+                            id="translation-target"
+                            onChange={(event) => update({ target: event.target.value, page: null })}
+                            value={target.code}
+                        >
+                            {targets.map((language) => (
+                                <option key={language.code} value={language.code}>
+                                    {language.is_active
+                                        ? language.native_name
+                                        : t('translations.notServed', {
+                                              language: language.native_name,
+                                          })}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <CoverageMeter
+                        className="w-full max-w-72 min-w-48 flex-1"
+                        counts={data.coverage}
+                    />
+
+                    {mayUseAi ? (
+                        <div className="flex flex-col gap-1">
+                            <Button
+                                disabled={aiAvailable === false}
+                                loading={ask.isPending}
+                                onClick={() => ask.mutate(target.code)}
+                                size="sm"
+                                variant="secondary"
+                            >
+                                <Sparkles aria-hidden className="size-3.5" />
+                                {t('translations.suggestion.askFor', {
+                                    language: target.native_name,
+                                })}
+                            </Button>
+                            {/* Said before it is pressed: the alternative is an operator
+                                discovering it after a bill, or after a refusal. */}
+                            <span className="max-w-72 text-(length:--text-2xs) text-(--text-muted)">
+                                {aiAvailable === false
+                                    ? t('languages.aiUnavailableNotConfigured')
+                                    : t('translations.suggestion.askNote')}
+                            </span>
+                        </div>
+                    ) : null}
+                </div>
+
+                {target.is_active ? null : (
+                    <Alert tone="info">
+                        {t('translations.draftTarget', { language: target.native_name })}
+                    </Alert>
+                )}
+
+                <div className="flex flex-wrap items-end justify-between gap-3 border-t border-(--border-default) pt-3">
+                    <div className="flex flex-col gap-1">
+                        <span className="text-(length:--text-xs) text-(--text-muted)">
+                            {t('translations.filter')}
+                        </span>
+                        <SegmentedControl<WorkshopState>
+                            label={t('translations.filter')}
+                            onChange={(value) =>
+                                update({ state: value === 'all' ? null : value, page: null })
+                            }
+                            options={WORKSHOP_STATES.map((value) => ({
+                                value,
+                                label: t(`translations.filters.${value}`),
+                            }))}
+                            value={state}
+                        />
+                    </div>
+
+                    <form
+                        className="flex items-end gap-2"
+                        onSubmit={(event) => {
+                            event.preventDefault();
+                            update({ search: searchDraft.trim(), page: null });
+                        }}
+                        role="search"
+                    >
+                        <div className="flex flex-col gap-1">
+                            <label
+                                className="text-(length:--text-xs) text-(--text-muted)"
+                                htmlFor="translation-search"
+                            >
+                                {t('translations.search')}
+                            </label>
+                            <Input
+                                id="translation-search"
+                                onChange={(event) => setSearchDraft(event.target.value)}
+                                placeholder={t('translations.searchPlaceholder')}
+                                type="search"
+                                value={searchDraft}
+                            />
+                        </div>
+                        <Button size="sm" type="submit" variant="secondary">
+                            <Search aria-hidden className="size-3.5" />
+                            {t('translations.search')}
+                        </Button>
+                    </form>
+                </div>
             </section>
 
             {ask.error !== null ? (
@@ -233,30 +339,111 @@ export function TranslationsScreen() {
                 </Alert>
             ) : null}
 
-            {sources.length === 0 ? (
+            {data.sources.length === 0 ? (
                 <Alert tone="info">{t('translations.nothingReadable')}</Alert>
             ) : null}
 
-            {sources.map((body) => (
-                <SourceSection
-                    body={body}
-                    key={body.key}
-                    onAcceptSuggestion={(id, text) => decide.mutateAsync({ id, text })}
-                    onDismissSuggestion={(id) => decide.mutateAsync({ id })}
-                    onSave={(id, values) =>
-                        save.mutateAsync({
-                            source: body.key,
-                            id,
-                            locale: target.code,
-                            values,
-                        })
-                    }
-                    source={source}
-                    suggestions={proposals.data ?? []}
-                    target={target}
-                    untranslatedOnly={untranslatedOnly}
-                />
+            <p className="text-(length:--text-sm) text-(--text-secondary)" role="status">
+                {t('translations.results', { count: data.pagination.total })}
+            </p>
+
+            {data.sources.length > 0 && data.entries.length === 0 ? (
+                <p className="border border-(--border-default) bg-(--surface-raised) p-4 text-(length:--text-sm) text-(--text-muted)">
+                    {state === 'missing' && search === ''
+                        ? t('translations.noneOutstanding')
+                        : t('translations.noMatches')}
+                </p>
+            ) : null}
+
+            {groups.map((group, index) => (
+                <section
+                    className="flex min-w-0 flex-col gap-2 border border-(--border-default) bg-(--surface-raised) p-4"
+                    key={`${group.source.key}-${index}`}
+                >
+                    <div className="flex flex-wrap items-baseline justify-between gap-2">
+                        <h2 className="text-(length:--text-md) font-medium text-(--text-primary)">
+                            {group.source.label}
+                        </h2>
+                        {/* Fields, not items. A template with an Arabic subject over an
+                            English body is not half translated in any sense a recipient
+                            would recognise, and the number says so. */}
+                        <p className="text-(length:--text-sm) text-(--text-secondary)">
+                            {group.source.completeness.total ===
+                            group.source.completeness.translated
+                                ? t('translations.complete', { language: target.native_name })
+                                : t('translations.outstanding', {
+                                      count:
+                                          group.source.completeness.total -
+                                          group.source.completeness.translated,
+                                      total: group.source.completeness.total,
+                                  })}
+                        </p>
+                    </div>
+
+                    {group.source.may_write ? null : (
+                        <p className="text-(length:--text-xs) text-(--text-muted)">
+                            {t('translations.readOnly')}
+                        </p>
+                    )}
+
+                    {group.entries.map((entry) => (
+                        <TranslationEntryRow
+                            entry={entry}
+                            key={`${entry.source}:${entry.id}`}
+                            mayWrite={group.source.may_write}
+                            onAcceptSuggestion={(id, text) => decide.mutateAsync({ id, text })}
+                            onDismissSuggestion={(id) => decide.mutateAsync({ id })}
+                            onSave={(values) =>
+                                save.mutateAsync({
+                                    source: entry.source,
+                                    id: entry.id,
+                                    locale: target.code,
+                                    values,
+                                })
+                            }
+                            source={source}
+                            suggestions={forEntry(proposals.data ?? [], entry.source, entry.id)}
+                            target={target}
+                        />
+                    ))}
+                </section>
             ))}
+
+            {data.pagination.last_page > 1 ? (
+                <nav
+                    aria-label={t('translations.page', {
+                        page: data.pagination.page,
+                        last: data.pagination.last_page,
+                    })}
+                    className="flex items-center justify-between gap-3"
+                >
+                    <Button
+                        disabled={data.pagination.page <= 1}
+                        onClick={() => update({ page: String(data.pagination.page - 1) })}
+                        size="sm"
+                        variant="secondary"
+                    >
+                        {t('translations.previous')}
+                    </Button>
+                    <span
+                        className="text-(length:--text-sm) text-(--text-secondary)"
+                        data-technical
+                    >
+                        {t('translations.page', {
+                            page: data.pagination.page,
+                            last: data.pagination.last_page,
+                        })}
+                    </span>
+                    <Button
+                        disabled={data.pagination.page >= data.pagination.last_page}
+                        onClick={() => update({ page: String(data.pagination.page + 1) })}
+                        size="sm"
+                        variant="secondary"
+                    >
+                        {t('translations.next')}
+                    </Button>
+                </nav>
+            ) : null}
         </div>
     );
 }
@@ -277,84 +464,35 @@ function Header() {
     );
 }
 
-interface SourceSectionProps {
-    body: TranslationSource;
-    source: TranslationLocale;
-    target: TranslationLocale;
-    untranslatedOnly: boolean;
-    onSave: (id: string, values: Record<string, string>) => Promise<void>;
-    suggestions: Suggestion[];
-    onAcceptSuggestion: (id: string, text: string) => Promise<void>;
-    onDismissSuggestion: (id: string) => Promise<void>;
-}
+/**
+ * The page's entries, gathered under the body of content each belongs to.
+ *
+ * The server returns one ordered list, source by source, so consecutive entries share
+ * a heading; the heading's counts are the server's, for the whole source rather than
+ * this page.
+ */
+function groupBySource(
+    entries: TranslationEntry[],
+    sources: TranslationSource[],
+): { source: TranslationSource; entries: TranslationEntry[] }[] {
+    const groups: { source: TranslationSource; entries: TranslationEntry[] }[] = [];
 
-function SourceSection({
-    body,
-    source,
-    target,
-    untranslatedOnly,
-    onSave,
-    suggestions,
-    onAcceptSuggestion,
-    onDismissSuggestion,
-}: SourceSectionProps) {
-    const { t } = useTranslation();
+    for (const entry of entries) {
+        const last = groups[groups.length - 1];
 
-    const counts = body.completeness[target.code] ?? { total: 0, translated: 0 };
-    const outstanding = counts.total - counts.translated;
+        if (last !== undefined && last.source.key === entry.source) {
+            last.entries.push(entry);
+            continue;
+        }
 
-    const entries = untranslatedOnly
-        ? body.entries.filter((entry) =>
-              entry.fields.some((field) => (field.values[target.code] ?? '').trim() === ''),
-          )
-        : body.entries;
+        const source = sources.find((candidate) => candidate.key === entry.source);
 
-    return (
-        <section className="flex min-w-0 flex-col gap-2 border border-(--border-default) bg-(--surface-raised) p-4">
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <h2 className="text-(length:--text-md) font-medium text-(--text-primary)">
-                    {body.label}
-                </h2>
-                {/* Fields, not items. A template with an Arabic subject over an English
-                    body is not half translated in any sense a recipient would
-                    recognise, and the number says so. */}
-                <p className="text-(length:--text-sm) text-(--text-secondary)">
-                    {outstanding === 0
-                        ? t('translations.complete', { language: target.native_name })
-                        : t('translations.outstanding', {
-                              count: outstanding,
-                              total: counts.total,
-                          })}
-                </p>
-            </div>
+        if (source !== undefined) {
+            groups.push({ source, entries: [entry] });
+        }
+    }
 
-            {!body.may_write ? (
-                <p className="text-(length:--text-xs) text-(--text-muted)">
-                    {t('translations.readOnly')}
-                </p>
-            ) : null}
-
-            {entries.length === 0 ? (
-                <p className="py-2 text-(length:--text-sm) text-(--text-muted)">
-                    {untranslatedOnly ? t('translations.noneOutstanding') : t('state.empty')}
-                </p>
-            ) : (
-                entries.map((entry) => (
-                    <TranslationEntryRow
-                        entry={entry}
-                        key={entry.id}
-                        mayWrite={body.may_write}
-                        onAcceptSuggestion={onAcceptSuggestion}
-                        onDismissSuggestion={onDismissSuggestion}
-                        onSave={(values) => onSave(entry.id, values)}
-                        source={source}
-                        suggestions={forEntry(suggestions, body.key, entry.id)}
-                        target={target}
-                    />
-                ))
-            )}
-        </section>
-    );
+    return groups;
 }
 
 /**

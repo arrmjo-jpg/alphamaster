@@ -6483,6 +6483,128 @@
                 "security": []
             }
         },
+        "/admin/translations/overview": {
+            "get": {
+                "operationId": "admin.translations.overview",
+                "summary": "Coverage and AI progress for every language the platform knows",
+                "tags": [
+                    "TranslationOverview"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "source_locale": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "ai": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "available": {
+                                                            "type": "boolean"
+                                                        },
+                                                        "may_use": {
+                                                            "type": "boolean"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "available",
+                                                        "may_use"
+                                                    ]
+                                                },
+                                                "languages": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "code": {
+                                                                "type": "string"
+                                                            },
+                                                            "coverage": {
+                                                                "type": "object",
+                                                                "properties": {
+                                                                    "total": {
+                                                                        "type": "integer"
+                                                                    },
+                                                                    "translated": {
+                                                                        "type": "integer"
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "total",
+                                                                    "translated"
+                                                                ]
+                                                            },
+                                                            "suggestions": {
+                                                                "type": "object",
+                                                                "properties": {
+                                                                    "pending": {
+                                                                        "type": "integer"
+                                                                    },
+                                                                    "ready": {
+                                                                        "type": "integer"
+                                                                    },
+                                                                    "failed": {
+                                                                        "type": "integer"
+                                                                    },
+                                                                    "accepted": {
+                                                                        "type": "integer"
+                                                                    },
+                                                                    "dismissed": {
+                                                                        "type": "integer"
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "pending",
+                                                                    "ready",
+                                                                    "failed",
+                                                                    "accepted",
+                                                                    "dismissed"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "code",
+                                                            "coverage",
+                                                            "suggestions"
+                                                        ]
+                                                    }
+                                                }
+                                            },
+                                            "required": [
+                                                "source_locale",
+                                                "ai",
+                                                "languages"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
         "/admin/translations/suggestions": {
             "get": {
                 "operationId": "admin.translations.suggestions.index",
@@ -6650,7 +6772,7 @@
                         }
                     },
                     "422": {
-                        "description": "The language is not served, or no AI provider is configured.",
+                        "description": "The language does not exist, or no AI provider is configured.",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -7005,10 +7127,81 @@
         "/admin/translations": {
             "get": {
                 "operationId": "admin.translations.index",
-                "description": "The locales are the platform's active languages, so the columns an operator is\nasked to fill are the ones the platform actually serves.",
-                "summary": "Every translatable body of content, and how far each language has got",
+                "description": "`locales` lists every language the platform knows, served or not, so a draft can\nbe chosen as the target. The source is always the default language.",
+                "summary": "One language's translations, filtered, searched and a page at a time",
                 "tags": [
                     "TranslationWorkshop"
+                ],
+                "parameters": [
+                    {
+                        "name": "target",
+                        "in": "query",
+                        "description": "The language being written. Absent means the first language that is not\nthe default one; a code that is not a language is refused.",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "maxLength": 16
+                        }
+                    },
+                    {
+                        "name": "state",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "enum": [
+                                "all",
+                                "missing",
+                                "translated",
+                                "needs_review",
+                                "failed",
+                                null
+                            ]
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "maxLength": 200
+                        }
+                    },
+                    {
+                        "name": "source",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "maxLength": 64
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 100
+                        }
+                    }
                 ],
                 "responses": {
                     "200": {
@@ -7043,6 +7236,9 @@
                                                             },
                                                             "is_default": {
                                                                 "type": "boolean"
+                                                            },
+                                                            "is_active": {
+                                                                "type": "boolean"
                                                             }
                                                         },
                                                         "required": [
@@ -7050,9 +7246,37 @@
                                                             "name",
                                                             "native_name",
                                                             "direction",
-                                                            "is_default"
+                                                            "is_default",
+                                                            "is_active"
                                                         ]
                                                     }
+                                                },
+                                                "source_locale": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "target": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "coverage": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "total": {
+                                                            "type": "integer"
+                                                        },
+                                                        "translated": {
+                                                            "type": "integer"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "total",
+                                                        "translated"
+                                                    ]
                                                 },
                                                 "sources": {
                                                     "type": "array",
@@ -7068,99 +7292,167 @@
                                                             "may_write": {
                                                                 "type": "boolean"
                                                             },
-                                                            "entries": {
-                                                                "type": "array",
-                                                                "items": {
-                                                                    "type": "object",
-                                                                    "properties": {
-                                                                        "id": {
-                                                                            "type": "string"
-                                                                        },
-                                                                        "title": {
-                                                                            "type": "string"
-                                                                        },
-                                                                        "context": {
-                                                                            "type": [
-                                                                                "string",
-                                                                                "null"
-                                                                            ]
-                                                                        },
-                                                                        "fields": {
-                                                                            "type": "array",
-                                                                            "items": {
-                                                                                "type": "object",
-                                                                                "properties": {
-                                                                                    "name": {
-                                                                                        "type": "string"
-                                                                                    },
-                                                                                    "label": {
-                                                                                        "type": "string"
-                                                                                    },
-                                                                                    "multiline": {
-                                                                                        "type": "boolean"
-                                                                                    },
-                                                                                    "values": {
-                                                                                        "type": "object",
-                                                                                        "additionalProperties": {
-                                                                                            "type": "string"
-                                                                                        }
-                                                                                    }
-                                                                                },
-                                                                                "required": [
-                                                                                    "name",
-                                                                                    "label",
-                                                                                    "multiline",
-                                                                                    "values"
-                                                                                ]
-                                                                            }
-                                                                        }
-                                                                    },
-                                                                    "required": [
-                                                                        "id",
-                                                                        "title",
-                                                                        "context",
-                                                                        "fields"
-                                                                    ]
-                                                                }
-                                                            },
                                                             "completeness": {
                                                                 "type": "object",
-                                                                "additionalProperties": {
-                                                                    "type": "object",
-                                                                    "properties": {
-                                                                        "total": {
-                                                                            "type": "integer"
-                                                                        },
-                                                                        "translated": {
-                                                                            "type": "integer"
-                                                                        }
+                                                                "properties": {
+                                                                    "total": {
+                                                                        "type": "integer"
                                                                     },
-                                                                    "required": [
-                                                                        "total",
-                                                                        "translated"
-                                                                    ]
-                                                                }
+                                                                    "translated": {
+                                                                        "type": "integer"
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "total",
+                                                                    "translated"
+                                                                ]
                                                             }
                                                         },
                                                         "required": [
                                                             "key",
                                                             "label",
                                                             "may_write",
-                                                            "entries",
                                                             "completeness"
                                                         ]
                                                     }
+                                                },
+                                                "entries": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "source": {
+                                                                "type": "string"
+                                                            },
+                                                            "id": {
+                                                                "type": "string"
+                                                            },
+                                                            "title": {
+                                                                "type": "string"
+                                                            },
+                                                            "context": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "fields": {
+                                                                "type": "array",
+                                                                "items": {
+                                                                    "type": "object",
+                                                                    "properties": {
+                                                                        "name": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "label": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "multiline": {
+                                                                            "type": "boolean"
+                                                                        },
+                                                                        "values": {
+                                                                            "type": "object",
+                                                                            "additionalProperties": {
+                                                                                "type": "string"
+                                                                            }
+                                                                        }
+                                                                    },
+                                                                    "required": [
+                                                                        "name",
+                                                                        "label",
+                                                                        "multiline",
+                                                                        "values"
+                                                                    ]
+                                                                }
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "source",
+                                                            "id",
+                                                            "title",
+                                                            "context",
+                                                            "fields"
+                                                        ]
+                                                    }
+                                                },
+                                                "pagination": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "page": {
+                                                            "type": "integer"
+                                                        },
+                                                        "per_page": {
+                                                            "type": "integer"
+                                                        },
+                                                        "total": {
+                                                            "type": "integer"
+                                                        },
+                                                        "last_page": {
+                                                            "type": "integer"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "page",
+                                                        "per_page",
+                                                        "total",
+                                                        "last_page"
+                                                    ]
                                                 }
                                             },
                                             "required": [
                                                 "locales",
-                                                "sources"
+                                                "source_locale",
+                                                "target",
+                                                "coverage",
+                                                "sources",
+                                                "entries",
+                                                "pagination"
                                             ]
                                         }
                                     },
                                     "required": [
                                         "success",
                                         "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "The target is not a language the platform knows.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "error": {
+                                            "type": "object",
+                                            "properties": {
+                                                "code": {
+                                                    "type": "string",
+                                                    "description": "`code` is contract and is never localized (ADR 0031).",
+                                                    "const": "UNKNOWN_LOCALE"
+                                                },
+                                                "message": {
+                                                    "type": "string"
+                                                },
+                                                "details": {
+                                                    "type": "null"
+                                                }
+                                            },
+                                            "required": [
+                                                "code",
+                                                "message",
+                                                "details"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "error"
                                     ]
                                 }
                             }
@@ -7252,7 +7544,7 @@
                         }
                     },
                     "422": {
-                        "description": "The language is not served, or the write would leave the content in a state its owner does not allow.",
+                        "description": "The language does not exist, or the write would leave the content in a state its owner does not allow.",
                         "content": {
                             "application/json": {
                                 "schema": {
