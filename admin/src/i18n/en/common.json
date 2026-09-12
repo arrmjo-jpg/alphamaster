@@ -27,7 +27,8 @@
         "unavailable": "Unavailable"
     },
     "language": {
-        "label": "Language"
+        "label": "Language",
+        "only": "Interface language: {{name}}"
     },
     "session": {
         "signedInAs": "Signed in as",
@@ -148,7 +149,8 @@
         "settings": "Settings",
         "users": "Users",
         "roles": "Roles & permissions",
-        "integrations": "Integrations"
+        "integrations": "Integrations",
+        "languages": "Languages"
     },
     "dashboard": {
         "platform": {
@@ -512,6 +514,56 @@
                 "detail": "Detail",
                 "when": "When"
             }
+        }
+    },
+    "languages": {
+        "eyebrow": "Platform",
+        "eyebrowOne": "Language",
+        "addingEyebrow": "New language",
+        "intro": "These are the languages the platform will accept content and translations in. Whether this console can be read in one is a separate matter: the Admin ships its own message catalogues, and a language added here becomes available to the platform without making the interface speak it.",
+        "add": "Add a language",
+        "create": "Add language",
+        "close": "Close the language",
+        "detail": "Language detail",
+        "chooseLanguage": "Choose a language to inspect or change it, or add one.",
+        "none": "No language is configured.",
+        "details": "Details",
+        "stateSection": "State",
+        "active": "Active",
+        "inactive": "Inactive",
+        "default": "Default",
+        "activate": "Activate",
+        "deactivate": "Deactivate",
+        "makeDefault": "Make default",
+        "makeDefaultActivates": "Making a language the default activates it: the platform will not fall back to a language it has been told not to serve.",
+        "defaultStaysOn": "The default language cannot be switched off. Make another one the default first.",
+        "code": "Code",
+        "codeHint": "The identifier the platform stores against content and translations. Two to ten characters.",
+        "codeChangeHint": "Changing this changes what settings and notification translations are keyed to. Existing content stays under the old code.",
+        "name": "Name in English",
+        "nativeName": "Name in the language itself",
+        "nativeNameHint": "What a reader of this language calls it. Shown to them in the switcher.",
+        "writingDirection": "Writing direction",
+        "order": "Order",
+        "orderHint": "Lower comes first wherever languages are listed.",
+        "orderShort": "order {{order}}",
+        "save": "Save language",
+        "discard": "Discard",
+        "saved": "The language was saved.",
+        "noDelete": "A language cannot be deleted. Settings and notification translations reference it by code, so the platform deactivates rather than removes.",
+        "noInterfaceTranslation": "This console ships no message catalogue for {{code}}. The platform will serve the language; the Admin interface will still be read in one it has.",
+        "interfaceYes": "Console translated",
+        "interfaceNo": "Console not translated",
+        "direction": {
+            "ltr": "Left to right",
+            "rtl": "Right to left"
+        },
+        "columns": {
+            "language": "Language",
+            "direction": "Direction",
+            "status": "Status",
+            "interface": "Console",
+            "order": "Order"
         }
     },
     "list": {

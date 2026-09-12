@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Localization\Resources;
 
+use App\Modules\Localization\Enums\LanguageDirection;
 use App\Modules\Localization\Models\Language;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -23,11 +24,19 @@ class LanguageResource extends JsonResource
             'code' => $this->code,
             'name' => $this->name,
             'native_name' => $this->native_name,
-            // The model casts direction to LanguageDirection and the column is NOT NULL
-            // with a default, so the enum is a guarantee here rather than an inference.
-            // The is_object() test this replaces could never take its other branch —
-            // and that branch, (string) $enum, would have been a TypeError if it ever
-            // had.
+            /*
+             * The model casts direction to LanguageDirection and the column is NOT NULL
+             * with a default, so the enum is a guarantee here rather than an inference.
+             * The is_object() test this replaces could never take its other branch —
+             * and that branch, (string) $enum, would have been a TypeError if it ever
+             * had.
+             *
+             * Annotated because reading `->value` off the enum is where the generator
+             * loses that guarantee: it published a bare string, and a client then had
+             * no way to know the field is one of exactly two values without being told
+             * so out of band.
+             */
+            /** @var LanguageDirection */
             'direction' => $this->direction->value,
             'is_active' => (bool) $this->is_active,
             'is_default' => (bool) $this->is_default,

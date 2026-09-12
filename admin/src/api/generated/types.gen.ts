@@ -76,14 +76,7 @@ export type LanguageResource = {
     code: string;
     name: string;
     native_name: string;
-    /**
-     * The model casts direction to LanguageDirection and the column is NOT NULL
-     * with a default, so the enum is a guarantee here rather than an inference.
-     * The is_object() test this replaces could never take its other branch —
-     * and that branch, (string) $enum, would have been a TypeError if it ever
-     * had.
-     */
-    direction: string;
+    direction: LanguageDirection;
     is_active: boolean;
     is_default: boolean;
     sort_order: number;

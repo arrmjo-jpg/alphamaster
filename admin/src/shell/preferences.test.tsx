@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -10,16 +11,26 @@ import { DensityControl, LocaleControl, ThemeControl } from './PreferenceControl
 import { ThemeProvider } from './ThemeProvider';
 
 async function renderControls() {
+    // The direction provider reads the public language list through the query cache,
+    // so it needs a client. Retries are off here and only here: the failure case below
+    // asserts what the switcher does once the list is known to be unavailable, and
+    // waiting out two backoffs would test the retry policy instead.
+    const queryClient = new QueryClient({
+        defaultOptions: { queries: { retry: false } },
+    });
+
     const result = render(
-        <ThemeProvider>
-            <DensityProvider>
-                <DirectionProvider>
-                    <ThemeControl />
-                    <DensityControl />
-                    <LocaleControl />
-                </DirectionProvider>
-            </DensityProvider>
-        </ThemeProvider>,
+        <QueryClientProvider client={queryClient}>
+            <ThemeProvider>
+                <DensityProvider>
+                    <DirectionProvider>
+                        <ThemeControl />
+                        <DensityControl />
+                        <LocaleControl />
+                    </DirectionProvider>
+                </DensityProvider>
+            </ThemeProvider>
+        </QueryClientProvider>,
     );
 
     // The public language list resolves after mount. Flushing it here keeps the

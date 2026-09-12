@@ -5827,8 +5827,7 @@
                         "type": "string"
                     },
                     "direction": {
-                        "type": "string",
-                        "description": "The model casts direction to LanguageDirection and the column is NOT NULL\nwith a default, so the enum is a guarantee here rather than an inference.\nThe is_object() test this replaces could never take its other branch \u2014\nand that branch, (string) $enum, would have been a TypeError if it ever\nhad."
+                        "$ref": "#/components/schemas/LanguageDirection"
                     },
                     "is_active": {
                         "type": "boolean"
