@@ -179,13 +179,16 @@ test('every case of all three enums resolves in both locales', function (): void
 test('the admin setting row carries exactly its declared fields', function (): void {
     // Phase 13 added `type_label`; Phase 16A added `is_localized` and `locale`, so an
     // interface can tell a localized setting from a plain one and know which language
-    // the value it received belongs to. The list is exhaustive on purpose: a field
-    // appearing here unannounced is how a payload starts leaking.
+    // the value it received belongs to. `translated` joined them under ADR 0043's
+    // amendment: knowing which language is being edited says nothing about whether that
+    // language has a value of its own, and a screen that cannot tell the two apart
+    // presents a fallback as if somebody had written it. The list is exhaustive on
+    // purpose: a field appearing here unannounced is how a payload starts leaking.
     app()->setLocale('en');
 
     expect(array_keys(adminSettingRows($this)[0]))->toBe([
-        'id', 'group', 'key', 'value', 'is_localized', 'locale', 'type', 'type_label',
-        'is_secret', 'is_public', 'description', 'updated_at',
+        'id', 'group', 'key', 'value', 'is_localized', 'locale', 'translated', 'type',
+        'type_label', 'is_secret', 'is_public', 'description', 'updated_at',
     ]);
 });
 

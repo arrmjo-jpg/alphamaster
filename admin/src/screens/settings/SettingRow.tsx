@@ -1,4 +1,4 @@
-import { AlertTriangle, Ban, Clock, Lock, Link2Off, Radio } from 'lucide-react';
+import { AlertTriangle, Ban, Clock, Languages, Lock, Link2Off, Radio } from 'lucide-react';
 import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -101,6 +101,12 @@ export function SettingRow({ field, group, version, onChange, onRotated }: Setti
                                 {definition.reach === 'published'
                                     ? t('settings.reach.published')
                                     : t('settings.reach.awaiting')}
+                            </StatusBadge>
+                        ) : null}
+
+                        {field.translated === false ? (
+                            <StatusBadge icon={<Languages className="size-3" />} tone="warning">
+                                {t('settings.notTranslated')}
                             </StatusBadge>
                         ) : null}
 

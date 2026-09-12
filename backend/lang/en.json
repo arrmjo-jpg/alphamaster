@@ -65,6 +65,7 @@
     "api.error.settings.revision_required": "Name the revision to preview.",
     "api.error.settings.secret_verification_failed": "The new credential was not accepted, so nothing was changed.",
     "api.error.settings.unknown_key": "Setting [:group.:key] does not exist. Cannot update an unknown setting.",
+    "api.error.settings.unknown_locale": "There is no language called :locale.",
     "api.error.settings.value_rejected": "That value is not allowed by the setting’s own rules.",
     "api.error.settings.version_conflict": "These settings changed since you loaded them. Review the current values and try again.",
     "api.error.too_many_attempts": "Too many requests. Please retry in :seconds seconds.",

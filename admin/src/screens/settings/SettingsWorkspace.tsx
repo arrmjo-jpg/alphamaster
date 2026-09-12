@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 
 import { ApiError, ErrorCode } from '@/api/errors';
 import { useCurrentUser } from '@/auth/AuthProvider';
+import { languages as adminLanguages } from '@/screens/languages/api';
 import { useDirection } from '@/shell/DirectionProvider';
 import { Alert } from '@/ui/Alert';
 import { Button } from '@/ui/Button';
@@ -43,6 +44,28 @@ export function SettingsWorkspace({ name, definitions, onPendingChange }: Settin
     const user = useCurrentUser();
     const queryClient = useQueryClient();
 
+    // The content language: which language's value is being edited. Not the console's
+    // own language, which stays whatever the operator is reading in — an Arabic console
+    // must be able to write the English site name with every label around it still
+    // Arabic (ADR 0043, amended).
+    const [contentLocale, setContentLocale] = useState<string | null>(null);
+
+    const localized = definitions.some((definition) => definition.is_localized);
+
+    const languages = useQuery({
+        queryKey: ['admin-languages'],
+        queryFn: ({ signal }) => adminLanguages(signal),
+        // Only a group with something localized in it has a language to choose.
+        enabled: localized,
+        staleTime: 5 * 60_000,
+    });
+
+    // The platform's default language rather than the console's: the value being
+    // written belongs to the site, and the operator's reading language says nothing
+    // about which language they mean to write.
+    const selectedLocale =
+        contentLocale ?? languages.data?.find((language) => language.is_default)?.code ?? null;
+
     const [draft, setDraft] = useState<Draft>({});
     const [stage, setStage] = useState<Stage>('editing');
     const [conflict, setConflict] = useState<string | null>(null);
@@ -52,13 +75,24 @@ export function SettingsWorkspace({ name, definitions, onPendingChange }: Settin
     const [saved, setSaved] = useState(false);
 
     const state = useQuery({
-        queryKey: ['settings-group', name, locale],
-        queryFn: ({ signal }) => fetchGroup(name, locale, signal),
+        // Both languages are in the key, and they are different things: the console's
+        // decides the labels the platform answers with, the content one decides which
+        // values come back.
+        queryKey: ['settings-group', name, locale, selectedLocale],
+        queryFn: ({ signal }) => fetchGroup(name, selectedLocale ?? undefined, signal),
+        // A localized group waits for the language list rather than reading one
+        // language and then immediately re-reading another.
+        enabled: !localized || selectedLocale !== null || languages.isError,
     });
 
     const save = useMutation({
         mutationFn: () =>
-            updateGroup(name, changedValues(fields), state.data?.version ?? '', locale),
+            updateGroup(
+                name,
+                changedValues(fields),
+                state.data?.version ?? '',
+                selectedLocale ?? undefined,
+            ),
         onMutate: () => {
             setConflict(null);
             setPrecondition(false);
@@ -260,6 +294,40 @@ export function SettingsWorkspace({ name, definitions, onPendingChange }: Settin
                                 </Button>
                             </div>
                         </Alert>
+                    ) : null}
+
+                    {localized && languages.data !== undefined && languages.data.length > 0 ? (
+                        <div className="flex flex-col gap-1">
+                            <label
+                                className="text-(length:--text-sm) font-medium text-(--text-secondary)"
+                                htmlFor={`${name}-content-language`}
+                            >
+                                {t('settings.contentLanguage')}
+                            </label>
+                            <select
+                                className="h-(--field-height) w-full max-w-xs border border-(--border-strong) bg-(--surface-default) px-2 text-(length:--text-sm) text-(--text-primary) focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-(--focus-ring)"
+                                id={`${name}-content-language`}
+                                onChange={(event) => {
+                                    // The draft belongs to the language it was typed
+                                    // in. Carrying it across would write one language's
+                                    // words into another.
+                                    setDraft({});
+                                    setStage('editing');
+                                    onPendingChange(name, 0);
+                                    setContentLocale(event.target.value);
+                                }}
+                                value={selectedLocale ?? ''}
+                            >
+                                {languages.data.map((language) => (
+                                    <option key={language.code} value={language.code}>
+                                        {language.native_name}
+                                    </option>
+                                ))}
+                            </select>
+                            <p className="text-(length:--text-xs) text-(--text-muted)">
+                                {t('settings.contentLanguageHint')}
+                            </p>
+                        </div>
                     ) : null}
 
                     {formError !== null ? <Alert tone="danger">{formError}</Alert> : null}

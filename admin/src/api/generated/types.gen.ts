@@ -518,6 +518,12 @@ export type SyncUserRolesRequest = {
 
 export type UpdateGroupSettingsRequest = {
     settings: Array<string>;
+    /**
+     * The language a localized value lands in. Absent means the request's own. The content language, which is not the console's display language: an
+     * operator reading the console in Arabic may write the English site name,
+     * and `X-Locale` cannot carry both meanings (ADR 0030).
+     */
+    locale?: string | null;
 };
 
 export type UpdateIntegrationProviderRequest = {
@@ -3761,6 +3767,7 @@ export type AdminSettingsIndexResponses = {
                 value: unknown;
                 is_localized: boolean;
                 locale: string | null;
+                translated: boolean | null;
                 type: string;
                 type_label: string;
                 is_secret: boolean;
@@ -3862,7 +3869,9 @@ export type AdminSettingsShowData = {
     path: {
         group: string;
     };
-    query?: never;
+    query?: {
+        locale?: string;
+    };
     url: '/admin/settings/{group}';
 };
 
@@ -3887,6 +3896,20 @@ export type AdminSettingsShowErrors = {
             details: null;
         };
     };
+    /**
+     * The content language named is not a language the platform knows.
+     */
+    422: {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'UNKNOWN_CONTENT_LOCALE';
+            message: string;
+            details: null;
+        };
+    };
 };
 
 export type AdminSettingsShowError = AdminSettingsShowErrors[keyof AdminSettingsShowErrors];
@@ -3905,6 +3928,7 @@ export type AdminSettingsShowResponses = {
             value: unknown;
             is_localized: boolean;
             locale: string | null;
+            translated: boolean | null;
             type: string;
             type_label: string;
             is_secret: boolean;
@@ -3940,7 +3964,7 @@ export type AdminSettingsUpdateErrors = {
         message: string;
     };
     /**
-     * Validation error
+     * A value was refused, or the content language named is not a language the platform knows.
      */
     422: {
         /**

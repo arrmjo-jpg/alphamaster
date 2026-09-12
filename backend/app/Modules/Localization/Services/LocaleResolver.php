@@ -28,6 +28,8 @@ class LocaleResolver implements LocaleResolverInterface
 
     public const RESOURCE_DEFAULT = 'languages_default';
 
+    public const RESOURCE_KNOWN = 'languages_known';
+
     // TTL and failure behaviour belong to the namespace now (ADR 0035).
 
     /**
@@ -189,6 +191,35 @@ class LocaleResolver implements LocaleResolverInterface
     }
 
     /**
+     * Every language code the platform knows, served or not.
+     *
+     * A draft is a language somebody is still writing (ADR 0048), so it belongs here
+     * and not in the active list: content may be written into it before it is served.
+     *
+     * @return array<int, string>
+     */
+    public function getKnownLocaleCodes(): array
+    {
+        $cached = $this->cache->get(CacheNamespace::LOCALIZATION, self::RESOURCE_KNOWN, [], self::CACHE_MISS);
+
+        if (is_array($cached)) {
+            return $cached;
+        }
+
+        try {
+            /** @var array<int, string> $codes */
+            $codes = Language::query()->ordered()->pluck('code')->all();
+        } catch (\Throwable) {
+            // The safe answer for this request only, and never cached.
+            return [];
+        }
+
+        $this->cache->put(CacheNamespace::LOCALIZATION, self::RESOURCE_KNOWN, [], $codes);
+
+        return $codes;
+    }
+
+    /**
      * Retrieve the default language code from Redis cache or database.
      */
     public function getDefaultLanguageCode(): ?string
@@ -211,6 +242,7 @@ class LocaleResolver implements LocaleResolverInterface
     {
         $this->cache->forget(CacheNamespace::LOCALIZATION, self::RESOURCE_ACTIVE);
         $this->cache->forget(CacheNamespace::LOCALIZATION, self::RESOURCE_DEFAULT);
+        $this->cache->forget(CacheNamespace::LOCALIZATION, self::RESOURCE_KNOWN);
     }
 
     /**

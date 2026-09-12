@@ -377,7 +377,7 @@ test('every key this scope introduced exists in both dictionaries', function ():
     // refuses in one language only would be a poor joke. The AI setup added five of its
     // own, under a prefix the scope now covers, and the integrations refusal that sends
     // AI providers to the control centre.
-    expect($keys)->toHaveCount(58);
+    expect($keys)->toHaveCount(59);
 
     foreach ($keys as $key) {
         expect($ar)->toHaveKey($key)

@@ -6,12 +6,14 @@ namespace App\Modules\Settings\Controllers\Admin;
 
 use App\Modules\Core\Audit\AuditAction;
 use App\Modules\Core\Contracts\AuditRecorderContract;
+use App\Modules\Core\Contracts\LocaleResolverInterface;
 use App\Modules\Core\Controllers\BaseApiController;
 use App\Modules\Settings\Concerns\AssertsSettingPrecondition;
 use App\Modules\Settings\Contracts\SettingServiceInterface;
 use App\Modules\Settings\Definitions\SettingRegistry;
 use App\Modules\Settings\Exceptions\SettingGroupNotFoundException;
 use App\Modules\Settings\Exceptions\SettingValueRejectedException;
+use App\Modules\Settings\Exceptions\UnknownContentLocaleException;
 use App\Modules\Settings\Exceptions\UnknownRevisionException;
 use App\Modules\Settings\Exceptions\UnknownSettingKeyException;
 use App\Modules\Settings\Requests\RollbackGroupSettingsRequest;
@@ -32,7 +34,37 @@ class SettingAdminController extends BaseApiController
         protected SettingServiceInterface $settingService,
         protected SettingRegistry $registry,
         protected AuditRecorderContract $audit,
+        protected LocaleResolverInterface $locales,
     ) {}
+
+    /**
+     * The language a localized value is read or written in, when the caller names one.
+     *
+     * Deliberately not `X-Locale`. That header decides the language the platform
+     * *answers* in — every label and message it publishes (ADR 0030) — and an operator
+     * reading the console in Arabic must be able to write the English site name without
+     * the console turning English. So the content language is its own parameter, and
+     * the two never share one.
+     *
+     * Validated against every language the platform knows rather than the served ones:
+     * a draft is translatable before it is served (ADR 0048).
+     *
+     * @throws UnknownContentLocaleException
+     */
+    private function contentLocale(mixed $requested): ?string
+    {
+        $locale = is_string($requested) ? trim($requested) : '';
+
+        if ($locale === '') {
+            return null;
+        }
+
+        if (! in_array($locale, $this->locales->getKnownLocaleCodes(), true)) {
+            throw new UnknownContentLocaleException($locale);
+        }
+
+        return $locale;
+    }
 
     /**
      * Verify the stored mail configuration by using it.
@@ -96,7 +128,7 @@ class SettingAdminController extends BaseApiController
     /**
      * List all settings grouped by group with admin details and masked secrets.
      */
-    #[Response(200, type: 'array{success: bool, data: array<string, list<array{id: string, group: string, key: string, value: mixed, is_localized: bool, locale: string|null, type: string, type_label: string, is_secret: bool, is_public: bool, description: string|null, updated_at: string|null}>>}')]
+    #[Response(200, type: 'array{success: bool, data: array<string, list<array{id: string, group: string, key: string, value: mixed, is_localized: bool, locale: string|null, translated: bool|null, type: string, type_label: string, is_secret: bool, is_public: bool, description: string|null, updated_at: string|null}>>}')]
     public function index(): JsonResponse
     {
         return $this->successResponse($this->settingService->getAdminAll());
@@ -104,12 +136,18 @@ class SettingAdminController extends BaseApiController
 
     /**
      * Get all settings in a specific group with admin details and masked secrets.
+     *
+     * `?locale=` names the **content** language a localized value is read in, which is
+     * not the language the platform answers in. Absent means the request's own, which
+     * is what every caller before this parameter existed gets.
      */
-    #[Response(200, type: 'array{success: bool, data: list<array{id: string, group: string, key: string, value: mixed, is_localized: bool, locale: string|null, type: string, type_label: string, is_secret: bool, is_public: bool, description: string|null, updated_at: string|null}>, meta: array{version: string}}')]
-    public function show(string $group): JsonResponse
+    #[Response(200, type: 'array{success: bool, data: list<array{id: string, group: string, key: string, value: mixed, is_localized: bool, locale: string|null, translated: bool|null, type: string, type_label: string, is_secret: bool, is_public: bool, description: string|null, updated_at: string|null}>, meta: array{version: string}}')]
+    #[Response(422, description: 'The content language named is not a language the platform knows.')]
+    public function show(Request $request, string $group): JsonResponse
     {
         try {
-            $settings = $this->settingService->getAdminGroup($group);
+            $locale = $this->contentLocale($request->query('locale'));
+            $settings = $this->settingService->getAdminGroup($group, $locale);
             $version = $this->settingService->groupVersion($group);
 
             // Handed back both ways: as an ETag for a client that speaks HTTP
@@ -118,6 +156,8 @@ class SettingAdminController extends BaseApiController
                 ->header('ETag', '"'.$version.'"');
         } catch (SettingGroupNotFoundException $e) {
             return $this->errorResponse('SETTING_GROUP_NOT_FOUND', $e->translationKey(), null, 404, $e->translationParameters());
+        } catch (UnknownContentLocaleException $e) {
+            return $this->errorResponse('UNKNOWN_CONTENT_LOCALE', $e->translationKey(), null, 422, $e->translationParameters());
         }
     }
 
@@ -157,14 +197,21 @@ class SettingAdminController extends BaseApiController
      *
      * An unknown group or key is a 404 (settings are provisioned, not created here);
      * a value that cannot be represented in the setting's declared type is a 422.
+     *
+     * `locale` in the body names the **content** language a localized value lands in.
+     * Absent means the request's own, so a caller that never sends it behaves exactly
+     * as it did before the field existed.
      */
     #[Response(200, type: 'array{success: bool, message: string, data: array{group: string, updated: array<string, mixed>}, meta: array{version: string}}')]
+    #[Response(422, description: 'A value was refused, or the content language named is not a language the platform knows.')]
     public function update(UpdateGroupSettingsRequest $request, string $group): JsonResponse
     {
         /** @var array<string, mixed> $payload */
         $payload = $request->validated()['settings'];
 
         try {
+            $locale = $this->contentLocale($request->validated('locale'));
+
             $precondition = $this->assertPrecondition($request, $group);
 
             if ($precondition !== null) {
@@ -177,7 +224,9 @@ class SettingAdminController extends BaseApiController
                 return $forbidden;
             }
 
-            $updated = $this->settingService->updateGroup($group, $payload);
+            $updated = $this->settingService->updateGroup($group, $payload, $locale);
+        } catch (UnknownContentLocaleException $e) {
+            return $this->errorResponse('UNKNOWN_CONTENT_LOCALE', $e->translationKey(), null, 422, $e->translationParameters());
         } catch (SettingGroupNotFoundException $e) {
             return $this->errorResponse('SETTING_GROUP_NOT_FOUND', $e->translationKey(), null, 404, $e->translationParameters());
         } catch (UnknownSettingKeyException $e) {

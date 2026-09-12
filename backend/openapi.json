@@ -5993,6 +5993,12 @@
                                                                 "null"
                                                             ]
                                                         },
+                                                        "translated": {
+                                                            "type": [
+                                                                "boolean",
+                                                                "null"
+                                                            ]
+                                                        },
                                                         "type": {
                                                             "type": "string"
                                                         },
@@ -6025,6 +6031,7 @@
                                                         "value",
                                                         "is_localized",
                                                         "locale",
+                                                        "translated",
                                                         "type",
                                                         "type_label",
                                                         "is_secret",
@@ -6201,6 +6208,7 @@
         "/admin/settings/{group}": {
             "get": {
                 "operationId": "admin.settings.show",
+                "description": "`?locale=` names the **content** language a localized value is read in, which is\nnot the language the platform answers in. Absent means the request's own, which\nis what every caller before this parameter existed gets.",
                 "summary": "Get all settings in a specific group with admin details and masked secrets",
                 "tags": [
                     "SettingAdmin"
@@ -6213,9 +6221,56 @@
                         "schema": {
                             "type": "string"
                         }
+                    },
+                    {
+                        "name": "locale",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
                     }
                 ],
                 "responses": {
+                    "422": {
+                        "description": "The content language named is not a language the platform knows.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "error": {
+                                            "type": "object",
+                                            "properties": {
+                                                "code": {
+                                                    "type": "string",
+                                                    "description": "`code` is contract and is never localized (ADR 0031).",
+                                                    "const": "UNKNOWN_CONTENT_LOCALE"
+                                                },
+                                                "message": {
+                                                    "type": "string"
+                                                },
+                                                "details": {
+                                                    "type": "null"
+                                                }
+                                            },
+                                            "required": [
+                                                "code",
+                                                "message",
+                                                "details"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "error"
+                                    ]
+                                }
+                            }
+                        }
+                    },
                     "404": {
                         "description": "",
                         "content": {
@@ -6290,6 +6345,12 @@
                                                             "null"
                                                         ]
                                                     },
+                                                    "translated": {
+                                                        "type": [
+                                                            "boolean",
+                                                            "null"
+                                                        ]
+                                                    },
                                                     "type": {
                                                         "type": "string"
                                                     },
@@ -6322,6 +6383,7 @@
                                                     "value",
                                                     "is_localized",
                                                     "locale",
+                                                    "translated",
                                                     "type",
                                                     "type_label",
                                                     "is_secret",
@@ -6359,7 +6421,7 @@
             },
             "put": {
                 "operationId": "admin.settings.update",
-                "description": "An unknown group or key is a 404 (settings are provisioned, not created here);\na value that cannot be represented in the setting's declared type is a 422.",
+                "description": "An unknown group or key is a 404 (settings are provisioned, not created here);\na value that cannot be represented in the setting's declared type is a 422.\n\n`locale` in the body names the **content** language a localized value lands in.\nAbsent means the request's own, so a caller that never sends it behaves exactly\nas it did before the field existed.",
                 "summary": "Batch update an array of settings within a group atomically.\nExpected contract: { \"settings\": { \"key1\": \"val1\", \"key2\": val2 } }",
                 "tags": [
                     "SettingAdmin"
@@ -6440,7 +6502,34 @@
                         "$ref": "#/components/responses/AuthenticationException"
                     },
                     "422": {
-                        "$ref": "#/components/responses/ValidationException"
+                        "description": "A value was refused, or the content language named is not a language the platform knows.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "description": "Errors overview."
+                                        },
+                                        "errors": {
+                                            "type": "object",
+                                            "description": "A detailed description of each field that failed validation.",
+                                            "additionalProperties": {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "string"
+                                                }
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "message",
+                                        "errors"
+                                    ]
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -10292,6 +10381,14 @@
                         },
                         "minItems": 1,
                         "maxItems": 100
+                    },
+                    "locale": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "The language a localized value lands in. Absent means the request's own. The content language, which is not the console's display language: an\noperator reading the console in Arabic may write the English site name,\nand `X-Locale` cannot carry both meanings (ADR 0030).",
+                        "maxLength": 35
                     }
                 },
                 "required": [

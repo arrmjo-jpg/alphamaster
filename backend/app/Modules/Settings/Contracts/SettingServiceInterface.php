@@ -55,11 +55,15 @@ interface SettingServiceInterface
     /**
      * Retrieve all settings in a group for admin inspection (with secrets masked).
      *
+     * @param  string|null  $locale  which language a localized value is read in; the
+     *                               request's own when not named. The display language
+     *                               of the console is a separate thing and stays where
+     *                               it is (ADR 0030).
      * @return array<int, array<string, mixed>>
      *
      * @throws SettingGroupNotFoundException
      */
-    public function getAdminGroup(string $group): array;
+    public function getAdminGroup(string $group, ?string $locale = null): array;
 
     /**
      * Retrieve all settings across all groups for admin inspection (with secrets masked).
