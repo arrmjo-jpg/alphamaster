@@ -60,14 +60,40 @@ class SettingRegistry
     }
 
     /**
-     * Every registered definition, keyed by reference and ordered for stable output.
+     * Every registered definition, keyed by reference: groups in alphabetical order,
+     * and within a group the order its catalogue declared them in.
+     *
+     * Sorting the whole reference alphabetically, as this once did, threw away the one
+     * ordering anybody had actually thought about. A catalogue declares its settings in
+     * the order an operator reads them — GeneralCatalogue builds itself from identity,
+     * contact, urls, footer and operations, each a method with a reason written above
+     * it — and the alphabet then interleaved them by the English spelling of their
+     * keys. The site name landed seventeenth of eighteen, the maintenance message and
+     * the administrator bypass sorted ahead of the maintenance mode they belong to, and
+     * in a console reading Arabic the sequence carried no meaning at all, because the
+     * labels on screen are not the strings being sorted.
+     *
+     * Groups stay alphabetical. The admin catalogue endpoint buckets this list by group
+     * as it walks it, so a group's definitions must stay contiguous; ordering the
+     * groups by registration instead would also change the shape of that payload, and
+     * the one thing being fixed here is the order within a group.
      *
      * @return array<string, SettingDefinition>
      */
     public function all(): array
     {
         $definitions = $this->definitions;
-        ksort($definitions);
+
+        // Declaration order is insertion order, which is what this records before the
+        // sort disturbs it. It is compared explicitly rather than leaned on as sort
+        // stability, so the guarantee is in the comparison rather than in the engine.
+        $declared = array_flip(array_keys($definitions));
+
+        uksort($definitions, static function (string $first, string $second) use ($definitions, $declared): int {
+            $byGroup = $definitions[$first]->group <=> $definitions[$second]->group;
+
+            return $byGroup !== 0 ? $byGroup : $declared[$first] <=> $declared[$second];
+        });
 
         return $definitions;
     }

@@ -117,15 +117,22 @@ test('an undeclared setting raises the same error the admin API returns', functi
         ->toThrow(UnknownSettingKeyException::class);
 });
 
-test('definitions are grouped and ordered deterministically', function (): void {
+test('groups are alphabetical and a group keeps the order it was declared in', function (): void {
     $registry = new SettingRegistry;
     $registry->register(definition('mail', 'host'));
     $registry->register(definition('general', 'site_name'));
     $registry->register(definition('general', 'contact_email'));
 
+    // contact_email is registered after site_name and sorts before it, so expecting
+    // the declared order here is a claim the alphabet would fail. That is the point:
+    // a catalogue declares its settings in the order an operator reads them, and
+    // sorting the reference threw that away.
     expect(array_keys($registry->all()))
-        ->toBe(['general.contact_email', 'general.site_name', 'mail.host'])
-        ->and(array_keys($registry->forGroup('general')))->toBe(['contact_email', 'site_name'])
+        ->toBe(['general.site_name', 'general.contact_email', 'mail.host'])
+        ->and(array_keys($registry->forGroup('general')))->toBe(['site_name', 'contact_email'])
+        // Groups remain alphabetical, so `mail`, registered first, still follows
+        // `general`. The admin catalogue endpoint buckets by group as it walks this
+        // list, which is why a group's definitions stay contiguous.
         ->and($registry->groups())->toBe(['general', 'mail']);
 });
 
