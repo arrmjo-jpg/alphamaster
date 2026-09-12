@@ -13,6 +13,25 @@ export interface GroupNavProps {
 }
 
 /**
+ * The order an operator reads them in, rather than the alphabet's: what the platform
+ * is, then how it looks, then who may enter, then the services behind it, and the
+ * operational limits last. A group the platform adds later still appears — after
+ * these, in its own alphabetical place — because a list that silently drops a group
+ * is worse than one in an unexpected order.
+ */
+const GROUP_ORDER = [
+    'general',
+    'branding',
+    'auth',
+    'ai',
+    'mail',
+    'localization',
+    'security',
+    'rate_limit',
+    'operations',
+];
+
+/**
  * The groups, and what is in each of them.
  *
  * A list of eight bare names tells an operator nothing they did not already know. The
@@ -26,7 +45,24 @@ export interface GroupNavProps {
  */
 export function GroupNav({ catalogue, pendingByGroup, onNavigate }: GroupNavProps) {
     const { t } = useTranslation();
-    const groups = Object.keys(catalogue).toSorted();
+    const groups = Object.keys(catalogue).toSorted((first, second) => {
+        const left = GROUP_ORDER.indexOf(first);
+        const right = GROUP_ORDER.indexOf(second);
+
+        if (left === -1 && right === -1) {
+            return first.localeCompare(second);
+        }
+
+        if (left === -1) {
+            return 1;
+        }
+
+        if (right === -1) {
+            return -1;
+        }
+
+        return left - right;
+    });
 
     return (
         <nav aria-label={t('settings.groups')} className="flex flex-col">

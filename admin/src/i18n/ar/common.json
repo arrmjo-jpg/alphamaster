@@ -482,8 +482,9 @@
             "systemActor": "النظام"
         },
         "group": {
+            "ai": "AI",
             "auth": "المصادقة",
-            "branding": "الهوية",
+            "branding": "الهوية البصرية",
             "general": "عام",
             "localization": "اللغات",
             "mail": "البريد",

@@ -398,6 +398,7 @@
             "systemActor": "System"
         },
         "group": {
+            "ai": "AI",
             "auth": "Authentication",
             "branding": "Branding",
             "general": "General",
