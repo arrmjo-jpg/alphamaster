@@ -29,6 +29,11 @@ class MediaAdminController extends BaseApiController
     /**
      * List media, newest first.
      */
+    // `page` is Laravel's, not this controller's, which is exactly why it was missing
+    // from the published contract: the paginator reads it off the request and nothing
+    // here mentions it, so the generator had nothing to infer. A client cannot reach
+    // the second page of an endpoint whose only pagination control is undocumented.
+    #[QueryParameter('page', 'Which page of results to return.', type: 'int', default: 1)]
     #[QueryParameter('status', 'Exact match on the media status.', type: 'string')]
     #[QueryParameter('type', 'Exact match on the media type.', type: 'string')]
     #[Response(200, type: 'array{success: bool, data: list<MediaAdminResource>, meta: array{pagination: array{current_page: int, per_page: int, total: int, last_page: int, has_more_pages: bool}}}')]

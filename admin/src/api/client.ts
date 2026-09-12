@@ -37,8 +37,35 @@ export interface RequestOptions {
     /** Sent as `If-Match`; the settings write requires it (ADR 0038). */
     ifMatch?: string;
     query?: Record<string, string | number | boolean | undefined>;
+    /**
+     * Overrides the locale this module already sends.
+     *
+     * Rarely needed: every request carries the interface locale as `X-Locale`
+     * already. It exists for the settings screens, which read and write a specific
+     * language's values rather than the one the operator happens to be reading in.
+     */
     locale?: string;
     signal?: AbortSignal;
+}
+
+/**
+ * The language the platform should answer in.
+ *
+ * Held here rather than passed per call, and that is the point. The platform resolves
+ * a locale per request and localizes every label it publishes from it (ADR 0030), so
+ * a request that says nothing gets whatever `Accept-Language` negotiated — which is
+ * the browser's language, not the one the console is being read in. Leaving it to
+ * call sites meant exactly one screen remembered, and every server-rendered label on
+ * every other screen came back in English under an Arabic interface.
+ *
+ * Module state rather than context because `request` is not a component and must not
+ * become one; `DirectionProvider` owns the value and publishes it here whenever the
+ * operator changes language.
+ */
+let interfaceLocale: string | null = null;
+
+export function setRequestLocale(locale: string): void {
+    interfaceLocale = locale;
 }
 
 /** A response and the envelope metadata a caller occasionally needs. */
@@ -95,8 +122,13 @@ export async function request<T>(
         headers['If-Match'] = `"${ifMatch}"`;
     }
 
-    if (locale !== undefined) {
-        headers['X-Locale'] = locale;
+    // The caller's choice wins, the interface locale is the default, and neither is
+    // sent when nothing has set one — an absent header is the platform's cue to
+    // negotiate, which is the right behaviour before the interface has a language.
+    const resolvedLocale = locale ?? interfaceLocale;
+
+    if (resolvedLocale !== null && resolvedLocale !== undefined) {
+        headers['X-Locale'] = resolvedLocale;
     }
 
     let response: Response;
