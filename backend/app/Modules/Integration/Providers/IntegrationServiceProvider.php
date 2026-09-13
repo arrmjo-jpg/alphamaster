@@ -8,10 +8,13 @@ use App\Modules\Core\Ai\TextGeneratorContract;
 use App\Modules\Core\Backup\ConfigurationPortability;
 use App\Modules\Integration\Backup\ProviderPortability;
 use App\Modules\Integration\Contracts\CaptchaVerifierContract;
+use App\Modules\Integration\Contracts\PushDispatcherContract;
 use App\Modules\Integration\Contracts\SmsDispatcherContract;
 use App\Modules\Integration\Services\AiManager;
 use App\Modules\Integration\Services\CaptchaManager;
 use App\Modules\Integration\Services\CaptchaVerifier;
+use App\Modules\Integration\Services\PushDispatcher;
+use App\Modules\Integration\Services\PushManager;
 use App\Modules\Integration\Services\SmsDispatcher;
 use App\Modules\Integration\Services\SmsManager;
 use App\Modules\Integration\Services\TextGenerator;
@@ -45,6 +48,13 @@ class IntegrationServiceProvider extends ServiceProvider
         // nothing else (ADR 0044 §2). Integration binds it, as the module that owns
         // vendors, and nothing outside this file knows which vendor answers.
         $this->app->singleton(TextGeneratorContract::class, TextGenerator::class);
+
+        $this->app->singleton(PushManager::class, fn ($app): PushManager => new PushManager($app));
+
+        // Push is a transport like SMS, so the division is the same: a channel asks
+        // for delivery, and provider selection, failover and usage recording stay here
+        // (ADR 0045 §2). Firebase is a driver behind this and nothing more.
+        $this->app->singleton(PushDispatcherContract::class, PushDispatcher::class);
     }
 
     /**

@@ -21,6 +21,7 @@ import {
     type ProviderChanges,
 } from './api';
 import { KeyValueEditor } from './KeyValueEditor';
+import { ServiceAccountField } from './ServiceAccountField';
 import { fromPairs, toPairs, type Pair } from './pairs';
 
 export interface ProviderDetailProps {
@@ -356,42 +357,62 @@ export function ProviderDetail({ provider, usage, mayUpdate, onClose }: Provider
                                         {t('integrations.credentials.replaceWarning')}
                                     </p>
 
-                                    <KeyValueEditor
-                                        addLabel={t('integrations.credentials.add')}
-                                        emptyMessage={t('integrations.credentials.startEmpty')}
-                                        label={t('integrations.credentials.title')}
-                                        namePlaceholder={t('integrations.name')}
-                                        onChange={setCredentials}
-                                        pairs={credentials}
-                                        secret
-                                        valuePlaceholder={t('integrations.credentials.value')}
-                                    />
-
-                                    <div className="flex flex-wrap gap-2">
-                                        <Button
-                                            disabled={
-                                                Object.keys(fromPairs(credentials)).length === 0
-                                            }
-                                            loading={save.isPending}
-                                            onClick={() =>
+                                    {provider.driver === 'fcm' ? (
+                                        // A service account is a JSON document with a
+                                        // multi-line private key, which single-line
+                                        // inputs cannot hold (ADR 0045 §2).
+                                        <ServiceAccountField
+                                            busy={save.isPending}
+                                            onCancel={() => setCredentials(null)}
+                                            onSubmit={(value) =>
                                                 save.mutate(
-                                                    { credentials: fromPairs(credentials) },
+                                                    { credentials: value },
                                                     { onSuccess: () => setCredentials(null) },
                                                 )
                                             }
-                                            size="sm"
-                                            variant="primary"
-                                        >
-                                            {t('integrations.credentials.submit')}
-                                        </Button>
-                                        <Button
-                                            onClick={() => setCredentials(null)}
-                                            size="sm"
-                                            variant="ghost"
-                                        >
-                                            {t('integrations.cancel')}
-                                        </Button>
-                                    </div>
+                                        />
+                                    ) : null}
+
+                                    {provider.driver === 'fcm' ? null : (
+                                        <KeyValueEditor
+                                            addLabel={t('integrations.credentials.add')}
+                                            emptyMessage={t('integrations.credentials.startEmpty')}
+                                            label={t('integrations.credentials.title')}
+                                            namePlaceholder={t('integrations.name')}
+                                            onChange={setCredentials}
+                                            pairs={credentials}
+                                            secret
+                                            valuePlaceholder={t('integrations.credentials.value')}
+                                        />
+                                    )}
+
+                                    {provider.driver === 'fcm' ? null : (
+                                        <div className="flex flex-wrap gap-2">
+                                            <Button
+                                                disabled={
+                                                    Object.keys(fromPairs(credentials)).length === 0
+                                                }
+                                                loading={save.isPending}
+                                                onClick={() =>
+                                                    save.mutate(
+                                                        { credentials: fromPairs(credentials) },
+                                                        { onSuccess: () => setCredentials(null) },
+                                                    )
+                                                }
+                                                size="sm"
+                                                variant="primary"
+                                            >
+                                                {t('integrations.credentials.submit')}
+                                            </Button>
+                                            <Button
+                                                onClick={() => setCredentials(null)}
+                                                size="sm"
+                                                variant="ghost"
+                                            >
+                                                {t('integrations.cancel')}
+                                            </Button>
+                                        </div>
+                                    )}
                                 </div>
                             )}
 

@@ -355,5 +355,13 @@
     "enum.localization.suggestion_status.ready": "اقتراح آلي",
     "enum.localization.suggestion_status.failed": "لم يُولَّد",
     "enum.localization.suggestion_status.accepted": "مقبول",
-    "enum.localization.suggestion_status.dismissed": "مُتجاهَل"
+    "enum.localization.suggestion_status.dismissed": "مُتجاهَل",
+    "api.notifications.device_registered": "سيتلقّى هذا الجهاز الإشعارات.",
+    "api.notifications.device_forgotten": "لن يتلقّى هذا الجهاز الإشعارات بعد الآن.",
+    "api.error.notifications.device_not_found": "لا يوجد جهاز مُسجَّل بهذا المعرّف.",
+    "enum.integration.integration_capability.push": "الإشعارات الفورية",
+    "enum.notification.notification_channel.push": "إشعار فوري",
+    "enum.notification.device_platform.ios": "آيفون أو آيباد",
+    "enum.notification.device_platform.android": "أندرويد",
+    "enum.notification.device_platform.web": "متصفّح"
 }

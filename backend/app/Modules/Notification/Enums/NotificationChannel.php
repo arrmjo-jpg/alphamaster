@@ -9,8 +9,9 @@ use App\Modules\Core\Concerns\HasDisplayLabel;
 /**
  * A route a notification can take to a recipient.
  *
- * Only channels the platform can actually deliver on exist here. WhatsApp and push
- * arrive when the Integration capabilities they need do (ADR 0017).
+ * Only channels the platform can actually deliver on exist here. Push arrived with
+ * the Integration capability it needed (ADR 0045); WhatsApp arrives when its own
+ * does (ADR 0017).
  */
 enum NotificationChannel: string
 {
@@ -19,6 +20,13 @@ enum NotificationChannel: string
     case DATABASE = 'database';
     case MAIL = 'mail';
     case SMS = 'sms';
+
+    /**
+     * A registered device (ADR 0045). What travels is a type and a record id — the
+     * device fetches the message over the authenticated API, because a push payload
+     * passes through Google and Apple and a lock screen is a public surface.
+     */
+    case PUSH = 'push';
 
     /**
      * Whether a user may switch this channel off.

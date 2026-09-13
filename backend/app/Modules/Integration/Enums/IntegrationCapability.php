@@ -33,6 +33,13 @@ enum IntegrationCapability: string
     case AI = 'ai';
 
     /**
+     * Push delivery to a registered device (ADR 0045). Firebase Cloud Messaging is a
+     * driver here and nothing more: this platform owns identity, its database and its
+     * media, and adopts Firebase only as a transport.
+     */
+    case PUSH = 'push';
+
+    /**
      * @return array<int, string>
      */
     public static function values(): array

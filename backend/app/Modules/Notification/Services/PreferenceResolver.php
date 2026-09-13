@@ -108,8 +108,16 @@ class PreferenceResolver implements PreferenceResolverContract
         // A non-silenceable combination is delivered regardless of any stored row,
         // so a preference written before the rules tightened cannot suppress it.
         if (! $this->isSilenceable($type, $channel)) {
-            return in_array($channel, $type->defaultChannels(), true)
-                || $channel === NotificationChannel::DATABASE;
+            if (in_array($channel, $type->defaultChannels(), true)
+                || $channel === NotificationChannel::DATABASE) {
+                return true;
+            }
+
+            // The rule is one-directional. The defaults of a mandatory notification are
+            // a floor nobody can go below, not a ceiling nobody can go above: a
+            // recipient asking to be told about a compromised account on their phone as
+            // well is making the choice this rule exists to protect, not undermining it.
+            return $channel->isOptional() && ($overrides[$channel->value] ?? false);
         }
 
         return $overrides[$channel->value]

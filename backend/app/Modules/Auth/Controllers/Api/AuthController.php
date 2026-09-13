@@ -22,6 +22,7 @@ use App\Modules\Auth\Services\LoginThrottle;
 use App\Modules\Auth\Support\AuthCookie;
 use App\Modules\Auth\Support\LoginIdentifier;
 use App\Modules\Core\Contracts\EffectiveGrants;
+use App\Modules\Core\Contracts\PushDeviceRegistrarContract;
 use App\Modules\Core\Controllers\BaseApiController;
 use Dedoc\Scramble\Attributes\Response;
 use Illuminate\Http\JsonResponse;
@@ -36,6 +37,9 @@ class AuthController extends BaseApiController
         protected MfaManagerContract $mfa,
         protected EffectiveGrants $grants,
         protected CaptchaGuard $captcha,
+        // Declared in Core because this module may not depend on Notification, which
+        // owns the registry (ADR 0045 §5).
+        protected PushDeviceRegistrarContract $devices,
     ) {}
 
     /**
@@ -247,6 +251,13 @@ class AuthController extends BaseApiController
         $token = $request->user()?->currentAccessToken();
 
         if ($token instanceof PersonalAccessToken) {
+            // Devices first, while the token id is still readable. A handset registered
+            // during this session stops receiving with it (ADR 0045 §5) — a shared
+            // phone must not keep delivering the previous account's notifications, and
+            // devices registered on another session are untouched because the registry
+            // is keyed by token rather than by account.
+            $this->devices->forgetForAccessToken((string) $token->getKey());
+
             $token->delete();
         }
 

@@ -612,6 +612,13 @@
                 "detail": "Detail",
                 "when": "When"
             }
+        },
+        "serviceAccount": {
+            "label": "Service account (JSON)",
+            "hint": "Paste the whole service-account file from the Firebase console. Only the project, the client address and the private key are kept; nothing is shown back once it is saved.",
+            "notJson": "This is not a JSON document.",
+            "missing": "The document is missing: {{fields}}.",
+            "found": "Found a service account for project {{project}}."
         }
     },
     "languages": {
@@ -840,6 +847,26 @@
             "sent_zero": "Nobody matched that audience, so nothing was sent.",
             "sent_one": "Queued for one recipient.",
             "sent_other": "Queued for {{count}} recipients."
+        },
+        "devices": {
+            "title": "Devices",
+            "description": "Where a push can reach somebody, and whether anything could reach them. Devices are registered by each account’s own app; they cannot be added here.",
+            "pushReady": "Push ready",
+            "pushNotReady": "Push not ready",
+            "credentialStored": "Credential stored",
+            "credentialMissing": "No credential",
+            "lastDelivered": "Last push delivered",
+            "lastFailed": "Last push failed",
+            "noProvider": "No push provider is switched on.",
+            "recentFailures_one": "{{count}} failed push in the last day.",
+            "recentFailures_other": "{{count}} failed pushes in the last day.",
+            "configuredElsewhere": "The provider and its service account are set on the Integrations screen.",
+            "totals": "{{total}} registered; {{stale}} not reached in thirty days.",
+            "none": "No device has registered yet.",
+            "stale": "Not reached recently",
+            "neverReached": "Never reached",
+            "lastReached": "Last reached {{when}}",
+            "forget": "Remove {{name}}"
         }
     },
     "operations": {
