@@ -98,15 +98,15 @@ export type MediaAdminResource = {
     collection: string;
     original_filename: string;
     mime_type: string;
-    type: string;
+    type: MediaType;
     type_label: string;
     size_bytes: number;
     checksum: string;
-    visibility: string;
+    visibility: MediaVisibility;
     visibility_label: string;
-    status: string;
+    status: MediaStatus;
     status_label: string;
-    scan_status: string;
+    scan_status: ScanStatus;
     scan_status_label: string;
     failure_reason: string | null;
     attachable_type: string | null;
@@ -120,15 +120,15 @@ export type MediaResource = {
     collection: string;
     original_filename: string;
     mime_type: string;
-    type: string;
+    type: MediaType;
     type_label: string;
     size_bytes: number;
     checksum: string;
-    visibility: string;
+    visibility: MediaVisibility;
     visibility_label: string;
-    status: string;
+    status: MediaStatus;
     status_label: string;
-    scan_status: string;
+    scan_status: ScanStatus;
     scan_status_label: string;
     width: number | null;
     height: number | null;
@@ -136,6 +136,24 @@ export type MediaResource = {
     url: string | null;
     created_at: string | null;
 };
+
+/**
+ * Where a file is in its intake lifecycle. Verification is deliberately absent: whether an analyzer has looked at a file is independent of whether the file is usable, and coupling them would make readiness hostage to a capability most media never needs.
+ *
+ */
+export type MediaStatus = 'uploaded' | 'scanning' | 'processing' | 'ready' | 'scan_failed' | 'processing_failed';
+
+/**
+ * The broad kind of a file, derived from its detected content type.
+ *
+ */
+export type MediaType = 'image' | 'video' | 'audio' | 'document';
+
+/**
+ * Whether a file is reachable without authorization. Deliberately only two values. Who is entitled to a private file is a business question that Media cannot answer — owner, team member, judge, subscriber — so it is delegated to a MediaAccessPolicy the attaching module supplies. Media knows whether authorization is required, never who satisfies it.
+ *
+ */
+export type MediaVisibility = 'public' | 'private';
 
 export type MfaChallengeRequest = {
     mfa_token: string;
@@ -220,6 +238,12 @@ export type RotateSecretRequest = {
      */
     credential: string;
 };
+
+/**
+ * What a malware scanner concluded, if one ran. NOT_SCANNED exists so the platform never claims a guarantee nobody checked. No antivirus is available in this environment, so the null driver records this rather than CLEAN: a row asserting cleanliness on the strength of a scanner that did not run would be worse than an honest absence.
+ *
+ */
+export type ScanStatus = 'not_scanned' | 'pending' | 'clean' | 'infected' | 'scan_error';
 
 export type SettingDefinitionResource = {
     key: string;
@@ -389,6 +413,10 @@ export type AdminAuditIndexData = {
     body?: never;
     path?: never;
     query?: {
+        /**
+         * Which page of results to return.
+         */
+        page?: number;
         /**
          * Rows per page.
          */
@@ -1730,6 +1758,10 @@ export type AdminMediaIndexData = {
     body?: never;
     path?: never;
     query?: {
+        /**
+         * Which page of results to return.
+         */
+        page?: number;
         /**
          * Exact match on the media status.
          */

@@ -150,7 +150,8 @@
         "users": "Users",
         "roles": "Roles & permissions",
         "integrations": "Integrations",
-        "languages": "Languages"
+        "languages": "Languages",
+        "media": "Media"
     },
     "dashboard": {
         "platform": {
@@ -564,6 +565,93 @@
             "status": "Status",
             "interface": "Console",
             "order": "Order"
+        }
+    },
+    "media": {
+        "eyebrow": "Platform",
+        "detail": "Media detail",
+        "close": "Close the file",
+        "cancel": "Cancel",
+        "view": "View",
+        "grid": "Grid",
+        "list": "List",
+        "chooseFile": "Choose a file to inspect it, or upload one.",
+        "visibility": "Visibility",
+        "public": "Public",
+        "private": "Private",
+        "failed": "This file did not complete intake",
+        "removeSection": "Removal",
+        "remove": "Remove this file",
+        "removeWarning": "The record is removed now and the stored file is purged later by the retention job. Nothing in the platform restores either.",
+        "removeConfirm": "Remove it",
+        "removeDenied": "You may read this file but not remove it. Removing one needs the media.delete permission.",
+        "noReplace": "A stored file cannot be replaced or renamed. The bytes behind an identifier never change, which is what makes them cacheable forever; upload a new file instead.",
+        "empty": {
+            "title": "Nothing is stored yet.",
+            "body": "Uploading a file here puts it through the platform intake: it is stored, scanned where a scanner exists, and becomes servable once it is ready.",
+            "filtered": "No file matches this filter.",
+            "filteredBody": "The filter is applied by the platform across everything it holds, not only this page, so this is the whole answer."
+        },
+        "filters": {
+            "type": "Type",
+            "status": "Status",
+            "any": "Any",
+            "count_zero": "No file",
+            "count_one": "{{count}} file",
+            "count_other": "{{count}} files"
+        },
+        "types": {
+            "image": "Image",
+            "video": "Video",
+            "audio": "Audio",
+            "document": "Document"
+        },
+        "statuses": {
+            "uploaded": "Uploaded",
+            "scanning": "Scanning",
+            "processing": "Processing",
+            "ready": "Ready",
+            "scan_failed": "Scan failed",
+            "processing_failed": "Processing failed"
+        },
+        "preview": {
+            "alt": "The stored file",
+            "not-ready": "Not servable yet",
+            "private": "Private to its uploader",
+            "not-visual": "No inline preview for this type",
+            "refused": "The platform did not serve this file"
+        },
+        "pagination": {
+            "label": "Pages",
+            "previous": "Previous",
+            "next": "Next",
+            "position": "Page {{page}} of {{pages}}"
+        },
+        "fields": {
+            "collection": "Collection",
+            "mime": "Detected type",
+            "size": "Size",
+            "uploader": "Uploaded by",
+            "noUploader": "No account recorded",
+            "uploaded": "Uploaded",
+            "attached": "Attached to",
+            "unattached": "Nothing",
+            "checksum": "Checksum"
+        },
+        "upload": {
+            "eyebrow": "Library",
+            "title": "Upload a file",
+            "file": "File",
+            "fileHint": "Up to {{size}}. What the file is gets decided from its bytes by the platform, not from its name.",
+            "tooLarge": "The platform accepts up to {{size}}.",
+            "collection": "Collection",
+            "collectionHint": "Groups files that belong together. Lower case, starting with a letter.",
+            "collectionInvalid": "Lower case letters, digits and underscores, starting with a letter.",
+            "publicNote": "A public file is readable by anyone signed in.",
+            "privateNote": "A private file is readable by whoever uploaded it, and by whatever the owning module allows once it is attached to something.",
+            "submit": "Upload",
+            "accepted": "The file was accepted and is being processed.",
+            "pipelineNote": "An accepted file is not immediately servable: it is scanned and processed first, and appears in the library while that happens."
         }
     },
     "list": {

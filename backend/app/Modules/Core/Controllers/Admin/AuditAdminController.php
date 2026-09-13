@@ -39,6 +39,11 @@ class AuditAdminController extends BaseApiController
      * this person do, what happened to this setting, what happened that day — are the
      * ones the indexes were built for.
      */
+    // `page` is Laravel's, not this controller's, which is why it was absent from the
+    // published contract: the paginator reads it off the request and nothing here
+    // mentions it. An endpoint whose only pagination control is undocumented can be
+    // read one page deep.
+    #[QueryParameter('page', 'Which page of results to return.', type: 'int', default: 1)]
     #[QueryParameter('per_page', 'Rows per page.', type: 'int', default: 25)]
     #[QueryParameter('action', 'Exact match on the recorded action.', type: 'string')]
     #[QueryParameter('subject', 'Exact match on the subject the action was taken on.', type: 'string')]

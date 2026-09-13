@@ -74,6 +74,15 @@
                 ],
                 "parameters": [
                     {
+                        "name": "page",
+                        "in": "query",
+                        "description": "Which page of results to return.",
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        }
+                    },
+                    {
                         "name": "per_page",
                         "in": "query",
                         "description": "Rows per page.",
@@ -2731,6 +2740,15 @@
                     "MediaAdmin"
                 ],
                 "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "Which page of results to return.",
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        }
+                    },
                     {
                         "name": "status",
                         "in": "query",
@@ -5907,7 +5925,7 @@
                         "type": "string"
                     },
                     "type": {
-                        "type": "string"
+                        "$ref": "#/components/schemas/MediaType"
                     },
                     "type_label": {
                         "type": "string"
@@ -5919,19 +5937,19 @@
                         "type": "string"
                     },
                     "visibility": {
-                        "type": "string"
+                        "$ref": "#/components/schemas/MediaVisibility"
                     },
                     "visibility_label": {
                         "type": "string"
                     },
                     "status": {
-                        "type": "string"
+                        "$ref": "#/components/schemas/MediaStatus"
                     },
                     "status_label": {
                         "type": "string"
                     },
                     "scan_status": {
-                        "type": "string"
+                        "$ref": "#/components/schemas/ScanStatus"
                     },
                     "scan_status_label": {
                         "type": "string"
@@ -6006,7 +6024,7 @@
                         "type": "string"
                     },
                     "type": {
-                        "type": "string"
+                        "$ref": "#/components/schemas/MediaType"
                     },
                     "type_label": {
                         "type": "string"
@@ -6018,19 +6036,19 @@
                         "type": "string"
                     },
                     "visibility": {
-                        "type": "string"
+                        "$ref": "#/components/schemas/MediaVisibility"
                     },
                     "visibility_label": {
                         "type": "string"
                     },
                     "status": {
-                        "type": "string"
+                        "$ref": "#/components/schemas/MediaStatus"
                     },
                     "status_label": {
                         "type": "string"
                     },
                     "scan_status": {
-                        "type": "string"
+                        "$ref": "#/components/schemas/ScanStatus"
                     },
                     "scan_status_label": {
                         "type": "string"
@@ -6088,6 +6106,39 @@
                     "created_at"
                 ],
                 "title": "MediaResource"
+            },
+            "MediaStatus": {
+                "type": "string",
+                "description": "Where a file is in its intake lifecycle. Verification is deliberately absent: whether an analyzer has looked at a file is independent of whether the file is usable, and coupling them would make readiness hostage to a capability most media never needs.\n",
+                "enum": [
+                    "uploaded",
+                    "scanning",
+                    "processing",
+                    "ready",
+                    "scan_failed",
+                    "processing_failed"
+                ],
+                "title": "MediaStatus"
+            },
+            "MediaType": {
+                "type": "string",
+                "description": "The broad kind of a file, derived from its detected content type.\n",
+                "enum": [
+                    "image",
+                    "video",
+                    "audio",
+                    "document"
+                ],
+                "title": "MediaType"
+            },
+            "MediaVisibility": {
+                "type": "string",
+                "description": "Whether a file is reachable without authorization. Deliberately only two values. Who is entitled to a private file is a business question that Media cannot answer \u2014 owner, team member, judge, subscriber \u2014 so it is delegated to a MediaAccessPolicy the attaching module supplies. Media knows whether authorization is required, never who satisfies it.\n",
+                "enum": [
+                    "public",
+                    "private"
+                ],
+                "title": "MediaVisibility"
             },
             "MfaChallengeRequest": {
                 "type": "object",
@@ -6326,6 +6377,18 @@
                     "credential"
                 ],
                 "title": "RotateSecretRequest"
+            },
+            "ScanStatus": {
+                "type": "string",
+                "description": "What a malware scanner concluded, if one ran. NOT_SCANNED exists so the platform never claims a guarantee nobody checked. No antivirus is available in this environment, so the null driver records this rather than CLEAN: a row asserting cleanliness on the strength of a scanner that did not run would be worse than an honest absence.\n",
+                "enum": [
+                    "not_scanned",
+                    "pending",
+                    "clean",
+                    "infected",
+                    "scan_error"
+                ],
+                "title": "ScanStatus"
             },
             "SettingDefinitionResource": {
                 "type": "object",

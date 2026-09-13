@@ -400,7 +400,18 @@ export function ProviderDetail({ provider, usage, mayUpdate, onClose }: Provider
                                     <p className="text-(length:--text-sm) text-(--state-danger-text)">
                                         {t('integrations.credentials.clearWarning')}
                                     </p>
+                                    {/* Cancel first, and not as a matter of taste: it is
+                                        the control nearest the trigger that opened this,
+                                        so the cheapest mistake lands on the reversible
+                                        action rather than on the destructive one. */}
                                     <div className="flex flex-wrap gap-2">
+                                        <Button
+                                            onClick={() => setClearing(false)}
+                                            size="sm"
+                                            variant="secondary"
+                                        >
+                                            {t('integrations.cancel')}
+                                        </Button>
                                         <Button
                                             loading={save.isPending}
                                             onClick={() =>
@@ -413,13 +424,6 @@ export function ProviderDetail({ provider, usage, mayUpdate, onClose }: Provider
                                             variant="danger"
                                         >
                                             {t('integrations.credentials.clearConfirm')}
-                                        </Button>
-                                        <Button
-                                            onClick={() => setClearing(false)}
-                                            size="sm"
-                                            variant="ghost"
-                                        >
-                                            {t('integrations.cancel')}
                                         </Button>
                                     </div>
                                 </div>
