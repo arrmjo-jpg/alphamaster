@@ -3,6 +3,7 @@
 * **Status**: Accepted
 * **Date**: 2026-09-06
 * **Revised**: 2026-09-06 — retention settled: archival, as the single permitted removal path
+* **Revised**: 2026-09-10 — scope widened: the trail covers accounts, not only configuration
 * **Built**: 2026-09-07 — Phase 16B-4 implements the archival operation, its permission, and the trail's first read endpoint
 
 ## Context
@@ -158,6 +159,166 @@ is safe to move.
 ### Not implemented
 
 Decided here, built in Phase 16B. The retention setting stays advisory until it is.
+
+## Extension — 2026-09-10: who may sign in is part of the security configuration
+
+The decision above says *every administrative operation that changes platform
+behaviour*, and then illustrates it entirely with configuration: settings, secrets,
+providers, purges, rollbacks, archival. Every operation built against it since has been
+a configuration operation, and the scope quietly narrowed to match the examples rather
+than the rule.
+
+`feature/access-completion` made the narrowing visible by adding four account
+operations — create, edit, activate, deactivate — beside two that had been unaudited
+since Phase 6, promotion and demotion. None of the six wrote anything to the trail. So
+the platform could answer *who changed the rate limit last month* and could not answer
+*who made this account an administrator*, which is the more serious of the two
+questions.
+
+This section settles that the trail's subject is the platform's security posture, and
+that accounts are part of it.
+
+### Why this is a widening and not an oversight being patched
+
+It is worth being explicit, because the original record can be read either way.
+
+The Context above argues from operations that are *irreversible or outward-reaching* —
+a secret whose previous value is gone, a purge with no rollback, a provider change that
+moves delivery to another vendor. An account edit is none of those: it is reversible by
+editing back, it reaches nothing outside, and every value it touches is still readable
+in the `users` table afterwards. On that reading, account operations were correctly
+excluded.
+
+The Decision, though, is not argued from irreversibility. It is argued from *changes
+platform behaviour*, and the section on reading the trail says plainly that the trail
+"describes the platform's security configuration". Who may sign in, and who may sign in
+as an administrator, is that configuration — more directly than the rate limit is. An
+administrator promoted is a change to the set of people who can perform every other
+operation this record already covers, which makes it the precondition of the trail
+rather than something outside it.
+
+The second reading wins, and the record says so here rather than leaving the two
+readings both defensible.
+
+### What is recorded
+
+Six actions, named for what happened rather than for the endpoint that did it:
+
+```
+account.created       an account exists that did not
+account.updated       identity changed
+account.activated     sign-in allowed
+account.deactivated   sign-in stopped, and tokens revoked
+account.promoted      the account crossed the administrative boundary
+account.demoted       it crossed back, and its roles were stripped
+account.roles_changed which roles an administrator gained and which were taken away
+```
+
+The subject is the account's identifier, never its address. The identifier survives an
+address change and an address does not, so a trail keyed on the address would report
+two different subjects for one account and answer "what happened to this account" wrong.
+
+### The redaction rule extends unchanged, and it now covers more than secrets
+
+The trail holds no plaintext, ciphertext, partial value, hash or length of a secret.
+Account operations add a second category the rule has to reach: **contact details are
+not credentials and they are still not recorded.**
+
+A telephone number is a sign-in identifier on this platform and a means of reaching a
+person off it; an address is both of those and the route through which an account is
+recovered. The trail is readable by anyone holding `audit.view`, is exported to a file
+that travels (see the archival section above), and is retained for a year by default.
+A record of every operator's current and former number and address, under those three
+properties, is a directory — and building one as a side effect of recording that a name
+was corrected is not a trade this record is willing to make.
+
+So `account.updated` answers *what changed* the way the secret actions do: **by naming
+the fields and not their values.**
+
+```
+account.updated  <account-id>  changed=[name, phone]  email_verification_cleared=false
+account.updated  <account-id>  changed=[email]        email_verification_cleared=true
+```
+
+Nothing is lost that the platform can still answer. The current values are in the
+`users` table, where they are readable under the permission that governs accounts
+rather than the one that governs the trail. What only the trail can say is that
+somebody changed them, and when, and who.
+
+`email_verification_cleared` is carried because it is the security consequence, not
+the mechanics: an administrator moved an account onto an address nobody has confirmed,
+and for an administrative account that is the difference between a verified identity
+and an asserted one (ADR 0012).
+
+A password never appears in any form. `account.created` records that an account was
+created and whether it could sign in; it does not record that a password was set,
+because there is no creation without one and a field that is always present carries no
+information.
+
+### Two facts that survive nowhere else
+
+Most of what these records carry is recoverable from the account afterwards. Two things
+are not, and both are recorded for that reason:
+
+* **`tokens_revoked`** on deactivation, promotion and demotion — how many live sessions
+  the operation actually ended. After it runs the rows are gone, so the count exists
+  only if it was written down. It also distinguishes an operation that reached
+  something from one that reached nothing.
+* **`roles_revoked`** on demotion — demotion strips every admin role, and once it has,
+  nothing in the platform remembers what they were. Restoring an account to what it had
+  is impossible from any other source. Role names are a public catalogue (ADR 0014) and
+  carry no secret, so this is recordable without qualification.
+
+### Only a change is recorded
+
+Activating an account that is already active, or promoting an account that is already
+an administrator, changes nothing about who may sign in. Those write no record.
+
+An edit is held to the same test, and it has to be, because it is the one an interface
+will trip over: a console that submits the whole form on every save sends every field
+back whether or not anybody touched it. So `account.updated` reports the fields whose
+values actually moved, and an edit where none did writes nothing at all. A number
+retyped with different separators is not a change either — the comparison is against
+the canonical stored form, not the characters submitted.
+
+This follows the rule as stated — *operations that change platform behaviour* — rather
+than being an efficiency. The original record rejects auditing reads as "noise that
+would hide the signal", and a row asserting that an account which could sign in can
+still sign in is that same noise wearing a write's clothing.
+
+By the same reasoning, a refused operation writes nothing: an administrator attempting
+to deactivate themselves is answered with a `422`, and nothing about the platform
+changed. This is not the failure case the original record insists on capturing. That
+one is an operation that *was attempted against something outside the platform* and did
+not take effect — a purge that failed, a provider that timed out — where the trail is
+the only place the discrepancy between the interface and reality is visible. A refused
+request never reached anything, and the request log already has it.
+
+### Recording is inside the transaction, as it already was
+
+Each of the six records commits with the change it describes or not at all. For
+promotion and demotion this means the call into `AccountTypeManager` is wrapped rather
+than followed: the manager runs its own transaction, and recording after it returned
+would leave a window in which the boundary crossing is durable and the record of it is
+not.
+
+### What this does not extend to
+
+**Role definitions** — creating a role, changing the permissions it carries, deleting
+one — are not covered here. They change what a role *grants*, which reaches every
+account holding it at once, and they belong in the trail by the same argument as
+everything above. They are named as an acknowledged gap rather than folded silently
+into a section about accounts, and they are the next thing to add.
+
+**Authentication events** — sign-in, sign-out, a failed attempt, an MFA challenge — stay
+out, and not for scope reasons. They occur at request frequency rather than
+administrative frequency, which is the same reason reads are not audited, and they
+belong to an authentication log with its own retention rather than to a record of
+administrative intent.
+
+**Account deletion** has no endpoint. If one is ever added it is the single most
+important thing on this list to record, and it must be recorded before it is built
+rather than after.
 
 ## Alternatives considered
 

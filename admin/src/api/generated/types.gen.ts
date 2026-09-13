@@ -366,7 +366,8 @@ export type StoreLanguageRequest = {
 
 export type StoreMediaRequest = {
     /**
-     * Maximum file size: 102400 kilobytes.
+     * The file to upload. Its size must be within the maximum this platform is
+     * configured to accept.
      */
     file: Blob | File;
     collection?: string;

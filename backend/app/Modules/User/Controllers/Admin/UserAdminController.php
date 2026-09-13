@@ -6,9 +6,12 @@ namespace App\Modules\User\Controllers\Admin;
 
 use App\Modules\Authorization\Contracts\AdminRbacContract;
 use App\Modules\Authorization\Exceptions\NotAnAdminAccountException;
+use App\Modules\Core\Audit\AuditAction;
+use App\Modules\Core\Contracts\AuditRecorderContract;
 use App\Modules\Core\Contracts\MfaEnrolmentStatus;
 use App\Modules\Core\Controllers\BaseApiController;
 use App\Modules\User\Contracts\AccountTypeManagerContract;
+use App\Modules\User\Enums\AccountType;
 use App\Modules\User\Models\User;
 use App\Modules\User\Requests\StoreUserRequest;
 use App\Modules\User\Requests\SyncUserRolesRequest;
@@ -24,6 +27,7 @@ class UserAdminController extends BaseApiController
         protected AdminRbacContract $rbac,
         protected AccountTypeManagerContract $accountTypes,
         protected MfaEnrolmentStatus $mfa,
+        protected AuditRecorderContract $audit,
     ) {}
 
     /**
@@ -86,7 +90,20 @@ class UserAdminController extends BaseApiController
         }
 
         $user = new User($attributes);
-        $user->save();
+
+        // The record commits with the account or not at all (ADR 0037): an account
+        // that exists without a record of who created it is the state the trail is
+        // there to make impossible.
+        DB::transaction(function () use ($user, $attributes): void {
+            $user->save();
+
+            // The identifier, and whether it may sign in. Not the address, not the
+            // number, and self-evidently not the password — the trail is readable by
+            // anyone holding `audit.view`.
+            $this->audit->succeeded(AuditAction::ACCOUNT_CREATED, $user->id, [
+                'active' => $attributes['is_active'],
+            ]);
+        });
 
         return $this->successResponse(
             $this->resource($user->refresh()),
@@ -146,7 +163,37 @@ class UserAdminController extends BaseApiController
             $user->email_verified_at = null;
         }
 
-        $user->save();
+        // What actually moved, rather than what was submitted. A request that re-sends
+        // a field's current value asks for no change and produces none, and ADR 0037
+        // records operations that changed something — the same rule that keeps a
+        // redundant activation out of the trail keeps a redundant edit out of it.
+        //
+        // `phone` is dirty-checked on the canonical column the accessor writes, so a
+        // number retyped with different separators is correctly not a change.
+        $moved = array_values(array_filter(
+            array_keys($changes),
+            static fn (string $field): bool => $user->isDirty($field)
+        ));
+
+        DB::transaction(function () use ($user, $moved, $addressChanged): void {
+            $user->save();
+
+            if ($moved === []) {
+                return;
+            }
+
+            // Which fields moved, and not one of their values. Recording the new
+            // address and number would answer "what changed" by turning the trail
+            // into a directory of every operator's contact details, readable by
+            // anyone holding `audit.view` — so the field names carry the answer and
+            // the account itself carries the values (ADR 0037).
+            $this->audit->succeeded(AuditAction::ACCOUNT_UPDATED, $user->id, [
+                'changed' => $moved,
+                // The security consequence, which is the part of this operation an
+                // operator would come looking for.
+                'email_verification_cleared' => $addressChanged,
+            ]);
+        });
 
         return $this->successResponse(
             $this->resource($user->refresh()),
@@ -159,9 +206,18 @@ class UserAdminController extends BaseApiController
      */
     public function activate(User $user): JsonResponse
     {
+        // Recorded only where standing actually moved. Activating an account that was
+        // already active changes nothing about who may sign in, and ADR 0037 records
+        // operations that change platform behaviour rather than requests that were
+        // made — a trail padded with confirmations of the status quo is the noise the
+        // decision to leave reads unaudited was avoiding.
         if (! $user->is_active) {
-            $user->is_active = true;
-            $user->save();
+            DB::transaction(function () use ($user): void {
+                $user->is_active = true;
+                $user->save();
+
+                $this->audit->succeeded(AuditAction::ACCOUNT_ACTIVATED, $user->id);
+            });
         }
 
         return $this->successResponse($this->resource($user->refresh()), 'api.user.activated');
@@ -196,7 +252,15 @@ class UserAdminController extends BaseApiController
                 $user->is_active = false;
                 $user->save();
 
+                // Counted before the delete, so the record can say what the operation
+                // actually reached rather than only what it intended.
+                $revoked = $user->tokens()->count();
+
                 $user->tokens()->delete();
+
+                $this->audit->succeeded(AuditAction::ACCOUNT_DEACTIVATED, $user->id, [
+                    'tokens_revoked' => $revoked,
+                ]);
             });
         }
 
@@ -211,8 +275,29 @@ class UserAdminController extends BaseApiController
      */
     public function promote(User $user): JsonResponse
     {
+        // AccountTypeManager runs its own transaction; wrapping the call makes that
+        // one a savepoint inside this one, so the boundary crossing and the record of
+        // it commit together (ADR 0037). Recording after the manager returned would
+        // leave a window where the promotion is durable and the record is not.
+        $promoted = DB::transaction(function () use ($user): User {
+            $crosses = $user->account_type !== AccountType::ADMIN;
+            $revoked = $crosses ? $user->tokens()->count() : 0;
+
+            $result = $this->accountTypes->promote($user);
+
+            // The manager returns the account unchanged when it is already an
+            // administrator. Nothing crossed the boundary, so nothing is recorded.
+            if ($crosses) {
+                $this->audit->succeeded(AuditAction::ACCOUNT_PROMOTED, $result->id, [
+                    'tokens_revoked' => $revoked,
+                ]);
+            }
+
+            return $result;
+        });
+
         return $this->successResponse(
-            $this->resource($this->accountTypes->promote($user)),
+            $this->resource($promoted),
             'Account promoted to administrator. Existing sessions were revoked and MFA enrolment is required at next sign-in.'
         );
     }
@@ -222,8 +307,28 @@ class UserAdminController extends BaseApiController
      */
     public function demote(User $user): JsonResponse
     {
+        $demoted = DB::transaction(function () use ($user): User {
+            $crosses = $user->account_type === AccountType::ADMIN;
+            $revoked = $crosses ? $user->tokens()->count() : 0;
+            // Read before the manager strips them: demotion revokes every admin role,
+            // and once it has, nothing else in the platform remembers what they were.
+            // The trail is the only place that answer can survive.
+            $roles = $crosses ? $this->rbac->rolesFor($user) : [];
+
+            $result = $this->accountTypes->demote($user);
+
+            if ($crosses) {
+                $this->audit->succeeded(AuditAction::ACCOUNT_DEMOTED, $result->id, [
+                    'tokens_revoked' => $revoked,
+                    'roles_revoked' => $roles,
+                ]);
+            }
+
+            return $result;
+        });
+
         return $this->successResponse(
-            $this->resource($this->accountTypes->demote($user)),
+            $this->resource($demoted),
             'Account demoted. Existing sessions were revoked and admin roles were removed.'
         );
     }
@@ -237,7 +342,30 @@ class UserAdminController extends BaseApiController
         $roles = $request->validated('roles');
 
         try {
-            $this->rbac->syncRoles($user, $roles);
+            DB::transaction(function () use ($user, $roles): void {
+                // Read before the sync, because afterwards nothing remembers which
+                // roles were taken away — the same reason demotion reads them first.
+                $before = $this->rbac->rolesFor($user);
+
+                $this->rbac->syncRoles($user, $roles);
+
+                $after = $this->rbac->rolesFor($user->refresh());
+
+                $granted = array_values(array_diff($after, $before));
+                $revoked = array_values(array_diff($before, $after));
+
+                // Only a change is recorded. Submitting the set an account already
+                // holds changes nothing, and a trail that logged it would fill with
+                // rows that answer no question.
+                if ($granted === [] && $revoked === []) {
+                    return;
+                }
+
+                $this->audit->succeeded(AuditAction::ACCOUNT_ROLES_CHANGED, $user->id, [
+                    'granted' => $granted,
+                    'revoked' => $revoked,
+                ]);
+            });
         } catch (NotAnAdminAccountException $e) {
             // Admin roles on a regular account would be a contradiction, so this is
             // refused rather than silently written.

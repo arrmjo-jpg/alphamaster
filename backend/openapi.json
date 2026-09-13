@@ -7220,7 +7220,7 @@
                         "type": "string",
                         "format": "binary",
                         "contentMediaType": "application/octet-stream",
-                        "description": "Maximum file size: 102400 kilobytes."
+                        "description": "The file to upload. Its size must be within the maximum this platform is\nconfigured to accept."
                     },
                     "collection": {
                         "type": "string",
