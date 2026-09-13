@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Settings\Definitions;
 
+use App\Modules\Settings\Enums\SettingReach;
 use App\Modules\Settings\Enums\SettingType;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
@@ -40,6 +41,11 @@ final readonly class SettingDefinition
      *                                         this one takes effect
      * @param  string|null  $deprecatedSince  set when a definition is retired but its
      *                                        row must be kept and reported as orphaned
+     * @param  SettingReach  $reach  who reads this: the platform, a client it is
+     *                               published to, or nothing yet. Declared here so that
+     *                               a screen can say so, rather than presenting a
+     *                               control that changes nothing beside one that closes
+     *                               an account after five failed sign-ins
      */
     public function __construct(
         public string $group,
@@ -55,8 +61,28 @@ final readonly class SettingDefinition
         public ?string $permission = null,
         public array $dependsOn = [],
         public ?string $deprecatedSince = null,
+        public SettingReach $reach = SettingReach::PLATFORM,
     ) {
         $this->assertShape();
+    }
+
+    /**
+     * The sentence explaining this setting's reach, where one is needed.
+     *
+     * Null for a setting the platform reads: saying "this works" beside every working
+     * control would make the notice noise rather than information.
+     */
+    public function reachNotice(): ?string
+    {
+        $key = $this->reach->noticeKey();
+
+        if ($key === null) {
+            return null;
+        }
+
+        $translated = __($key);
+
+        return is_string($translated) ? $translated : $key;
     }
 
     /**

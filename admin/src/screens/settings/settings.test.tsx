@@ -42,6 +42,8 @@ function definition(overrides: Partial<SettingDefinition>): SettingDefinition {
         is_secret: false,
         is_public: true,
         is_localized: false,
+        reach: 'platform',
+        reach_notice: null,
         default: null,
         depends_on: [],
         rules: [],
@@ -281,6 +283,22 @@ const DEFINITIONS = http.get('*/api/v1/admin/settings/definitions', () =>
     HttpResponse.json({ success: true, data: { general: [definition({})] } }),
 );
 
+/** The catalogue with one setting the platform declares nothing reads yet. */
+const AWAITING_DEFINITIONS = http.get('*/api/v1/admin/settings/definitions', () =>
+    HttpResponse.json({
+        success: true,
+        data: {
+            general: [
+                definition({
+                    reach: 'awaiting',
+                    reach_notice:
+                        'Stored, but nothing reads it yet. The part of the platform that would use it has not been built.',
+                }),
+            ],
+        },
+    }),
+);
+
 const HISTORY = http.get('*/api/v1/admin/settings/general/history', () =>
     HttpResponse.json({ success: true, data: [], meta: { group: 'general', count: 0 } }),
 );
@@ -291,11 +309,11 @@ function groupResponse(version: string) {
     );
 }
 
-function renderSettings(permissions: string[]) {
+function renderSettings(permissions: string[], definitions = DEFINITIONS) {
     server.use(
         LANGUAGES,
         HEALTH,
-        DEFINITIONS,
+        definitions,
         HISTORY,
         groupResponse('v1'),
         http.get('*/api/v1/auth/me', () =>
@@ -489,5 +507,40 @@ describe('the four ways a save is refused', () => {
         expect(
             await screen.findByText('Setting keys must be lowercase identifiers.'),
         ).toBeInTheDocument();
+    });
+});
+
+describe('a setting the platform does not read yet', () => {
+    it('says so on the row rather than presenting it as any other control', async () => {
+        renderSettings(['settings.view', 'settings.update'], AWAITING_DEFINITIONS);
+
+        // The badge is what an operator scanning a group of eighteen sees; the sentence
+        // is what they read when it stops them.
+        expect(await screen.findByText('Not read yet')).toBeInTheDocument();
+        expect(
+            screen.getByText(
+                'Stored, but nothing reads it yet. The part of the platform that would use it has not been built.',
+            ),
+        ).toBeInTheDocument();
+    });
+
+    it('is still editable, because the value is real and will be read when something reads it', async () => {
+        renderSettings(['settings.view', 'settings.update'], AWAITING_DEFINITIONS);
+
+        // Not a disabled control. Disabling it would say "you may not set this", which
+        // is a different and untrue statement — the value persists, exports, restores,
+        // and is waiting for its reader.
+        expect(await screen.findByLabelText('Site name')).toBeEnabled();
+    });
+
+    it('says nothing extra about a setting the platform does read', async () => {
+        renderSettings(['settings.view', 'settings.update']);
+
+        expect(await screen.findByLabelText('Site name')).toBeInTheDocument();
+
+        // Saying "this one works" beside every working control would make the notice
+        // noise rather than information.
+        expect(screen.queryByText('Not read yet')).not.toBeInTheDocument();
+        expect(screen.queryByText('Read by clients')).not.toBeInTheDocument();
     });
 });

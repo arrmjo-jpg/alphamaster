@@ -66,6 +66,9 @@ test('a definition row carries the metadata an interface cannot infer', function
     expect(array_keys($rows['general.site_name']))->toBe([
         'key', 'group', 'name', 'label', 'help', 'type', 'type_label',
         'nullable', 'editable', 'is_secret', 'is_public', 'is_localized',
+        // Added 2026-09-10: who reads this setting, and the sentence saying so.
+        // An interface cannot infer it — that is the whole reason it is published.
+        'reach', 'reach_notice',
         'default', 'depends_on', 'rules', 'permission', 'deprecated',
     ]);
 });

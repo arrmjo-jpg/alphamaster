@@ -328,6 +328,14 @@ export type SettingDefinitionResource = {
     is_public: boolean;
     is_localized: boolean;
     /**
+     * Who reads this, and the sentence saying so. An operator reasonably
+     * assumes a control that can be changed does something; a third of this
+     * catalogue was declared ahead of the thing that would read it, and a
+     * screen that does not say which is which is lying by omission.
+     */
+    reach: string;
+    reach_notice: string | null;
+    /**
      * The default a fresh installation received. Never sent for a secret,
      * which by construction has none (ADR 0018).
      */

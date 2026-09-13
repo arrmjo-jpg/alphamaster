@@ -48,6 +48,20 @@ class SettingDefinitionResource extends JsonResource
             'is_public' => $definition->isPublic,
             'is_localized' => $definition->isLocalized,
 
+            // Who reads this, and the sentence saying so. An operator reasonably
+            // assumes a control that can be changed does something; a third of this
+            // catalogue was declared ahead of the thing that would read it, and a
+            // screen that does not say which is which is lying by omission.
+            'reach' => $definition->reach->value,
+
+            // A sentence, in the caller's language. The docblock is load-bearing:
+            // without it the generator infers the contract from whatever this returned
+            // while the contract was being generated, which is the untranslated key,
+            // and publishes those two strings as if they were the only possible
+            // values.
+            /** @var string|null */
+            'reach_notice' => $definition->reachNotice(),
+
             // The default a fresh installation received. Never sent for a secret,
             // which by construction has none (ADR 0018).
             'default' => $definition->isSecret ? null : $definition->default,

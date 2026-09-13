@@ -6,6 +6,7 @@ namespace App\Modules\Settings\Definitions\Catalogues;
 
 use App\Modules\Settings\Definitions\SettingCatalogue;
 use App\Modules\Settings\Definitions\SettingDefinition;
+use App\Modules\Settings\Enums\SettingReach;
 use App\Modules\Settings\Enums\SettingType;
 
 /**
@@ -58,6 +59,10 @@ class BrandingCatalogue implements SettingCatalogue
                 type: SettingType::MEDIA,
                 rules: self::MEDIA_RULES,
                 isPublic: true,
+                // Published and read by nothing yet. The console renders none of these
+                // — its own mark is in the bundle — and the public site that would is
+                // not built.
+                reach: SettingReach::AWAITING,
             ),
             $keys,
         );
@@ -83,12 +88,14 @@ class BrandingCatalogue implements SettingCatalogue
                 default: false,
                 nullable: false,
                 dependsOn: ['branding.watermark_image'],
+                reach: SettingReach::AWAITING,
             ),
             new SettingDefinition(
                 group: 'branding',
                 key: 'watermark_image',
                 type: SettingType::MEDIA,
                 rules: self::MEDIA_RULES,
+                reach: SettingReach::AWAITING,
             ),
             new SettingDefinition(
                 group: 'branding',
@@ -97,6 +104,7 @@ class BrandingCatalogue implements SettingCatalogue
                 default: 'bottom-right',
                 nullable: false,
                 rules: ['string', 'in:top-left,top-right,bottom-left,bottom-right,center'],
+                reach: SettingReach::AWAITING,
             ),
             // Percentages rather than floats: an operator thinks in "30%", and an
             // integer cannot drift the way a stored 0.30000000000000004 can.
@@ -107,6 +115,7 @@ class BrandingCatalogue implements SettingCatalogue
                 default: 60,
                 nullable: false,
                 rules: ['integer', 'between:1,100'],
+                reach: SettingReach::AWAITING,
             ),
             new SettingDefinition(
                 group: 'branding',
@@ -115,6 +124,7 @@ class BrandingCatalogue implements SettingCatalogue
                 default: 20,
                 nullable: false,
                 rules: ['integer', 'between:1,100'],
+                reach: SettingReach::AWAITING,
             ),
             new SettingDefinition(
                 group: 'branding',
@@ -123,6 +133,7 @@ class BrandingCatalogue implements SettingCatalogue
                 default: 2,
                 nullable: false,
                 rules: ['integer', 'between:0,50'],
+                reach: SettingReach::AWAITING,
             ),
         ];
     }
@@ -155,6 +166,7 @@ class BrandingCatalogue implements SettingCatalogue
                 default: 8000,
                 nullable: false,
                 rules: ['integer', 'between:100,20000'],
+                reach: SettingReach::AWAITING,
             ),
         ];
     }

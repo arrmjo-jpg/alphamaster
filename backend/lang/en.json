@@ -329,5 +329,7 @@
     "translations.fields.label": "Label",
     "translations.fields.subject": "Subject",
     "translations.fields.body": "Body",
-    "api.error.translations.template_needs_both": "A template needs both a subject and a body in :locale, or neither."
+    "api.error.translations.template_needs_both": "A template needs both a subject and a body in :locale, or neither.",
+    "setting.reach.published": "Served to clients that read the settings API. Nothing on this platform behaves differently when it changes.",
+    "setting.reach.awaiting": "Stored, but nothing reads it yet. The part of the platform that would use it has not been built."
 }
