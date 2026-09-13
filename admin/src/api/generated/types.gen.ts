@@ -102,6 +102,10 @@ export type ExportConfigurationRequest = {
     include_secrets?: boolean;
 };
 
+export type ForgotPasswordRequest = {
+    email: string;
+};
+
 export type IntegrationProviderResource = {
     id: string;
     capability: string;
@@ -323,6 +327,13 @@ export type RequestSuggestionsRequest = {
     include_translated?: boolean;
 };
 
+export type ResetPasswordRequest = {
+    email: string;
+    token: string;
+    password: string;
+    password_confirmation: string;
+};
+
 export type RestoreConfigurationRequest = {
     /**
      * A path on the configured disk, constrained so it cannot climb out of it.
@@ -475,6 +486,24 @@ export type SettingDefinitionResource = {
     deprecated: boolean;
 };
 
+export type SocialAuthorizeRequest = {
+    /**
+     * Must be one of the redirect URIs an operator allowed, exactly.
+     */
+    redirect_uri: string;
+    code_challenge: string;
+    code_challenge_method: 'S256';
+};
+
+export type SocialCallbackRequest = {
+    code: string;
+    state: string;
+    /**
+     * RFC 7636: 43 to 128 unreserved characters.
+     */
+    code_verifier: string;
+};
+
 export type StoreLanguageRequest = {
     code: string;
     name: string;
@@ -615,6 +644,15 @@ export type UserResource = {
      * Whether a confirmed second factor exists. Which one is not published.
      */
     mfa_enrolled: boolean;
+    /**
+     * Whether a social identity can sign in to this account today. While true the
+     * account cannot be promoted; identities unlinked in the past do not count.
+     */
+    has_linked_social_identity: boolean;
+    /**
+     * The providers linked today. Never an identity's subject or address.
+     */
+    linked_social_providers: Array<string>;
     roles: Array<string>;
     permissions: Array<string>;
 };
@@ -3098,6 +3136,113 @@ export type AdminNotificationsTemplatesUpdateResponses = {
 
 export type AdminNotificationsTemplatesUpdateResponse = AdminNotificationsTemplatesUpdateResponses[keyof AdminNotificationsTemplatesUpdateResponses];
 
+export type AuthPasswordForgotData = {
+    body: ForgotPasswordRequest;
+    path?: never;
+    query?: never;
+    url: '/auth/password/forgot';
+};
+
+export type AuthPasswordForgotErrors = {
+    /**
+     * Validation error
+     */
+    422: {
+        /**
+         * Errors overview.
+         */
+        message: string;
+        /**
+         * A detailed description of each field that failed validation.
+         */
+        errors: {
+            [key: string]: Array<string>;
+        };
+    };
+    /**
+     * TOO_MANY_ATTEMPTS: every request counts, because each can send a message.
+     */
+    429: {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'TOO_MANY_ATTEMPTS';
+            message: string;
+            details: {
+                retry_after: number;
+            };
+        };
+    };
+};
+
+export type AuthPasswordForgotError = AuthPasswordForgotErrors[keyof AuthPasswordForgotErrors];
+
+export type AuthPasswordForgotResponses = {
+    200: {
+        success: boolean;
+        message: string;
+        data: null;
+        meta: string;
+    };
+};
+
+export type AuthPasswordForgotResponse = AuthPasswordForgotResponses[keyof AuthPasswordForgotResponses];
+
+export type AuthPasswordResetData = {
+    body: ResetPasswordRequest;
+    path?: never;
+    query?: never;
+    url: '/auth/password/reset';
+};
+
+export type AuthPasswordResetErrors = {
+    /**
+     * PASSWORD_RESET_INVALID (the same answer for a wrong, expired or used token and for an address with no account) or VALIDATION_ERROR.
+     */
+    422: {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'PASSWORD_RESET_INVALID';
+            message: string;
+            details: null;
+        };
+    };
+    /**
+     * TOO_MANY_ATTEMPTS.
+     */
+    429: {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'TOO_MANY_ATTEMPTS';
+            message: string;
+            details: {
+                retry_after: number;
+            };
+        };
+    };
+};
+
+export type AuthPasswordResetError = AuthPasswordResetErrors[keyof AuthPasswordResetErrors];
+
+export type AuthPasswordResetResponses = {
+    200: {
+        success: boolean;
+        message: string;
+        data: null;
+        meta: string;
+    };
+};
+
+export type AuthPasswordResetResponse = AuthPasswordResetResponses[keyof AuthPasswordResetResponses];
+
 export type AuthPhoneVerifySendData = {
     body?: never;
     path?: never;
@@ -4266,6 +4411,436 @@ export type SettingsShowResponses = {
 
 export type SettingsShowResponse = SettingsShowResponses[keyof SettingsShowResponses];
 
+export type AuthSocialProvidersData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/auth/social/providers';
+};
+
+export type AuthSocialProvidersResponses = {
+    200: {
+        success: boolean;
+        data: Array<{
+            key: string;
+            label: string;
+        }>;
+    };
+};
+
+export type AuthSocialProvidersResponse = AuthSocialProvidersResponses[keyof AuthSocialProvidersResponses];
+
+export type AuthSocialAuthorizeData = {
+    body: SocialAuthorizeRequest;
+    path: {
+        provider: string;
+    };
+    query?: never;
+    url: '/auth/social/{provider}/authorize';
+};
+
+export type AuthSocialAuthorizeErrors = {
+    /**
+     * SOCIAL_PROVIDER_UNAVAILABLE: social sign-in is off, or the provider is unknown, switched off or not fully configured.
+     */
+    404: string;
+    /**
+     * INVALID_REDIRECT_URI: the redirect URI is not an exact entry of auth.social_redirect_uris usable in this environment; or VALIDATION_ERROR.
+     */
+    422: {
+        /**
+         * Errors overview.
+         */
+        message: string;
+        /**
+         * A detailed description of each field that failed validation.
+         */
+        errors: {
+            [key: string]: Array<string>;
+        };
+    };
+};
+
+export type AuthSocialAuthorizeError = AuthSocialAuthorizeErrors[keyof AuthSocialAuthorizeErrors];
+
+export type AuthSocialAuthorizeResponses = {
+    200: {
+        success: boolean;
+        data: {
+            authorization_url: string;
+            expires_at: string;
+        };
+    };
+};
+
+export type AuthSocialAuthorizeResponse = AuthSocialAuthorizeResponses[keyof AuthSocialAuthorizeResponses];
+
+export type AuthSocialCallbackData = {
+    body: SocialCallbackRequest;
+    path: {
+        provider: string;
+    };
+    query?: never;
+    url: '/auth/social/{provider}/callback';
+};
+
+export type AuthSocialCallbackErrors = {
+    /**
+     * SOCIAL_SIGN_IN_REFUSED (administrator account or address, disabled account, unlinked identity, address the provider does not vouch for) or REGISTRATION_CLOSED.
+     */
+    403: string;
+    /**
+     * SOCIAL_PROVIDER_UNAVAILABLE.
+     */
+    404: string;
+    /**
+     * SOCIAL_IDENTITY_NOT_LINKED: the verified address belongs to an existing user, who signs in and links explicitly.
+     */
+    409: string;
+    /**
+     * SOCIAL_STATE_INVALID (unknown, expired, already used, or bound to another provider, intent or PKCE verifier) or VALIDATION_ERROR.
+     */
+    422: {
+        /**
+         * Errors overview.
+         */
+        message: string;
+        /**
+         * A detailed description of each field that failed validation.
+         */
+        errors: {
+            [key: string]: Array<string>;
+        };
+    };
+    /**
+     * TOO_MANY_ATTEMPTS, with Retry-After.
+     */
+    429: {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'TOO_MANY_ATTEMPTS';
+            message: string;
+            details: {
+                retry_after: number;
+            };
+        };
+    };
+    /**
+     * SOCIAL_PROVIDER_ERROR: the code exchange or ID token validation failed. The detail is recorded in the integration usage log only.
+     */
+    502: string;
+};
+
+export type AuthSocialCallbackError = AuthSocialCallbackErrors[keyof AuthSocialCallbackErrors];
+
+export type AuthSocialCallbackResponses = {
+    200: {
+        success: boolean;
+        message: string;
+        data: {
+            token?: string;
+            token_type?: string;
+            abilities?: Array<string>;
+            mfa_required?: boolean;
+            mfa_token?: string;
+            expires_in?: number;
+        };
+    };
+    /**
+     * The sign-in created a user account. The body is the same as for 200.
+     */
+    201: string;
+};
+
+export type AuthSocialCallbackResponse = AuthSocialCallbackResponses[keyof AuthSocialCallbackResponses];
+
+export type AuthSocialIdentitiesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/auth/social/identities';
+};
+
+export type AuthSocialIdentitiesErrors = {
+    /**
+     * Unauthenticated
+     */
+    401: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+};
+
+export type AuthSocialIdentitiesError = AuthSocialIdentitiesErrors[keyof AuthSocialIdentitiesErrors];
+
+export type AuthSocialIdentitiesResponses = {
+    200: {
+        success: boolean;
+        data: Array<{
+            id: string;
+            provider: string;
+            linked_at: string;
+            last_used_at: string | null;
+        }>;
+    };
+};
+
+export type AuthSocialIdentitiesResponse = AuthSocialIdentitiesResponses[keyof AuthSocialIdentitiesResponses];
+
+export type AuthSocialLinkAuthorizeData = {
+    body: SocialAuthorizeRequest;
+    path: {
+        provider: string;
+    };
+    query?: never;
+    url: '/auth/social/{provider}/link/authorize';
+};
+
+export type AuthSocialLinkAuthorizeErrors = {
+    /**
+     * Unauthenticated
+     */
+    401: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+    /**
+     * SOCIAL_SIGN_IN_REFUSED: administrators never link a social identity; or an administrator token.
+     */
+    403: string;
+    /**
+     * SOCIAL_PROVIDER_UNAVAILABLE.
+     */
+    404: string;
+    /**
+     * INVALID_REDIRECT_URI or VALIDATION_ERROR.
+     */
+    422: {
+        /**
+         * Errors overview.
+         */
+        message: string;
+        /**
+         * A detailed description of each field that failed validation.
+         */
+        errors: {
+            [key: string]: Array<string>;
+        };
+    };
+};
+
+export type AuthSocialLinkAuthorizeError = AuthSocialLinkAuthorizeErrors[keyof AuthSocialLinkAuthorizeErrors];
+
+export type AuthSocialLinkAuthorizeResponses = {
+    200: {
+        success: boolean;
+        data: {
+            authorization_url: string;
+            expires_at: string;
+        };
+    };
+};
+
+export type AuthSocialLinkAuthorizeResponse = AuthSocialLinkAuthorizeResponses[keyof AuthSocialLinkAuthorizeResponses];
+
+export type AuthSocialLinkData = {
+    body: SocialCallbackRequest;
+    path: {
+        provider: string;
+    };
+    query?: never;
+    url: '/auth/social/{provider}/link';
+};
+
+export type AuthSocialLinkErrors = {
+    /**
+     * Unauthenticated
+     */
+    401: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+    /**
+     * SOCIAL_SIGN_IN_REFUSED: administrators never link a social identity; or an administrator token.
+     */
+    403: string;
+    /**
+     * SOCIAL_PROVIDER_UNAVAILABLE.
+     */
+    404: string;
+    /**
+     * SOCIAL_IDENTITY_IN_USE (the identity belongs to another account, linked or not) or SOCIAL_PROVIDER_ALREADY_LINKED.
+     */
+    409: string;
+    /**
+     * SOCIAL_STATE_INVALID (including a state issued for signing in or to another account) or VALIDATION_ERROR.
+     */
+    422: {
+        /**
+         * Errors overview.
+         */
+        message: string;
+        /**
+         * A detailed description of each field that failed validation.
+         */
+        errors: {
+            [key: string]: Array<string>;
+        };
+    };
+    /**
+     * TOO_MANY_ATTEMPTS, with Retry-After.
+     */
+    429: {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'TOO_MANY_ATTEMPTS';
+            message: string;
+            details: {
+                retry_after: number;
+            };
+        };
+    };
+    /**
+     * SOCIAL_PROVIDER_ERROR.
+     */
+    502: string;
+};
+
+export type AuthSocialLinkError = AuthSocialLinkErrors[keyof AuthSocialLinkErrors];
+
+export type AuthSocialLinkResponses = {
+    200: string;
+    201: {
+        success: boolean;
+        message: string;
+        data: {
+            id: string;
+            provider: string;
+            linked_at: string;
+        };
+    };
+};
+
+export type AuthSocialLinkResponse = AuthSocialLinkResponses[keyof AuthSocialLinkResponses];
+
+export type AuthSocialUnlinkData = {
+    body?: never;
+    path: {
+        identity: string;
+    };
+    query?: never;
+    url: '/auth/social/identities/{identity}';
+};
+
+export type AuthSocialUnlinkErrors = {
+    /**
+     * Unauthenticated
+     */
+    401: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+    /**
+     * NOT_FOUND: no linked identity with that id belongs to this account.
+     */
+    404: string;
+    /**
+     * LAST_SIGN_IN_METHOD: the account has no password and no other linked identity.
+     */
+    409: string;
+};
+
+export type AuthSocialUnlinkError = AuthSocialUnlinkErrors[keyof AuthSocialUnlinkErrors];
+
+export type AuthSocialUnlinkResponses = {
+    200: string;
+    /**
+     * Unlinked. The row is kept and its subject stays reserved to this account.
+     */
+    204: string;
+};
+
+export type AuthSocialUnlinkResponse = AuthSocialUnlinkResponses[keyof AuthSocialUnlinkResponses];
+
+export type AdminAuthSocialLoginSetupData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/admin/auth/social-login/setup';
+};
+
+export type AdminAuthSocialLoginSetupErrors = {
+    /**
+     * Unauthenticated
+     */
+    401: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+    /**
+     * The caller is not an administrator holding settings.view.
+     */
+    403: string;
+};
+
+export type AdminAuthSocialLoginSetupError = AdminAuthSocialLoginSetupErrors[keyof AdminAuthSocialLoginSetupErrors];
+
+export type AdminAuthSocialLoginSetupResponses = {
+    200: {
+        success: boolean;
+        data: {
+            enabled: boolean;
+            registration_enabled: boolean;
+            production: boolean;
+            ready: boolean;
+            redirect_uris: Array<{
+                uri: string;
+                usable: boolean;
+                problem: string | null;
+                problem_label: string | null;
+            }>;
+            register_in_provider_console: Array<string>;
+            password_reset_url: {
+                value: string | null;
+                usable: boolean;
+                problem: string | null;
+                problem_label: string | null;
+            };
+            providers: Array<{
+                key: string;
+                label: string;
+                active: boolean;
+                effective: boolean;
+                client_id_configured: boolean;
+                client_secret_configured: boolean;
+                missing: Array<string>;
+            }>;
+            issues: Array<{
+                code: string;
+                label: string;
+            }>;
+        };
+    };
+};
+
+export type AdminAuthSocialLoginSetupResponse = AdminAuthSocialLoginSetupResponses[keyof AdminAuthSocialLoginSetupResponses];
+
 export type AdminTranslationsOverviewData = {
     body?: never;
     path?: never;
@@ -5084,6 +5659,19 @@ export type AdminUsersPromoteErrors = {
          * Error overview.
          */
         message: string;
+    };
+    409: {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'PROMOTION_REFUSED_SOCIAL_IDENTITY';
+            message: string;
+            details: {
+                linked_identities: string;
+            };
+        };
     };
 };
 

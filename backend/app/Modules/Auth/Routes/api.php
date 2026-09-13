@@ -2,10 +2,13 @@
 
 declare(strict_types=1);
 
+use App\Modules\Auth\Controllers\Admin\SocialLoginSetupController;
 use App\Modules\Auth\Controllers\Api\AuthController;
 use App\Modules\Auth\Controllers\Api\EmailVerificationController;
 use App\Modules\Auth\Controllers\Api\MfaController;
+use App\Modules\Auth\Controllers\Api\PasswordRecoveryController;
 use App\Modules\Auth\Controllers\Api\PhoneVerificationController;
+use App\Modules\Auth\Controllers\Api\SocialAuthController;
 use App\Modules\Auth\Enums\TokenAbility;
 use Illuminate\Support\Facades\Route;
 
@@ -19,6 +22,24 @@ Route::prefix('v1/auth')->group(function () use ($accessAbilities, $enrolAbiliti
     Route::post('/login', [AuthController::class, 'login'])->name('api.auth.login');
     Route::post('/mfa/challenge', [AuthController::class, 'mfaChallenge'])->name('api.auth.mfa.challenge');
     Route::post('/mfa/challenge/send', [AuthController::class, 'mfaChallengeSend'])->name('api.auth.mfa.challenge.send');
+
+    // Social login for user accounts (ADR 0050). Public, because a sign-in cannot require
+    // one; each is throttled in the controller and counted against the auth ceiling.
+    Route::get('/social/providers', [SocialAuthController::class, 'providers'])
+        ->name('api.auth.social.providers');
+    Route::post('/social/{provider}/authorize', [SocialAuthController::class, 'authorize'])
+        ->where('provider', '[a-z0-9_-]+')
+        ->name('api.auth.social.authorize');
+    Route::post('/social/{provider}/callback', [SocialAuthController::class, 'callback'])
+        ->where('provider', '[a-z0-9_-]+')
+        ->name('api.auth.social.callback');
+
+    // Account recovery by email (ADR 0050 §12). Public by necessity: it exists for the
+    // person who cannot sign in.
+    Route::post('/password/forgot', [PasswordRecoveryController::class, 'forgot'])
+        ->name('api.auth.password.forgot');
+    Route::post('/password/reset', [PasswordRecoveryController::class, 'reset'])
+        ->name('api.auth.password.reset');
 
     // Reached from a mail client, so there is no token to present: the signature is
     // the credential, and `signed` refuses anything this platform did not issue or
@@ -51,6 +72,22 @@ Route::prefix('v1/auth')->group(function () use ($accessAbilities, $enrolAbiliti
             ->name('api.auth.phone.verify');
     });
 
+    // A user account's own social identities. `user:access` and nothing else: an
+    // administrator's token is refused here by the ability layer before any of this
+    // module's rules run, and those rules refuse an administrator again (ADR 0050 §5).
+    Route::middleware(['auth:sanctum', 'ability:'.TokenAbility::USER_ACCESS->value, 'active'])->group(function (): void {
+        Route::get('/social/identities', [SocialAuthController::class, 'identities'])
+            ->name('api.auth.social.identities');
+        Route::post('/social/{provider}/link/authorize', [SocialAuthController::class, 'linkAuthorize'])
+            ->where('provider', '[a-z0-9_-]+')
+            ->name('api.auth.social.link.authorize');
+        Route::post('/social/{provider}/link', [SocialAuthController::class, 'link'])
+            ->where('provider', '[a-z0-9_-]+')
+            ->name('api.auth.social.link');
+        Route::delete('/social/identities/{identity}', [SocialAuthController::class, 'unlink'])
+            ->name('api.auth.social.unlink');
+    });
+
     // Requesting a verification link is the one place an email:verify token is
     // accepted, alongside ordinary access tokens so that anyone may re-request one.
     //
@@ -69,3 +106,14 @@ Route::prefix('v1/auth')->group(function () use ($accessAbilities, $enrolAbiliti
         Route::post('/mfa/verify', [MfaController::class, 'verify'])->name('api.auth.mfa.verify');
     });
 });
+
+// The operator's view of social login setup (ADR 0050): the return addresses to register
+// with a provider, the reset page, and what is still missing. A read, under the admin
+// perimeter and behind the permission that reads settings, which is what it summarises.
+Route::prefix('v1/admin/auth')
+    ->middleware(['auth:sanctum', 'ability:admin:access', 'active', 'admin', 'email-verified'])
+    ->group(function (): void {
+        Route::get('/social-login/setup', [SocialLoginSetupController::class, 'show'])
+            ->middleware('permission:settings.view')
+            ->name('admin.auth.social-login.setup');
+    });

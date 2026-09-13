@@ -4,6 +4,7 @@
 * **Date**: 2026-09-06
 * **Revised**: 2026-09-06 — retention settled: archival, as the single permitted removal path
 * **Revised**: 2026-09-10 — scope widened: the trail covers accounts, not only configuration
+* **Revised**: 2026-09-13 — four actions for Social Login (ADR 0050), as exceptions argued in their own extension; authentication events and refused operations otherwise stay out
 * **Built**: 2026-09-07 — Phase 16B-4 implements the archival operation, its permission, and the trail's first read endpoint
 
 ## Context
@@ -319,6 +320,89 @@ administrative intent.
 **Account deletion** has no endpoint. If one is ever added it is the single most
 important thing on this list to record, and it must be recorded before it is built
 rather than after.
+
+## Extension — 2026-09-13: Social Login's exceptions (ADR 0050)
+
+ADR 0050 adds social login for user accounts only. It produces events on both sides of
+the two lines the extension above draws — authentication events stay out, and a refused
+operation writes nothing — and **both lines stand**. This section adds exactly four
+actions, argues each one, and says what stays out.
+
+### What is added
+
+```
+account.social_linked      a third-party identity can now sign in to the account
+account.social_unlinked    it no longer can
+account.promotion_refused  promotion refused while a social identity is linked
+auth.social_refused        a social provider was used to reach an administrative account
+```
+
+`account.created` with `source: social` needs no exception. An account that exists and
+did not is already in scope, whoever caused it to exist.
+
+### Linking and unlinking are changes to who may sign in
+
+The extension above settled that who may sign in is part of the platform's security
+posture. A linked social identity is a way to sign in to an account; linking adds one
+and unlinking removes one. They are recorded for that reason, and **they are recorded
+even though the actor is the account holder rather than an administrator** — the subject
+is the account's standing, not who changed it.
+
+Context names the provider, the identity's identifier, whether a link was a re-link, and
+on unlink how many identities remain linked. `linked_remaining: 0` is the record that
+answers when an account stopped being blocked from promotion by ADR 0050 §6. Neither the
+address nor the provider's subject is recorded: both identify a person, and the identity
+row keeps them under the permission that governs accounts.
+
+### A promotion refusal is an exception to "a refused operation writes nothing"
+
+The rule holds because a refused request reached nothing and the request log already has
+it. This refusal is different in what it means, not in what it reaches. It is an
+invariant of the administrative boundary being enforced: somebody holding `users.update`
+tried to make an account an administrator while a third-party identity can sign in to
+it. That attempt — who, against which account, how many identities were linked — is the
+question the trail exists to answer about the boundary, and the request log does not
+answer it.
+
+It cannot be recorded inside the promotion's transaction, as `account.promoted` is,
+because the refusal aborts that transaction and the record would roll back with it. It
+is written in its own transaction afterwards. This is the one place "recording is inside
+the transaction" gives way, and it gives way because the operation it describes did not
+happen.
+
+### `auth.social_refused` is an exception to "authentication events stay out", for two reasons only
+
+Recorded when a social sign-in is refused because the matched account is an
+administrator, or because the provider's email matches an administrator's address —
+`admin_account` and `admin_email_match` — and for no other reason.
+
+The exclusion above rests on frequency: sign-in events arrive at request rate and belong
+to an authentication log. These two do not. ADR 0050 §6 makes it impossible for an
+administrator to hold a linked identity, so each record is either a provider being aimed
+at an administrative address or a defect, and either is worth a durable record. The
+subject is the administrative account that was matched; the context is the provider and
+the reason, never the address or the provider's subject.
+
+### What stays out
+
+Every other social event is an authentication event, or an ordinary refused request, and
+stays out:
+
+* a social sign-in, whether it issued a token or an MFA challenge;
+* refusals for an inactive account, an unlinked identity, an address the provider does
+  not vouch for, closed registration, an identity in use, a provider already linked, and
+  the last sign-in method;
+* every OAuth state and PKCE failure.
+
+They belong to the authentication log named above. That log does not exist. When it is
+designed it covers password sign-in and social sign-in together, so neither method is
+recorded where the other is not.
+
+### Redaction
+
+The rule extends to what social login handles: no email address, no provider subject, and
+no authorization code, state, PKCE verifier, nonce, ID token, access token, refresh token
+or client secret, in any form.
 
 ## Alternatives considered
 

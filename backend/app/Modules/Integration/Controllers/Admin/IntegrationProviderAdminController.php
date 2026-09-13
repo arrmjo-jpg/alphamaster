@@ -10,6 +10,7 @@ use App\Modules\Integration\Models\IntegrationProvider;
 use App\Modules\Integration\Models\IntegrationUsageLog;
 use App\Modules\Integration\Requests\UpdateIntegrationProviderRequest;
 use App\Modules\Integration\Resources\IntegrationProviderResource;
+use App\Modules\Integration\Services\SocialLoginGateway;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 
@@ -35,7 +36,7 @@ class IntegrationProviderAdminController extends BaseApiController
      * Update a provider: its label, non-secret settings, activation, failover
      * position, and optionally its credentials.
      */
-    public function update(UpdateIntegrationProviderRequest $request, IntegrationProvider $provider): JsonResponse
+    public function update(UpdateIntegrationProviderRequest $request, IntegrationProvider $provider, SocialLoginGateway $socialLogin): JsonResponse
     {
         if ($provider->capability === IntegrationCapability::AI) {
             return $this->configuredInAiControlCentre();
@@ -43,7 +44,7 @@ class IntegrationProviderAdminController extends BaseApiController
 
         $validated = $request->validated();
 
-        return DB::transaction(function () use ($validated, $provider): JsonResponse {
+        return DB::transaction(function () use ($validated, $provider, $socialLogin): JsonResponse {
             $provider->fill([
                 'label' => $validated['label'] ?? $provider->label,
                 'settings' => $validated['settings'] ?? $provider->settings,
@@ -55,6 +56,24 @@ class IntegrationProviderAdminController extends BaseApiController
             // untouched, and sending null clears it. They are never read back out.
             if (array_key_exists('credentials', $validated)) {
                 $provider->setCredentials($validated['credentials']);
+            }
+
+            // A social login provider declares its required configuration, and one missing
+            // any of it cannot be on (ADR 0050 §10, ADR 0038) — whether this request
+            // switches it on or removes a field from one that already is. Judged on the
+            // row as this request would leave it, and refused before anything is written.
+            // The refusal names fields, never values.
+            if ($provider->capability === IntegrationCapability::SOCIAL_LOGIN && $provider->is_active) {
+                $missing = $socialLogin->missingConfiguration($provider);
+
+                if ($missing !== []) {
+                    return $this->errorResponse(
+                        'PROVIDER_CONFIGURATION_INCOMPLETE',
+                        'api.error.integration.provider_configuration_incomplete',
+                        ['missing' => $missing],
+                        422
+                    );
+                }
             }
 
             $provider->save();

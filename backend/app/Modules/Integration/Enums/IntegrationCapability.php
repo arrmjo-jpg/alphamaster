@@ -40,6 +40,15 @@ enum IntegrationCapability: string
     case PUSH = 'push';
 
     /**
+     * Signing in with an identity a vendor vouches for (ADR 0050). For user accounts only:
+     * no administrator signs in, registers or links through this capability.
+     *
+     * No failover, for the reason captcha has none. An identity belongs to the vendor that
+     * issued it, so providers stand side by side rather than behind one another.
+     */
+    case SOCIAL_LOGIN = 'social_login';
+
+    /**
      * @return array<int, string>
      */
     public static function values(): array

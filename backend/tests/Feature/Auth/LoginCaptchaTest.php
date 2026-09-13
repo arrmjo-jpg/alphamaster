@@ -351,6 +351,11 @@ test('the captcha runs before the credentials are looked at', function (): void 
             throw new RuntimeException('not reached');
         }
 
+        public function issueSocialToken(User $user): AuthenticatedToken
+        {
+            throw new RuntimeException('not reached');
+        }
+
         public function startMfaChallenge(User $user): string
         {
             throw new RuntimeException('not reached');

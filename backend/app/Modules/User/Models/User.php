@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
@@ -29,7 +30,7 @@ use Spatie\Permission\Traits\HasRoles;
  * @property Carbon|null $phone_verified_at
  * @property Carbon|null $email_verified_at
  * @property string|null $preferred_locale
- * @property string $password
+ * @property string|null $password null for an account that signs in only through a social provider (ADR 0050 §12)
  * @property AccountType $account_type
  * @property bool $is_active
  * @property Carbon|null $created_at
@@ -226,6 +227,16 @@ class User extends Authenticatable implements AdminIdentity, MustVerifyEmail
     public function scopeAdmins(Builder $query): Builder
     {
         return $query->where('account_type', AccountType::ADMIN->value);
+    }
+
+    /**
+     * Every identity a social provider has held on this account, linked or not.
+     *
+     * @return HasMany<SocialIdentity, $this>
+     */
+    public function socialIdentities(): HasMany
+    {
+        return $this->hasMany(SocialIdentity::class);
     }
 
     /**

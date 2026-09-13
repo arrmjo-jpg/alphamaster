@@ -70,6 +70,8 @@ function account(overrides: Partial<AdminUser> = {}): AdminUser {
         email_verified: true,
         email_verified_at: '2026-01-01T00:00:00+00:00',
         mfa_enrolled: true,
+        has_linked_social_identity: false,
+        linked_social_providers: [],
         roles: [],
         permissions: [],
         ...overrides,
