@@ -151,7 +151,8 @@
         "roles": "Roles & permissions",
         "integrations": "Integrations",
         "languages": "Languages",
-        "media": "Media"
+        "media": "Media",
+        "notifications": "Notifications"
     },
     "dashboard": {
         "platform": {
@@ -652,6 +653,56 @@
             "submit": "Upload",
             "accepted": "The file was accepted and is being processed.",
             "pipelineNote": "An accepted file is not immediately servable: it is scanned and processed first, and appears in the library while that happens."
+        }
+    },
+    "notifications": {
+        "eyebrow": "Platform",
+        "preferences": {
+            "region": "Your preferences",
+            "intro": "What the platform tells you, and how it reaches you. These are your own settings about your own messages: there is no endpoint that reads or writes anybody else’s, so this page cannot show you theirs.",
+            "type": "Notification",
+            "cellLabel": "{{type}} by {{channel}}",
+            "notOffered": "Not sent",
+            "lockedNote": "A locked row cannot be switched off. The in-app record is always written — it is the evidence the platform decided to tell you something — and a security alert is not a preference.",
+            "save_zero": "Save preferences",
+            "save_one": "Save one change",
+            "save_other": "Save {{count}} changes",
+            "discard": "Discard",
+            "saved": "Your preferences were saved."
+        },
+        "templates": {
+            "region": "Wording",
+            "eyebrow": "Template",
+            "intro": "What every recipient reads. Editing a template changes the message for everyone the platform sends it to.",
+            "detail": "Template detail",
+            "choose": "Choose a notification to read or change its wording.",
+            "close": "Close the template",
+            "none": "No template is configured.",
+            "active": "Active",
+            "inactive": "Inactive",
+            "activate": "Activate",
+            "deactivate": "Deactivate",
+            "inactiveNote": "An inactive template is not sent. The notification is still recorded; nothing is worded for it.",
+            "readOnly": "You may read this wording but not change it. Editing needs the notifications.update permission.",
+            "wording": "Wording",
+            "language": "Language",
+            "subject": "Subject",
+            "body": "Body",
+            "bodyHint": "Placeholders the platform substitutes are written as they appear here; nothing in this field is interpreted by the console.",
+            "noWording": "Nothing is written for this language yet. The platform falls back to the default language when it sends.",
+            "incomplete": "A translation needs both a subject and a body. Incomplete: {{languages}}.",
+            "save_zero": "Save wording",
+            "save_one": "Save one language",
+            "save_other": "Save {{count}} languages",
+            "discard": "Discard",
+            "saved": "The wording was saved.",
+            "languages_zero": "No wording",
+            "languages_one": "{{count}} language",
+            "languages_other": "{{count}} languages"
+        },
+        "inbox": {
+            "region": "Received notifications",
+            "absent": "There is no list of received notifications, because the platform publishes no endpoint that returns one. It does write an in-app record for every notification it raises — that is what the always-on channel above is — but nothing reads those records back yet. This is where that surface goes when it exists; an inbox built now would be a screen with nothing behind it."
         }
     },
     "list": {

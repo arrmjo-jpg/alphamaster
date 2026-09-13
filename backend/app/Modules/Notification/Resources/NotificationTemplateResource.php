@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Notification\Resources;
 
+use App\Modules\Notification\Enums\NotificationType;
 use App\Modules\Notification\Models\NotificationTemplate;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -25,6 +26,11 @@ class NotificationTemplateResource extends JsonResource
         // the label is resolved from the request locale each time it is read.
         return [
             'id' => $this->resource->id,
+            /*
+             * Named rather than flattened. Reading `->value` off the enum is where the
+             * generator lost the registry, and the type is what a client branches on.
+             */
+            /** @var NotificationType */
             'type' => $this->resource->type->value,
             'type_label' => $this->resource->type->label(),
             'is_active' => $this->resource->is_active,
