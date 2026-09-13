@@ -6,7 +6,12 @@ import { useCurrentUser } from '@/auth/AuthProvider';
 import { ActivityPanel } from '@/screens/dashboard/ActivityPanel';
 import { assessAttention } from '@/screens/dashboard/attention';
 import { AttentionPanel } from '@/screens/dashboard/AttentionPanel';
-import { integrationProviders, integrationUsage, recentAudit } from '@/screens/dashboard/api';
+import {
+    integrationProviders,
+    integrationUsage,
+    maintenanceState,
+    recentAudit,
+} from '@/screens/dashboard/api';
 import { summarise } from '@/screens/integrations/capabilities';
 import { IntegrationsPanel } from '@/screens/dashboard/IntegrationsPanel';
 import { NextActionsPanel } from '@/screens/dashboard/NextActionsPanel';
@@ -49,8 +54,16 @@ export function DashboardScreen() {
         staleTime: 10_000,
     });
 
-    const [accounts, providers, usage, failures] = useQueries({
+    const [closed, accounts, providers, usage, failures] = useQueries({
         queries: [
+            {
+                queryKey: ['maintenance-state'],
+                // Public, so it needs no permission and is never skipped. An
+                // administrator's own token bypasses maintenance, which is precisely
+                // why the board has to say the platform is closed to everyone else.
+                queryFn: ({ signal }: { signal: AbortSignal }) => maintenanceState(signal),
+                refetchInterval: 60_000,
+            },
             {
                 queryKey: ['admin-users'],
                 queryFn: ({ signal }: { signal: AbortSignal }) => users(signal),
@@ -83,6 +96,7 @@ export function DashboardScreen() {
 
     const attention = assessAttention({
         reachable: health.isPending ? null : health.isSuccess && health.data.status === 'healthy',
+        closed: closed.data ?? null,
         // `null` where the check could not run, and only where it could not. A query
         // still in flight is undefined rather than forbidden, so it stays out of both
         // the findings and the "not checked" list until it lands.
@@ -93,6 +107,7 @@ export function DashboardScreen() {
 
     const settling =
         health.isPending ||
+        closed.isPending ||
         (mayReadUsers && accounts.isPending) ||
         (mayReadIntegrations && (providers.isPending || usage.isPending)) ||
         (mayReadAudit && failures.isPending);

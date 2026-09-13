@@ -6,6 +6,7 @@ namespace App\Modules\Settings\Backup;
 
 use App\Modules\Core\Backup\RestoreReport;
 use App\Modules\Core\Contracts\ConfigurationPortabilityContract;
+use App\Modules\Settings\Contracts\SettingServiceInterface;
 use App\Modules\Settings\Definitions\DefinitionValidator;
 use App\Modules\Settings\Definitions\SettingDefinition;
 use App\Modules\Settings\Definitions\SettingRegistry;
@@ -30,6 +31,7 @@ class SettingsPortability implements ConfigurationPortabilityContract
         private readonly SettingRegistry $registry,
         private readonly SettingSynchronizer $synchronizer,
         private readonly DefinitionValidator $validator,
+        private readonly SettingServiceInterface $settings,
     ) {}
 
     public function section(): string
@@ -153,6 +155,20 @@ class SettingsPortability implements ConfigurationPortabilityContract
 
             $this->restoreTranslations($section, $existing, $skipped);
         });
+
+        // Every group, because a restore may have touched any of them.
+        //
+        // This section writes through the model rather than through the service, which
+        // is deliberate — a restore installs values the ordinary write path would
+        // refuse to reshape — but it means none of the service's own invalidation
+        // runs. Without this, a restore lands in the database and the platform keeps
+        // answering from a cache populated earlier in the same request, so the restore
+        // appears to succeed and does not take effect until the entry expires.
+        //
+        // It was invisible while nothing read a setting before the restore did. The
+        // maintenance middleware reads one on every request, which is what turned a
+        // latent defect into a failing test.
+        $this->settings->clearCache();
 
         return RestoreReport::of($this->section(), $restored, $skipped);
     }

@@ -157,6 +157,26 @@ test('a restore puts back the values the export carried', function (): void {
     expect(app(SettingServiceInterface::class)->get('general.site_name'))->toBe('Exported Name');
 });
 
+test('a restore takes effect even when the value was already cached', function (): void {
+    $this->settings->set('general', 'site_name', 'Exported Name');
+
+    $location = exportConfiguration($this)->json('data.location');
+
+    $this->settings->set('general', 'site_name', 'Changed Afterwards');
+    Cache::flush();
+
+    // The read the test above does not do, and the one every real request does: the
+    // group is in the cache before the restore writes to the database. This section
+    // writes through the model rather than the service, so nothing invalidates on its
+    // behalf — without the restorer clearing the cache itself, the restore lands and
+    // the platform goes on answering with the value it had.
+    expect($this->settings->get('general.site_name'))->toBe('Changed Afterwards');
+
+    restoreConfiguration($this, $location)->assertOk();
+
+    expect(app(SettingServiceInterface::class)->get('general.site_name'))->toBe('Exported Name');
+});
+
 test('a restore creates the languages the export named, before the values that need them', function (): void {
     $location = exportConfiguration($this)->json('data.location');
 

@@ -213,7 +213,8 @@
                 "platform": "the platform probe",
                 "administrators": "administrator accounts",
                 "integrations": "vendor capabilities",
-                "actions": "the audit trail"
+                "actions": "the audit trail",
+                "maintenance": "maintenance mode"
             },
             "finding": {
                 "platform-silent": "The platform is not answering.",
@@ -226,7 +227,8 @@
                 "action-failed_one": "One administrative action failed.",
                 "action-failed_other": "{{count}} administrative actions failed.",
                 "capability-uncredentialed_one": "One capability has no credentials.",
-                "capability-uncredentialed_other": "{{count}} capabilities have no credentials."
+                "capability-uncredentialed_other": "{{count}} capabilities have no credentials.",
+                "platform-closed": "The platform is closed for maintenance."
             },
             "why": {
                 "platform-silent": "The liveness probe did not report a healthy application.",
@@ -234,13 +236,15 @@
                 "capability-failing": "Every recent attempt through the active provider was refused.",
                 "capability-degraded": "Some recent attempts through the active provider were refused.",
                 "action-failed": "Recorded in the audit trail with a failed outcome.",
-                "capability-uncredentialed": "The active provider holds no credentials, so every attempt will be refused before it is made."
+                "capability-uncredentialed": "The active provider holds no credentials, so every attempt will be refused before it is made.",
+                "platform-closed": "Maintenance mode is on, so the API refuses every caller except an administrator whose token bypasses it — which is why nothing else here looks wrong."
             },
             "go": {
                 "administrator-blocked": "Open accounts",
                 "capability-failing": "Open integrations",
                 "capability-degraded": "Open integrations",
-                "capability-uncredentialed": "Open integrations"
+                "capability-uncredentialed": "Open integrations",
+                "platform-closed": "Open maintenance settings"
             }
         },
         "state": {
@@ -784,7 +788,43 @@
         },
         "inbox": {
             "region": "Received notifications",
-            "absent": "There is no list of received notifications, because the platform publishes no endpoint that returns one. It does write an in-app record for every notification it raises — that is what the always-on channel above is — but nothing reads those records back yet. This is where that surface goes when it exists; an inbox built now would be a screen with nothing behind it."
+            "intro": "Every notification the platform raised for this account. The in-app record is the one channel that cannot be silenced, because it is the evidence a notification was sent at all — which is also why nothing here deletes one.",
+            "unread_zero": "Nothing unread.",
+            "unread_one": "One unread notification.",
+            "unread_other": "{{count}} unread notifications.",
+            "onlyUnread": "Unread only",
+            "readAll": "Mark all read",
+            "markRead": "Mark read",
+            "readAt": "Read {{at}}",
+            "none": "The platform has not sent this account anything yet.",
+            "noneUnread": "Nothing unread.",
+            "unknownType": "Unknown type",
+            "pagination": {
+                "label": "Pages",
+                "previous": "Previous",
+                "next": "Next",
+                "position": "Page {{page}} of {{pages}}"
+            }
+        },
+        "announce": {
+            "region": "Announcements",
+            "intro": "The one notification an administrator writes. Everything else the platform sends describes something that happened; this is the case where you are the event.",
+            "subject": "Subject",
+            "body": "Message",
+            "bodyHint": "Written literally. Nothing in it is treated as a placeholder, so a colon in your text stays a colon.",
+            "audience": "Audience",
+            "audienceHint": "Suspended accounts receive nothing: the in-app record is where this lands, and an account that cannot sign in cannot read one.",
+            "audiences": {
+                "everyone": "Everyone who can sign in",
+                "administrators": "Administrators only"
+            },
+            "send": "Send announcement",
+            "cancel": "Cancel",
+            "confirmSend": "Send it",
+            "confirm": "This goes to {{audience}} and cannot be unsent. Each recipient reads it in their own language, and it lands in their notifications rather than their inbox unless they asked for email.",
+            "sent_zero": "Nobody matched that audience, so nothing was sent.",
+            "sent_one": "Queued for one recipient.",
+            "sent_other": "Queued for {{count}} recipients."
         }
     },
     "operations": {

@@ -21,8 +21,6 @@ class TwilioSmsProvider implements SmsProviderContract
 {
     private const BASE_URL = 'https://api.twilio.com/2010-04-01';
 
-    private const TIMEOUT_SECONDS = 10;
-
     public function driver(): string
     {
         return 'twilio';
@@ -46,7 +44,7 @@ class TwilioSmsProvider implements SmsProviderContract
         try {
             $response = Http::asForm()
                 ->withBasicAuth($accountSid, $authToken)
-                ->timeout(self::TIMEOUT_SECONDS)
+                ->timeout($this->timeoutSeconds())
                 ->post(self::BASE_URL.'/Accounts/'.$accountSid.'/Messages.json', [
                     'To' => $message->to,
                     'From' => $from,
@@ -66,5 +64,21 @@ class TwilioSmsProvider implements SmsProviderContract
             (string) ($response->json('code') ?? $response->status()),
             (string) ($response->json('message') ?? 'The Twilio request failed.')
         );
+    }
+
+    /**
+     * How long to wait on the vendor, from the platform's own configuration.
+     *
+     * `operations.provider_timeout_seconds` has existed with a validated range and a
+     * default of ten since Phase 16A, and every driver hard-coded ten instead — the
+     * same number by coincidence, so an operator lengthening the timeout for a slow
+     * vendor changed nothing. The default here is the setting's own default, which is
+     * what applies when settings cannot be read at all.
+     */
+    private function timeoutSeconds(): int
+    {
+        $configured = setting('operations.provider_timeout_seconds', 10);
+
+        return is_int($configured) && $configured > 0 ? $configured : 10;
     }
 }

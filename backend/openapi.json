@@ -64,6 +64,76 @@
                 "security": []
             }
         },
+        "/admin/notifications/announcements": {
+            "post": {
+                "operationId": "admin.notifications.announcements.store",
+                "description": "The count returned is how many recipients it was queued for, which is not the\nsame as how many will read it: a recipient who has silenced every channel they\nare allowed to silence still receives the in-app record, and delivery on any\nother channel is decided per recipient after this responds.",
+                "summary": "Send an announcement",
+                "tags": [
+                    "AnnouncementAdmin"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SendAnnouncementRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "audience": {
+                                                    "$ref": "#/components/schemas/AnnouncementAudience"
+                                                },
+                                                "audience_label": {
+                                                    "type": "string"
+                                                },
+                                                "recipients": {
+                                                    "type": "integer"
+                                                }
+                                            },
+                                            "required": [
+                                                "audience",
+                                                "audience_label",
+                                                "recipients"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "message",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
         "/admin/audit": {
             "get": {
                 "operationId": "admin.audit.index",
@@ -3325,6 +3395,204 @@
                 }
             }
         },
+        "/notifications": {
+            "get": {
+                "operationId": "notifications.index",
+                "summary": "The account's own records, newest first",
+                "tags": [
+                    "NotificationInbox"
+                ],
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "Which page of results to return.",
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        }
+                    },
+                    {
+                        "name": "unread",
+                        "in": "query",
+                        "description": "Return only records that have not been read.",
+                        "schema": {
+                            "type": "boolean",
+                            "default": false
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/NotificationRecordResource"
+                                            }
+                                        },
+                                        "meta": {
+                                            "type": "object",
+                                            "properties": {
+                                                "pagination": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "current_page": {
+                                                            "type": "integer"
+                                                        },
+                                                        "per_page": {
+                                                            "type": "integer"
+                                                        },
+                                                        "total": {
+                                                            "type": "integer"
+                                                        },
+                                                        "last_page": {
+                                                            "type": "integer"
+                                                        },
+                                                        "has_more_pages": {
+                                                            "type": "boolean"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "current_page",
+                                                        "per_page",
+                                                        "total",
+                                                        "last_page",
+                                                        "has_more_pages"
+                                                    ]
+                                                },
+                                                "unread": {
+                                                    "type": "integer"
+                                                }
+                                            },
+                                            "required": [
+                                                "pagination",
+                                                "unread"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "data",
+                                        "meta"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/notifications/read-all": {
+            "post": {
+                "operationId": "notifications.read-all",
+                "summary": "Mark everything unread as read, and say how many that was",
+                "tags": [
+                    "NotificationInbox"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "marked": {
+                                                    "type": "integer"
+                                                }
+                                            },
+                                            "required": [
+                                                "marked"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "message",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/notifications/{notification}/read": {
+            "post": {
+                "operationId": "notifications.read",
+                "description": "Idempotent: a record that was already read keeps the moment it was first read\nrather than having it moved, because when somebody first saw a message is the\nfact worth keeping.",
+                "summary": "Mark one record read",
+                "tags": [
+                    "NotificationInbox"
+                ],
+                "parameters": [
+                    {
+                        "name": "notification",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/NotificationRecordResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "message",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
         "/notifications/preferences": {
             "get": {
                 "operationId": "notifications.preferences.index",
@@ -5916,6 +6184,15 @@
             }
         },
         "schemas": {
+            "AnnouncementAudience": {
+                "type": "string",
+                "description": "Who an announcement is addressed to. A closed set rather than a query an operator composes, and small on purpose. These are the two audiences the platform can describe without knowing what it is for: everyone who can sign in, and the people who run it. Anything narrower \u2014 a department, a cohort, a segment \u2014 is a property of an application built on this foundation and not of the foundation (ADR 0033).  Suspended accounts are in neither. A message to an account that cannot sign in is a message nobody will read, and the in-app record is the channel this notification defaults to.\n| |\n|---|\n| `everyone` <br/> Every active account, administrators included. |\n| `administrators` <br/> Active administrative accounts only. |",
+                "enum": [
+                    "everyone",
+                    "administrators"
+                ],
+                "title": "AnnouncementAudience"
+            },
             "AuditRecordResource": {
                 "type": "object",
                 "properties": {
@@ -6530,6 +6807,64 @@
                 ],
                 "title": "NotificationChannel"
             },
+            "NotificationRecordResource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/NotificationType"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "type_label": {
+                        "type": "string"
+                    },
+                    "subject": {
+                        "type": "string"
+                    },
+                    "body": {
+                        "type": "string"
+                    },
+                    "locale": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "The language this message was rendered in when it was raised."
+                    },
+                    "read_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "Null until the recipient has read it. Reported as a moment rather than a\nflag because an interface showing an inbox renders when, and a client\nthat only needs whether can compare against null."
+                    },
+                    "created_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                },
+                "required": [
+                    "id",
+                    "type",
+                    "type_label",
+                    "subject",
+                    "body",
+                    "locale",
+                    "read_at",
+                    "created_at"
+                ],
+                "title": "NotificationRecordResource"
+            },
             "NotificationTemplateResource": {
                 "type": "object",
                 "properties": {
@@ -6643,6 +6978,7 @@
                                 "integrations.update",
                                 "notifications.view",
                                 "notifications.update",
+                                "notifications.send",
                                 "media.view",
                                 "media.delete"
                             ]
@@ -6720,6 +7056,29 @@
                     "scan_error"
                 ],
                 "title": "ScanStatus"
+            },
+            "SendAnnouncementRequest": {
+                "type": "object",
+                "properties": {
+                    "subject": {
+                        "type": "string",
+                        "description": "The line a recipient sees first."
+                    },
+                    "body": {
+                        "type": "string",
+                        "description": "What the announcement says. Substituted literally: a value is never\nitself treated as a placeholder."
+                    },
+                    "audience": {
+                        "description": "Who receives it.\n\n| |\n|---|\n| `everyone` <br/> Every active account, administrators included. |\n| `administrators` <br/> Active administrative accounts only. |",
+                        "$ref": "#/components/schemas/AnnouncementAudience"
+                    }
+                },
+                "required": [
+                    "subject",
+                    "body",
+                    "audience"
+                ],
+                "title": "SendAnnouncementRequest"
             },
             "SettingDefinitionResource": {
                 "type": "object",

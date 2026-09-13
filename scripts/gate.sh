@@ -43,12 +43,69 @@ scripts/gate.sh <command>
 Environment:
   COMPOSE                  override the compose command (default: docker compose)
   GATE_ALLOW_DESTRUCTIVE   set to 1 to let `all` run migrate-fresh outside CI
+  GATE_SKIP_DB_LOCK        set to 1 to skip the one-suite-at-a-time database lock
   ADMIN_NODE_IMAGE         override the Node image the admin gate runs in
 USAGE
 }
 
 step() {
     printf '\n\033[1m── %s\033[0m\n' "$1"
+}
+
+# One suite at a time against the PostgreSQL test database.
+#
+# `alphamaster_test` is a single database shared by every caller of this script, and
+# RefreshDatabase migrates it at the start of a run. Two suites therefore destroy each
+# other: the second one's migration drops tables the first is still reading, and the
+# first reports failures like `relation "settings" does not exist` in tests that have
+# nothing to do with settings. That has now happened twice — once when a second session
+# ran the suite in a git worktree, and once when a branch was switched mid-run — and
+# both times the failures looked like real defects and cost real time.
+#
+# So the run takes a lock and says who holds it. `mkdir` is the atomic primitive here
+# because it is atomic everywhere this script runs, including Git Bash on Windows where
+# `flock` does not exist.
+GATE_LOCK_DIR="${TMPDIR:-/tmp}/alphamaster-gate-db.lock"
+GATE_LOCK_HELD=""
+
+acquire_db_lock() {
+    local holder=""
+
+    if mkdir "$GATE_LOCK_DIR" 2>/dev/null; then
+        echo "$$" > "$GATE_LOCK_DIR/pid"
+        GATE_LOCK_HELD=1
+        trap release_db_lock EXIT INT TERM
+        return 0
+    fi
+
+    holder="$(cat "$GATE_LOCK_DIR/pid" 2>/dev/null || echo unknown)"
+
+    # A crashed run must not block every future one. If the recorded process is gone,
+    # the lock is stale and this run takes it over rather than refusing forever.
+    if [ "$holder" != unknown ] && ! kill -0 "$holder" 2>/dev/null; then
+        echo "note: taking over a stale database lock left by process $holder" >&2
+        rm -rf "$GATE_LOCK_DIR"
+        acquire_db_lock
+        return $?
+    fi
+
+    cat >&2 <<LOCKED
+
+Another suite is already running against the PostgreSQL test database (process $holder).
+
+They share one database, so running both would make each fail in ways that look like
+defects and are not. Wait for the other run to finish, or set GATE_SKIP_DB_LOCK=1 if
+you are certain nothing else is running.
+LOCKED
+
+    exit 1
+}
+
+release_db_lock() {
+    if [ -n "$GATE_LOCK_HELD" ]; then
+        rm -rf "$GATE_LOCK_DIR"
+        GATE_LOCK_HELD=""
+    fi
 }
 
 in_backend() {
@@ -147,6 +204,11 @@ cmd_stan() {
 cmd_test_pgsql() {
     step "Test suite — PostgreSQL"
     require_stack
+
+    if [ -z "${GATE_SKIP_DB_LOCK:-}" ]; then
+        acquire_db_lock
+    fi
+
     in_backend \
         -e DB_CONNECTION=pgsql \
         -e EXPECTED_DB_DRIVER=pgsql \
@@ -166,6 +228,13 @@ cmd_test_sqlite() {
 cmd_migrate_fresh() {
     step "Migrations and seeders from empty"
     require_stack
+
+    # Drops the database it runs against, so it waits for the same lock the suite
+    # takes rather than dropping one out from under a run in progress.
+    if [ -z "${GATE_SKIP_DB_LOCK:-}" ]; then
+        acquire_db_lock
+    fi
+
     in_backend "$BACKEND_SERVICE" php artisan migrate:fresh --seed --force
 }
 

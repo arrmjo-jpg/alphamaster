@@ -12,13 +12,13 @@ import { observed, server } from '@/test/server';
 import '@/i18n';
 
 /**
- * Notifications, against the two surfaces the platform actually has.
+ * Notifications, against the four surfaces the platform actually has.
  *
- * The assertion that matters most is the absent one: there is no inbox, because there
- * is no endpoint that returns received notifications. The platform writes an in-app
- * record for every notification it raises — that is why the `database` channel cannot
- * be silenced — and publishes no way to read those records back, so a notification
- * centre would be a screen with nothing behind it.
+ * Two of them are the caller's own — their preferences and their in-app records — and
+ * two are administrative: the wording every recipient reads, and sending an
+ * announcement. The inbox was the absence this file used to assert; the endpoint
+ * exists now, so what is asserted instead is that nothing in it deletes a record and
+ * that the count on the badge is the server's rather than the page's.
  */
 
 const LANGUAGES = http.get('*/api/v1/languages', () =>
@@ -107,7 +107,23 @@ const TEMPLATE = {
     updated_at: '2026-09-01T10:00:00+00:00',
 };
 
-function renderScreen(permissions: string[], templates = [TEMPLATE], matrix = MATRIX) {
+const RECORD = {
+    id: 'ntf-1',
+    type: 'admin.announcement',
+    type_label: 'Administrator announcement',
+    subject: 'Scheduled maintenance',
+    body: 'The platform will be unavailable on Sunday.',
+    locale: 'en',
+    read_at: null,
+    created_at: '2026-09-09T10:00:00+00:00',
+};
+
+function renderScreen(
+    permissions: string[],
+    templates = [TEMPLATE],
+    matrix = MATRIX,
+    records: Array<typeof RECORD> = [RECORD],
+) {
     server.use(
         LANGUAGES,
         HEALTH,
@@ -116,6 +132,22 @@ function renderScreen(permissions: string[], templates = [TEMPLATE], matrix = MA
         ),
         http.get('*/api/v1/admin/notifications/templates', () =>
             HttpResponse.json({ success: true, data: templates }),
+        ),
+        http.get('*/api/v1/notifications', () =>
+            HttpResponse.json({
+                success: true,
+                data: records,
+                meta: {
+                    pagination: {
+                        current_page: 1,
+                        per_page: 25,
+                        total: records.length,
+                        last_page: 1,
+                        has_more_pages: false,
+                    },
+                    unread: records.filter((record) => record.read_at === null).length,
+                },
+            }),
         ),
         http.get('*/api/v1/auth/me', () =>
             HttpResponse.json({
@@ -204,12 +236,51 @@ describe('the notifications workspace', () => {
         });
     });
 
-    it('has no inbox, and says why rather than leaving a gap', async () => {
+    it('shows the account its own records, without asking for a permission', async () => {
+        // Reading your own inbox is not administrative: the endpoint is scoped to
+        // whoever asks, so there is nothing to gate.
         renderScreen([]);
 
-        await screen.findByText('Security alert');
+        expect(await screen.findByText('Scheduled maintenance')).toBeInTheDocument();
+        expect(screen.getByText('One unread notification.')).toBeInTheDocument();
+    });
 
-        expect(screen.getByText(/publishes no endpoint that returns one/)).toBeInTheDocument();
+    it('offers no way to delete a record, because it is the evidence it was sent', async () => {
+        renderScreen([]);
+
+        await screen.findByText('Scheduled maintenance');
+
+        expect(screen.queryByRole('button', { name: /Delete/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Remove/i })).not.toBeInTheDocument();
+    });
+
+    it('marks one record read through the endpoint rather than in the browser', async () => {
+        let called = '';
+
+        server.use(
+            http.post('*/api/v1/notifications/:id/read', ({ params }) => {
+                called = String(params['id']);
+
+                return HttpResponse.json({
+                    success: true,
+                    data: { ...RECORD, read_at: '2026-09-09T11:00:00+00:00' },
+                });
+            }),
+        );
+
+        renderScreen([]);
+
+        await userEvent.click(await screen.findByRole('button', { name: 'Mark read' }));
+
+        await expect.poll(() => called).toBe('ntf-1');
+    });
+
+    it('says so plainly when there is nothing to read', async () => {
+        renderScreen([], [TEMPLATE], MATRIX, []);
+
+        expect(
+            await screen.findByText('The platform has not sent this account anything yet.'),
+        ).toBeInTheDocument();
     });
 
     it('hides template wording from an account that may not read it', async () => {
@@ -292,3 +363,84 @@ async function waitForRequest(method: string): Promise<Request> {
 
     throw new Error(`No ${method} request was sent.`);
 }
+
+describe('announcements', () => {
+    it('are not offered without the permission the endpoint requires', async () => {
+        // `notifications.update` is the power to change wording. Sending is its own
+        // permission, and holding the first is not a reason to hold the second.
+        renderScreen(['notifications.view', 'notifications.update']);
+
+        await screen.findByText('Security alert');
+
+        expect(screen.queryByRole('button', { name: 'Send announcement' })).not.toBeInTheDocument();
+    });
+
+    it('confirm before sending, naming the audience rather than asking if you are sure', async () => {
+        let sent: unknown = null;
+
+        server.use(
+            http.post('*/api/v1/admin/notifications/announcements', async ({ request }) => {
+                sent = await request.json();
+
+                return HttpResponse.json({
+                    success: true,
+                    message: 'Queued.',
+                    data: {
+                        audience: 'administrators',
+                        audience_label: 'Administrators',
+                        recipients: 3,
+                    },
+                });
+            }),
+        );
+
+        renderScreen(['notifications.send']);
+
+        await userEvent.type(await screen.findByLabelText(/^Subject/), 'Rotate your credentials');
+        await userEvent.type(screen.getByLabelText(/^Message/), 'Please rotate them this week.');
+        await userEvent.click(screen.getByRole('button', { name: 'Send announcement' }));
+
+        // Nothing has been sent yet: opening a confirmation is not the operation.
+        expect(sent).toBeNull();
+        // The confirmation names who it reaches. Scoped to the paragraph rather than
+        // the page, because the audience also appears as the selected option.
+        expect(screen.getByText(/cannot be unsent/)).toHaveTextContent('Administrators only');
+
+        const trigger = screen.getByRole('button', { name: 'Send announcement' });
+        const cancel = screen.getByRole('button', { name: 'Cancel' });
+        const confirm = screen.getByRole('button', { name: 'Send it' });
+
+        expect(trigger).toBeDisabled();
+        expect(trigger.compareDocumentPosition(cancel) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
+            Node.DOCUMENT_POSITION_FOLLOWING,
+        );
+        expect(cancel.compareDocumentPosition(confirm) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
+            Node.DOCUMENT_POSITION_FOLLOWING,
+        );
+
+        await userEvent.click(confirm);
+
+        await expect
+            .poll(() => sent)
+            .toEqual({
+                subject: 'Rotate your credentials',
+                body: 'Please rotate them this week.',
+                audience: 'administrators',
+            });
+
+        expect(await screen.findByText('Queued for 3 recipients.')).toBeInTheDocument();
+    });
+
+    it('offers only the audiences the platform defines', async () => {
+        renderScreen(['notifications.send']);
+
+        const audience = await screen.findByLabelText('Audience');
+        const options = within(audience)
+            .getAllByRole('option')
+            .map((option) => option.textContent);
+
+        // A closed set, not a query an operator composes: anything narrower belongs to
+        // an application built on this foundation rather than to the foundation.
+        expect(options).toEqual(['Everyone who can sign in', 'Administrators only']);
+    });
+});

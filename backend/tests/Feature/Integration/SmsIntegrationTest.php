@@ -13,6 +13,7 @@ use App\Modules\Integration\Exceptions\NoProviderConfiguredException;
 use App\Modules\Integration\Models\IntegrationProvider;
 use App\Modules\Integration\Models\IntegrationUsageLog;
 use App\Modules\Integration\Services\SmsManager;
+use App\Modules\Settings\Contracts\SettingServiceInterface;
 use App\Modules\Settings\Database\Seeders\SettingSeeder;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -480,4 +481,27 @@ test('the usage endpoint reports attempts without message content', function ():
         ->and($response->json('data.0.status'))->toBe('success')
         ->and($response->getContent())->not->toContain('confidential body')
         ->and($response->getContent())->not->toContain('+15551234567');
+});
+
+test('the twilio driver waits as long as the platform is configured to wait', function (): void {
+    app(SettingServiceInterface::class)->set('operations', 'provider_timeout_seconds', 37);
+    Cache::flush();
+
+    $seen = null;
+
+    // The fake's second argument is the request options, which is where the timeout
+    // lives. Nothing about a faked response would otherwise show that the driver read
+    // the setting rather than the constant it used to carry.
+    Http::fake(function ($request, $options) use (&$seen) {
+        $seen = $options['timeout'] ?? null;
+
+        return Http::response(['sid' => 'SM_timeout_probe'], 201);
+    });
+
+    activateTwilio(['from' => '+15550000000']);
+    makeTwilioDefault();
+
+    app(SmsDispatcherContract::class)->send(new SmsMessage('+15551234567', 'hello'));
+
+    expect($seen)->toBe(37);
 });

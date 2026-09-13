@@ -64,3 +64,20 @@ export async function recentAudit(
         total: typeof total === 'number' ? total : null,
     };
 }
+
+/**
+ * Whether the platform is closed for maintenance.
+ *
+ * Read from the public settings group rather than from an endpoint of its own,
+ * because that is where it lives: `general.maintenance_mode` is a public setting, so
+ * this needs no permission and answers the same for anyone who asks. An administrator
+ * whose token bypasses maintenance sees a working platform, which is exactly why the
+ * board has to say the platform is closed to everybody else.
+ */
+export async function maintenanceState(signal?: AbortSignal): Promise<boolean> {
+    const general = await fetchData<Record<string, unknown>>('/settings/general', {
+        ...(signal ? { signal } : {}),
+    });
+
+    return general['maintenance_mode'] === true;
+}

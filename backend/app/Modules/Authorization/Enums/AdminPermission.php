@@ -76,6 +76,16 @@ enum AdminPermission: string
     case NOTIFICATIONS_VIEW = 'notifications.view';
     case NOTIFICATIONS_UPDATE = 'notifications.update';
 
+    /**
+     * Raise an announcement (ADR 0019).
+     *
+     * Separate from `notifications.update`, which is the power to change the wording
+     * every recipient reads. Sending is a different act with a different blast radius:
+     * an announcement reaches accounts, and an administrator entrusted with correcting
+     * a typo in a template is not thereby entrusted with writing to everyone.
+     */
+    case NOTIFICATIONS_SEND = 'notifications.send';
+
     case MEDIA_VIEW = 'media.view';
     case MEDIA_DELETE = 'media.delete';
 
@@ -93,7 +103,8 @@ enum AdminPermission: string
             self::ROLES_VIEW, self::ROLES_UPDATE,
             self::PERMISSIONS_VIEW, self::PERMISSIONS_UPDATE => 'authorization',
             self::INTEGRATIONS_VIEW, self::INTEGRATIONS_UPDATE => 'integration',
-            self::NOTIFICATIONS_VIEW, self::NOTIFICATIONS_UPDATE => 'notification',
+            self::NOTIFICATIONS_VIEW, self::NOTIFICATIONS_UPDATE,
+            self::NOTIFICATIONS_SEND => 'notification',
             self::MEDIA_VIEW, self::MEDIA_DELETE => 'media',
         };
     }
