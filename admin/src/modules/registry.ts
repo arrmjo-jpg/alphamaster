@@ -1,5 +1,6 @@
 import type { LucideIcon } from 'lucide-react';
 import {
+    Activity,
     Bell,
     Globe,
     Images,
@@ -16,6 +17,7 @@ import { IntegrationsScreen } from '@/screens/IntegrationsScreen';
 import { LanguagesScreen } from '@/screens/LanguagesScreen';
 import { MediaScreen } from '@/screens/MediaScreen';
 import { NotificationsScreen } from '@/screens/NotificationsScreen';
+import { OperationsScreen } from '@/screens/OperationsScreen';
 import { RolesScreen } from '@/screens/RolesScreen';
 import { SettingsScreen } from '@/screens/SettingsScreen';
 import { UsersScreen } from '@/screens/UsersScreen';
@@ -159,6 +161,22 @@ export const MODULES: ModuleManifest[] = [
         // own settings from them because they may not edit everyone's templates.
         order: 80,
         component: NotificationsScreen,
+    },
+    {
+        id: 'operations',
+        path: '/operations',
+        label: 'modules.operations',
+        icon: Activity,
+        // Reading the administrative trail is the gate, and it is its own permission
+        // for a reason: taken together the trail describes the platform's security
+        // configuration and the habits of its administrators, and performing an
+        // audited action is not a reason to be able to review everyone's (ADR 0037).
+        // Archiving needs `audit.manage` and moving configuration needs
+        // `settings.backup.manage`; both are enforced per operation by the API and
+        // reflected section by section rather than at this level.
+        permission: 'audit.view',
+        order: 90,
+        component: OperationsScreen,
     },
 ];
 
