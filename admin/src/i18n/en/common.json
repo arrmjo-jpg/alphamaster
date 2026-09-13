@@ -164,7 +164,33 @@
         "account": "Your account",
         "translations": "Translations",
         "ai": "AI",
-        "access": "Users & permissions"
+        "access": "Users & permissions",
+        "cache": "Cache"
+    },
+    "cache": {
+        "eyebrow": "Platform",
+        "title": "Application cache",
+        "intro": "Each part of the platform keeps its own cache. Invalidating one rebuilds every entry in it from its source on next use; nothing outside it is touched, and no individual entry can be read or removed.",
+        "readOnly": "You may look at the cache but not invalidate it. Invalidating needs the settings.update permission.",
+        "failOpen": "Reads the source if the cache is down",
+        "failClosed": "Refuses if the cache is down",
+        "protected": "Cannot be invalidated here",
+        "invalidate": "Invalidate",
+        "confirmBody": "Every entry in {{namespace}} will be rebuilt from its source on next use. This is recorded in the audit trail.",
+        "confirm": "Invalidate now",
+        "cancel": "Cancel",
+        "done": "The {{namespace}} cache was invalidated.",
+        "lifetime": "Lifetime",
+        "generation": "Generation",
+        "seconds_one": "{{count}} second",
+        "seconds_other": "{{count}} seconds",
+        "namespace": {
+            "settings": "Settings",
+            "localization": "Localization",
+            "auth": "Authentication",
+            "authorization": "Permissions",
+            "integration": "Integrations"
+        }
     },
     "dashboard": {
         "platform": {
@@ -426,6 +452,7 @@
             "ai": "AI",
             "auth": "Authentication",
             "branding": "Branding",
+            "cdn": "CDN",
             "general": "General",
             "localization": "Localization",
             "mail": "Mail",

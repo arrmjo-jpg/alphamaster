@@ -29,6 +29,7 @@ const GROUP_ORDER = [
     'security',
     'rate_limit',
     'operations',
+    'cdn',
 ];
 
 /**

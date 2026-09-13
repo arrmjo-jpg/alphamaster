@@ -43,6 +43,18 @@ class AuthCatalogue implements SettingCatalogue
                 nullable: false,
                 isPublic: true,
             ),
+            // Signing in and registering with a phone number and a one-time code (ADR 0051
+            // §1). Public because a sign-in page has to know whether to offer it. Off by
+            // default: it depends on a working SMS provider, and a switch that is on
+            // without one sends nothing to anyone.
+            new SettingDefinition(
+                group: 'auth',
+                key: 'phone_sign_in_enabled',
+                type: SettingType::BOOLEAN,
+                default: false,
+                nullable: false,
+                isPublic: true,
+            ),
             // The redirect URIs a social sign-in may return to, matched exactly — and the
             // ones an operator registers on the provider's OAuth client. Empty by default,
             // which leaves social login unusable until an operator names the client it

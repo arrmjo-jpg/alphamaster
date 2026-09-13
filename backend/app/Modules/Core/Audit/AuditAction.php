@@ -220,5 +220,10 @@ final class AuditAction
      */
     public const AUTH_SOCIAL_REFUSED = 'auth.social_refused';
 
+    /**
+     * An administrator invalidated one cache namespace (ADR 0035, ADR 0051 §7).
+     */
+    public const CACHE_NAMESPACE_FLUSHED = 'cache.namespace_flushed';
+
     private function __construct() {}
 }

@@ -134,9 +134,10 @@ describe('going to a page', () => {
         const trigger = await openConsole();
         await userEvent.click(trigger);
 
-        // Thirteen destinations, and this account may open all of them — the account
+        // Fourteen destinations, and this account may open all of them — the account
         // page among them: out of the navigation, but still somewhere a person can go.
-        expect(within(palette()).getAllByRole('option')).toHaveLength(13);
+        // The cache workspace is the fourteenth (ADR 0051 §7).
+        expect(within(palette()).getAllByRole('option')).toHaveLength(14);
 
         await userEvent.type(within(palette()).getByRole('combobox'), 'rol');
 

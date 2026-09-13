@@ -9,6 +9,7 @@ use App\Modules\User\Contracts\AccountTypeManagerContract;
 use App\Modules\User\Contracts\SocialIdentityRegistryContract;
 use App\Modules\User\Services\AccountTypeManager;
 use App\Modules\User\Services\SocialIdentityRegistry;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 
 class UserServiceProvider extends ServiceProvider
@@ -35,9 +36,24 @@ class UserServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->loadMigrationsFrom(dirname(__DIR__).'/Database/Migrations');
+        $this->registerRoutes();
 
         if ($this->app->runningInConsole()) {
             $this->commands([CreateFirstAdministratorCommand::class]);
+        }
+    }
+
+    /**
+     * Register module routes: the account's own profile (ADR 0051 §4).
+     */
+    protected function registerRoutes(): void
+    {
+        $apiRouteFile = dirname(__DIR__).'/Routes/api.php';
+
+        if (file_exists($apiRouteFile)) {
+            Route::prefix('api')
+                ->middleware(['api'])
+                ->group($apiRouteFile);
         }
     }
 }

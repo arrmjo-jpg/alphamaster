@@ -7,7 +7,9 @@ use App\Modules\Auth\Controllers\Api\AuthController;
 use App\Modules\Auth\Controllers\Api\EmailVerificationController;
 use App\Modules\Auth\Controllers\Api\MfaController;
 use App\Modules\Auth\Controllers\Api\PasswordRecoveryController;
+use App\Modules\Auth\Controllers\Api\PhoneSignInController;
 use App\Modules\Auth\Controllers\Api\PhoneVerificationController;
+use App\Modules\Auth\Controllers\Api\RegistrationController;
 use App\Modules\Auth\Controllers\Api\SocialAuthController;
 use App\Modules\Auth\Enums\TokenAbility;
 use Illuminate\Support\Facades\Route;
@@ -40,6 +42,15 @@ Route::prefix('v1/auth')->group(function () use ($accessAbilities, $enrolAbiliti
         ->name('api.auth.password.forgot');
     Route::post('/password/reset', [PasswordRecoveryController::class, 'reset'])
         ->name('api.auth.password.reset');
+
+    // Phone sign-in and public registration (ADR 0051). Public by necessity; each is
+    // throttled in the controller and counted against the auth ceiling.
+    Route::post('/phone/code', [PhoneSignInController::class, 'code'])
+        ->name('api.auth.phone.code');
+    Route::post('/phone/sign-in', [PhoneSignInController::class, 'signIn'])
+        ->name('api.auth.phone.sign_in');
+    Route::post('/register', [RegistrationController::class, 'register'])
+        ->name('api.auth.register');
 
     // Reached from a mail client, so there is no token to present: the signature is
     // the credential, and `signed` refuses anything this platform did not issue or

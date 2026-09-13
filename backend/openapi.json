@@ -2325,6 +2325,372 @@
                 }
             }
         },
+        "/profile/avatar": {
+            "post": {
+                "operationId": "profile.avatar.store",
+                "description": "Replaces the current one. The picture is public and is served once it has been processed; until then `avatar_url` may be null.",
+                "summary": "Set your profile picture",
+                "tags": [
+                    "Avatar"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StoreAvatarRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "media_id": {
+                                                    "type": "string"
+                                                },
+                                                "status": {
+                                                    "type": "string"
+                                                },
+                                                "avatar_url": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "media_id",
+                                                "status",
+                                                "avatar_url"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "message",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "MEDIA_REJECTED (the bytes are not an acceptable image) or VALIDATION_ERROR.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "error": {
+                                            "type": "object",
+                                            "properties": {
+                                                "code": {
+                                                    "type": "string",
+                                                    "description": "`code` is contract and is never localized (ADR 0031).",
+                                                    "const": "MEDIA_REJECTED"
+                                                },
+                                                "message": {
+                                                    "type": "string"
+                                                },
+                                                "details": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "reason": {
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "reason"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "code",
+                                                "message",
+                                                "details"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "error"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "profile.avatar.destroy",
+                "summary": "Remove your profile picture",
+                "tags": [
+                    "Avatar"
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Removed, or there was none.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/admin/cache": {
+            "get": {
+                "operationId": "admin.cache.index",
+                "summary": "Cache namespaces and their policies",
+                "tags": [
+                    "CacheAdmin"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "namespace": {
+                                                        "type": "string"
+                                                    },
+                                                    "ttl_seconds": {
+                                                        "type": "integer"
+                                                    },
+                                                    "failure_mode": {
+                                                        "type": "string"
+                                                    },
+                                                    "version": {
+                                                        "type": "integer"
+                                                    },
+                                                    "generation": {
+                                                        "type": "integer"
+                                                    },
+                                                    "flushable": {
+                                                        "type": "boolean"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "namespace",
+                                                    "ttl_seconds",
+                                                    "failure_mode",
+                                                    "version",
+                                                    "generation",
+                                                    "flushable"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/admin/cache/{namespace}/flush": {
+            "post": {
+                "operationId": "admin.cache.flush",
+                "description": "Every entry in the namespace misses from now on and is rebuilt from its source. Recorded in the audit trail.",
+                "summary": "Invalidate one cache namespace",
+                "tags": [
+                    "CacheAdmin"
+                ],
+                "parameters": [
+                    {
+                        "name": "namespace",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "namespace": {
+                                                    "type": "string"
+                                                },
+                                                "ttl_seconds": {
+                                                    "type": "integer"
+                                                },
+                                                "failure_mode": {
+                                                    "type": "string"
+                                                },
+                                                "version": {
+                                                    "type": "integer"
+                                                },
+                                                "generation": {
+                                                    "type": "integer"
+                                                },
+                                                "flushable": {
+                                                    "type": "boolean"
+                                                }
+                                            },
+                                            "required": [
+                                                "namespace",
+                                                "ttl_seconds",
+                                                "failure_mode",
+                                                "version",
+                                                "generation",
+                                                "flushable"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "message",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "CACHE_NAMESPACE_PROTECTED: auth and authorization cannot be invalidated here.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "error": {
+                                            "type": "object",
+                                            "properties": {
+                                                "code": {
+                                                    "type": "string",
+                                                    "description": "`code` is contract and is never localized (ADR 0031).",
+                                                    "const": "CACHE_NAMESPACE_PROTECTED"
+                                                },
+                                                "message": {
+                                                    "type": "string"
+                                                },
+                                                "details": {
+                                                    "type": "null"
+                                                }
+                                            },
+                                            "required": [
+                                                "code",
+                                                "message",
+                                                "details"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "error"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "NOT_FOUND: no such namespace.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "error": {
+                                            "type": "object",
+                                            "properties": {
+                                                "code": {
+                                                    "type": "string",
+                                                    "description": "`code` is contract and is never localized (ADR 0031).",
+                                                    "const": "NOT_FOUND"
+                                                },
+                                                "message": {
+                                                    "type": "string"
+                                                },
+                                                "details": {
+                                                    "type": "null"
+                                                }
+                                            },
+                                            "required": [
+                                                "code",
+                                                "message",
+                                                "details"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "error"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
         "/admin/configuration/export": {
             "post": {
                 "operationId": "admin.configuration.export",
@@ -5029,6 +5395,365 @@
                 "security": []
             }
         },
+        "/auth/phone/code": {
+            "post": {
+                "operationId": "auth.phone.code",
+                "description": "Answered the same way whether or not a code was sent, so it says nothing about which numbers have accounts. Every request counts against the throttle.",
+                "summary": "Ask for a sign-in code",
+                "tags": [
+                    "PhoneSignIn"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SendPhoneSignInCodeRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "expires_in": {
+                                                    "type": "integer"
+                                                },
+                                                "resend_after": {
+                                                    "type": "integer"
+                                                }
+                                            },
+                                            "required": [
+                                                "expires_in",
+                                                "resend_after"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "message",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "TOO_MANY_ATTEMPTS, with Retry-After.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "error": {
+                                            "type": "object",
+                                            "properties": {
+                                                "code": {
+                                                    "type": "string",
+                                                    "description": "`code` is contract and is never localized (ADR 0031).",
+                                                    "const": "TOO_MANY_ATTEMPTS"
+                                                },
+                                                "message": {
+                                                    "type": "string"
+                                                },
+                                                "details": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "retry_after": {
+                                                            "type": "integer"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "retry_after"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "code",
+                                                "message",
+                                                "details"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "error"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "CAPTCHA_FAILED or VALIDATION_ERROR.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "description": "Errors overview."
+                                        },
+                                        "errors": {
+                                            "type": "object",
+                                            "description": "A detailed description of each field that failed validation.",
+                                            "additionalProperties": {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "string"
+                                                }
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "message",
+                                        "errors"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "PHONE_SIGN_IN_UNAVAILABLE: phone sign-in is switched off.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": []
+            }
+        },
+        "/auth/phone/sign-in": {
+            "post": {
+                "operationId": "auth.phone.sign_in",
+                "description": "An existing user account signs in: a token, or an MFA challenge for an account with a second factor. A number with no account is registered when registration is open and a name is given; the answer is then `201`. Administrators never sign in this way.",
+                "summary": "Sign in, or register, with a code",
+                "tags": [
+                    "PhoneSignIn"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PhoneSignInRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "token": {
+                                                    "type": "string"
+                                                },
+                                                "token_type": {
+                                                    "type": "string"
+                                                },
+                                                "abilities": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "mfa_required": {
+                                                    "type": "boolean"
+                                                },
+                                                "mfa_token": {
+                                                    "type": "string"
+                                                },
+                                                "expires_in": {
+                                                    "type": "integer"
+                                                }
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "message",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "ACCOUNT_SUSPENDED or REGISTRATION_CLOSED.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "error": {
+                                            "type": "object",
+                                            "properties": {
+                                                "code": {
+                                                    "type": "string",
+                                                    "description": "`code` is contract and is never localized (ADR 0031).",
+                                                    "const": "ACCOUNT_SUSPENDED"
+                                                },
+                                                "message": {
+                                                    "type": "string"
+                                                },
+                                                "details": {
+                                                    "type": "null"
+                                                }
+                                            },
+                                            "required": [
+                                                "code",
+                                                "message",
+                                                "details"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "error"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "TOO_MANY_ATTEMPTS, with Retry-After.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "error": {
+                                            "type": "object",
+                                            "properties": {
+                                                "code": {
+                                                    "type": "string",
+                                                    "description": "`code` is contract and is never localized (ADR 0031).",
+                                                    "const": "TOO_MANY_ATTEMPTS"
+                                                },
+                                                "message": {
+                                                    "type": "string"
+                                                },
+                                                "details": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "retry_after": {
+                                                            "type": "integer"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "retry_after"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "code",
+                                                "message",
+                                                "details"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "error"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "PHONE_SIGN_IN_INVALID_CODE (no live code, a wrong one, or a number that may not sign in), REGISTRATION_DETAILS_REQUIRED (the code is right, the number has no account, and no name was given; the code is not spent) or VALIDATION_ERROR.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "description": "Errors overview."
+                                        },
+                                        "errors": {
+                                            "type": "object",
+                                            "description": "A detailed description of each field that failed validation.",
+                                            "additionalProperties": {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "string"
+                                                }
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "message",
+                                        "errors"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "201": {
+                        "description": "The code registered a new user account. The body is the same as for 200.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "PHONE_SIGN_IN_UNAVAILABLE.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": []
+            }
+        },
         "/auth/phone/verify/send": {
             "post": {
                 "operationId": "auth.phone.verify.send",
@@ -5123,6 +5848,308 @@
                                                 "phone_verified",
                                                 "phone_verified_at"
                                             ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "message",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/profile": {
+            "get": {
+                "operationId": "profile.show",
+                "summary": "Your profile",
+                "tags": [
+                    "Profile"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/ProfileResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            },
+            "patch": {
+                "operationId": "profile.update",
+                "description": "Only the fields sent are changed. A new email address clears its verification, and a new phone number clears its. An administrator's address is not changed here.",
+                "summary": "Change your profile",
+                "tags": [
+                    "Profile"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateProfileRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/ProfileResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "message",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "LAST_SIGN_IN_METHOD: removing the number would leave the account no way to sign in.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "error": {
+                                            "type": "object",
+                                            "properties": {
+                                                "code": {
+                                                    "type": "string",
+                                                    "description": "`code` is contract and is never localized (ADR 0031).",
+                                                    "const": "LAST_SIGN_IN_METHOD"
+                                                },
+                                                "message": {
+                                                    "type": "string"
+                                                },
+                                                "details": {
+                                                    "type": "null"
+                                                }
+                                            },
+                                            "required": [
+                                                "code",
+                                                "message",
+                                                "details"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "error"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "PROFILE_EMAIL_MANAGED: an administrator's address is changed through account management.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "error": {
+                                            "type": "object",
+                                            "properties": {
+                                                "code": {
+                                                    "type": "string",
+                                                    "description": "`code` is contract and is never localized (ADR 0031).",
+                                                    "const": "PROFILE_EMAIL_MANAGED"
+                                                },
+                                                "message": {
+                                                    "type": "string"
+                                                },
+                                                "details": {
+                                                    "type": "null"
+                                                }
+                                            },
+                                            "required": [
+                                                "code",
+                                                "message",
+                                                "details"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "error"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/profile/password": {
+            "put": {
+                "operationId": "profile.password",
+                "description": "The current password is required when the account has one. Every other session is signed out; this one is kept.",
+                "summary": "Set or change your password",
+                "tags": [
+                    "Profile"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateProfilePasswordRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "data": {
+                                            "type": "null"
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "message",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "description": "VALIDATION_ERROR, including a wrong current password.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "description": "Errors overview."
+                                        },
+                                        "errors": {
+                                            "type": "object",
+                                            "description": "A detailed description of each field that failed validation.",
+                                            "additionalProperties": {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "string"
+                                                }
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "message",
+                                        "errors"
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/profile/links": {
+            "put": {
+                "operationId": "profile.links",
+                "description": "The whole list, in order; at most ten. Links are shown on your profile and prove nothing: they are not linked sign-in identities.",
+                "summary": "Replace your profile links",
+                "tags": [
+                    "Profile"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateProfileLinksRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/ProfileResource"
                                         }
                                     },
                                     "required": [
@@ -5710,6 +6737,186 @@
                         "$ref": "#/components/responses/AuthenticationException"
                     }
                 }
+            }
+        },
+        "/auth/register": {
+            "post": {
+                "operationId": "auth.register",
+                "description": "Always a user account. A verification link is sent to the address; the account may be used before it is followed.",
+                "summary": "Open a user account",
+                "tags": [
+                    "Registration"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RegisterRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "token": {
+                                                    "type": "string"
+                                                },
+                                                "token_type": {
+                                                    "type": "string"
+                                                },
+                                                "abilities": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "email_verification_sent": {
+                                                    "type": "boolean"
+                                                }
+                                            },
+                                            "required": [
+                                                "token",
+                                                "token_type",
+                                                "abilities",
+                                                "email_verification_sent"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "message",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "CAPTCHA_FAILED or VALIDATION_ERROR (including an address or number already in use).",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "error": {
+                                            "type": "object",
+                                            "properties": {
+                                                "code": {
+                                                    "type": "string",
+                                                    "description": "`code` is contract and is never localized (ADR 0031).",
+                                                    "const": "CAPTCHA_FAILED"
+                                                },
+                                                "message": {
+                                                    "type": "string"
+                                                },
+                                                "details": {
+                                                    "type": "null"
+                                                }
+                                            },
+                                            "required": [
+                                                "code",
+                                                "message",
+                                                "details"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "error"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "TOO_MANY_ATTEMPTS, with Retry-After.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "error": {
+                                            "type": "object",
+                                            "properties": {
+                                                "code": {
+                                                    "type": "string",
+                                                    "description": "`code` is contract and is never localized (ADR 0031).",
+                                                    "const": "TOO_MANY_ATTEMPTS"
+                                                },
+                                                "message": {
+                                                    "type": "string"
+                                                },
+                                                "details": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "retry_after": {
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "retry_after"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "code",
+                                                "message",
+                                                "details"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "error"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "REGISTRATION_CLOSED.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": []
             }
         },
         "/admin/roles": {
@@ -11218,6 +12425,193 @@
                 ],
                 "title": "NotificationType"
             },
+            "PhoneSignInRequest": {
+                "type": "object",
+                "properties": {
+                    "phone": {
+                        "type": "string",
+                        "maxLength": 32
+                    },
+                    "code": {
+                        "type": "string",
+                        "pattern": "^\\d{4,8}$"
+                    },
+                    "name": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "Needed only when the number has no account yet; the account is created with it.",
+                        "maxLength": 255
+                    },
+                    "preferred_locale": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 10
+                    }
+                },
+                "required": [
+                    "phone",
+                    "code"
+                ],
+                "title": "PhoneSignInRequest"
+            },
+            "ProfileResource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "account_type": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "email": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "email_verified": {
+                        "type": "string"
+                    },
+                    "email_verified_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "phone": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "phone_verified": {
+                        "type": "boolean"
+                    },
+                    "phone_verified_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "has_password": {
+                        "type": "boolean"
+                    },
+                    "preferred_locale": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "bio": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "avatar_url": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "location": {
+                        "type": "object",
+                        "properties": {
+                            "country_code": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "region": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "city": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "latitude": {
+                                "type": [
+                                    "number",
+                                    "null"
+                                ]
+                            },
+                            "longitude": {
+                                "type": [
+                                    "number",
+                                    "null"
+                                ]
+                            },
+                            "updated_at": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "country_code",
+                            "region",
+                            "city",
+                            "latitude",
+                            "longitude",
+                            "updated_at"
+                        ]
+                    },
+                    "links": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "platform": {
+                                    "type": "string"
+                                },
+                                "url": {
+                                    "type": "string"
+                                },
+                                "position": {
+                                    "type": "integer"
+                                }
+                            },
+                            "required": [
+                                "platform",
+                                "url",
+                                "position"
+                            ]
+                        }
+                    }
+                },
+                "required": [
+                    "id",
+                    "account_type",
+                    "name",
+                    "email",
+                    "email_verified",
+                    "email_verified_at",
+                    "phone",
+                    "phone_verified",
+                    "phone_verified_at",
+                    "has_password",
+                    "preferred_locale",
+                    "bio",
+                    "avatar_url",
+                    "location",
+                    "links"
+                ],
+                "title": "ProfileResource"
+            },
             "RegisterPushDeviceRequest": {
                 "type": "object",
                 "description": "A device asking to be reachable.",
@@ -11255,6 +12649,51 @@
                     "platform"
                 ],
                 "title": "RegisterPushDeviceRequest"
+            },
+            "RegisterRequest": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "maxLength": 255
+                    },
+                    "password": {
+                        "type": "string",
+                        "minLength": 8,
+                        "maxLength": 1024
+                    },
+                    "phone": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "Stored unverified; confirm it through phone verification."
+                    },
+                    "preferred_locale": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 10
+                    },
+                    "password_confirmation": {
+                        "type": "string",
+                        "minLength": 8,
+                        "maxLength": 1024
+                    }
+                },
+                "required": [
+                    "name",
+                    "email",
+                    "password",
+                    "password_confirmation"
+                ],
+                "title": "RegisterRequest"
             },
             "RequestSuggestionsRequest": {
                 "type": "object",
@@ -11497,6 +12936,23 @@
                 ],
                 "title": "SendAnnouncementRequest"
             },
+            "SendPhoneSignInCodeRequest": {
+                "type": "object",
+                "properties": {
+                    "phone": {
+                        "type": "string",
+                        "description": "The number to sign in or register with, with its country code.",
+                        "examples": [
+                            "+962790000000"
+                        ],
+                        "maxLength": 32
+                    }
+                },
+                "required": [
+                    "phone"
+                ],
+                "title": "SendPhoneSignInCodeRequest"
+            },
             "SettingDefinitionResource": {
                 "type": "object",
                 "properties": {
@@ -11653,6 +13109,21 @@
                     "code_verifier"
                 ],
                 "title": "SocialCallbackRequest"
+            },
+            "StoreAvatarRequest": {
+                "type": "object",
+                "properties": {
+                    "file": {
+                        "type": "string",
+                        "format": "binary",
+                        "contentMediaType": "application/octet-stream",
+                        "description": "Maximum file size: 5120 kilobytes."
+                    }
+                },
+                "required": [
+                    "file"
+                ],
+                "title": "StoreAvatarRequest"
             },
             "StoreLanguageRequest": {
                 "type": "object",
@@ -11951,6 +13422,148 @@
                 },
                 "title": "UpdateNotificationTemplateRequest"
             },
+            "UpdateProfileLinksRequest": {
+                "type": "object",
+                "properties": {
+                    "links": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "platform": {
+                                    "type": "string",
+                                    "enum": [
+                                        "website",
+                                        "facebook",
+                                        "instagram",
+                                        "x",
+                                        "linkedin",
+                                        "youtube",
+                                        "tiktok",
+                                        "snapchat",
+                                        "telegram",
+                                        "whatsapp",
+                                        "github",
+                                        "other"
+                                    ]
+                                },
+                                "url": {
+                                    "type": "string",
+                                    "format": "uri",
+                                    "description": "ClientUrlPolicy's web-page rule: https in production, no credentials, no\nfragment, never this machine.",
+                                    "maxLength": 2048
+                                }
+                            },
+                            "required": [
+                                "platform",
+                                "url"
+                            ]
+                        }
+                    }
+                },
+                "required": [
+                    "links"
+                ],
+                "title": "UpdateProfileLinksRequest"
+            },
+            "UpdateProfilePasswordRequest": {
+                "type": "object",
+                "properties": {
+                    "current_password": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "Required when the account already has a password."
+                    },
+                    "password": {
+                        "type": "string",
+                        "minLength": 8,
+                        "maxLength": 1024
+                    },
+                    "password_confirmation": {
+                        "type": "string",
+                        "minLength": 8,
+                        "maxLength": 1024
+                    }
+                },
+                "required": [
+                    "password",
+                    "password_confirmation"
+                ],
+                "title": "UpdateProfilePasswordRequest"
+            },
+            "UpdateProfileRequest": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "maxLength": 255
+                    },
+                    "phone": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "A new number is stored unverified. Null removes it."
+                    },
+                    "preferred_locale": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 10
+                    },
+                    "bio": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 500
+                    },
+                    "country_code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "ISO 3166-1 alpha-2, e.g. JO."
+                    },
+                    "region": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 100
+                    },
+                    "city": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 100
+                    },
+                    "latitude": {
+                        "type": [
+                            "number",
+                            "null"
+                        ],
+                        "description": "Both or neither."
+                    },
+                    "longitude": {
+                        "type": [
+                            "number",
+                            "null"
+                        ],
+                        "description": "Both or neither."
+                    }
+                },
+                "title": "UpdateProfileRequest"
+            },
             "UpdateUserRequest": {
                 "type": "object",
                 "properties": {
@@ -11990,7 +13603,10 @@
                         "type": "string"
                     },
                     "email": {
-                        "type": "string"
+                        "type": [
+                            "string",
+                            "null"
+                        ]
                     },
                     "account_type": {
                         "type": "string"

@@ -61,6 +61,27 @@ class OperationsCatalogue implements SettingCatalogue
                 // a connection that never opened (ADR 0047).
                 rules: ['integer', 'between:0,10'],
             ),
+            // How long a deleted file's bytes are kept before the daily purge removes
+            // them (ADR 0051 §6). Long enough to notice an accidental delete.
+            new SettingDefinition(
+                group: 'operations',
+                key: 'media_retention_days',
+                type: SettingType::INTEGER,
+                default: 30,
+                nullable: false,
+                rules: ['integer', 'between:1,365'],
+            ),
+            // How long vendor attempt records are kept before the daily prune removes
+            // them (ADR 0029 item 3, ADR 0051 §6). Not the audit trail: these are
+            // diagnostics about vendors, not a record of who did what.
+            new SettingDefinition(
+                group: 'operations',
+                key: 'integration_usage_retention_days',
+                type: SettingType::INTEGER,
+                default: 90,
+                nullable: false,
+                rules: ['integer', 'between:7,730'],
+            ),
         ];
     }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Auth\Providers;
 
+use App\Modules\Auth\Console\PruneOneTimeCodesCommand;
 use App\Modules\Auth\Contracts\AuthServiceContract;
 use App\Modules\Auth\Contracts\MfaManagerContract;
 use App\Modules\Auth\Enums\MfaType;
@@ -67,6 +68,10 @@ class AuthServiceProvider extends ServiceProvider
         $this->registerRoutes();
         $this->registerCookieTransport();
         $this->registerPasswordResetLinks();
+
+        if ($this->app->runningInConsole()) {
+            $this->commands([PruneOneTimeCodesCommand::class]);
+        }
     }
 
     /**
