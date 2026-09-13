@@ -23,8 +23,8 @@
    ───────────────────────────────────────────────────────────────────────────── */
 
 :root {
-    /* Cool slate, so the plum and teal below belong to the same family as the
-       chrome. The ramp runs to both extremes because a flat interface leans on the
+    /* Cool slate, so the brand and the semantic blue below belong to the same
+       family as the chrome. The ramp runs to both extremes because a flat interface leans on the
        near-black and the near-white that a card interface never needs. */
     --slate-50: #f8fafc;
     --slate-100: #f1f5f9;
@@ -44,28 +44,44 @@
     --slate-900: #0f172a;
     --slate-950: #020617;
 
-    /* The brand. `--plum-600` is the value as given and is the primary action's
-       fill; every other step is that hue at another lightness. `--plum-500` is
-       lighter than the ramp position would suggest on purpose — in dark mode it is
-       the fill, and the label on it is `--slate-950` rather than white, so it has to
-       be light enough to read against. */
-    --plum-100: #f0e7f3;
-    --plum-300: #caafd4;
-    --plum-500: #b177c6;
-    --plum-600: #553461;
-    --plum-700: #41254b;
-    --plum-900: #2a1731;
+    /* The brand. `--brand-600` is #335C67, the value as given, and is the primary
+       action's fill in light. Every other step is that hue — 193, a cool cyan-teal —
+       at another lightness, so the family reads as one colour rather than as six.
+       Measured rather than eyeballed, at the sizes this interface actually uses:
 
-    /* The accent, and the `info` state. `--teal-500` is the value as given; it sits
-       at 3.8:1 on white, which carries a rail, a rule or a badge (3:1 for a non-text
-       component) and will not carry body text. `--teal-600` exists for the places
-       that do. */
-    --teal-100: #e7edef;
-    --teal-300: #b2c4c7;
-    --teal-500: #6d878c;
-    --teal-600: #445f64;
-    --teal-700: #364b4f;
-    --teal-900: #212e30;
+           white on brand-600      7.32:1   button label, 14px
+           brand-600 on white      7.32:1   link, focus text
+           brand-600 on slate-100  6.68:1   link on the page ground
+           slate-950 on brand-300 10.37:1   button label, dark theme
+           brand-300 on slate-900  9.18:1   link, dark theme
+
+       `--brand-300` is the dark-theme fill and carries `--slate-950` rather than
+       white, which is why it sits so much lighter than its ramp position suggests. */
+    --brand-50: #f3f8f9;
+    --brand-100: #e6eff2;
+    --brand-200: #ccdee3;
+    --brand-300: #9cc0c9;
+    --brand-400: #5d9bac;
+    --brand-500: #427887;
+    --brand-600: #335c67;
+    --brand-700: #25454e;
+    --brand-800: #193238;
+    --brand-900: #112327;
+
+    /* The `info` state, and deliberately a true blue rather than a second teal.
+       Info used to be a desaturated teal one shade off the brand; with #335C67 as
+       the brand the two would have been the same colour wearing different names, and
+       a rail is 3px wide. Hue 224 sits 31 degrees from the brand and 34 from
+       `pending`, the widest minimum gap the band allows, and it is far more
+       saturated than the brand at every step — so the two differ in more than hue.
+
+       Colour is never the only signal here regardless: a badge carries its label and
+       a rail carries the row it marks. */
+    --blue-100: #e1e7f6;
+    --blue-300: #9db1e7;
+    --blue-500: #476dd7;
+    --blue-600: #2c4faf;
+    --blue-900: #192443;
 
     --emerald-100: #d1fae5;
     --emerald-500: #10b981;
@@ -200,11 +216,26 @@
     --border-default: var(--slate-200);
     --border-strong: var(--slate-400);
     --border-chrome: var(--slate-800);
-    --border-focus: var(--plum-600);
+    --border-focus: var(--brand);
 
-    --action-primary: var(--plum-600);
-    --action-primary-hover: var(--plum-700);
-    --action-primary-text: #ffffff;
+    /* The brand, named. Every brand-coloured thing in the product reads these five
+       rather than a ramp step, so the identity moves in one place and a component
+       never has to know which step of which family it is wearing. */
+    --brand: var(--brand-600);
+    --brand-hover: var(--brand-700);
+    --brand-active: var(--brand-800);
+    --brand-subtle: var(--brand-100);
+    --brand-foreground: #ffffff;
+
+    /* The brand as it appears on the chrome, which is near-black in both themes and
+       therefore needs its own step. `--brand` reaches 2.75:1 on `--surface-chrome`;
+       this reaches 6.48:1, which is what the active navigation rail and the wordmark
+       are drawn with. */
+    --brand-on-chrome: var(--brand-400);
+
+    --action-primary: var(--brand);
+    --action-primary-hover: var(--brand-hover);
+    --action-primary-text: var(--brand-foreground);
     --action-secondary: var(--slate-100);
     --action-secondary-hover: var(--slate-200);
     --action-ghost-hover: var(--slate-100);
@@ -224,9 +255,9 @@
     --state-danger-tint: var(--red-100);
     --state-danger-text: var(--red-600);
 
-    --state-info-rail: var(--teal-500);
-    --state-info-tint: var(--teal-100);
-    --state-info-text: var(--teal-600);
+    --state-info-rail: var(--blue-500);
+    --state-info-tint: var(--blue-100);
+    --state-info-text: var(--blue-600);
 
     --state-pending-rail: var(--violet-500);
     --state-pending-tint: var(--violet-100);
@@ -236,9 +267,9 @@
     --state-neutral-tint: var(--slate-100);
     --state-neutral-text: var(--slate-600);
 
-    --focus-ring: var(--plum-600);
+    --focus-ring: var(--brand);
 
-    --selection-bg: var(--plum-100);
+    --selection-bg: var(--brand-subtle);
 }
 
 /* Dark is designed, not derived: desaturated tonal variants rather than inverted
@@ -265,13 +296,25 @@
     --border-default: var(--slate-700);
     --border-strong: var(--slate-500);
     --border-chrome: var(--slate-800);
-    --border-focus: var(--plum-500);
+    --border-focus: var(--brand);
 
-    --action-primary: var(--plum-500);
-    /* A ramp step rather than a literal: the hover of a brand colour is that
-       colour, lighter. */
-    --action-primary-hover: var(--plum-300);
-    --action-primary-text: var(--slate-950);
+    /* The same five names, pointing the other way up the ramp. Dark is designed
+       rather than derived: the fill is light enough to carry `--slate-950` as its
+       label, and hover moves lighter still because on a dark ground that is what
+       "more" looks like. */
+    --brand: var(--brand-300);
+    --brand-hover: var(--brand-200);
+    --brand-active: var(--brand-100);
+    --brand-subtle: var(--brand-900);
+    --brand-foreground: var(--slate-950);
+
+    /* Unchanged between themes on purpose: the chrome does not change, so neither
+       does the step that has to read on it. */
+    --brand-on-chrome: var(--brand-400);
+
+    --action-primary: var(--brand);
+    --action-primary-hover: var(--brand-hover);
+    --action-primary-text: var(--brand-foreground);
     --action-secondary: var(--slate-800);
     --action-secondary-hover: var(--slate-700);
     --action-ghost-hover: var(--slate-800);
@@ -288,9 +331,9 @@
     --state-danger-tint: var(--red-900);
     --state-danger-text: #fca5a5;
 
-    --state-info-rail: var(--teal-500);
-    --state-info-tint: var(--teal-900);
-    --state-info-text: var(--teal-300);
+    --state-info-rail: var(--blue-500);
+    --state-info-tint: var(--blue-900);
+    --state-info-text: var(--blue-300);
 
     --state-pending-rail: var(--violet-500);
     --state-pending-tint: var(--violet-900);
@@ -300,8 +343,8 @@
     --state-neutral-tint: var(--slate-800);
     --state-neutral-text: var(--slate-400);
 
-    --focus-ring: var(--plum-500);
-    --selection-bg: var(--plum-900);
+    --focus-ring: var(--brand);
+    --selection-bg: var(--brand-subtle);
 
     --shadow-overlay: 0 8px 24px -8px rgb(0 0 0 / 0.6);
 }

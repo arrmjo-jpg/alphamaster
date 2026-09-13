@@ -140,7 +140,7 @@ function ModuleLink({
                         className={cn(
                             'absolute inset-y-0 start-0 w-(--rail-width)',
                             isActive
-                                ? 'bg-(--action-primary)'
+                                ? 'bg-(--brand-on-chrome)'
                                 : 'bg-transparent group-hover:bg-(--border-chrome)',
                         )}
                     />
