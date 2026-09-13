@@ -157,7 +157,8 @@
         "notifications": "Notifications",
         "operations": "Operations",
         "generalSettings": "General settings",
-        "permissions": "Permissions"
+        "permissions": "Permissions",
+        "account": "Your account"
     },
     "dashboard": {
         "platform": {
@@ -515,7 +516,10 @@
             "integration": "Integrations",
             "notification": "Notifications",
             "media": "Media"
-        }
+        },
+        "phoneConfirmed": "Number confirmed",
+        "phoneUnconfirmed": "Number not confirmed",
+        "phoneConfirmNote": "Only the account holder can confirm a number, from their own account page. Changing the number here clears the confirmation."
     },
     "integrations": {
         "eyebrow": "Platform",
@@ -924,5 +928,27 @@
     },
     "list": {
         "separator": ", "
+    },
+    "account": {
+        "eyebrow": "Your account",
+        "description": "What the platform knows about the account you are signed in as.",
+        "identity": "Identity",
+        "emailVerified": "Email verified",
+        "emailUnverified": "Email not verified",
+        "phone": "Phone number",
+        "noPhone": "The platform has no phone number for this account.",
+        "phoneVerified": "Number confirmed",
+        "phoneUnverified": "Number not confirmed",
+        "phoneVerifiedAt": "Confirmed on {{at}}.",
+        "phoneVerifiedNote": "Somebody answered a code sent to this number.",
+        "confirmIntro": "Have a code sent to this number, then enter it below. This confirms that the number reaches you.",
+        "sendCode": "Send a code",
+        "sendAgainIn_one": "Send again in {{count}} second",
+        "sendAgainIn_other": "Send again in {{count}} seconds",
+        "sentTo": "A code was sent to {{destination}}.",
+        "code": "Verification code",
+        "codeHint": "The digits in the message. It expires shortly after it is sent.",
+        "confirm": "Confirm the number",
+        "numberSetByAdministrator": "The number itself is set by an administrator. Ask one to change it, then confirm the new number here."
     }
 }

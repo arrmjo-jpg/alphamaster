@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Modules\Auth\Controllers\Api\AuthController;
 use App\Modules\Auth\Controllers\Api\EmailVerificationController;
 use App\Modules\Auth\Controllers\Api\MfaController;
+use App\Modules\Auth\Controllers\Api\PhoneVerificationController;
 use App\Modules\Auth\Enums\TokenAbility;
 use Illuminate\Support\Facades\Route;
 
@@ -39,6 +40,15 @@ Route::prefix('v1/auth')->group(function () use ($accessAbilities, $enrolAbiliti
 
         Route::get('/mfa', [MfaController::class, 'status'])->name('api.auth.mfa.status');
         Route::delete('/mfa', [MfaController::class, 'disable'])->name('api.auth.mfa.disable');
+
+        // Confirming your own number. Behind no permission, for the reason email
+        // verification is behind none: the caller proves something about themselves,
+        // and neither route takes an account identifier, so there is nobody else's
+        // number to reach however either is called.
+        Route::post('/phone/verify/send', [PhoneVerificationController::class, 'send'])
+            ->name('api.auth.phone.verify.send');
+        Route::post('/phone/verify', [PhoneVerificationController::class, 'verify'])
+            ->name('api.auth.phone.verify');
     });
 
     // Requesting a verification link is the one place an email:verify token is

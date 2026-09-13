@@ -76,6 +76,13 @@ class UserResource extends JsonResource
             // The account's phone number in canonical form, or null.
             'phone' => $this->resource->phone,
 
+            // Whether anybody has answered a code sent to it, and when. Reported the
+            // same way the address is, and for the same reason: an interface showing
+            // an account renders the moment, and a client that only needs the boolean
+            // should not have to derive it from a null nobody documented.
+            'phone_verified' => $this->resource->phone_verified_at !== null,
+            'phone_verified_at' => $this->resource->phone_verified_at?->toIso8601String(),
+
             // Whether the address has been confirmed, and when.
             'email_verified' => $this->resource->hasVerifiedEmail(),
             'email_verified_at' => $this->resource->email_verified_at?->toIso8601String(),

@@ -70,6 +70,13 @@ class AuthenticatedUserResource extends JsonResource
             // string as verified.
             'email_verified' => (bool) $user?->hasVerifiedEmail(),
             'email_verified_at' => $user?->email_verified_at?->toIso8601String(),
+
+            // The account's own number, in full. It is theirs; the masking on the
+            // verification endpoints exists because a *destination* echoed back is a
+            // way of reading a number out of the platform, and this is not that.
+            'phone' => $user?->phone,
+            'phone_verified' => $user?->phone_verified_at !== null,
+            'phone_verified_at' => $user?->phone_verified_at?->toIso8601String(),
             'abilities' => $this->abilities,
             // Names, not identifiers. A permission's name is its stable contract and
             // what `can()` is asked with (ADR 0031); its row id is an implementation

@@ -56,9 +56,9 @@ beforeEach(function (): void {
 });
 
 /**
- * The six-digit code in the most recently dispatched message.
+ * The body of the most recently dispatched message, as the vendor received it.
  */
-function lastDeliveredCode(): string
+function lastDeliveredBody(): string
 {
     $bodies = [];
 
@@ -68,7 +68,15 @@ function lastDeliveredCode(): string
         }
     }
 
-    if ($bodies === [] || preg_match('/\b(\d{6})\b/', end($bodies), $matches) !== 1) {
+    return $bodies === [] ? '' : (string) end($bodies);
+}
+
+/**
+ * The six-digit code in the most recently dispatched message.
+ */
+function lastDeliveredCode(): string
+{
+    if (preg_match('/\b(\d{6})\b/', lastDeliveredBody(), $matches) !== 1) {
         return '';
     }
 
@@ -511,4 +519,89 @@ test('the database accepts both method types and rejects any other', function ()
     }
 
     expect($rejected)->toBeTrue();
+});
+
+// ── The code policy is the operator's, not the code's ─────────────────────────
+//
+// Length, lifetime and resend cooldown were constants in SmsOtpMethod. They are
+// settings now, read through OtpPolicy, because an operator whose vendor is slow or
+// whose recipients are on a late network has to be able to say so. These tests exist
+// because a setting that does not change behaviour is worse than no setting: it is a
+// control that lies.
+
+test('the configured code length is the length that arrives', function (): void {
+    app(SettingServiceInterface::class)->updateGroup('auth', ['otp_length' => 8]);
+    Cache::flush();
+
+    resetClient($this);
+    $token = $this->postJson('/api/v1/auth/login', [
+        'identifier' => 'otp@example.com', 'password' => TEST_ACCOUNT_PASSWORD,
+    ])->json('data.token');
+
+    $this->withToken($token)->postJson('/api/v1/auth/mfa/enrol', [
+        'type' => MfaType::SMS_OTP->value,
+        'phone' => OTP_PHONE,
+    ])->assertOk();
+
+    expect(lastDeliveredBody())->toMatch('/\b\d{8}\b/');
+
+    // Eight digits, and a code rather than merely eight digits in a sentence: it is
+    // the answer the platform accepts.
+    preg_match('/\b(\d{8})\b/', lastDeliveredBody(), $matches);
+
+    $this->withToken($token)->postJson('/api/v1/auth/mfa/verify', [
+        'type' => MfaType::SMS_OTP->value,
+        'code' => $matches[1],
+    ])->assertOk();
+});
+
+test('the configured lifetime is the lifetime the code has, and the one it announces', function (): void {
+    app(SettingServiceInterface::class)->updateGroup('auth', ['otp_lifetime_seconds' => 600]);
+    Cache::flush();
+
+    confirmSmsFor($this, $this->user);
+
+    $mfaToken = $this->postJson('/api/v1/auth/login', [
+        'identifier' => 'otp@example.com', 'password' => TEST_ACCOUNT_PASSWORD,
+    ])->json('data.mfa_token');
+
+    $this->travel(31)->seconds();
+    $this->postJson('/api/v1/auth/mfa/challenge/send', ['mfa_token' => $mfaToken])->assertOk();
+
+    // What the recipient is told and what is true are the same number.
+    expect(lastDeliveredBody())->toContain('10 minutes');
+
+    $code = lastDeliveredCode();
+
+    // Past the five minutes that used to be fixed in code, and still good.
+    $this->travel(7)->minutes();
+
+    $this->postJson('/api/v1/auth/mfa/challenge', [
+        'mfa_token' => $mfaToken,
+        'code' => $code,
+    ])->assertOk();
+});
+
+test('the configured resend cooldown is the one delivery enforces', function (): void {
+    app(SettingServiceInterface::class)->updateGroup('auth', ['otp_resend_cooldown_seconds' => 120]);
+    Cache::flush();
+
+    confirmSmsFor($this, $this->user);
+
+    $mfaToken = $this->postJson('/api/v1/auth/login', [
+        'identifier' => 'otp@example.com', 'password' => TEST_ACCOUNT_PASSWORD,
+    ])->json('data.mfa_token');
+
+    $this->travel(121)->seconds();
+    $this->postJson('/api/v1/auth/mfa/challenge/send', ['mfa_token' => $mfaToken])->assertOk();
+
+    // A minute on: past the thirty seconds that used to be fixed in code, inside the
+    // two minutes an operator asked for. Read the setting or this is already allowed.
+    $this->travel(60)->seconds();
+    $this->postJson('/api/v1/auth/mfa/challenge/send', ['mfa_token' => $mfaToken])
+        ->assertStatus(429)
+        ->assertJsonPath('error.code', 'MFA_DELIVERY_THROTTLED');
+
+    $this->travel(61)->seconds();
+    $this->postJson('/api/v1/auth/mfa/challenge/send', ['mfa_token' => $mfaToken])->assertOk();
 });

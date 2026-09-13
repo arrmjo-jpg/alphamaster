@@ -26,6 +26,7 @@ use Spatie\Permission\Traits\HasRoles;
  * @property string $email
  * @property string|null $phone
  * @property string|null $phone_hash
+ * @property Carbon|null $phone_verified_at
  * @property Carbon|null $email_verified_at
  * @property string|null $preferred_locale
  * @property string $password
@@ -125,6 +126,7 @@ class User extends Authenticatable implements AdminIdentity, MustVerifyEmail
         return [
             'id' => 'string',
             'email_verified_at' => 'datetime',
+            'phone_verified_at' => 'datetime',
             'password' => 'hashed',
             'account_type' => AccountType::class,
             'is_active' => 'boolean',
@@ -152,13 +154,29 @@ class User extends Authenticatable implements AdminIdentity, MustVerifyEmail
         return Attribute::make(
             set: function (?string $value): array {
                 $canonical = PhoneNumber::canonicalise($value);
+                $current = $this->attributes['phone'] ?? null;
 
-                return [
+                $written = [
                     'phone' => $canonical,
                     'phone_hash' => $canonical === null
                         ? null
                         : PhoneNumber::lookupHash($canonical),
                 ];
+
+                // A number that moved is a number nobody has confirmed. Cleared here
+                // rather than at the call sites for the same reason the hash is
+                // written here: every route that sets a phone — the account's own
+                // edit, an administrator's, a seeder, a console command — goes through
+                // this accessor, and one that forgot would leave the platform vouching
+                // for a number nobody answered.
+                //
+                // Only on an actual change. Submitting the number an account already
+                // has is not a reason to make them prove it again.
+                if ($canonical !== $current) {
+                    $written['phone_verified_at'] = null;
+                }
+
+                return $written;
             },
         );
     }

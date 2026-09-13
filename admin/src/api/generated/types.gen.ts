@@ -40,6 +40,14 @@ export type AuthenticatedUserResource = {
      */
     email_verified: boolean;
     email_verified_at: string | null;
+    /**
+     * The account's own number, in full. It is theirs; the masking on the
+     * verification endpoints exists because a *destination* echoed back is a
+     * way of reading a number out of the platform, and this is not that.
+     */
+    phone: string | null;
+    phone_verified: boolean;
+    phone_verified_at: string | null;
     abilities: string | Array<string>;
     /**
      * Names, not identifiers. A permission's name is its stable contract and
@@ -472,6 +480,14 @@ export type UserResource = {
      */
     phone: string | null;
     /**
+     * Whether anybody has answered a code sent to it, and when. Reported the
+     * same way the address is, and for the same reason: an interface showing
+     * an account renders the moment, and a client that only needs the boolean
+     * should not have to derive it from a null nobody documented.
+     */
+    phone_verified: boolean;
+    phone_verified_at: string | null;
+    /**
      * Whether the address has been confirmed, and when.
      */
     email_verified: boolean;
@@ -482,6 +498,13 @@ export type UserResource = {
     mfa_enrolled: boolean;
     roles: Array<string>;
     permissions: Array<string>;
+};
+
+export type VerifyPhoneRequest = {
+    /**
+     * The code delivered by SMS.
+     */
+    code: string;
 };
 
 export type HealthData = {
@@ -2596,6 +2619,88 @@ export type AdminNotificationsTemplatesUpdateResponses = {
 };
 
 export type AdminNotificationsTemplatesUpdateResponse = AdminNotificationsTemplatesUpdateResponses[keyof AdminNotificationsTemplatesUpdateResponses];
+
+export type AuthPhoneVerifySendData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/auth/phone/verify/send';
+};
+
+export type AuthPhoneVerifySendErrors = {
+    /**
+     * Unauthenticated
+     */
+    401: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+};
+
+export type AuthPhoneVerifySendError = AuthPhoneVerifySendErrors[keyof AuthPhoneVerifySendErrors];
+
+export type AuthPhoneVerifySendResponses = {
+    200: {
+        success: boolean;
+        message: string;
+        data: {
+            destination: string;
+        };
+    };
+};
+
+export type AuthPhoneVerifySendResponse = AuthPhoneVerifySendResponses[keyof AuthPhoneVerifySendResponses];
+
+export type AuthPhoneVerifyData = {
+    body: VerifyPhoneRequest;
+    path?: never;
+    query?: never;
+    url: '/auth/phone/verify';
+};
+
+export type AuthPhoneVerifyErrors = {
+    /**
+     * Unauthenticated
+     */
+    401: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+    /**
+     * Validation error
+     */
+    422: {
+        /**
+         * Errors overview.
+         */
+        message: string;
+        /**
+         * A detailed description of each field that failed validation.
+         */
+        errors: {
+            [key: string]: Array<string>;
+        };
+    };
+};
+
+export type AuthPhoneVerifyError = AuthPhoneVerifyErrors[keyof AuthPhoneVerifyErrors];
+
+export type AuthPhoneVerifyResponses = {
+    200: {
+        success: boolean;
+        message: string;
+        data: {
+            phone_verified: boolean;
+            phone_verified_at: string;
+        };
+    };
+};
+
+export type AuthPhoneVerifyResponse = AuthPhoneVerifyResponses[keyof AuthPhoneVerifyResponses];
 
 export type AdminRolesIndexData = {
     body?: never;
