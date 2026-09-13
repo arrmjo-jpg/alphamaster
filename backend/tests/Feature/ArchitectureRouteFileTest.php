@@ -105,7 +105,7 @@ test('every module has a route file this check can see', function (): void {
     sort($modules);
 
     expect($modules)->toBe([
-        'Auth', 'Authorization', 'Core', 'Integration', 'Localization', 'Media', 'Notification', 'Settings',
+        'Auth', 'Authorization', 'Core', 'Integration', 'Localization', 'Media', 'Notification', 'Settings', 'User',
     ]);
 });
 

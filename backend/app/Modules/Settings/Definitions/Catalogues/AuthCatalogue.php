@@ -6,7 +6,6 @@ namespace App\Modules\Settings\Definitions\Catalogues;
 
 use App\Modules\Settings\Definitions\SettingCatalogue;
 use App\Modules\Settings\Definitions\SettingDefinition;
-use App\Modules\Settings\Enums\SettingReach;
 use App\Modules\Settings\Enums\SettingType;
 
 /**
@@ -21,6 +20,9 @@ class AuthCatalogue implements SettingCatalogue
     public function definitions(): array
     {
         return [
+            // Read by social registration, the platform's first path that creates an
+            // account without an administrator (ADR 0050 §3): off, and a first social
+            // sign-in is refused rather than turned into an account.
             new SettingDefinition(
                 group: 'auth',
                 key: 'registration_enabled',
@@ -28,7 +30,56 @@ class AuthCatalogue implements SettingCatalogue
                 default: true,
                 nullable: false,
                 isPublic: true,
-                reach: SettingReach::AWAITING,
+            ),
+            // Social login for user accounts (ADR 0050). Public because a sign-in page is
+            // unauthenticated and has to know whether to offer it — which providers, it
+            // asks the providers endpoint. Off by default: a switch and a configured
+            // provider are separate acts, and the operator does them in that order.
+            new SettingDefinition(
+                group: 'auth',
+                key: 'social_login_enabled',
+                type: SettingType::BOOLEAN,
+                default: false,
+                nullable: false,
+                isPublic: true,
+            ),
+            // Signing in and registering with a phone number and a one-time code (ADR 0051
+            // §1). Public because a sign-in page has to know whether to offer it. Off by
+            // default: it depends on a working SMS provider, and a switch that is on
+            // without one sends nothing to anyone.
+            new SettingDefinition(
+                group: 'auth',
+                key: 'phone_sign_in_enabled',
+                type: SettingType::BOOLEAN,
+                default: false,
+                nullable: false,
+                isPublic: true,
+            ),
+            // The redirect URIs a social sign-in may return to, matched exactly — and the
+            // ones an operator registers on the provider's OAuth client. Empty by default,
+            // which leaves social login unusable until an operator names the client it
+            // returns to: no frontend domain is assumed (ADR 0050 §11). Not public: the
+            // client already knows its own address.
+            //
+            // `redirect_uri_list` is ClientUrlPolicy: complete addresses, no fragment,
+            // credentials, wildcard or repeat, and in production https and never this
+            // machine. The same policy is applied again when a sign-in names one.
+            new SettingDefinition(
+                group: 'auth',
+                key: 'social_redirect_uris',
+                type: SettingType::JSON,
+                default: [],
+                nullable: false,
+                rules: ['array', 'max:20', 'redirect_uri_list'],
+            ),
+            // Where a password reset link points: the client that collects a new password
+            // (ADR 0050 §12). Unset or unusable, recovery sends nothing, and in production
+            // social registration stays closed. No default and no fallback address.
+            new SettingDefinition(
+                group: 'auth',
+                key: 'password_reset_url',
+                type: SettingType::URL,
+                rules: ['url:http,https', 'max:2048', 'client_page_url'],
             ),
             // The one-time code policy, read in one place by `OtpPolicy` so the code
             // an MFA challenge sends and the code that confirms a phone number cannot

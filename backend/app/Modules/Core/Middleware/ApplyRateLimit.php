@@ -41,6 +41,17 @@ class ApplyRateLimit extends ThrottleRequests
         'api.auth.login',
         'api.auth.mfa.challenge',
         'api.auth.mfa.challenge.send',
+        // Social login and account recovery (ADR 0050): unauthenticated, each with its own
+        // throttle in the controller, and bounded here against a caller rotating what that
+        // throttle is keyed on.
+        'api.auth.social.authorize',
+        'api.auth.social.callback',
+        'api.auth.password.forgot',
+        'api.auth.password.reset',
+        // Phone sign-in and registration (ADR 0051): the same shape.
+        'api.auth.phone.code',
+        'api.auth.phone.sign_in',
+        'api.auth.register',
     ];
 
     /**

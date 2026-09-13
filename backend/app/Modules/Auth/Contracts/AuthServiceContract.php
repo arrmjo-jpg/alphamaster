@@ -56,6 +56,12 @@ interface AuthServiceContract
     public function issueToken(User $user, string $name = 'api-token'): AuthenticatedToken;
 
     /**
+     * Issue the `user:access` token a social sign-in produces, raising for an
+     * administrator (ADR 0050 §7).
+     */
+    public function issueSocialToken(User $user): AuthenticatedToken;
+
+    /**
      * Start an MFA challenge and return the opaque token the client must present.
      */
     public function startMfaChallenge(User $user): string;

@@ -171,6 +171,26 @@ return [
     'uploaded' => 'The :attribute failed to upload.',
     'uppercase' => 'The :attribute field must be uppercase.',
     'url' => 'The :attribute field must be a valid URL.',
+    // Addresses an operator hands to clients (ClientUrlPolicy): a reset page and the
+    // social sign-in return addresses. The problem sentences avoid the word the settings
+    // validator rewrites into a setting's reference.
+    'client_url' => [
+        'address' => 'The :attribute cannot be used: :problem',
+        'entry' => 'Entry :position of :attribute cannot be used: :problem',
+        'list' => 'The :attribute must be a list of addresses.',
+        'problem' => [
+            'not_text' => 'it is not text.',
+            'not_absolute' => 'it must be a complete address, including its scheme and host, with no spaces.',
+            'too_long' => 'it is longer than 2048 characters.',
+            'scheme' => 'its scheme is not accepted. Use https (or http outside production), or, for a native app, an app scheme in reverse-domain form.',
+            'fragment' => 'it must not contain a fragment (#).',
+            'userinfo' => 'it must not contain a user name or password.',
+            'wildcard' => 'it must not contain a wildcard (*). Addresses are matched exactly.',
+            'insecure' => 'in production it must use https.',
+            'loopback' => 'in production it must not point at localhost or a loopback address.',
+            'duplicate' => 'it is listed more than once.',
+        ],
+    ],
     'ulid' => 'The :attribute field must be a valid ULID.',
     'uuid' => 'The :attribute field must be a valid UUID.',
     'custom' => [

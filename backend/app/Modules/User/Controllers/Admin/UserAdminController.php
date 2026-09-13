@@ -14,6 +14,8 @@ use App\Modules\Core\Controllers\BaseApiController;
 use App\Modules\Core\Translation\Phrase;
 use App\Modules\User\Contracts\AccountTypeManagerContract;
 use App\Modules\User\Enums\AccountType;
+use App\Modules\User\Exceptions\PromotionRefusedException;
+use App\Modules\User\Models\SocialIdentity;
 use App\Modules\User\Models\User;
 use App\Modules\User\Requests\StoreUserRequest;
 use App\Modules\User\Requests\SyncUserRolesRequest;
@@ -291,26 +293,45 @@ class UserAdminController extends BaseApiController
      */
     public function promote(User $user): JsonResponse
     {
-        // AccountTypeManager runs its own transaction; wrapping the call makes that
-        // one a savepoint inside this one, so the boundary crossing and the record of
-        // it commit together (ADR 0037). Recording after the manager returned would
-        // leave a window where the promotion is durable and the record is not.
-        $promoted = DB::transaction(function () use ($user): User {
-            $crosses = $user->account_type !== AccountType::ADMIN;
-            $revoked = $crosses ? $user->tokens()->count() : 0;
+        try {
+            // AccountTypeManager runs its own transaction; wrapping the call makes that
+            // one a savepoint inside this one, so the boundary crossing and the record of
+            // it commit together (ADR 0037). Recording after the manager returned would
+            // leave a window where the promotion is durable and the record is not.
+            $promoted = DB::transaction(function () use ($user): User {
+                $crosses = $user->account_type !== AccountType::ADMIN;
+                $revoked = $crosses ? $user->tokens()->count() : 0;
 
-            $result = $this->accountTypes->promote($user);
+                $result = $this->accountTypes->promote($user);
 
-            // The manager returns the account unchanged when it is already an
-            // administrator. Nothing crossed the boundary, so nothing is recorded.
-            if ($crosses) {
-                $this->audit->succeeded(AuditAction::ACCOUNT_PROMOTED, $result->id, [
-                    'tokens_revoked' => $revoked,
-                ]);
-            }
+                // The manager returns the account unchanged when it is already an
+                // administrator. Nothing crossed the boundary, so nothing is recorded.
+                if ($crosses) {
+                    $this->audit->succeeded(AuditAction::ACCOUNT_PROMOTED, $result->id, [
+                        'tokens_revoked' => $revoked,
+                    ]);
+                }
 
-            return $result;
-        });
+                return $result;
+            });
+        } catch (PromotionRefusedException $e) {
+            // The transaction above has rolled back, and a record written inside it would
+            // have rolled back with it. This one is written in its own, after — the one
+            // place ADR 0037's "inside the transaction" gives way, because the operation it
+            // describes did not happen (ADR 0050 §6).
+            $this->audit->failed(AuditAction::ACCOUNT_PROMOTION_REFUSED, $e->userId, [
+                'reason' => 'social_identity',
+                'linked_identities' => $e->linkedIdentities,
+            ]);
+
+            return $this->errorResponse(
+                'PROMOTION_REFUSED_SOCIAL_IDENTITY',
+                $e->translationKey(),
+                ['linked_identities' => $e->linkedIdentities],
+                409,
+                $e->translationParameters()
+            );
+        }
 
         return $this->successResponse(
             $this->resource($promoted),
@@ -404,11 +425,24 @@ class UserAdminController extends BaseApiController
     {
         $user->loadMissing(['roles.permissions', 'permissions']);
 
+        // Linked today, and only today: an identity unlinked in the past no longer signs
+        // in to the account and no longer blocks its promotion (ADR 0050 §6). The subject
+        // and address stay on the identity row and are not published here.
+        $linkedProviders = SocialIdentity::query()
+            ->linked()
+            ->where('user_id', $user->id)
+            ->orderBy('provider')
+            ->pluck('provider')
+            ->map(static fn (mixed $provider): string => (string) $provider)
+            ->values()
+            ->all();
+
         return new UserResource(
             $user,
             $this->rbac->rolesFor($user),
             $this->rbac->permissionsFor($user),
             $this->mfa->isEnrolled($user),
+            $linkedProviders,
         );
     }
 }

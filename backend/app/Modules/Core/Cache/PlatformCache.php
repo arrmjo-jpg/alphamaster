@@ -104,6 +104,29 @@ class PlatformCache implements PlatformCacheContract
     }
 
     /**
+     * Store only if absent, atomically, and answer whether this call stored it.
+     *
+     * @param  array<int|string, string|int|bool|null>  $discriminators
+     */
+    public function add(CacheNamespace $namespace, string $resource, array $discriminators, mixed $value, ?int $ttl = null): bool
+    {
+        try {
+            return $this->store()->add(
+                $this->key($namespace, $resource, $discriminators),
+                $value,
+                $ttl ?? $namespace->policy()->ttl,
+            );
+        } catch (Throwable $e) {
+            if (! $namespace->policy()->failsOpen()) {
+                throw $e;
+            }
+
+            // Unable to prove this call was first, so it was not.
+            return false;
+        }
+    }
+
+    /**
      * Forget one entry.
      *
      * @param  array<int|string, string|int|bool|null>  $discriminators

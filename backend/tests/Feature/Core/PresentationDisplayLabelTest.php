@@ -139,10 +139,10 @@ test('every case of every enum these resources expose resolves in both locales',
         }
     }
 
-    // Nine cases per locale: AccountType has two, NotificationType three, and
-    // IntegrationCapability four — captcha joined sms, then AI (ADR 0044) and push
-    // (ADR 0045).
-    expect($checked)->toBe(18);
+    // Ten cases per locale: AccountType has two, NotificationType three, and
+    // IntegrationCapability five — captcha joined sms, then AI (ADR 0044), push
+    // (ADR 0045) and social login (ADR 0050).
+    expect($checked)->toBe(20);
 });
 
 // ── The shapes ───────────────────────────────────────────────────────────────
@@ -161,10 +161,15 @@ test('each resource exposes exactly its own fields, with the label beside the va
     // the same shape as the email pair — a boolean a client branches on and the
     // moment an interface renders. Deriving the first from the second in every
     // client is how one of them ends up treating an empty string as verified.
+    //
+    // The two social fields joined on 2026-09-13 (ADR 0050 §6): whether an identity is
+    // linked today, which is what refuses a promotion, and which providers, so a screen
+    // can say what has to be unlinked. Never a subject.
     expect(array_keys($resources['user'][0]->toArray(request())))->toBe([
         'id', 'name', 'email', 'account_type', 'account_type_label', 'is_active',
         'phone', 'phone_verified', 'phone_verified_at',
         'email_verified', 'email_verified_at', 'mfa_enrolled',
+        'has_linked_social_identity', 'linked_social_providers',
         'roles', 'permissions',
     ]);
 

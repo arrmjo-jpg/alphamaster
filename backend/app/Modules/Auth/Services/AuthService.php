@@ -11,6 +11,7 @@ use App\Modules\Auth\Enums\TokenAbility;
 use App\Modules\Auth\Exceptions\AccountInactiveException;
 use App\Modules\Auth\Exceptions\InvalidCredentialsException;
 use App\Modules\Auth\Exceptions\MfaChallengeException;
+use App\Modules\Auth\Exceptions\SocialAuthenticationForAdministratorException;
 use App\Modules\Auth\Exceptions\UnverifiedAdministratorException;
 use App\Modules\Auth\Support\LoginIdentifier;
 use App\Modules\Core\Cache\CacheNamespace;
@@ -36,6 +37,22 @@ class AuthService implements AuthServiceContract
      * How long a half-authenticated challenge stays valid.
      */
     public const MFA_CHALLENGE_TTL = 300; // 5 minutes
+
+    /**
+     * A hash of nothing in particular, compared against when there is no real hash to
+     * compare against, so that the absence of one costs the same time as a mismatch.
+     *
+     * Made once per process with the configured hasher rather than written here: a literal
+     * would not match the configured algorithm or cost, the hasher refuses a hash it did
+     * not make, and a cheaper comparison would be exactly the timing difference this
+     * exists to hide.
+     */
+    private static ?string $dummyHash = null;
+
+    private static function dummyHash(): string
+    {
+        return self::$dummyHash ??= Hash::make(Str::random(40));
+    }
 
     public function __construct(
         private readonly MfaManagerContract $mfa,
@@ -66,7 +83,17 @@ class AuthService implements AuthServiceContract
         // Hash a dummy value when the account is unknown, so a missing account and a
         // wrong password take comparable time and cannot be told apart by timing.
         if ($user === null) {
-            Hash::check($password, '$2y$12$'.str_repeat('0', 53));
+            Hash::check($password, self::dummyHash());
+
+            throw new InvalidCredentialsException;
+        }
+
+        // An account that signs in only through a social provider has no password
+        // (ADR 0050 §12). Checking a password against nothing returns at once, which
+        // would let timing say which accounts those are, so the same dummy comparison is
+        // spent here as for an account that does not exist.
+        if ($user->password === null) {
+            Hash::check($password, self::dummyHash());
 
             throw new InvalidCredentialsException;
         }
@@ -175,6 +202,27 @@ class AuthService implements AuthServiceContract
             $user->createToken($name, [$ability->value])->plainTextToken,
             $ability,
         );
+    }
+
+    /**
+     * Issue the access token a social sign-in produces (ADR 0050 §7).
+     *
+     * `user:access` and nothing else, decided here rather than derived from the account:
+     * a social sign-in is never an administrative one. The social flow refuses an
+     * administrator long before it gets here, so the raise is unreachable in ordinary
+     * operation — and loud if a path exists that nobody intended, the same bargain
+     * issueToken() strikes for an unverified administrator.
+     */
+    public function issueSocialToken(User $user): AuthenticatedToken
+    {
+        if ($user->isAdmin()) {
+            throw SocialAuthenticationForAdministratorException::cannotHoldSocialToken($user->id);
+        }
+
+        // Through the one choke point every access token passes, rather than a second place
+        // that mints tokens. For a user account it grants `user:access`, which is all a
+        // social sign-in may ever carry.
+        return $this->issueToken($user, 'social-sign-in');
     }
 
     /**

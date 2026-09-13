@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Modules\Core\Controllers\Admin\AuditAdminController;
+use App\Modules\Core\Controllers\Admin\CacheAdminController;
 use App\Modules\Core\Controllers\Admin\ConfigurationBackupController;
 use Illuminate\Support\Facades\Route;
 
@@ -73,5 +74,21 @@ Route::prefix('v1')->group(function (): void {
 
             Route::post('/restore', [ConfigurationBackupController::class, 'restore'])
                 ->name('admin.configuration.restore');
+        });
+
+    // The application cache (ADR 0035, ADR 0051 §7): policies and namespace
+    // invalidation, never keys. Reading is a settings read; invalidating changes what
+    // the platform serves, so it needs the permission that changes configuration.
+    Route::prefix('admin/cache')
+        ->middleware(['auth:sanctum', 'ability:admin:access', 'active', 'admin', 'email-verified'])
+        ->group(function (): void {
+            Route::get('/', [CacheAdminController::class, 'index'])
+                ->middleware('permission:settings.view')
+                ->name('admin.cache.index');
+
+            Route::post('/{namespace}/flush', [CacheAdminController::class, 'flush'])
+                ->middleware('permission:settings.update')
+                ->where('namespace', '[a-z_]+')
+                ->name('admin.cache.flush');
         });
 });

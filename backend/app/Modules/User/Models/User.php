@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
@@ -23,13 +24,20 @@ use Spatie\Permission\Traits\HasRoles;
 /**
  * @property string $id
  * @property string $name
- * @property string $email
+ * @property string|null $email null for a user who registered with a phone number (ADR 0051 §2)
+ * @property string|null $bio
+ * @property string|null $country_code
+ * @property string|null $region
+ * @property string|null $city
+ * @property string|null $latitude
+ * @property string|null $longitude
+ * @property Carbon|null $location_updated_at
  * @property string|null $phone
  * @property string|null $phone_hash
  * @property Carbon|null $phone_verified_at
  * @property Carbon|null $email_verified_at
  * @property string|null $preferred_locale
- * @property string $password
+ * @property string|null $password null for an account that signs in only through a social provider (ADR 0050 §12)
  * @property AccountType $account_type
  * @property bool $is_active
  * @property Carbon|null $created_at
@@ -86,6 +94,13 @@ class User extends Authenticatable implements AdminIdentity, MustVerifyEmail
         'password',
         'preferred_locale',
         'is_active',
+        'bio',
+        'country_code',
+        'region',
+        'city',
+        'latitude',
+        'longitude',
+        'location_updated_at',
     ];
 
     /**
@@ -130,6 +145,9 @@ class User extends Authenticatable implements AdminIdentity, MustVerifyEmail
             'password' => 'hashed',
             'account_type' => AccountType::class,
             'is_active' => 'boolean',
+            'latitude' => 'decimal:6',
+            'longitude' => 'decimal:6',
+            'location_updated_at' => 'datetime',
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
         ];
@@ -226,6 +244,26 @@ class User extends Authenticatable implements AdminIdentity, MustVerifyEmail
     public function scopeAdmins(Builder $query): Builder
     {
         return $query->where('account_type', AccountType::ADMIN->value);
+    }
+
+    /**
+     * Every identity a social provider has held on this account, linked or not.
+     *
+     * @return HasMany<SocialIdentity, $this>
+     */
+    public function socialIdentities(): HasMany
+    {
+        return $this->hasMany(SocialIdentity::class);
+    }
+
+    /**
+     * The links this account shows to its presence elsewhere, in its chosen order.
+     *
+     * @return HasMany<UserProfileLink, $this>
+     */
+    public function profileLinks(): HasMany
+    {
+        return $this->hasMany(UserProfileLink::class)->orderBy('position');
     }
 
     /**

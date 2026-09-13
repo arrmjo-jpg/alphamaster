@@ -200,5 +200,47 @@ final class AuditAction
      */
     public const ANNOUNCEMENT_SENT = 'notification.announcement_sent';
 
+    /**
+     * A social identity can now sign in to an account (ADR 0050 §9, ADR 0037 extension
+     * of 2026-09-13).
+     *
+     * Recorded even when the account holder rather than an administrator linked it: the
+     * subject is who may sign in, not who changed it. The context names the provider, the
+     * identity's identifier and whether this was a re-link — never the address and never
+     * the provider's subject, both of which identify a person.
+     */
+    public const ACCOUNT_SOCIAL_LINKED = 'account.social_linked';
+
+    /**
+     * A social identity can no longer sign in to an account.
+     *
+     * The context carries how many identities remain linked, so the record with a count of
+     * zero answers when the account stopped being blocked from promotion.
+     */
+    public const ACCOUNT_SOCIAL_UNLINKED = 'account.social_unlinked';
+
+    /**
+     * Promotion refused while a social identity was linked (ADR 0050 §6).
+     *
+     * The one refusal the trail records: an attempt to make an administrator of an account
+     * a third-party identity can sign in to. Written after the promotion's own transaction
+     * has rolled back, because the refusal is what rolls it back.
+     */
+    public const ACCOUNT_PROMOTION_REFUSED = 'account.promotion_refused';
+
+    /**
+     * A social provider was used against an administrative account.
+     *
+     * Only for the two reasons ADR 0037 admits — the matched account is an administrator,
+     * or the provider's address matches one. Every other social refusal is an
+     * authentication event and stays out.
+     */
+    public const AUTH_SOCIAL_REFUSED = 'auth.social_refused';
+
+    /**
+     * An administrator invalidated one cache namespace (ADR 0035, ADR 0051 §7).
+     */
+    public const CACHE_NAMESPACE_FLUSHED = 'cache.namespace_flushed';
+
     private function __construct() {}
 }

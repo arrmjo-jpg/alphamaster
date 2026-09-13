@@ -10,6 +10,7 @@ use App\Modules\Integration\Backup\ProviderPortability;
 use App\Modules\Integration\Contracts\CaptchaVerifierContract;
 use App\Modules\Integration\Contracts\PushDispatcherContract;
 use App\Modules\Integration\Contracts\SmsDispatcherContract;
+use App\Modules\Integration\Contracts\SocialLoginGatewayContract;
 use App\Modules\Integration\Services\AiManager;
 use App\Modules\Integration\Services\CaptchaManager;
 use App\Modules\Integration\Services\CaptchaVerifier;
@@ -17,6 +18,8 @@ use App\Modules\Integration\Services\PushDispatcher;
 use App\Modules\Integration\Services\PushManager;
 use App\Modules\Integration\Services\SmsDispatcher;
 use App\Modules\Integration\Services\SmsManager;
+use App\Modules\Integration\Services\SocialLoginGateway;
+use App\Modules\Integration\Services\SocialLoginManager;
 use App\Modules\Integration\Services\TextGenerator;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
@@ -55,6 +58,13 @@ class IntegrationServiceProvider extends ServiceProvider
         // for delivery, and provider selection, failover and usage recording stay here
         // (ADR 0045 §2). Firebase is a driver behind this and nothing more.
         $this->app->singleton(PushDispatcherContract::class, PushDispatcher::class);
+
+        $this->app->singleton(SocialLoginManager::class, fn ($app): SocialLoginManager => new SocialLoginManager($app));
+
+        // The same division as captcha: Auth asks for an identity, and deciding whether a
+        // provider is usable, redeeming the code and recording the attempt stay here. No
+        // failover, because an authorization code belongs to the vendor that issued it.
+        $this->app->singleton(SocialLoginGatewayContract::class, SocialLoginGateway::class);
     }
 
     /**

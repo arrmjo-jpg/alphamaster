@@ -13,6 +13,7 @@ import { group as fetchGroup, testMail, updateGroup, type SettingDefinition } fr
 import { changedValues, fieldStates, invalidFields, settingKey, type Draft } from './draft';
 import { ReviewChanges } from './ReviewChanges';
 import { SettingRow } from './SettingRow';
+import { SocialLoginSetup } from './SocialLoginSetup';
 
 export interface SettingsWorkspaceProps {
     name: string;
@@ -107,6 +108,9 @@ export function SettingsWorkspace({ name, definitions, onPendingChange }: Settin
             onPendingChange(name, 0);
             await queryClient.invalidateQueries({ queryKey: ['settings-group', name] });
             await queryClient.invalidateQueries({ queryKey: ['settings-history', name] });
+            // The setup summary is built from this group's addresses, so it is stale the
+            // moment they are saved.
+            await queryClient.invalidateQueries({ queryKey: ['social-login-setup'] });
         },
         onError: (error: unknown) => {
             if (!(error instanceof ApiError)) {
@@ -329,6 +333,8 @@ export function SettingsWorkspace({ name, definitions, onPendingChange }: Settin
                             </p>
                         </div>
                     ) : null}
+
+                    {name === 'auth' ? <SocialLoginSetup /> : null}
 
                     {formError !== null ? <Alert tone="danger">{formError}</Alert> : null}
 

@@ -10,11 +10,14 @@ use App\Modules\Core\Cache\PlatformCache;
 use App\Modules\Core\Contracts\AuditRecorderContract;
 use App\Modules\Core\Contracts\PlatformCacheContract;
 use App\Modules\Core\Services\RateLimitPolicy;
+use App\Modules\Core\Support\ClientUrlPolicy;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Validation\Validator as ValidationContext;
 
 class CoreServiceProvider extends ServiceProvider
 {
@@ -47,6 +50,75 @@ class CoreServiceProvider extends ServiceProvider
 
         $this->registerRoutes();
         $this->registerRateLimiters();
+        $this->registerClientUrlRules();
+    }
+
+    /**
+     * Validation rules for addresses an operator hands to clients (ClientUrlPolicy).
+     *
+     * Registered by name, so a setting definition declares them as the string rules it
+     * already publishes, and a refusal says which part of the policy an address failed
+     * rather than only that it is invalid.
+     *
+     * `client_page_url` checks one web page address. `redirect_uri_list` checks a list of
+     * sign-in return addresses: a list, each entry usable, none repeated.
+     */
+    protected function registerClientUrlRules(): void
+    {
+        Validator::extend('client_page_url', static function (string $attribute, mixed $value, array $parameters, ValidationContext $validator): bool {
+            $problem = ClientUrlPolicy::forCurrentEnvironment()->pageUrlProblem($value);
+
+            if ($problem === null) {
+                return true;
+            }
+
+            $validator->setCustomMessages([
+                $attribute.'.client_page_url' => self::clientUrlMessage('validation.client_url.address', $problem),
+            ]);
+
+            return false;
+        });
+
+        Validator::extend('redirect_uri_list', static function (string $attribute, mixed $value, array $parameters, ValidationContext $validator): bool {
+            if (! is_array($value) || ! array_is_list($value)) {
+                $validator->setCustomMessages([
+                    $attribute.'.redirect_uri_list' => (string) __('validation.client_url.list'),
+                ]);
+
+                return false;
+            }
+
+            $policy = ClientUrlPolicy::forCurrentEnvironment();
+            $seen = [];
+
+            foreach ($value as $position => $uri) {
+                $problem = $policy->redirectUriProblem($uri);
+
+                if ($problem === null && in_array($uri, $seen, true)) {
+                    $problem = 'duplicate';
+                }
+
+                if ($problem !== null) {
+                    $validator->setCustomMessages([
+                        $attribute.'.redirect_uri_list' => self::clientUrlMessage('validation.client_url.entry', $problem, ['position' => $position + 1]),
+                    ]);
+
+                    return false;
+                }
+
+                $seen[] = $uri;
+            }
+
+            return true;
+        });
+    }
+
+    /**
+     * @param  array<string, int|string>  $replace
+     */
+    private static function clientUrlMessage(string $key, string $problem, array $replace = []): string
+    {
+        return (string) __($key, $replace + ['problem' => (string) __('validation.client_url.problem.'.$problem)]);
     }
 
     /**

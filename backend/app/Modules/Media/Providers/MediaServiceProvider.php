@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Media\Providers;
 
+use App\Modules\Core\Contracts\ProfileAvatarContract;
 use App\Modules\Media\Contracts\CdnUrlResolverContract;
 use App\Modules\Media\Contracts\MediaScannerContract;
 use App\Modules\Media\Contracts\MediaServiceContract;
@@ -13,6 +14,7 @@ use App\Modules\Media\Services\MediaAccessResolver;
 use App\Modules\Media\Services\MediaService;
 use App\Modules\Media\Services\Processing\GenericFileProcessor;
 use App\Modules\Media\Services\ProcessorRegistry;
+use App\Modules\Media\Services\ProfileAvatars;
 use App\Modules\Media\Services\Scanning\NullMediaScanner;
 use App\Modules\Media\Services\SettingsCdnUrlResolver;
 use App\Modules\Media\Services\Storage\DiskMediaStorage;
@@ -28,6 +30,11 @@ class MediaServiceProvider extends ServiceProvider
     {
         $this->app->singleton(MediaStorageContract::class, DiskMediaStorage::class);
         $this->app->singleton(CdnUrlResolverContract::class, SettingsCdnUrlResolver::class);
+
+        // The profile picture, as the modules that present an account ask for it: they may
+        // not depend on this module, so Core declares the question (ADR 0051 §4).
+        $this->app->singleton(ProfileAvatars::class);
+        $this->app->singleton(ProfileAvatarContract::class, fn ($app): ProfileAvatars => $app->make(ProfileAvatars::class));
 
         // The null scanner reports NOT_SCANNED rather than CLEAN. Swapping in a real
         // scanner is this one binding.
