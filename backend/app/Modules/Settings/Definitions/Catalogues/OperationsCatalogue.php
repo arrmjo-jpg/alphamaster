@@ -6,7 +6,6 @@ namespace App\Modules\Settings\Definitions\Catalogues;
 
 use App\Modules\Settings\Definitions\SettingCatalogue;
 use App\Modules\Settings\Definitions\SettingDefinition;
-use App\Modules\Settings\Enums\SettingReach;
 use App\Modules\Settings\Enums\SettingType;
 
 /**
@@ -58,8 +57,9 @@ class OperationsCatalogue implements SettingCatalogue
                 type: SettingType::INTEGER,
                 default: 2,
                 nullable: false,
+                // Read by every vendor driver through ProviderHttp, and applied only to
+                // a connection that never opened (ADR 0047).
                 rules: ['integer', 'between:0,10'],
-                reach: SettingReach::AWAITING,
             ),
         ];
     }

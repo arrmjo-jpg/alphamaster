@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Notification\Notifications;
 
 use App\Modules\Core\Contracts\LocaleResolverInterface;
+use App\Modules\Core\Translation\Phrase;
 use App\Modules\Notification\Channels\PushChannel;
 use App\Modules\Notification\Channels\SmsChannel;
 use App\Modules\Notification\Contracts\PreferenceResolverContract;
@@ -36,7 +37,7 @@ class TemplatedNotification extends Notification implements ShouldQueue
     private ?RenderedNotification $rendered = null;
 
     /**
-     * @param  array<string, string|int>  $placeholders
+     * @param  array<string, string|int|Phrase>  $placeholders
      */
     public function __construct(
         public readonly NotificationType $type,
@@ -136,7 +137,24 @@ class TemplatedNotification extends Notification implements ShouldQueue
         $locale = $this->localeFor($notifiable);
 
         return $this->rendered = app(TemplateRendererContract::class)
-            ->render($this->type, $locale, $this->placeholders);
+            ->render($this->type, $locale, $this->placeholdersIn($locale));
+    }
+
+    /**
+     * The placeholders as text in the recipient's language.
+     *
+     * A Phrase is translated here, per recipient, rather than by the producer — which
+     * would translate it into the language of whoever caused the notification. The
+     * renderer still receives plain strings and still inserts them literally.
+     *
+     * @return array<string, string|int>
+     */
+    private function placeholdersIn(string $locale): array
+    {
+        return array_map(
+            static fn (string|int|Phrase $value): string|int => $value instanceof Phrase ? $value->in($locale) : $value,
+            $this->placeholders
+        );
     }
 
     private function localeFor(mixed $notifiable): string

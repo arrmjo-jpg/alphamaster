@@ -9,7 +9,9 @@ use App\Modules\Authorization\Exceptions\NotAnAdminAccountException;
 use App\Modules\Core\Audit\AuditAction;
 use App\Modules\Core\Contracts\AuditRecorderContract;
 use App\Modules\Core\Contracts\MfaEnrolmentStatus;
+use App\Modules\Core\Contracts\PlatformNotifierContract;
 use App\Modules\Core\Controllers\BaseApiController;
+use App\Modules\Core\Translation\Phrase;
 use App\Modules\User\Contracts\AccountTypeManagerContract;
 use App\Modules\User\Enums\AccountType;
 use App\Modules\User\Models\User;
@@ -28,6 +30,7 @@ class UserAdminController extends BaseApiController
         protected AccountTypeManagerContract $accountTypes,
         protected MfaEnrolmentStatus $mfa,
         protected AuditRecorderContract $audit,
+        protected PlatformNotifierContract $notifier,
     ) {}
 
     /**
@@ -194,6 +197,19 @@ class UserAdminController extends BaseApiController
                 'email_verification_cleared' => $addressChanged,
             ]);
         });
+
+        // The account's owner is told that somebody else changed it — after the
+        // commit, so a rolled-back edit never announces itself. Nothing is said for a
+        // save that moved nothing, for the reason nothing is recorded for one. Which
+        // fields moved is not listed: the message would be a second copy of the audit
+        // record, and the owner can read their own account.
+        if ($moved !== []) {
+            $this->notifier->notify($user, 'account.updated', [
+                'event' => new Phrase($addressChanged
+                    ? 'notifications.event.account_address_changed'
+                    : 'notifications.event.account_details_changed'),
+            ]);
+        }
 
         return $this->successResponse(
             $this->resource($user->refresh()),

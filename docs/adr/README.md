@@ -49,3 +49,5 @@ This directory maintains the architectural decision records for the **alphamaste
 | [0043](0043-translation-workshop-and-the-translatable-content-registry.md) | The Translation Workshop and the Translatable-Content Registry | Accepted |
 | [0044](0044-ai-capability-architecture.md) | AI as an Integration Capability | Accepted |
 | [0045](0045-push-notifications-device-registry-and-the-mobile-client.md) | Push Notifications, the Device Registry, and the Mobile Client | Accepted |
+| [0046](0046-pre-authentication-rate-limiting.md) | Pre-Authentication Rate Limiting | Accepted |
+| [0047](0047-retrying-the-same-provider.md) | Retrying the Same Provider | Accepted |

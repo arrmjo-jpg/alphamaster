@@ -1,7 +1,8 @@
 # AlphaMaster — product capability matrix
 
 Audited 2026-09-10 against the repository and the running platform; revised the same
-day as rows 5, 6, 14 and 17 were completed. Every row is
+day as rows 5, 6, 14 and 17 were completed, and again on 2026-09-11 as AI, push and
+the M3 decisions were built. Every row is
 evidence-backed: a screen existing, an endpoint existing, a setting existing or a green
 CI run is **not** treated as proof of anything.
 
@@ -18,23 +19,32 @@ browser where a browser is involved.
 
 | | Count |
 | :--- | ---: |
-| GREEN | 24 |
-| YELLOW | 5 |
-| RED | 10 |
+| GREEN | 30 |
+| YELLOW | 8 |
+| RED | 3 |
 | GRAY | 4 |
 
-Six rows moved to GREEN on 2026-09-10: phone verification (5), OTP configuration (6),
-translation management (14), general settings (17), and — recording work this branch
-already carries — the visual identity (36) and the two themes (38). Row 33 moved with
-them and did not improve; see its entry.
+On 2026-09-11: AI settings (12), notifications (23), notification producers (24),
+provider retry (26) and the audit trail (30) moved to GREEN, and pre-authentication
+rate limiting (41) was added GREEN. AI (10), AI providers (11), AI-assisted translation
+(15), Firebase (8) and push (9) moved from RED to YELLOW, and the device registry (40)
+was added YELLOW.
+
+**Every one of those YELLOW rows is complete up to an external boundary, and the row
+names it.** Five need one real vendor call that cannot be made without the operator's
+own account: an OpenAI or Anthropic API key (rows 10, 11, 15), or a Firebase service
+account and a device holding a real registration token (rows 8, 9). Each is otherwise
+built end to end — capability, contract, drivers, encrypted credentials, permissions,
+settings, Admin, failure states — and proven against a faked vendor at the wire; AI was
+also run in a browser against a local stub. Row 40 needs a browser check of one Admin
+section. None of them is YELLOW for a missing feature.
+
+The three RED rows are the image pipeline (20, 21, 22): no image extension in the
+container and, by ADR 0024's own rule, no consumer to derive anything for. They are
+built with the first module that attaches media to content, not ahead of it.
 
 The counts above are recomputed from the table rather than kept beside it, because the
 previous ones had drifted from what the rows actually said.
-
-The nine RED rows are not evenly weighted. **AI, Firebase, push notifications and
-device registration do not exist in any form** — no module, no table, no setting, no
-contract, no enum case. They were never built and no ADR describes them. Everything
-else RED is a known, recorded gap with an argument attached.
 
 ---
 
@@ -53,28 +63,30 @@ else RED is a known, recorded gap with an argument attached.
 | 27 | Users | **GREEN** | Create, edit, activate/deactivate, promote/demote, role sync; identity-only edits; self-deactivation refused; 16 lifecycle tests; browser-verified end to end. |
 | 28 | Roles | **GREEN** | Create, edit, delete, permission assignment, label/identifier separation with a server-derived immutable identifier. |
 | 29 | Permissions | **GREEN** | Read-only catalogue grouped by module, role carriers named, orphan permissions called out. Dynamic creation is **intentionally** unsupported — `AdminPermission` is a code enum (ADR 0014) and the screen says so rather than offering CRUD. |
-| 30 | Audit trail | **YELLOW** | Configuration, secrets, rollback, archival, backup, mail test, and — new — the full account lifecycle including role assignment. **Role *definitions* are unaudited**: creating a role, changing what it grants, deleting one. ADR 0037's amendment names this as the acknowledged gap. |
+| 30 | Audit trail | **GREEN** | Configuration, secrets, rollback, archival, backup, mail test, the full account lifecycle including role assignment, and — new — role definitions: `role.created` (identifier and grant), `role.updated` (which locale's label moved, never the wording), `role.permissions_changed` (added and removed, not the resulting set), `role.deleted` (identifier, what it granted, how many accounts held it). A save that changes nothing records nothing, and a first label in a new language is detected against that language's own row rather than the fallback. Labelled in both languages. Seven tests. |
+| 41 | Pre-authentication rate limiting | **GREEN** | ADR 0046, closing ADR 0029 item 22. Requests refused at authentication — missing, expired or forged credentials — were answered before the central limiter ran and were unlimited. A global middleware now counts only those refusals, per hashed address, against the anonymous ceiling, and answers 429 with `Retry-After` once past it. It never refuses on the way in, so a hostile caller behind a shared address cannot lock out an authenticated colleague; a wrong password and a failed second factor are not counted, so the login identifier throttle, CAPTCHA and MFA are untouched; a counter outage leaves the 401 standing. Six tests. |
 
 ### Messaging
 
 | # | Capability | State | Evidence and what is missing |
 | --- | :--- | :---: | :--- |
 | 7 | SMS | **GREEN** | Twilio driver over the HTTP client, provider chain with failover, usage logging, timeout now read from configuration. |
-| 8 | Firebase / mobile integration | **RED** | **Zero references in the codebase.** No module, no credentials, no setting, no table, no contract, no capability enum case. Nothing to complete — this is greenfield. |
-| 9 | Push notifications | **RED** | `NotificationChannel` has `database`, `mail`, `sms` and a comment saying "WhatsApp and push arrive when the Integration capabilities they need do". No channel, no device table, no transport. |
-| 23 | Notifications | **YELLOW** | Templates, per-locale rendering, preferences, the in-app inbox, mark-read, and administrator announcements all work end to end and are browser-verified. |
-| 24 | Notification producers | **RED** | `security.alert` and `account.updated` have seeded, active, translated templates and **have never been raised once**. `NotifierContract` lives in the Notification namespace and takes a Notification enum; every module that would produce a notification is forbidden by the architecture rules from importing that namespace. Blocked on decision 1 in `docs/m3-decisions.md`. |
+| 8 | Firebase / mobile integration | **YELLOW** | ADR 0045: Firebase is a push transport and nothing else — no Firebase Auth, Firestore, Storage or BFF. `IntegrationCapability::PUSH` (constraint widened by migration), an `fcm` driver over the HTTP client against FCM v1, the service-account credential encrypted on the provider row and entered by paste in the Admin (only `project_id`, `client_email`, `private_key` are sent; nothing is echoed), an RS256 access token minted with `openssl` and cached in the `integration` namespace keyed by the provider row and its `updated_at`, so a rotated key never reuses a stale token. Status in the Admin: configured, provider, drivers, last attempt, recent failures. **Missing: one send against real Firebase** — a Google service account for a real project and a device holding a real registration token. Everything short of that is proven against a faked vendor. |
+| 9 | Push notifications | **YELLOW** | `NotificationChannel::PUSH` and a `PushChannel`; the payload is **data-only and carries exactly the notification type and the record id** — no subject, no body, no `notification` block — asserted on the wire. Delivery walks the provider chain; `UNREGISTERED`, `INVALID_ARGUMENT` and `NOT_FOUND` delete the device row; a transient failure is logged and the row kept; success stamps `last_seen_at`. Preferences can add push to a mandatory type, and a push preference is accepted by the database (constraint widened). Eighteen backend tests. **Missing: the same real-vendor send as row 8.** |
+| 40 | Device registry | **YELLOW** | `push_devices`: many devices per account, one row per handset (`user_id` + client-kept `device_id`, so a rotated token replaces rather than duplicates), the token hidden from every response with a six-character hint instead, the registering session recorded so signing out stops delivery to that handset only. `GET/POST/DELETE /notifications/devices` act only on the caller; the Admin registry (`notifications.view`, removal needs `notifications.update`) shows platform, last seen, stale devices and provider health, and cannot register a device. Six Admin tests. **Missing: the Admin Devices section has not been seen in a browser** — the browser pane's session expired and signing in is not something done on the operator's behalf. |
+| 23 | Notifications | **GREEN** | Templates, per-locale rendering, preferences, the in-app inbox, mark-read, and administrator announcements all work end to end and are browser-verified; the push channel joins mail, SMS and in-app (row 9), and the types the platform declares are now raised by the modules that have something to say (row 24). |
+| 24 | Notification producers | **GREEN** | Decision 1, option A. `Core\Contracts\PlatformNotifierContract` takes a string type and an `object` recipient, so a producer depends on Core alone and no module boundary moved; Notification implements it. **`security.alert`** is raised when a second factor is added and when it is turned off — not when enrolment merely starts, and not on a failed attempt; **`account.updated`** when an administrator's edit actually changes an account, saying whether the address now needs confirming, and never for a save that changed nothing. A placeholder may be a `Core\Translation\Phrase`, rendered on the queue in the *recipient's* language rather than the producer's — proven with an English-working producer and an Arabic reader. An unknown type, a non-account recipient, or a delivery that fails outright — a missing template on a sync queue, say — is reported and dropped, never thrown into the operation that already happened. A test reads every producer in `app/` and fails unless its type is a string literal naming a real `NotificationType`. Fifteen tests. |
 | 25 | Integrations | **GREEN** | Provider list, capability/status/active/default, credential state without ever exposing a secret, usage window, make-default with `PROVIDER_INACTIVE` refusal. |
-| 26 | Provider retry / failover | **YELLOW** | Failover works and is ADR 0017's decision: the chain is walked until one succeeds. **Retry against the same provider does not exist** — `operations.provider_retry_attempts` is configured and read by nothing, because retrying a send that may already have arrived is a duplicate-delivery hazard nobody has ruled on. Decision 3. |
+| 26 | Provider retry / failover | **GREEN** | ADR 0047. Failover is unchanged (ADR 0017). Retry against the same provider now exists and is safe by construction: only a connection that never opened — host not resolved, connection refused, curl 5/6/7 — is retried, because only then did the vendor never see the request. A timeout, an SSL failure and every vendor answer, a 500 included, go to the next provider after exactly one attempt, so no SMS is sent twice by a retry; none of the integrated vendors offers an idempotency key that would make the ambiguous cases safe. `operations.provider_retry_attempts` is read on every call through `ProviderHttp`, the one client every driver uses (a test fails if any driver calls `Http::` directly); backoff doubles from 100 ms, capped at one second; one usage row per provider attempt. Twelve test cases, including an SMS surviving a DNS failure and an SMS that timed out going to the next provider. |
 
 ### AI
 
 | # | Capability | State | Evidence and what is missing |
 | --- | :--- | :---: | :--- |
-| 10 | AI | **RED** | **Zero references.** No module, no service, no contract, no route. |
-| 11 | AI providers | **RED** | `IntegrationCapability` has exactly two cases: `sms`, `captcha`. ADR 0017 names AI as a capability the manager pattern could carry; nothing implements it. |
-| 12 | AI settings | **RED** | No `ai` settings group, no credentials, no model, no timeout, no limits. |
-| 15 | AI-assisted translation | **RED** | Depends on all three rows above. |
+| 10 | AI | **YELLOW** | ADR 0044. `Core\Ai\TextGeneratorContract`, so a module asks for text without importing Integration; the default provider only, **no automatic failover** (a second model answers differently, which is not a transport failure); prompts owned by code; usage recorded with token counts and never with the prompt or the answer. The AI Control Centre at `/ai` shows configured/unconfigured, provider, model, drivers, credential state without the credential, last attempt and recent failures, and runs a health check behind `ai.use`. Verified in a browser end to end against a local OpenAI-compatible stub: check answered, suggestion generated on the queue, edited, accepted, persisted. **Missing: one call against a real vendor account** — an OpenAI or Anthropic API key. |
+| 11 | AI providers | **YELLOW** | `IntegrationCapability::AI`; `openai` (chat completions, base URL a provider setting so any compatible gateway works) and `anthropic` (messages API, pinned version header) behind `AiManager`, credentials encrypted on the row, seeded inactive. Success, vendor error, empty answer, timeout, missing credential and unconfigured are each proven with `Http::fake()` at the wire. **Missing: the same real-vendor call as row 10.** |
+| 12 | AI settings | **GREEN** | `ai.translation_model`, `ai.max_output_tokens` (32–4096) and `ai.timeout_seconds` (5–300), each labelled and explained in both languages, each shown to change the request that reaches the vendor. No `ai.enabled` switch: a configured provider is what enables AI, so there is one control rather than two that can disagree. |
+| 15 | AI-assisted translation | **YELLOW** | The workshop proposes; a person decides. A request queues one job per field on the `integrations` queue; outstanding requests are not duplicated; a translated field is skipped unless asked for; the suggestion is never written to the content — accepting is a separate action, refused with `TRANSLATION_MOVED` if somebody changed the field since, and records whether the text was edited. The panel distinguishes waiting, AI-suggested, edited and not generated. Without a provider the manual workflow is untouched and the AI action says why it is unavailable. Sixteen backend tests, fifteen Admin tests, browser-verified against the stub. **Missing: the same real-vendor call as row 10.** |
 
 ### Localization
 
@@ -89,7 +101,7 @@ else RED is a known, recorded gap with an argument attached.
 
 | # | Capability | State | Evidence and what is missing |
 | --- | :--- | :---: | :--- |
-| 17 | General settings | **GREEN** | Sixty-six typed settings with grouping, per-locale values, secrets, history, rollback, backup/restore, optimistic concurrency, a label and help sentence for every one in both languages, and — new — a declared **reach**: every definition says whether the platform reads it, a client does, or nothing does yet, and the console renders that as a badge and a sentence on the row. The capability is complete; what remains is row 33, which is a statement about how much of the catalogue has a reader rather than about this screen. |
+| 17 | General settings | **GREEN** | Sixty-nine typed settings with grouping, per-locale values, secrets, history, rollback, backup/restore, optimistic concurrency, a label and help sentence for every one in both languages, and — new — a declared **reach**: every definition says whether the platform reads it, a client does, or nothing does yet, and the console renders that as a badge and a sentence on the row. The capability is complete; what remains is row 33, which is a statement about how much of the catalogue has a reader rather than about this screen. |
 | 18 | Branding | **YELLOW** | Seven media-typed settings — logos in four combinations, favicon, social image, watermark image — each holding a validated `MediaFile` id, assigned through a picker. Nothing renders any of them: the console ships its own mark, and the public site that would read these is not started. `max_image_dimension` is not enforced and the watermark is not applied. Every one of them now says so on its own row rather than in its help text. |
 | 19 | Media | **GREEN** | Upload, scan, storage, delivery, listing with server-side filters, detail, soft delete, purge job, access policy seam, and — new — the upload ceiling read from configuration rather than hard-coded. |
 | 20 | Image processing | **RED** | `MediaProcessorContract` exists with one implementation, `GenericFileProcessor`. The container has no `gd`, `imagick` or `ffmpeg`: extensions are `pdo_pgsql, pgsql, pcntl, posix, bcmath, opcache, intl, zip, exif, redis, fileinfo`. |
@@ -97,7 +109,7 @@ else RED is a known, recorded gap with an argument attached.
 | 22 | Watermarking | **RED** | Six settings configure it; nothing applies it. Watermarking is a step in deriving an image, so it is blocked behind rows 20 and 21. |
 | 31 | Operations | **GREEN** | Audit trail with eight server-side filters, archival with export-verify-remove, configuration export/restore, mail test. |
 | 32 | Maintenance mode | **GREEN** | 503 with the platform envelope and a localized message, `admin:access` bypass, fail-open when settings are unreadable, dashboard finding, browser-verified both ways. |
-| 33 | Configuration consumption | **YELLOW** | The earlier count of nine was wrong, and the correction is the point of the row. A full audit — every reference in `app/` and `admin/src/`, including the rate limits that are read through a constructed key and would be missed by a naive search — puts it at **thirty of sixty-six**: twenty waiting on the public website, seven on the image pipeline, one on public registration, one on provider retry, one (`security.api_secret_key`) on a machine-to-machine caller that does not exist, and two (`localization.timezone`, `localization.date_format`) that are published for a client to format with and that nothing here will ever read. The secret was the one a search missed — a grep finds what reads a setting by name, and a secret's value never is. Each declares its reach in the definition, publishes it in the catalogue and shows it on the row; a test pins the list, so a thirtieth cannot be added by not noticing. It stays YELLOW because a classified gap is still a gap — the resting place is a reader, not a badge. **Eleven mail settings left this list on 2026-09-10**: they configured only the "send a test message" button, and every real message went out through the deployment's environment file; they now configure the mailer the whole platform resolves. |
+| 33 | Configuration consumption | **YELLOW** | The earlier count of nine was wrong, and the correction is the point of the row. A full audit — every reference in `app/` and `admin/src/`, including the rate limits that are read through a constructed key and would be missed by a naive search — puts it at **thirty-one of sixty-nine**, counted from the registry itself on 2026-09-11 rather than by hand: twenty waiting on the public website, seven on the image pipeline, one on public registration, one (`security.api_secret_key`) on a machine-to-machine caller that does not exist, and two (`localization.timezone`, `localization.date_format`) that are published for a client to format with and that nothing here will ever read. The secret was the one a search missed — a grep finds what reads a setting by name, and a secret's value never is. Each declares its reach in the definition, publishes it in the catalogue and shows it on the row; a test pins the list, so a thirty-second cannot be added by not noticing. It stays YELLOW because a classified gap is still a gap — the resting place is a reader, not a badge. **Eleven mail settings left this list on 2026-09-10**: they configured only the "send a test message" button, and every real message went out through the deployment's environment file; they now configure the mailer the whole platform resolves. |
 
 ### Surface
 
@@ -137,30 +149,29 @@ Ordered by dependency, then by how much of the product each unblocks.
 
 ### Track B — decisions already put to the user
 
-4. Notification producer seam (decision 1) → unblocks rows 24, and makes rows 5 and 6
-   worth completing.
-5. Provider retry semantics (decision 3) → resolves row 26 and one setting in row 33.
+4. ~~Notification producer seam (decision 1)~~ — done 2026-09-11. Row 24.
+5. ~~Provider retry semantics (decision 3)~~ — done 2026-09-11, ADR 0047. Row 26.
 6. Image pipeline scheduling (decision 4) → unblocks rows 20, 21, 22 and part of 18.
+   Unchanged: scheduled with the first content module.
+7. ~~Pre-authentication rate limiting (decision 2)~~ — done 2026-09-11, ADR 0046. Row 41.
 
 ### Track C — greenfield, needs its own architecture
 
-7. **AI** (rows 10–12, 15). Nothing exists. The natural shape is ADR 0017's manager
-   pattern — a capability, a contract, drivers, usage logging, credentials on a
-   provider row — which is the pattern SMS and CAPTCHA already follow and which
-   ADR 0033's extension explicitly permits ahead of a consumer. Needs an ADR.
-8. **Firebase, push, device registration** (rows 8, 9). Nothing exists. A device
-   registry is a new table and a new channel; ADR 0019 anticipates the channel and
-   ADR 0017 the transport. Needs an ADR.
+8. ~~**AI** (rows 10–12, 15)~~ — built 2026-09-11, ADR 0044. Remaining: one call
+   against a real vendor account.
+9. ~~**Firebase, push, device registration** (rows 8, 9, 40)~~ — built 2026-09-11,
+   ADR 0045. Remaining: one send through a real Firebase project; the Admin Devices
+   section seen in a browser.
 
 ### Track D — completion of what is already partly built
 
 9. ~~OTP configuration (row 6)~~ — done 2026-09-10. Four settings, one `OtpPolicy`,
    both flows, each setting proven to change behaviour.
 10. ~~Phone verification (row 5)~~ — done 2026-09-10. End to end, browser-verified.
-11. Role-definition auditing (row 30).
+11. ~~Role-definition auditing (row 30)~~ — done 2026-09-11.
 12. ~~Translation workspace (row 14)~~ — done 2026-09-10. ADR 0043, three sources,
     per-source permissions, browser-verified.
-13. The remaining unread settings (row 33). Thirty, not nine, and each now
-    declares what is missing rather than being presented as a working control. Thirty, and they
+13. The remaining unread settings (row 33). Thirty-one, not nine, and each now
+    declares what is missing rather than being presented as a working control. They
     are unblocked by the capabilities they wait on — the public site, the image
-    pipeline, provider retry — not by more settings work.
+    pipeline — not by more settings work. Provider retry left the list on 2026-09-11.

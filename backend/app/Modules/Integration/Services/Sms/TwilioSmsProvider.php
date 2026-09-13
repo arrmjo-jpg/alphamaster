@@ -8,7 +8,7 @@ use App\Modules\Integration\Contracts\SmsProviderContract;
 use App\Modules\Integration\Data\SmsMessage;
 use App\Modules\Integration\Data\SmsResult;
 use App\Modules\Integration\Models\IntegrationProvider;
-use Illuminate\Support\Facades\Http;
+use App\Modules\Integration\Services\ProviderHttp;
 
 /**
  * Twilio, over the HTTP client rather than the vendor SDK.
@@ -42,9 +42,11 @@ class TwilioSmsProvider implements SmsProviderContract
         }
 
         try {
-            $response = Http::asForm()
+            // Retried only when the connection never opened, so this send cannot be
+            // delivered twice by the platform's own doing (ADR 0047).
+            $response = ProviderHttp::client()
+                ->asForm()
                 ->withBasicAuth($accountSid, $authToken)
-                ->timeout($this->timeoutSeconds())
                 ->post(self::BASE_URL.'/Accounts/'.$accountSid.'/Messages.json', [
                     'To' => $message->to,
                     'From' => $from,
@@ -64,21 +66,5 @@ class TwilioSmsProvider implements SmsProviderContract
             (string) ($response->json('code') ?? $response->status()),
             (string) ($response->json('message') ?? 'The Twilio request failed.')
         );
-    }
-
-    /**
-     * How long to wait on the vendor, from the platform's own configuration.
-     *
-     * `operations.provider_timeout_seconds` has existed with a validated range and a
-     * default of ten since Phase 16A, and every driver hard-coded ten instead — the
-     * same number by coincidence, so an operator lengthening the timeout for a slow
-     * vendor changed nothing. The default here is the setting's own default, which is
-     * what applies when settings cannot be read at all.
-     */
-    private function timeoutSeconds(): int
-    {
-        $configured = setting('operations.provider_timeout_seconds', 10);
-
-        return is_int($configured) && $configured > 0 ? $configured : 10;
     }
 }

@@ -11,15 +11,27 @@ use App\Modules\Authorization\Requests\RoleRequest;
 use App\Modules\Authorization\Resources\PermissionResource;
 use App\Modules\Authorization\Resources\RoleResource;
 use App\Modules\Authorization\Services\RoleIdentifier;
+use App\Modules\Core\Audit\AuditAction;
+use App\Modules\Core\Contracts\AuditRecorderContract;
 use App\Modules\Core\Controllers\BaseApiController;
 use Dedoc\Scramble\Attributes\Response;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
 
+/**
+ * Role definitions.
+ *
+ * Every write here changes what a group of administrators may do at once, which is why
+ * each one is audited (ADR 0037): assigning a role to an account was recorded from the
+ * start, and editing the role itself — the same grant, applied to everybody holding it —
+ * was not. The trail records identifiers and permission names, never a label's wording.
+ */
 class RoleAdminController extends BaseApiController
 {
     public function __construct(
         protected AdminRbacContract $rbac,
         protected RoleIdentifier $identifiers,
+        protected AuditRecorderContract $audit,
     ) {}
 
     /**
@@ -54,13 +66,22 @@ class RoleAdminController extends BaseApiController
             return $this->errorResponse('ROLE_IDENTIFIER_UNAVAILABLE', 'api.error.authorization.role_identifier_unavailable', null, 422);
         }
 
-        $role = Role::query()->create([
-            'name' => $identifier,
-            'guard_name' => 'web',
-        ]);
+        $role = DB::transaction(function () use ($request, $identifier, $label): Role {
+            $role = Role::query()->create([
+                'name' => $identifier,
+                'guard_name' => 'web',
+            ]);
 
-        $role->setTranslation(app()->getLocale(), ['label' => $label]);
-        $role->syncPermissions($request->validated('permissions'));
+            $role->setTranslation(app()->getLocale(), ['label' => $label]);
+            $role->syncPermissions($request->validated('permissions'));
+
+            $this->audit->succeeded(AuditAction::ROLE_CREATED, (string) $role->id, [
+                'role' => $role->name,
+                'permissions' => $this->permissionNames($role),
+            ]);
+
+            return $role;
+        });
 
         return $this->successResponse(new RoleResource($role->refresh()), 'Role created.', 201);
     }
@@ -73,8 +94,42 @@ class RoleAdminController extends BaseApiController
     {
         // The label changes; the identifier does not. Permissions and assignments
         // reference a role by name, so renaming one would silently detach them.
-        $role->setTranslation(app()->getLocale(), ['label' => (string) $request->validated('label')]);
-        $role->syncPermissions($request->validated('permissions'));
+        $locale = app()->getLocale();
+        $label = (string) $request->validated('label');
+
+        // What moved, rather than what was submitted: the editor sends the whole role
+        // back on every save, and a trail recording each of those as a change would
+        // bury the one save that altered a grant (ADR 0037).
+        //
+        // The stored row for this locale exactly, not `translate()`: that falls back
+        // to another language, so a first Arabic label typed identically to the
+        // English one would read as unchanged and go unrecorded.
+        $labelMoved = $role->translations()->where('locale', $locale)->value('label') !== $label;
+        $before = $this->permissionNames($role);
+
+        DB::transaction(function () use ($request, $role, $locale, $label, $labelMoved, $before): void {
+            $role->setTranslation($locale, ['label' => $label]);
+            $role->syncPermissions($request->validated('permissions'));
+
+            if ($labelMoved) {
+                $this->audit->succeeded(AuditAction::ROLE_UPDATED, (string) $role->id, [
+                    'role' => $role->name,
+                    'locale' => $locale,
+                ]);
+            }
+
+            $after = $this->permissionNames($role);
+            $added = array_values(array_diff($after, $before));
+            $removed = array_values(array_diff($before, $after));
+
+            if ($added !== [] || $removed !== []) {
+                $this->audit->succeeded(AuditAction::ROLE_PERMISSIONS_CHANGED, (string) $role->id, [
+                    'role' => $role->name,
+                    'added' => $added,
+                    'removed' => $removed,
+                ]);
+            }
+        });
 
         return $this->successResponse(new RoleResource($role->refresh()), 'Role updated.');
     }
@@ -84,9 +139,39 @@ class RoleAdminController extends BaseApiController
      */
     public function destroy(Role $role): JsonResponse
     {
-        $role->delete();
+        DB::transaction(function () use ($role): void {
+            // Read before the row goes: afterwards nothing remembers what the role
+            // granted or to how many people.
+            $context = [
+                'role' => $role->name,
+                'permissions' => $this->permissionNames($role),
+                'accounts_affected' => $role->users()->count(),
+            ];
+
+            $role->delete();
+
+            $this->audit->succeeded(AuditAction::ROLE_DELETED, (string) $role->id, $context);
+        });
 
         return $this->successResponse(null, 'Role deleted.');
+    }
+
+    /**
+     * The permissions a role grants, by catalogue name, in a stable order — read from
+     * the database rather than the loaded relation, which a sync may have left stale.
+     *
+     * @return list<string>
+     */
+    private function permissionNames(Role $role): array
+    {
+        $names = array_map(
+            static fn (mixed $name): string => is_string($name) ? $name : '',
+            $role->permissions()->pluck('name')->all()
+        );
+
+        sort($names);
+
+        return $names;
     }
 
     /**

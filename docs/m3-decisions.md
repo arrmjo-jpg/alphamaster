@@ -4,6 +4,19 @@ Written 2026-09-10. Not an ADR: nothing here is decided. Each section states the
 question, why the work stopped at it, the options with their real costs, and a
 recommendation. Whichever way each goes, the answer belongs in an ADR afterwards.
 
+**Outcomes, 2026-09-11.**
+
+1. *Producers* — option A, as recommended. `Core\Contracts\PlatformNotifierContract`,
+   implemented by Notification; `security.alert` raised when a second factor is added or
+   turned off, `account.updated` when an administrator edits an account. A placeholder
+   may be a `Core\Translation\Phrase`, rendered in the recipient's language on the queue.
+   A test reads every producer's type literal against the enum.
+2. *Pre-authentication rate limiting* — ADR 0046.
+3. *Provider retry* — decided rather than removed: ADR 0047. Retried only when the
+   connection never opened; the setting is read.
+4. *Image variants and watermarking* — unchanged. Still no consumer; still no `gd`.
+   Built with the first module that attaches media to content, as recommended.
+
 ---
 
 ## 1. Nothing in the platform may raise a notification

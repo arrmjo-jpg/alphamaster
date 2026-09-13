@@ -8,7 +8,7 @@ use App\Modules\Core\Ai\TextGenerationRequest;
 use App\Modules\Core\Ai\TextGenerationResult;
 use App\Modules\Integration\Contracts\AiProviderContract;
 use App\Modules\Integration\Models\IntegrationProvider;
-use Illuminate\Support\Facades\Http;
+use App\Modules\Integration\Services\ProviderHttp;
 
 /**
  * OpenAI's chat completions API, over the HTTP client rather than the vendor SDK.
@@ -42,8 +42,8 @@ class OpenAiProvider implements AiProviderContract
         $base = $this->baseUrl($provider);
 
         try {
-            $response = Http::withToken($apiKey)
-                ->timeout(AiTimeout::seconds())
+            $response = ProviderHttp::client(AiTimeout::seconds())
+                ->withToken($apiKey)
                 ->post($base.'/chat/completions', [
                     'model' => $request->model,
                     'max_tokens' => $request->maxOutputTokens,

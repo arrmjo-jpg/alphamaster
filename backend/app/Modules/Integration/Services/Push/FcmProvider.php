@@ -8,7 +8,7 @@ use App\Modules\Integration\Contracts\PushProviderContract;
 use App\Modules\Integration\Data\PushMessage;
 use App\Modules\Integration\Data\PushResult;
 use App\Modules\Integration\Models\IntegrationProvider;
-use Illuminate\Support\Facades\Http;
+use App\Modules\Integration\Services\ProviderHttp;
 
 /**
  * Firebase Cloud Messaging, over the HTTP client rather than the vendor SDK.
@@ -85,8 +85,8 @@ class FcmProvider implements PushProviderContract
         }
 
         try {
-            $response = Http::withToken($accessToken)
-                ->timeout($this->timeoutSeconds())
+            $response = ProviderHttp::client()
+                ->withToken($accessToken)
                 ->post(sprintf(self::SEND_ENDPOINT, $projectId), [
                     'message' => [
                         'token' => $message->token,
@@ -110,15 +110,5 @@ class FcmProvider implements PushProviderContract
         return in_array($status, self::DEAD_TOKEN_CODES, true)
             ? PushResult::tokenRejected($this->driver(), $status, $detail)
             : PushResult::failure($this->driver(), $status, $detail);
-    }
-
-    /**
-     * The same outbound ceiling every other vendor call obeys (ADR 0017).
-     */
-    private function timeoutSeconds(): int
-    {
-        $configured = setting('operations.provider_timeout_seconds', 10);
-
-        return is_int($configured) && $configured > 0 ? $configured : 10;
     }
 }

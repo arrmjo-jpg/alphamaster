@@ -8,7 +8,7 @@ use App\Modules\Integration\Contracts\CaptchaProviderContract;
 use App\Modules\Integration\Data\CaptchaChallenge;
 use App\Modules\Integration\Data\CaptchaResult;
 use App\Modules\Integration\Models\IntegrationProvider;
-use Illuminate\Support\Facades\Http;
+use App\Modules\Integration\Services\ProviderHttp;
 
 /**
  * Google reCAPTCHA, over the HTTP client rather than a vendor SDK.
@@ -50,8 +50,8 @@ class RecaptchaProvider implements CaptchaProviderContract
         }
 
         try {
-            $response = Http::asForm()
-                ->timeout($this->timeoutSeconds())
+            $response = ProviderHttp::client()
+                ->asForm()
                 ->post(self::VERIFY_URL, $payload);
         } catch (\Throwable $e) {
             // Unlike an SMS send, a transport failure here is not a reason to try
@@ -111,21 +111,5 @@ class RecaptchaProvider implements CaptchaProviderContract
         }
 
         return CaptchaResult::success($this->driver(), $hostname, $score);
-    }
-
-    /**
-     * How long to wait on the vendor, from the platform's own configuration.
-     *
-     * `operations.provider_timeout_seconds` has existed with a validated range and a
-     * default of ten since Phase 16A, and every driver hard-coded ten instead — the
-     * same number by coincidence, so an operator lengthening the timeout for a slow
-     * vendor changed nothing. The default here is the setting's own default, which is
-     * what applies when settings cannot be read at all.
-     */
-    private function timeoutSeconds(): int
-    {
-        $configured = setting('operations.provider_timeout_seconds', 10);
-
-        return is_int($configured) && $configured > 0 ? $configured : 10;
     }
 }
