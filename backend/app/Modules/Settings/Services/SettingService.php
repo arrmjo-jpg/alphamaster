@@ -145,8 +145,11 @@ class SettingService implements SettingServiceInterface
                 $this->assertDeclarationSatisfied($setting, $serialized);
 
                 // Captured before the version advances, so the revision carries the
-                // version its value actually belonged to (ADR 0040).
-                $this->recordRevision($setting, $serialized);
+                // version its value actually belonged to (ADR 0040). The locale is the
+                // one being written, not the request's: a translation written from a
+                // console in another language must not record that other language, or a
+                // rollback would restore the text into it.
+                $this->recordRevision($setting, $serialized, $locale);
 
                 // The counter advances on every write, localized or not. A timestamp
                 // would not: `timestampsTz` stores whole seconds, so two saves a moment
@@ -170,7 +173,7 @@ class SettingService implements SettingServiceInterface
                     default => Setting::castValue($serialized, $setting->type),
                 };
 
-                $this->recordChange($setting, $serialized, $previousValue);
+                $this->recordChange($setting, $serialized, $previousValue, $locale);
             }
 
             // Invalidate only once the transaction has actually committed. Clearing
@@ -238,18 +241,21 @@ class SettingService implements SettingServiceInterface
      *
      * @throws SettingGroupNotFoundException
      */
-    public function getAdminGroup(string $group): array
+    public function getAdminGroup(string $group, ?string $locale = null): array
     {
+        // Translations come with the rows: the presentation below reports whether this
+        // locale has a value of its own, and lazy loading is disabled platform-wide.
         $settings = Setting::query()
             ->where('group', $group)
             ->orderBy('key')
+            ->with('translations')
             ->get();
 
         if ($settings->isEmpty()) {
             throw new SettingGroupNotFoundException($group);
         }
 
-        return $settings->map(fn (Setting $s): array => $this->formatAdminSetting($s))->all();
+        return $settings->map(fn (Setting $s): array => $this->formatAdminSetting($s, $locale))->all();
     }
 
     /**
@@ -261,7 +267,7 @@ class SettingService implements SettingServiceInterface
     {
         $grouped = [];
 
-        foreach (Setting::query()->orderBy('group')->orderBy('key')->get() as $setting) {
+        foreach (Setting::query()->orderBy('group')->orderBy('key')->with('translations')->get() as $setting) {
             $grouped[$setting->group][] = $this->formatAdminSetting($setting);
         }
 
@@ -1094,7 +1100,7 @@ class SettingService implements SettingServiceInterface
      * a value used to be, and filling it with entries where the answer is "the same"
      * makes that question harder to answer, not easier.
      */
-    private function recordRevision(Setting $setting, ?string $incoming): void
+    private function recordRevision(Setting $setting, ?string $incoming, ?string $locale = null): void
     {
         if ($setting->is_secret) {
             return;
@@ -1102,7 +1108,7 @@ class SettingService implements SettingServiceInterface
 
         $this->recordRevisionAt(
             $setting,
-            $setting->is_localized ? $this->locale() : null,
+            $setting->is_localized ? ($locale ?? $this->locale()) : null,
             $incoming,
             $setting->version,
         );
@@ -1183,7 +1189,7 @@ class SettingService implements SettingServiceInterface
      * of a public setting is recoverable from the row's own history and is not what
      * the trail exists to answer. What it answers is who changed what, and when.
      */
-    private function recordChange(Setting $setting, ?string $serialized, ?string $previousValue): void
+    private function recordChange(Setting $setting, ?string $serialized, ?string $previousValue, ?string $locale = null): void
     {
         $reference = $setting->group.'.'.$setting->key;
 
@@ -1205,7 +1211,13 @@ class SettingService implements SettingServiceInterface
         $this->audit->succeeded(
             $serialized === null ? AuditAction::SETTING_CLEARED : AuditAction::SETTING_UPDATED,
             $reference,
-            ['type' => $setting->type->value, 'localized' => $setting->is_localized],
+            [
+                'type' => $setting->type->value,
+                'localized' => $setting->is_localized,
+                // Which language was written, so the trail answers "who changed the
+                // Arabic site name" rather than only "who changed the site name".
+                'locale' => $setting->is_localized ? ($locale ?? $this->locale()) : null,
+            ],
         );
     }
 
@@ -1214,8 +1226,10 @@ class SettingService implements SettingServiceInterface
      *
      * @return array<string, mixed>
      */
-    protected function formatAdminSetting(Setting $setting): array
+    protected function formatAdminSetting(Setting $setting, ?string $locale = null): array
     {
+        $locale ??= $this->locale();
+
         return [
             'id' => $setting->id,
             'group' => $setting->group,
@@ -1224,11 +1238,18 @@ class SettingService implements SettingServiceInterface
             // from an unset one, which reads as null.
             'value' => $setting->is_secret
                 ? ($setting->value === null ? null : Setting::SECRET_MASK)
-                : $setting->getTypedValue(),
+                : $setting->getTypedValue($locale),
             // Present for every setting rather than only localized ones, so a client
             // never has to branch on the flag to know what it is looking at.
             'is_localized' => $setting->is_localized,
-            'locale' => $setting->is_localized ? app()->getLocale() : null,
+            'locale' => $setting->is_localized ? $locale : null,
+            // Whether this language has a value of its own, as against the fallback
+            // `value` above. An editor that could not tell the two apart would show
+            // the default language's text in an empty language's field and make an
+            // untranslated setting look finished (ADR 0043).
+            'translated' => $setting->is_localized
+                ? $this->previousStoredValue($setting, $locale) !== null
+                : null,
             'type' => $setting->type->value,
             // Beside the value, never instead of it (ADR 0030/0031). This payload
             // is built per request and is not cached, so the label follows the

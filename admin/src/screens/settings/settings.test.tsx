@@ -61,6 +61,7 @@ function row(overrides: Partial<SettingRow>): SettingRow {
         value: 'AlphaMaster',
         is_localized: false,
         locale: null,
+        translated: null,
         type: 'string',
         type_label: 'String',
         is_secret: false,
@@ -358,6 +359,162 @@ async function editAndReview(next: string) {
     await userEvent.type(input, next);
     await userEvent.click(screen.getByRole('button', { name: 'Review 1 change' }));
 }
+
+/**
+ * The content language: which language a site text is written in.
+ *
+ * Not the console's own language. An operator reading the console in Arabic writes the
+ * English site name and every label around them stays Arabic, which is why this is a
+ * parameter of its own and never `X-Locale` (ADR 0043, amended).
+ */
+describe('the content language', () => {
+    const ADMIN_LANGUAGES = http.get('*/api/v1/admin/languages', () =>
+        HttpResponse.json({
+            success: true,
+            data: [
+                {
+                    id: 'l1',
+                    code: 'ar',
+                    name: 'Arabic',
+                    native_name: 'العربية',
+                    direction: 'rtl',
+                    is_active: true,
+                    is_default: true,
+                    sort_order: 1,
+                },
+                {
+                    id: 'l2',
+                    code: 'es',
+                    name: 'Spanish',
+                    native_name: 'Español',
+                    direction: 'ltr',
+                    is_active: true,
+                    is_default: false,
+                    sort_order: 2,
+                },
+            ],
+        }),
+    );
+
+    const LOCALIZED_DEFINITIONS = http.get('*/api/v1/admin/settings/definitions', () =>
+        HttpResponse.json({
+            success: true,
+            data: { general: [definition({ is_localized: true })] },
+        }),
+    );
+
+    /** The group read, answering per content language the way the platform does. */
+    function localizedGroup(values: Record<string, { value: unknown; translated: boolean }>) {
+        return http.get('*/api/v1/admin/settings/general', ({ request }) => {
+            const asked = new URL(request.url).searchParams.get('locale') ?? 'ar';
+            const answer = values[asked] ?? { value: 'ألفا ماستر', translated: false };
+
+            return HttpResponse.json({
+                success: true,
+                data: [row({ is_localized: true, locale: asked, ...answer })],
+                meta: { version: 'v1' },
+            });
+        });
+    }
+
+    it('offers the languages the platform knows, and defaults to the platform default', async () => {
+        renderSettings(['settings.view', 'settings.update'], LOCALIZED_DEFINITIONS);
+        server.use(
+            ADMIN_LANGUAGES,
+            localizedGroup({ ar: { value: 'ألفا ماستر', translated: true } }),
+        );
+
+        const selector = await screen.findByLabelText('Content language');
+
+        // Native names, from Language Management — not a list this screen keeps.
+        expect(within(selector).getByRole('option', { name: 'العربية' })).toBeInTheDocument();
+        expect(within(selector).getByRole('option', { name: 'Español' })).toBeInTheDocument();
+        expect(selector).toHaveValue('ar');
+    });
+
+    it('does not offer one for a group with nothing localized in it', async () => {
+        renderSettings(['settings.view', 'settings.update']);
+        server.use(ADMIN_LANGUAGES);
+
+        await screen.findByLabelText('Site name');
+
+        expect(screen.queryByLabelText('Content language')).not.toBeInTheDocument();
+    });
+
+    it('reads the chosen language without changing the language of the console', async () => {
+        renderSettings(['settings.view', 'settings.update'], LOCALIZED_DEFINITIONS);
+        server.use(
+            ADMIN_LANGUAGES,
+            localizedGroup({
+                ar: { value: 'ألفا ماستر', translated: true },
+                es: { value: 'AlfaMaestro', translated: true },
+            }),
+        );
+
+        await userEvent.selectOptions(await screen.findByLabelText('Content language'), 'es');
+
+        expect(await screen.findByDisplayValue('AlfaMaestro')).toBeInTheDocument();
+
+        const read = observed.filter((request) => request.url.includes('/admin/settings/general'));
+        const spanish = read.find((request) => request.url.includes('locale=es'));
+
+        expect(spanish).toBeDefined();
+        // The console answers in its own language whatever is being edited.
+        expect(spanish?.headers.get('X-Locale')).not.toBe('es');
+        expect(screen.getByLabelText('Content language')).toBeInTheDocument();
+    });
+
+    it('shows an untranslated value as empty rather than another language’s words', async () => {
+        renderSettings(['settings.view', 'settings.update'], LOCALIZED_DEFINITIONS);
+        server.use(
+            ADMIN_LANGUAGES,
+            localizedGroup({
+                ar: { value: 'ألفا ماستر', translated: true },
+                // What the platform answers for a language holding nothing: a readable
+                // fallback, and `translated: false` saying it is not this language's.
+                es: { value: 'ألفا ماستر', translated: false },
+            }),
+        );
+
+        await userEvent.selectOptions(await screen.findByLabelText('Content language'), 'es');
+
+        expect(await screen.findByText('Not translated')).toBeInTheDocument();
+        expect(screen.getByLabelText('Site name')).toHaveValue('');
+    });
+
+    it('writes the language being edited', async () => {
+        renderSettings(['settings.view', 'settings.update'], LOCALIZED_DEFINITIONS);
+        server.use(
+            ADMIN_LANGUAGES,
+            localizedGroup({
+                ar: { value: 'ألفا ماستر', translated: true },
+                es: { value: 'AlfaMaestro', translated: true },
+            }),
+            http.put('*/api/v1/admin/settings/general', () =>
+                HttpResponse.json({
+                    success: true,
+                    message: 'Updated.',
+                    data: { group: 'general', updated: {} },
+                    meta: { version: 'v2' },
+                }),
+            ),
+        );
+
+        await userEvent.selectOptions(await screen.findByLabelText('Content language'), 'es');
+        await screen.findByDisplayValue('AlfaMaestro');
+        await editAndReview('AlfaMaestro Dos');
+        await userEvent.click(screen.getByRole('button', { name: 'Save 1 change' }));
+
+        expect(await screen.findByText('Saved.')).toBeInTheDocument();
+
+        const write = observed.find((request) => request.method === 'PUT');
+
+        expect(await write?.clone().json()).toEqual({
+            settings: { site_name: 'AlfaMaestro Dos' },
+            locale: 'es',
+        });
+    });
+});
 
 describe('staging, reviewing and saving', () => {
     it('shows old beside new before anything is written', async () => {

@@ -260,7 +260,15 @@ test('the real registry synchronises cleanly and is idempotent', function (): vo
 test('the seeder provisions the whole catalogue and declares none of it', function (): void {
     $this->seed(SettingSeeder::class);
 
+    // A claim about membership, in both directions: every declared setting has a row,
+    // and no row is undeclared. Both sides are sorted because neither order is the
+    // claim — the registry hands back each group in the order its catalogue declared
+    // it, which is not the order rows come back in, and comparing the sequences would
+    // turn a question about which settings exist into a question about how they are
+    // listed.
     $declared = array_keys(app(SettingRegistry::class)->active());
+    sort($declared);
+
     $rows = Setting::query()->get()
         ->map(static fn (Setting $s): string => $s->group.'.'.$s->key)
         ->sort()->values()->all();

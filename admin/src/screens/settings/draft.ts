@@ -53,6 +53,11 @@ export interface FieldState {
     deprecated: boolean;
     secret: boolean;
     localized: boolean;
+    /**
+     * For a localized setting: whether the language being edited has a value of its
+     * own. Null for everything else.
+     */
+    translated: boolean | null;
 }
 
 /**
@@ -94,7 +99,14 @@ export function fieldStates({
     return definitions.map((definition) => {
         const key = settingKey(definition);
         const row = rows.find((candidate) => candidate.key === key);
-        const saved = row?.value;
+        const translated = row?.is_localized === true ? (row.translated ?? null) : null;
+
+        // A localized setting with nothing written in the language being edited holds
+        // nothing. The platform still answers with its fallback so that every other
+        // reader has something to show, but an editor that put that text in the field
+        // would make an untranslated setting look finished — and saving it would copy
+        // one language's words into another (ADR 0043).
+        const saved = translated === false ? '' : row?.value;
         const edited = Object.hasOwn(draft, key);
         const value = edited ? draft[key] : saved;
         const changed = edited && !Object.is(draft[key], saved);
@@ -125,6 +137,7 @@ export function fieldStates({
             deprecated: definition.deprecated,
             secret: definition.is_secret,
             localized: definition.is_localized,
+            translated,
         };
     });
 }

@@ -21,10 +21,14 @@ use App\Modules\Integration\Services\ProviderHttp;
  * The differences are where a single-vendor design would have leaked: the system
  * prompt is a top-level field rather than a message, the version header is mandatory,
  * and usage is reported as separate input and output counts.
+ *
+ * The endpoint, the authentication and the wire format belong to the driver, not to
+ * configuration: an administrator sets up Anthropic with a key and a model, and never
+ * with an address or a header (ADR 0044).
  */
 class AnthropicProvider implements AiProviderContract
 {
-    private const DEFAULT_BASE_URL = 'https://api.anthropic.com/v1';
+    private const BASE_URL = 'https://api.anthropic.com/v1';
 
     /**
      * Pinned. The vendor requires it and treats it as the contract version; reading it
@@ -33,9 +37,29 @@ class AnthropicProvider implements AiProviderContract
      */
     private const API_VERSION = '2023-06-01';
 
+    /**
+     * The balance of speed and quality the vendor recommends, and a model with a long
+     * support window. The faster Haiku 4.5 is offered but not the default: its
+     * retirement is committed no sooner than October 2026, which is too close for a
+     * default nobody chose. Checked against the vendor's model list on 2026-09-11.
+     */
+    private const DEFAULT_MODEL = 'claude-sonnet-5';
+
+    private const SUGGESTED_MODELS = ['claude-sonnet-5', 'claude-haiku-4-5', 'claude-opus-5'];
+
     public function driver(): string
     {
         return 'anthropic';
+    }
+
+    public function defaultModel(): string
+    {
+        return self::DEFAULT_MODEL;
+    }
+
+    public function suggestedModels(): array
+    {
+        return self::SUGGESTED_MODELS;
     }
 
     public function generate(TextGenerationRequest $request, IntegrationProvider $provider): TextGenerationResult
@@ -46,11 +70,9 @@ class AnthropicProvider implements AiProviderContract
             return TextGenerationResult::failure(
                 $this->driver(),
                 'MISCONFIGURED',
-                'The Anthropic provider needs an api_key credential.'
+                'The Anthropic provider needs an API key.'
             );
         }
-
-        $base = $this->baseUrl($provider);
 
         try {
             $response = ProviderHttp::client(AiTimeout::seconds())
@@ -58,7 +80,7 @@ class AnthropicProvider implements AiProviderContract
                     'x-api-key' => $apiKey,
                     'anthropic-version' => self::API_VERSION,
                 ])
-                ->post($base.'/messages', [
+                ->post(self::BASE_URL.'/messages', [
                     'model' => $request->model,
                     'max_tokens' => $request->maxOutputTokens,
                     'temperature' => $request->temperature,
@@ -113,23 +135,5 @@ class AnthropicProvider implements AiProviderContract
         }
 
         return (is_int($input) ? $input : 0) + (is_int($output) ? $output : 0);
-    }
-
-    /**
-     * The endpoint to call.
-     *
-     * A provider setting rather than a constant, because every OpenAI-compatible
-     * gateway speaks this protocol at a different address. Blank means the vendor's
-     * own: the row ships with an empty string so an operator can see the field exists,
-     * and an empty string is the absence of a choice rather than a choice of nothing.
-     */
-    private function baseUrl(IntegrationProvider $provider): string
-    {
-        $configured = $provider->settings['base_url'] ?? null;
-
-        return rtrim(
-            is_string($configured) && trim($configured) !== '' ? trim($configured) : self::DEFAULT_BASE_URL,
-            '/'
-        );
     }
 }

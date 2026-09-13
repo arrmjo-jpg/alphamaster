@@ -45,6 +45,14 @@ class UpdateGroupSettingsRequest extends FormRequest
     {
         return [
             'settings' => ['required', 'array', 'min:1', 'max:'.self::MAX_KEYS],
+            /**
+             * The language a localized value lands in. Absent means the request's own.
+             *
+             * The content language, which is not the console's display language: an
+             * operator reading the console in Arabic may write the English site name,
+             * and `X-Locale` cannot carry both meanings (ADR 0030).
+             */
+            'locale' => ['sometimes', 'nullable', 'string', 'max:35'],
         ];
     }
 

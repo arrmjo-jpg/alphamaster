@@ -81,6 +81,21 @@ It is exactly wrong here. A fallback would put the English value in the Arabic c
 
 Completeness is counted **in fields, not items**. A template with an Arabic subject over an English body is not half a translated template in any sense a recipient would recognise.
 
+### 4a. Amendment, 2026-09-12: localized settings are also written from the settings screen
+
+The context above rejects "three screens each growing a locale switcher" and it still does. This records the one exception, and why it is not that.
+
+**The settings screen gains a content-language selector for groups that contain a localized setting.** An administrator who speaks the language writes the value directly — Settings → General, pick Spanish, type the Spanish site name — instead of going to the workshop to enter a value nobody is translating *from*.
+
+The distinction that makes this an exception rather than a reversal:
+
+* **Settings** is for an operator who *knows the target language and enters the value*. One language at a time, no source beside it, no suggestion, no coverage.
+* **The workshop** remains the cross-module surface for *translating between* languages: source beside target, AI suggestions, completeness across roles, notification wording and settings copy together. Nothing about it changes, and it is still the only place that can answer "what is missing".
+
+Both write through `SettingService::updateGroup()` with the locale named, into the same `setting_translations` rows, so a value entered in Settings counts toward the workshop's coverage immediately and needs no synchronisation. What is refused is the generalisation: role labels and notification wording do **not** grow selectors of their own. They have no operator who arrives already knowing the target language — they are translated, which is what the workshop is for.
+
+**The display locale and the content locale are two different things, and never share a parameter.** `X-Locale` decides the language the platform answers in — every label and message it publishes (ADR 0030). The content locale decides which language's *value* is being read or written: `?locale=` on the group read, `locale` in the group write's body. An operator reading the console in Arabic must be able to edit the English site name with every label around it still Arabic, which one header cannot express. The content locale is validated against every language the platform knows rather than the served ones, because a draft is translatable before it is served (ADR 0048).
+
 ### 5. A localized write names its locale
 
 `SettingService::updateGroup()` takes an optional `?string $locale`, defaulting to the request's. The settings screen passes nothing and behaves exactly as before; the workshop passes the language being written.

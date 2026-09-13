@@ -3,21 +3,25 @@ import type {
     AdminAiCheckResponses,
     AdminAiShowResponses,
     AdminTranslationsSuggestionsIndexResponses,
+    AiCheckRequest,
     RequestSuggestionsRequest,
+    SaveAiProviderRequest,
 } from '@/api/generated';
 
 /**
  * AI, mapped operation for operation onto what the platform has.
  *
- * Four endpoints across two screens, and the split matters. The control centre reads
- * state and runs a check; the workshop asks for suggestions and decides about them.
- * Nothing here applies a suggestion — accepting does, and accepting is a write against
- * the content's own permission, which is why it goes through the same call the
- * workshop's save does.
+ * The control centre reads each provider's state, saves one provider's setup, tests a
+ * setup before it is saved, and chooses which provider answers. The workshop asks for
+ * suggestions and decides about them. Nothing here reads a key back: the platform
+ * reports only whether one is stored.
  */
 
 export type AiState = AdminAiShowResponses[200]['data'];
+export type AiProvider = AiState['providers'][number];
 export type AiCheck = AdminAiCheckResponses[200]['data'];
+export type AiCheckBody = AiCheckRequest;
+export type AiProviderSetup = SaveAiProviderRequest;
 export type Suggestion = AdminTranslationsSuggestionsIndexResponses[200]['data'][number];
 export type SuggestionRequest = RequestSuggestionsRequest;
 
@@ -26,13 +30,40 @@ export async function aiState(signal?: AbortSignal): Promise<AiState> {
 }
 
 /**
- * Ask the vendor a trivial question and report what happened.
+ * Ask a provider a trivial question and report what happened.
  *
- * A real call with a real cost. It answers 200 whether or not the vendor did, because
- * the check ran either way — what it found is the payload.
+ * With no body, the default provider as saved. With a provider, key and model, the
+ * setup form as it stands — the key is used for this one call and never stored. A real
+ * call with a real cost; it answers 200 either way, because what it found is the
+ * payload.
  */
-export async function checkAi(): Promise<AiCheck> {
-    return fetchData<AiCheck>('/admin/ai/check', { method: 'POST' });
+export async function checkAi(body?: AiCheckBody): Promise<AiCheck> {
+    return fetchData<AiCheck>('/admin/ai/check', {
+        method: 'POST',
+        ...(body === undefined ? {} : { body }),
+    });
+}
+
+/** Save one provider's setup. Leaving `api_key` out keeps the stored key. */
+export async function saveAiProvider(driver: string, body: AiProviderSetup): Promise<AiProvider> {
+    return fetchData<AiProvider>(`/admin/ai/providers/${encodeURIComponent(driver)}`, {
+        method: 'PUT',
+        body,
+    });
+}
+
+/** Remove a provider's key; the provider is disabled with it. */
+export async function removeAiKey(driver: string): Promise<AiProvider> {
+    return fetchData<AiProvider>(`/admin/ai/providers/${encodeURIComponent(driver)}/key`, {
+        method: 'DELETE',
+    });
+}
+
+/** Make a provider the one the platform's AI tasks use. */
+export async function makeAiDefault(driver: string): Promise<AiProvider> {
+    return fetchData<AiProvider>(`/admin/ai/providers/${encodeURIComponent(driver)}/default`, {
+        method: 'POST',
+    });
 }
 
 /**

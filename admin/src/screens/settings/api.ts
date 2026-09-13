@@ -43,11 +43,15 @@ export interface GroupState {
  */
 export async function group(
     name: string,
-    locale: string,
+    contentLocale?: string,
     signal?: AbortSignal,
 ): Promise<GroupState> {
     const result = await request<SettingRow[]>(`/admin/settings/${name}`, {
-        locale,
+        // The content language, as a parameter of its own. Never `X-Locale`: that one
+        // decides the language the platform answers in, and an operator reading the
+        // console in Arabic must be able to read the English site name without the
+        // labels around it turning English.
+        ...(contentLocale === undefined ? {} : { query: { locale: contentLocale } }),
         ...(signal ? { signal } : {}),
     });
 
@@ -72,13 +76,17 @@ export async function updateGroup(
     name: string,
     values: Record<string, unknown>,
     version: string,
-    locale: string,
+    contentLocale?: string,
 ): Promise<UpdateResult> {
     const result = await request<{ group: string }>(`/admin/settings/${name}`, {
         method: 'PUT',
-        body: { settings: values },
+        // The content language travels in the body, beside the values it applies to,
+        // and not as the header that would also change the language of the answer.
+        body: {
+            settings: values,
+            ...(contentLocale === undefined ? {} : { locale: contentLocale }),
+        },
         ifMatch: version,
-        locale,
     });
 
     const meta = result.meta as { version?: unknown } | undefined;

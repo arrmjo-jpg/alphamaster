@@ -51,13 +51,13 @@ final class TranslationPrompt
         Language $from,
         Language $into,
         string $fieldLabel,
-        string $model,
         int $maxOutputTokens,
     ): TextGenerationRequest {
         return new TextGenerationRequest(
             instruction: self::INSTRUCTION,
             content: $sourceText,
-            model: $model,
+            // No model: the provider that answers supplies its own, so a translation
+            // is never sent to one vendor with another vendor's model name.
             maxOutputTokens: $maxOutputTokens,
             // Near-deterministic. A translation of a label has a right answer, and
             // creative variation in a button is a defect. Fixed per task rather than

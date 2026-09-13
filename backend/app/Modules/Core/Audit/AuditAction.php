@@ -163,5 +163,25 @@ final class AuditAction
      */
     public const TRANSLATION_UPDATED = 'translation.updated';
 
+    /**
+     * An AI provider's configuration was saved: its model, whether it is enabled, and
+     * whether its API key was set or replaced.
+     *
+     * The key is never recorded, in any form — only that it changed. The model is a
+     * vendor's public identifier and is recorded, because "which model answered" is a
+     * question the trail exists to answer.
+     */
+    public const AI_PROVIDER_SAVED = 'ai.provider_saved';
+
+    /**
+     * An AI provider's API key was removed.
+     */
+    public const AI_PROVIDER_KEY_REMOVED = 'ai.provider_key_removed';
+
+    /**
+     * A different AI provider now answers the platform's AI tasks.
+     */
+    public const AI_DEFAULT_CHANGED = 'ai.default_changed';
+
     private function __construct() {}
 }

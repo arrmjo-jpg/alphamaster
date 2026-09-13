@@ -26,6 +26,18 @@ interface LocaleResolverInterface
     public function getActiveLanguageCodes(): array;
 
     /**
+     * Every language code the platform knows, served or not.
+     *
+     * Wider than the active set on purpose: a language is translatable before it is
+     * served (ADR 0048), so anything validating a *content* language — which language
+     * a value is written in — asks this rather than the active list. Deciding which
+     * language to answer a request in still asks that one.
+     *
+     * @return array<int, string>
+     */
+    public function getKnownLocaleCodes(): array;
+
+    /**
      * Get the authoritative default locale code from database or fallback.
      */
     public function getDefaultLocale(): string;
