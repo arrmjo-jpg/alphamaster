@@ -135,7 +135,7 @@ function fieldClass(invalid: boolean): string {
         'text-(length:--text-base) text-(--text-primary)',
         'focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-(--focus-ring)',
         'disabled:cursor-not-allowed disabled:opacity-50',
-        invalid ? 'border-(--state-danger-rail)' : 'border-(--border-strong)',
+        invalid ? 'border-(--state-danger-rail)' : 'border-(--border-control)',
     );
 }
 
@@ -169,7 +169,7 @@ function JsonControl({
                     'disabled:cursor-not-allowed disabled:opacity-50',
                     invalid || malformed
                         ? 'border-(--state-danger-rail)'
-                        : 'border-(--border-strong)',
+                        : 'border-(--border-control)',
                 )}
                 disabled={disabled}
                 id={id}

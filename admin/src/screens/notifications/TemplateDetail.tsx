@@ -208,7 +208,7 @@ export function TemplateDetail({ template, mayUpdate, onClose }: TemplateDetailP
                         {({ id, 'aria-describedby': describedBy }) => (
                             <textarea
                                 aria-describedby={describedBy}
-                                className="min-h-40 w-full border border-(--border-strong) bg-(--surface-default) p-2 text-(length:--text-base) text-(--text-primary) focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-(--focus-ring) disabled:cursor-not-allowed disabled:opacity-50"
+                                className="min-h-40 w-full border border-(--border-control) bg-(--surface-input) p-2 text-(length:--text-base) text-(--text-primary) focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-(--focus-ring) disabled:cursor-not-allowed disabled:opacity-50"
                                 disabled={!mayUpdate}
                                 id={id}
                                 lang={tab}

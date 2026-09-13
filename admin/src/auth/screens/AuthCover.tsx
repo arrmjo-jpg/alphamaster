@@ -59,7 +59,7 @@ export function AuthCover({ title, description, children, footer }: AuthCoverPro
 
                     <div className="mt-8 flex flex-wrap items-center gap-2 border-t border-(--border-default) pt-4">
                         <ThemeControl />
-                        <LocaleControl />
+                        <LocaleControl tone="surface" />
                     </div>
                 </div>
             </main>

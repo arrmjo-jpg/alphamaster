@@ -406,7 +406,12 @@ describe('what leaves the browser', () => {
 
         renderApp();
         await screen.findByText('Nadia Haddad');
-        await userEvent.click(screen.getByRole('button', { name: 'Sign out' }));
+
+        // Sign-out lives in the account menu now rather than loose in the chrome, so
+        // ending the session takes an open and a choice. What is under test is
+        // unchanged: no request the flow makes carries a bearer token.
+        await userEvent.click(screen.getByRole('button', { name: 'Account' }));
+        await userEvent.click(screen.getByRole('menuitem', { name: /Sign out/ }));
         await screen.findByRole('button', { name: 'Sign in' });
 
         expect(observed.length).toBeGreaterThan(2);

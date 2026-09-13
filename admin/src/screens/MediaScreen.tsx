@@ -385,7 +385,7 @@ function Filter<T extends string>({
                 {label}
             </span>
             <select
-                className="h-(--field-height) border border-(--border-strong) bg-(--surface-default) px-2 text-(length:--text-base) text-(--text-primary) focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-(--focus-ring)"
+                className="h-(--field-height) border border-(--border-control) bg-(--surface-input) px-2 text-(length:--text-base) text-(--text-primary) focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-(--focus-ring)"
                 onChange={(event) => onChange(event.target.value as T | 'all')}
                 value={value}
             >

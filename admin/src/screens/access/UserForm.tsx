@@ -270,7 +270,7 @@ export function UserForm({ account, onClose, onSaved }: UserFormProps) {
                                 {t('access.users.preferredLocale')}
                             </label>
                             <select
-                                className="h-(--field-height) border border-(--border-strong) bg-(--surface-default) px-2 text-(length:--text-base) text-(--text-primary) focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-(--focus-ring)"
+                                className="h-(--field-height) border border-(--border-control) bg-(--surface-input) px-2 text-(length:--text-base) text-(--text-primary) focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-(--focus-ring)"
                                 id="preferred-locale"
                                 onChange={(event) => set({ preferredLocale: event.target.value })}
                                 value={draft.preferredLocale}

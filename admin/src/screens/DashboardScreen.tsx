@@ -114,11 +114,12 @@ export function DashboardScreen() {
 
     return (
         <div className="flex flex-col gap-(--section-gap)">
-            <header>
+            <header className="flex flex-col gap-1">
                 <p data-eyebrow>{t('dashboard.eyebrow')}</p>
                 <h1 className="text-(length:--text-2xl) text-(--text-primary)">
                     {t('modules.dashboard')}
                 </h1>
+                <p className="max-w-prose text-(--text-secondary)">{t('dashboard.description')}</p>
             </header>
 
             <AttentionPanel

@@ -28,7 +28,10 @@
     },
     "language": {
         "label": "Language",
-        "only": "Interface language: {{name}}"
+        "only": "Interface language: {{name}}",
+        "search": "Search languages",
+        "searchPlaceholder": "Search languages…",
+        "noMatches": "No language matches that."
     },
     "session": {
         "signedInAs": "Signed in as",
@@ -160,7 +163,8 @@
         "permissions": "Permissions",
         "account": "Your account",
         "translations": "Translations",
-        "ai": "AI"
+        "ai": "AI",
+        "access": "Users & permissions"
     },
     "dashboard": {
         "platform": {
@@ -279,7 +283,8 @@
                 "test-mail": "Mail is configured and has never been used, which is the state most easily mistaken for working.",
                 "capability-uncredentialed": "The active provider holds no credentials, so every attempt will be refused before it is made."
             }
-        }
+        },
+        "description": "What needs attention, what the platform is doing, and what changed recently."
     },
     "settings": {
         "groups": "Groups",
@@ -403,7 +408,8 @@
         "reach": {
             "published": "Read by clients",
             "awaiting": "Not read yet"
-        }
+        },
+        "description": "How the platform behaves, group by group. Changes are staged, reviewed, then saved together."
     },
     "access": {
         "eyebrow": "Access",
@@ -1018,7 +1024,8 @@
         "code": "Verification code",
         "codeHint": "The digits in the message. It expires shortly after it is sent.",
         "confirm": "Confirm the number",
-        "numberSetByAdministrator": "The number itself is set by an administrator. Ask one to change it, then confirm the new number here."
+        "numberSetByAdministrator": "The number itself is set by an administrator. Ask one to change it, then confirm the new number here.",
+        "label": "Account"
     },
     "translations": {
         "eyebrow": "Localization",
@@ -1093,5 +1100,17 @@
         "checkNeedsPermission": "Running a check needs permission to use AI.",
         "checkAnswered": "{{driver}} answered.",
         "checkFailed": "The provider did not answer."
+    },
+    "appearance": {
+        "label": "Appearance"
+    },
+    "command": {
+        "open": "Go to a page",
+        "label": "Go to",
+        "placeholder": "Go to a page…",
+        "empty": "No page matches that.",
+        "hint": "Enter to open · Esc to close",
+        "shortcut": "Ctrl K",
+        "close": "Close"
     }
 }

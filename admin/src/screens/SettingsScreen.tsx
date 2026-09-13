@@ -66,11 +66,12 @@ export function SettingsScreen() {
         // buys nothing and costs a second scrollbar inside a short screen — the
         // page simply scrolls instead.
         <div className="flex flex-col lg:h-[calc(100dvh-var(--topbar-height)-var(--page-gutter)*2)]">
-            <header className="pb-3">
+            <header className="flex flex-col gap-1 pb-5">
                 <p data-eyebrow>{t('settings.eyebrow')}</p>
                 <h1 className="text-(length:--text-2xl) text-(--text-primary)">
                     {t('modules.settings')}
                 </h1>
+                <p className="max-w-prose text-(--text-secondary)">{t('settings.description')}</p>
             </header>
 
             <div className="flex items-center gap-2 pb-3 xl:hidden">
@@ -94,10 +95,10 @@ export function SettingsScreen() {
                 </Button>
             </div>
 
-            <div className="grid min-h-0 flex-1 grid-cols-1 border border-(--border-default) bg-(--surface-default) lg:grid-cols-[220px_1fr] xl:grid-cols-[220px_1fr_340px]">
+            <div className="grid min-h-0 flex-1 grid-cols-1 border border-(--border-default) bg-(--surface-default) shadow-(--shadow-card) lg:grid-cols-[240px_1fr] xl:grid-cols-[240px_1fr_340px]">
                 <section
                     aria-label={t('settings.groups')}
-                    className="hidden min-h-0 overflow-y-auto border-e border-(--border-default) lg:block"
+                    className="hidden min-h-0 overflow-y-auto border-e border-(--border-default) bg-(--surface-subtle) lg:block"
                 >
                     <GroupNav catalogue={data} pendingByGroup={pendingByGroup} />
                 </section>

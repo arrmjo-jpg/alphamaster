@@ -11,11 +11,27 @@
  *
  * ## The visual position
  *
- * Sharp, structural, typographic. There is no corner radius on a surface anywhere in
- * this file — a panel is a rectangle bounded by a rule, not a card floating on a page
- * — and elevation is spent only where an overlay genuinely leaves the page.
- * Hierarchy is carried by type, weight, rule and space, in that order. The one radius
- * that survives is `--radius-full`, and only a status dot may use it.
+ * Sharp, structural, typographic — and layered. There is still no corner radius on a
+ * surface anywhere in this file; the one radius that survives is `--radius-full`, and
+ * only a status dot may use it. What changed is how one surface is told from the next.
+ *
+ * The first version said a panel was "a region of the page, not an object resting on
+ * it", and drew every panel as white on near-white inside a hairline. It was
+ * principled and it did not work: with no ground, no lift and no weight in the rule,
+ * nothing looked contained by anything, and the console read as a single washed-out
+ * sheet. So a surface now declares itself with three quiet signals used together —
+ *
+ *     rule     a clear edge, never an outline
+ *     lift     a card elevation of a pixel or two, felt more than seen
+ *     ground   a step below the card where the theme has one — dark does; light
+ *              is white by decision, so there the rule and the lift carry it
+ *
+ * — so that none of the three has to be loud. Square corners are the identity; depth
+ * without shadows or ground was never part of it, only a consequence of it.
+ *
+ * Hierarchy is carried by type, weight, surface and space. The brand appears where an
+ * operator can act or is located — a primary action, the active destination, focus,
+ * a selection — and nowhere it would only be decoration.
  */
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -23,8 +39,8 @@
    ───────────────────────────────────────────────────────────────────────────── */
 
 :root {
-    /* Cool slate, so the brand and the semantic blue below belong to the same
-       family as the chrome. The ramp runs to both extremes because a flat interface leans on the
+    /* Cool slate, so the brand and info ramps below belong to the same family as the
+       chrome. The ramp runs to both extremes because a flat interface leans on the
        near-black and the near-white that a card interface never needs. */
     --slate-50: #f8fafc;
     --slate-100: #f1f5f9;
@@ -37,7 +53,12 @@
        page ground above every title, and on a selected row. `--slate-500` reaches
        4.34:1 there, just under the 4.5:1 that size requires; this reaches 4.95:1
        and stays visibly lighter than `--text-secondary`. */
-    --slate-550: #5c6b81;
+    /* Between 500 and 600, and it exists for exactly one job: `--text-muted`. Its
+       value is pinned by the darkest light surface it may sit on, which is now
+       `--surface-canvas` at `--slate-200` — eyebrow labels are drawn straight onto
+       the ground. At #5c6b81 that was 4.40:1 and short of AA for small text; this
+       clears it at 4.93:1, and 6.08:1 on a white panel. */
+    --slate-550: #55637a;
     --slate-600: #475569;
     --slate-700: #334155;
     --slate-800: #1e293b;
@@ -109,6 +130,9 @@
     --space-2: 0.5rem;
     --space-3: 0.75rem;
     --space-4: 1rem;
+    /* Between 16 and 24, and the one gap the layout kept reaching for: a card's inner
+       padding and the gutter between cards at the default density. */
+    --space-5: 1.25rem;
     --space-6: 1.5rem;
     --space-8: 2rem;
     --space-12: 3rem;
@@ -176,10 +200,18 @@
     --ease-in: cubic-bezier(0.4, 0, 1, 1);
     --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
 
-    /* Elevation is spent on what genuinely leaves the page — a dialog, a dropdown, a
-       drawer — and nowhere else. A panel sitting in the layout is bounded by a rule
-       instead, which is why there is no `raised` shadow left to reach for. */
-    --shadow-overlay: 0 8px 24px -8px rgb(15 23 42 / 0.28);
+    /* Two tiers of elevation, and they are not a scale to pick from.
+
+       `card` is what a surface resting in the layout carries: a one-pixel contact
+       shadow and a short, faint spread. It is there to say *this is a thing*, not
+       *this is floating* — at arm's length it should be felt rather than seen, and
+       with the ground and the rule it is one of three signals rather than the only one.
+
+       `overlay` is for what genuinely leaves the page — a menu, a dialog, a drawer.
+       Nothing that sits in the flow may borrow it. Both are redefined for dark mode,
+       where a shadow has to be deeper to register against a dark ground at all. */
+    --shadow-card: 0 1px 2px 0 rgb(15 23 42 / 0.05), 0 2px 8px -2px rgb(15 23 42 / 0.08);
+    --shadow-overlay: 0 12px 32px -8px rgb(15 23 42 / 0.24), 0 2px 6px -2px rgb(15 23 42 / 0.1);
 
     --z-base: 0;
     --z-raised: 10;
@@ -190,34 +222,115 @@
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Layer 2 — semantic. What a colour means. The only colour layer components use.
+
+   Light and dark are one system: every token below exists in both blocks with the
+   same meaning, and a component never learns which theme it is in. The ladder each
+   theme builds is the same five rungs —
+
+       ground   →   shell   →   card   →   rule   →   content
+
+   — so an operator switching themes sees the same product in different light, not
+   two products. Every text and control pair was measured against the surfaces it can
+   actually land on; the figures are beside the tokens they constrain.
    ───────────────────────────────────────────────────────────────────────────── */
 
 :root {
-    --surface-canvas: var(--slate-100);
+    /* ── Surfaces ────────────────────────────────────────────────────────────
+
+       canvas   #ffffff   the application ground — white, by decision
+       default  #ffffff   a card, a panel, a table — the working surface
+       subtle   #f6f8fa   an inset inside a card: a table head, a footer bar
+       hover    #f1f5f7   a row or item under the pointer
+       input    #ffffff   a field's own ground
+
+       The ground is white, and that choice has a consequence worth stating: a white
+       card on a white page has no ground contrast at all, so a card is told from the
+       page by its edge and its lift alone. That is why `--border-default` sits a step
+       darker than a white-on-grey layout would need (1.48:1 rather than 1.29:1), and
+       why the card keeps its shadow. Moving the ground to `#f8fafc` would restore a
+       faint step without the page reading as grey, if that trade ever tips back —
+       it is this one token. */
+    --surface-canvas: #ffffff;
     --surface-default: #ffffff;
     --surface-raised: #ffffff;
     --surface-overlay: #ffffff;
-    --surface-subtle: var(--slate-50);
-    /* The chrome. Navigation and the topbar are near-black in both themes, so the
-       frame reads as the console and the area inside it reads as the work. */
+    --surface-subtle: #f6f8fa;
+    --surface-hover: #f1f5f7;
+    --surface-input: #ffffff;
+
+    /* ── The shell: sidebar and top bar ──────────────────────────────────────
+
+       Theme-aware now. The frame used to be near-black in both themes — a black L
+       around the work — which in light mode made the console two products at once:
+       a dark application wrapped around a light one. Here the shell is white like the
+       page, set apart by its own rule at the same strength as a card's edge, and it
+       goes dark with everything else.
+
+       Navigation items rest in secondary text (7.6:1 on the shell) and warm to a
+       faint brand tint on hover. The active destination is filled with the brand
+       itself, in white and bold (7.3:1) — the one solid block in the sidebar, so
+       where you are is the first thing the eye lands on. Its inline-start edge is a
+       step darker, which gives the block a front without adding a colour. */
+    --shell-surface: #ffffff;
+    --shell-border: #cbd5e1;
+    --shell-text: var(--slate-900);
+    --shell-text-muted: var(--slate-600);
+    --shell-hover: #f2f7f8;
+    --nav-active-bg: var(--brand);
+    --nav-active-text: var(--brand-foreground);
+    --nav-active-rail: var(--brand-hover);
+
+    /* The cover. The sign-in page's brand panel is dark in both themes on purpose —
+       it is the one place the product is presented rather than used — and these are
+       its tokens, kept apart from the shell's so re-theming the console cannot
+       repaint the front door. */
     --surface-chrome: var(--slate-950);
     --surface-chrome-hover: var(--slate-800);
 
+    /* ── Text ──────────────────────────────────────────────────────────────────
+
+       primary     17.9:1 on a card
+       secondary    7.6:1 on a card
+       muted        6.1:1 on a card, 5.4:1 on the ground, 5.7:1 on an inset —
+                    readable metadata, not a whisper
+       brand        7.3:1 — important links and the active destination */
     --text-primary: var(--slate-900);
     --text-secondary: var(--slate-600);
     --text-muted: var(--slate-550);
     --text-inverse: #ffffff;
     --text-danger: var(--red-600);
+    --text-brand: var(--brand);
     --text-on-chrome: var(--slate-100);
     --text-on-chrome-muted: var(--slate-400);
 
-    /* Two weights of rule, and they mean different things: the default separates
-       rows inside one thing, `strong` separates one thing from the next. */
-    --border-default: var(--slate-200);
-    --border-strong: var(--slate-400);
+    /* ── Rules ────────────────────────────────────────────────────────────────
+
+       Four, and each has one job.
+
+       default   #cbd5e1   the edge of a card, and rows inside it. 1.48:1 on white:
+                           with a white page this edge and the card lift are the
+                           whole of the separation, so it is clearly drawn — and
+                           still a line rather than an outline
+       subtle    #e8edf2   dividers inside a card that must not compete with its edge
+       strong    #c5cfd9   one structural region from the next — a table's head from
+                           its body
+       control   #7d8ca1   the boundary of something you can type into or pick from.
+                           3.4:1 on a card and 3.0:1 on the ground: WCAG 1.4.11 asks
+                           3:1 of a control's edge when the edge is how you find it,
+                           and with no radius and no fill it is exactly that */
+    --border-default: #cbd5e1;
+    --border-subtle: #e8edf2;
+    --border-strong: #c5cfd9;
+    --border-control: #7d8ca1;
     --border-chrome: var(--slate-800);
     --border-focus: var(--brand);
 
+    /* ── Actions ──────────────────────────────────────────────────────────────
+
+       Primary is the brand, and there is one per screen. Secondary is a neutral
+       surface with a control-weight edge, so it reads as a button rather than as a
+       grey patch. `primary-subtle` is the brand as a wash — a selected row, the
+       active destination — never as a fill that competes with the primary action. */
     /* The brand, named. Every brand-coloured thing in the product reads these five
        rather than a ramp step, so the identity moves in one place and a component
        never has to know which step of which family it is wearing. */
@@ -236,9 +349,10 @@
     --action-primary: var(--brand);
     --action-primary-hover: var(--brand-hover);
     --action-primary-text: var(--brand-foreground);
+    --action-primary-subtle: var(--brand-subtle);
     --action-secondary: var(--slate-100);
     --action-secondary-hover: var(--slate-200);
-    --action-ghost-hover: var(--slate-100);
+    --action-ghost-hover: var(--surface-hover);
 
     /* Six states. `pending` is AlphaMaster's own: staged but not yet written.
        Without it a modified-unsaved row borrows `warning`, and warning then means
@@ -272,36 +386,62 @@
     --selection-bg: var(--brand-subtle);
 }
 
-/* Dark is designed, not derived: desaturated tonal variants rather than inverted
-   values, and every pair checked on its own. A control room runs dark. */
+/* Dark is designed, not derived. The same five rungs, each checked on its own:
+
+       ground   #0b1220   deep, slightly blue, never pure black
+       shell    #0f1729   the frame, one step up so it holds together as an object
+       card     #141d30   the working surface, clearly lifted off the ground
+       overlay  #1a2539   menus and dialogs, one step above the card they cover
+       rule     #243149   1.3:1 on a card and 1.4:1 on the ground — present, not wired
+
+   The failure this avoids is the one the brief names: dark mode as a single slab,
+   where card and ground are the same near-black and only the text says where a panel
+   is. Here a card is visible with the text removed. */
 :root[data-theme='dark'] {
-    --surface-canvas: var(--slate-950);
-    --surface-default: var(--slate-900);
-    --surface-raised: var(--slate-800);
-    --surface-overlay: var(--slate-800);
-    --surface-subtle: #0b1220;
-    /* Darker than the content it frames, in both themes, so the console reads the
-       same way whichever one is on. */
+    --surface-canvas: #0b1220;
+    --surface-default: #141d30;
+    --surface-raised: #1a2539;
+    --surface-overlay: #1a2539;
+    --surface-subtle: #111a2b;
+    --surface-hover: #1a2439;
+    --surface-input: #0f1729;
+
+    --shell-surface: #0f1729;
+    --shell-border: #1f2a3f;
+    --shell-text: #e6ebf3;
+    --shell-text-muted: #b3bfd0;
+    --shell-hover: #172235;
+    /* The same solid block as light: the brand as the dark theme defines it, with
+       its near-black foreground — 10.4:1. #335C67 itself would sink into a dark
+       shell; this is the brand's own lighter step, not a different colour. */
+    --nav-active-bg: var(--brand);
+    --nav-active-text: var(--brand-foreground);
+    --nav-active-rail: var(--brand-hover);
+
+    /* The cover stays as it was: darker than anything inside the console. */
     --surface-chrome: #05070f;
     --surface-chrome-hover: var(--slate-800);
 
-    --text-primary: var(--slate-100);
-    --text-secondary: var(--slate-300);
-    --text-muted: var(--slate-400);
+    /* primary 14.1:1, secondary 9.0:1, muted 5.8:1 on a card; muted 5.3:1 even on
+       an overlay, which is the lightest surface text can sit on here. */
+    --text-primary: #e6ebf3;
+    --text-secondary: #b3bfd0;
+    --text-muted: #8b99ae;
     --text-inverse: var(--slate-950);
     --text-danger: #f87171;
+    --text-brand: var(--brand);
     --text-on-chrome: var(--slate-100);
     --text-on-chrome-muted: var(--slate-400);
 
-    --border-default: var(--slate-700);
-    --border-strong: var(--slate-500);
+    /* `control` at 3.4:1 on a card, 3.6:1 on an input's own ground and 3.1:1 on an
+       overlay — the language filter lives in one. */
+    --border-default: #243149;
+    --border-subtle: #1c273b;
+    --border-strong: #33425c;
+    --border-control: #5e7195;
     --border-chrome: var(--slate-800);
     --border-focus: var(--brand);
 
-    /* The same five names, pointing the other way up the ramp. Dark is designed
-       rather than derived: the fill is light enough to carry `--slate-950` as its
-       label, and hover moves lighter still because on a dark ground that is what
-       "more" looks like. */
     --brand: var(--brand-300);
     --brand-hover: var(--brand-200);
     --brand-active: var(--brand-100);
@@ -313,11 +453,14 @@
     --brand-on-chrome: var(--brand-400);
 
     --action-primary: var(--brand);
+    /* A ramp step rather than a literal: the hover of a brand colour is that
+       colour, lighter. */
     --action-primary-hover: var(--brand-hover);
     --action-primary-text: var(--brand-foreground);
-    --action-secondary: var(--slate-800);
-    --action-secondary-hover: var(--slate-700);
-    --action-ghost-hover: var(--slate-800);
+    --action-primary-subtle: var(--brand-subtle);
+    --action-secondary: #1e293b;
+    --action-secondary-hover: #273449;
+    --action-ghost-hover: var(--surface-hover);
 
     --state-success-rail: var(--emerald-500);
     --state-success-tint: var(--emerald-900);
@@ -340,27 +483,35 @@
     --state-pending-text: #c4b5fd;
 
     --state-neutral-rail: var(--slate-600);
-    --state-neutral-tint: var(--slate-800);
+    --state-neutral-tint: #1e293b;
     --state-neutral-text: var(--slate-400);
 
     --focus-ring: var(--brand);
     --selection-bg: var(--brand-subtle);
 
-    --shadow-overlay: 0 8px 24px -8px rgb(0 0 0 / 0.6);
+    /* Deeper than the light ones, because a shadow on a dark ground has to be
+       nearly black to register at all. */
+    --shadow-card: 0 1px 2px 0 rgb(0 0 0 / 0.35), 0 2px 8px -2px rgb(0 0 0 / 0.4);
+    --shadow-overlay: 0 16px 40px -8px rgb(0 0 0 / 0.65), 0 2px 6px -2px rgb(0 0 0 / 0.4);
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Layer 3 — component. Sizes a component reads. Density remaps only these.
    ───────────────────────────────────────────────────────────────────────────── */
 
+/* Density compresses rows and fields — the things an operator scans — and leaves the
+   page itself room. Compact used to mean a 16px gutter and 16px between cards, which is
+   what made every screen feel pressed against its frame; the rows stay dense, the page
+   around them now breathes at every setting. */
 :root,
 :root[data-density='compact'] {
     --table-row-height: 32px;
     --table-cell-padding-block: var(--space-1);
-    --field-height: 30px;
+    --field-height: 32px;
     --control-gap: var(--space-2);
-    --section-gap: var(--space-4);
-    --page-gutter: var(--space-4);
+    --section-gap: var(--space-5);
+    --page-gutter: var(--space-6);
+    --card-padding: var(--space-4);
 }
 
 :root[data-density='comfortable'] {
@@ -369,7 +520,8 @@
     --field-height: 36px;
     --control-gap: var(--space-3);
     --section-gap: var(--space-6);
-    --page-gutter: var(--space-6);
+    --page-gutter: var(--space-8);
+    --card-padding: var(--space-5);
 }
 
 :root[data-density='spacious'] {
@@ -379,12 +531,18 @@
     --control-gap: var(--space-4);
     --section-gap: var(--space-8);
     --page-gutter: var(--space-8);
+    --card-padding: var(--space-6);
 }
 
 :root {
-    --topbar-height: 52px;
+    --topbar-height: 60px;
     --nav-rail-width: 56px;
-    --nav-panel-width: 232px;
+    /* Sized by measurement, not by eye. The widest label the navigation has to hold
+       is the section "المستخدمون والصلاحيات" set bold — which it is whenever it holds
+       the page being viewed — and at 256px it needed 157px of a 151px slot, so it was
+       cut to an ellipsis. 272px clears it with about ten pixels to spare, because
+       Arabic glyph widths move between fonts and platforms and two would not survive. */
+    --nav-panel-width: 272px;
     --panel-width-docked: 340px;
     --panel-width-min: 300px;
     --panel-width-max: 640px;

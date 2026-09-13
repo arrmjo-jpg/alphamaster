@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { HttpResponse, http } from 'msw';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
@@ -450,11 +450,27 @@ describe('the interface language switcher', () => {
         );
     }
 
+    /**
+     * Open the switcher and return its panel.
+     *
+     * The choices are behind a menu rather than laid out as segments — a list that
+     * comes from the platform's language table cannot be a permanent row of buttons.
+     * What is asserted below is unchanged: which languages the platform's answer puts
+     * in front of an operator.
+     */
+    async function openSwitcher() {
+        await userEvent.click(await screen.findByRole('button', { name: 'Language' }));
+
+        return screen.getByRole('menu', { name: 'Language' });
+    }
+
     it('offers the languages the platform serves, named as they name themselves', async () => {
         renderSwitcher([language(), ARABIC]);
 
-        expect(await screen.findByRole('radio', { name: 'English' })).toBeInTheDocument();
-        expect(screen.getByRole('radio', { name: 'العربية' })).toBeInTheDocument();
+        const panel = await openSwitcher();
+
+        expect(within(panel).getByRole('menuitemradio', { name: /English/ })).toBeInTheDocument();
+        expect(within(panel).getByRole('menuitemradio', { name: /العربية/ })).toBeInTheDocument();
     });
 
     it('drops a language the platform has deactivated rather than offering it', async () => {
@@ -463,7 +479,7 @@ describe('the interface language switcher', () => {
 
         // One language left is not a choice, so it is stated rather than offered.
         expect(await screen.findByText('Interface language: English')).toBeInTheDocument();
-        expect(screen.queryByRole('radio', { name: 'العربية' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Language' })).not.toBeInTheDocument();
     });
 
     it('does not offer a language the console ships no catalogue for', async () => {
@@ -473,8 +489,14 @@ describe('the interface language switcher', () => {
             language({ id: 'lang-ku', code: 'ku', name: 'Kurdish', native_name: 'کوردی' }),
         ]);
 
-        expect(await screen.findByRole('radio', { name: 'English' })).toBeInTheDocument();
-        expect(screen.queryByRole('radio', { name: 'کوردی' })).not.toBeInTheDocument();
+        const panel = await openSwitcher();
+
+        expect(within(panel).getByRole('menuitemradio', { name: /English/ })).toBeInTheDocument();
+        // Offered by the platform, and this bundle has no catalogue for it: switching
+        // would render an interface of raw keys.
+        expect(
+            within(panel).queryByRole('menuitemradio', { name: /کوردی/ }),
+        ).not.toBeInTheDocument();
     });
 });
 

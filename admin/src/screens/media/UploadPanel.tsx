@@ -106,7 +106,7 @@ export function UploadPanel({ onClose, onUploaded }: UploadPanelProps) {
                         <input
                             aria-describedby={describedBy}
                             {...(invalid ? { 'aria-invalid': true } : {})}
-                            className="block w-full text-(length:--text-sm) text-(--text-secondary) file:me-3 file:border file:border-(--border-strong) file:bg-(--action-secondary) file:px-3 file:py-1.5 file:text-(--text-primary) hover:file:bg-(--action-secondary-hover)"
+                            className="block w-full text-(length:--text-sm) text-(--text-secondary) file:me-3 file:border file:border-(--border-control) file:bg-(--action-secondary) file:px-3 file:py-1.5 file:text-(--text-primary) hover:file:bg-(--action-secondary-hover)"
                             id={id}
                             onChange={(event) => setFile(event.target.files?.[0] ?? null)}
                             ref={input}

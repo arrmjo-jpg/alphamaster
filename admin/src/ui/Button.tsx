@@ -20,8 +20,10 @@ const button = cva(
             variant: {
                 primary:
                     'bg-(--action-primary) text-(--action-primary-text) hover:bg-(--action-primary-hover)',
+                // A neutral surface with a structural edge, so it reads as a button
+                // beside a primary one rather than as a grey patch of the page.
                 secondary:
-                    'bg-(--action-secondary) text-(--text-primary) hover:bg-(--action-secondary-hover)',
+                    'border border-(--border-strong) bg-(--surface-default) text-(--text-primary) hover:border-(--border-control) hover:bg-(--surface-hover)',
                 ghost: 'bg-transparent text-(--text-secondary) hover:bg-(--action-ghost-hover) hover:text-(--text-primary)',
                 danger: 'bg-(--state-danger-rail) text-white hover:bg-(--red-600)',
                 link: 'bg-transparent text-(--action-primary) underline-offset-4 hover:underline',

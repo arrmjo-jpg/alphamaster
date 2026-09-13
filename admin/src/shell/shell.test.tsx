@@ -227,6 +227,27 @@ describe('when a component throws', () => {
     });
 });
 
+/** The tree a viewer holding every declared permission would see. */
+function fullTree() {
+    const everything = MODULES.map((module) => module.permission).filter(
+        (permission): permission is string => permission !== undefined,
+    );
+
+    return navigationTree(everything, MODULES, MODULE_GROUPS);
+}
+
+function sections(tree: ReturnType<typeof navigationTree>): string[] {
+    return tree
+        .filter((entry) => entry.kind === 'group')
+        .map((entry) => (entry.kind === 'group' ? entry.group.id : ''));
+}
+
+function childrenOf(tree: ReturnType<typeof navigationTree>, id: string): string[] {
+    const found = tree.find((entry) => entry.kind === 'group' && entry.group.id === id);
+
+    return found?.kind === 'group' ? found.children.map((child) => child.id) : [];
+}
+
 describe('the navigation tree', () => {
     it('puts a module under the group it named and leaves it out of the top level', () => {
         const tree = navigationTree(['settings.view', 'roles.view'], GROUPED, GROUPS);
@@ -260,46 +281,125 @@ describe('the navigation tree', () => {
         expect(none.some((entry) => entry.kind === 'group')).toBe(false);
     });
 
-    it('is what the real registry says: one Settings section, and no loose access items', () => {
-        const everything = MODULES.map((module) => module.permission).filter(
-            (permission): permission is string => permission !== undefined,
-        );
+    it('is what the real registry says: configuration and access are separate sections', () => {
+        const tree = fullTree();
 
-        const tree = navigationTree(everything, MODULES, MODULE_GROUPS);
-        const group = tree.find((entry) => entry.kind === 'group');
+        expect(sections(tree)).toEqual(['access', 'settings']);
 
-        expect(group?.kind === 'group' && group.group.id).toBe('settings');
-        expect(group?.kind === 'group' && group.children.map((child) => child.id)).toEqual([
+        expect(childrenOf(tree, 'settings')).toEqual([
             'settings',
-            'users',
-            'roles',
-            'permissions',
-        ]);
-
-        // The four of them are children now, and nowhere else.
-        expect(
-            tree.filter((entry) => entry.kind === 'module').map((entry) => entry.module.id),
-        ).toEqual([
-            'dashboard',
-            'integrations',
-            // Beside the vendor configuration it depends on, not beside the workshop
-            // that is its first consumer.
-            'ai',
             'languages',
             'translations',
             'media',
             'notifications',
+            'integrations',
+            'ai',
             'operations',
-            'account',
+        ]);
+
+        expect(childrenOf(tree, 'access')).toEqual(['users', 'roles', 'permissions']);
+
+        // Dashboard is the one screen that belongs to neither section. Nothing else is
+        // loose — Operations included, which now sits last in Settings.
+        expect(
+            tree.filter((entry) => entry.kind === 'module').map((entry) => entry.module.id),
+        ).toEqual(['dashboard']);
+    });
+
+    /**
+     * The rule the reorganisation exists for.
+     *
+     * Access management is not configuration of the same kind as a date format: it is
+     * the set of people who can perform every operation the rest of the console offers.
+     * Filing it under Settings is what these forbid, in the one place the answer is
+     * decided rather than in the markup that happens to render it.
+     */
+    it('does not file users, roles or permissions under Settings', () => {
+        const tree = fullTree();
+
+        for (const id of ['users', 'roles', 'permissions']) {
+            expect(childrenOf(tree, 'settings')).not.toContain(id);
+            expect(childrenOf(tree, 'access')).toContain(id);
+        }
+    });
+
+    it('keeps Settings holding only what configures the platform', () => {
+        // Each of these is a system setting: what the platform serves, stores, sends
+        // or talks to. None of them is a person.
+        expect(childrenOf(fullTree(), 'settings')).toEqual([
+            'settings',
+            'languages',
+            'translations',
+            'media',
+            'notifications',
+            'integrations',
+            'ai',
+            'operations',
         ]);
     });
 
     it('keeps the address each grouped module already had, so old links resolve', () => {
         const paths = Object.fromEntries(MODULES.map((module) => [module.id, module.path]));
 
+        // Regrouping is presentation. Every one of these was reachable at this address
+        // before the sections changed and still is, so a bookmark or a shared link
+        // survives the reorganisation.
         expect(paths['users']).toBe('/access/users');
         expect(paths['roles']).toBe('/access/roles');
+        expect(paths['permissions']).toBe('/access/permissions');
         expect(paths['settings']).toBe('/settings');
+        expect(paths['languages']).toBe('/languages');
+        expect(paths['media']).toBe('/media');
+        expect(paths['notifications']).toBe('/notifications');
+        expect(paths['integrations']).toBe('/integrations');
+        expect(paths['operations']).toBe('/operations');
+        expect(paths['dashboard']).toBe('/dashboard');
+        expect(paths['translations']).toBe('/translations');
+        expect(paths['ai']).toBe('/ai');
+        expect(paths['account']).toBe('/account');
+    });
+
+    it('keeps the account page routable, searchable and out of the navigation', () => {
+        // Somewhere a person can go, but not somewhere in the system: the router and
+        // the "Go to" search both see it, and the sidebar does not.
+        const all = MODULES.map((module) => module.permission).filter(
+            (permission): permission is string => permission !== undefined,
+        );
+
+        expect(visibleModules(all).map((module) => module.id)).toContain('account');
+
+        const listed = fullTree().flatMap((entry) =>
+            entry.kind === 'group' ? entry.children.map((child) => child.id) : [entry.module.id],
+        );
+
+        expect(listed).not.toContain('account');
+    });
+
+    it('hides a section from a viewer who may see nothing in it', () => {
+        // An operator who may read settings but not accounts gets the Settings section
+        // and no Access heading at all — an empty heading tells them exactly what they
+        // are missing.
+        const configOnly = navigationTree(['settings.view'], MODULES, MODULE_GROUPS);
+
+        expect(sections(configOnly)).toEqual(['settings']);
+
+        // And the other way round.
+        const accessOnly = navigationTree(
+            ['users.view', 'roles.view', 'permissions.view'],
+            MODULES,
+            MODULE_GROUPS,
+        );
+
+        expect(sections(accessOnly)).toContain('access');
+        expect(childrenOf(accessOnly, 'access')).toEqual(['users', 'roles', 'permissions']);
+    });
+
+    it('still filters children one by one inside a section', () => {
+        // Holding one access permission opens the section on that child alone. The
+        // section surviving is not the same thing as the section being complete.
+        const tree = navigationTree(['roles.view'], MODULES, MODULE_GROUPS);
+
+        expect(childrenOf(tree, 'access')).toEqual(['roles']);
     });
 });
 
