@@ -379,8 +379,10 @@ test('every key this scope introduced exists in both dictionaries', function ():
     // AI providers to the control centre. Social login (ADR 0050) added seven refusals and
     // the invalid reset link under auth, and the refusal to switch on a provider that is
     // missing required configuration under integration. Phone sign-in and registration
-    // (ADR 0051) added five under auth.
-    expect($keys)->toHaveCount(73);
+    // (ADR 0051) added five under auth. A refused credential rotation then gained a second
+    // message, for when nothing was checked because the configuration it is verified
+    // against was incomplete.
+    expect($keys)->toHaveCount(74);
 
     foreach ($keys as $key) {
         expect($ar)->toHaveKey($key)

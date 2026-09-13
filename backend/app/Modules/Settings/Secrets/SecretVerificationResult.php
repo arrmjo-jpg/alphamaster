@@ -16,9 +16,14 @@ namespace App\Modules\Settings\Secrets;
  */
 final class SecretVerificationResult
 {
+    /**
+     * @param  list<string>  $missing  setting references the verification needed and did
+     *                                 not have — references, never values
+     */
     private function __construct(
         public readonly SecretVerification $status,
         public readonly ?string $detail = null,
+        public readonly array $missing = [],
     ) {}
 
     public static function verified(): self
@@ -29,6 +34,29 @@ final class SecretVerificationResult
     public static function failed(?string $detail = null): self
     {
         return new self(SecretVerification::FAILED, $detail);
+    }
+
+    /**
+     * The verifier could not try the credential, because the configuration it is used
+     * with is not complete.
+     *
+     * Still a failure, because nothing confirmed the candidate and a rotation must not
+     * commit on that. But it is a different failure from a rejection, and an operator
+     * told "the service did not accept it" goes looking for a password problem when the
+     * real one is an unsaved host. So it carries the references that were missing, and
+     * the caller can say which settings to complete first.
+     *
+     * @param  array<int, string>  $missing
+     */
+    public static function incomplete(array $missing): self
+    {
+        return new self(SecretVerification::FAILED, 'incomplete', array_values($missing));
+    }
+
+    /** Whether the refusal was a missing prerequisite rather than a rejection. */
+    public function isIncomplete(): bool
+    {
+        return $this->missing !== [];
     }
 
     /**
@@ -49,11 +77,20 @@ final class SecretVerificationResult
      */
     public function toArray(): array
     {
-        return [
+        $result = [
             'status' => $this->status->value,
             // Beside the machine-readable status, never instead of it (ADR 0031).
             'status_label' => __($this->status->translationKey()),
             'detail' => $this->detail,
         ];
+
+        // Only when there is something to name. Setting references, which are public
+        // catalogue identifiers — safe in a response for the same reason they are safe
+        // in the audit trail.
+        if ($this->missing !== []) {
+            $result['missing'] = $this->missing;
+        }
+
+        return $result;
     }
 }

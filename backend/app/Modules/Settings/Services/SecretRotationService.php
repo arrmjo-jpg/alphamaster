@@ -79,10 +79,19 @@ class SecretRotationService
             // Key and outcome, as ever. `detail` is the verifier's own short token,
             // which by contract is a class name or a status and never a message that
             // could carry the host, the username, or the credential itself.
-            $this->audit->failed(AuditAction::SECRET_ROTATED, $reference, [
+            $context = [
                 'verification' => $result->status->value,
                 'detail' => $result->detail,
-            ]);
+            ];
+
+            // Which prerequisites were missing, by reference. Enough for an operator
+            // reading the trail later to see that a refusal was an unsaved setting
+            // rather than a credential being guessed at.
+            if ($result->isIncomplete()) {
+                $context['missing'] = $result->missing;
+            }
+
+            $this->audit->failed(AuditAction::SECRET_ROTATED, $reference, $context);
 
             return $result;
         }
