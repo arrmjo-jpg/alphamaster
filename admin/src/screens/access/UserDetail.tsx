@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { X } from 'lucide-react';
+import { ScrollText, X } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router';
 
 import { ApiError } from '@/api/errors';
 import { absoluteTime } from '@/lib/time';
@@ -266,6 +267,29 @@ export function UserDetail({ id, viewerPermissions, onClose }: UserDetailProps) 
                         </ul>
                     )}
                 </section>
+
+                {/* What this account has actually done, rather than what it may do.
+                    The trail records an actor by id, which is exactly the identifier
+                    above, so the link is a real query rather than a search by name. */}
+                {viewerPermissions.includes('audit.view') ? (
+                    <section className="flex flex-col gap-2 border-t border-(--border-default) pt-3">
+                        <p data-eyebrow>{t('access.activity')}</p>
+                        <div>
+                            <Button asChild size="sm" variant="secondary">
+                                <Link to={`/operations?actor_id=${encodeURIComponent(data.id)}`}>
+                                    <ScrollText aria-hidden className="size-3.5" />
+                                    {t('access.viewActivity')}
+                                </Link>
+                            </Button>
+                        </div>
+                    </section>
+                ) : null}
+
+                {/* Said where an operator would look for the controls, rather than left
+                    as an unexplained absence. */}
+                <p className="border-t border-(--border-default) pt-3 text-(length:--text-xs) text-(--text-muted)">
+                    {t('access.unsupported')}
+                </p>
             </div>
         </Panel>
     );

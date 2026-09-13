@@ -396,7 +396,22 @@
         "identity": "Identity",
         "security": "Security",
         "standing": "Standing",
-        "roles": "Roles",
+        "roles": {
+            "add": "Add a role",
+            "newRole": "New role",
+            "label": "Name",
+            "labelHint": "What administrators will see. The identifier the platform stores is derived from this once and never changes afterwards.",
+            "renameHint": "Renaming changes only what is displayed. The identifier below is what permissions and assignments reference, and it does not move.",
+            "create": "Create role",
+            "save": "Save role",
+            "discard": "Discard",
+            "cancel": "Cancel",
+            "saved": "The role was saved.",
+            "delete": "Delete this role",
+            "deleteWarning": "The role is removed from every account holding it, and those accounts lose whatever it granted. If it is what grants your own administrative access, you will lose that too. The platform does not refuse this.",
+            "deleteConfirm": "Delete it",
+            "readOnly": "You may read these permissions but not change them. Creating, changing and deleting a role need the roles.update permission."
+        },
         "role": "Role",
         "effective": "Effective permissions",
         "effectiveNote": "Everything this account holds, directly or through a role. The platform does not say which, so neither does this.",
@@ -430,7 +445,10 @@
         "chooseUser": "Choose an account to inspect it.",
         "noUsers": "No accounts yet.",
         "noMatches": "No account matches that.",
-        "noRoles": "No roles are defined."
+        "noRoles": "No roles are defined.",
+        "activity": "Activity",
+        "viewActivity": "Show what this account did",
+        "unsupported": "Creating an account, suspending one, and deleting one are not offered because the platform publishes no endpoint for any of them on this surface. An account is created by signing up; standing is changed by the platform itself."
     },
     "integrations": {
         "eyebrow": "Platform",

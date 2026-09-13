@@ -65,8 +65,11 @@ export async function roles(signal?: AbortSignal): Promise<Role[]> {
 export async function saveRole(
     payload: { label: string; permissions: string[] },
     id?: number,
-): Promise<void> {
-    await request(id === undefined ? '/admin/roles' : `/admin/roles/${id}`, {
+): Promise<Role> {
+    // The saved role comes back, which is the only way a caller learns the identifier
+    // derived from a new label — it is generated server-side and is not predictable
+    // from the label, so a client that guessed it would select the wrong role.
+    return fetchData<Role>(id === undefined ? '/admin/roles' : `/admin/roles/${id}`, {
         method: id === undefined ? 'POST' : 'PUT',
         body: payload,
     });
