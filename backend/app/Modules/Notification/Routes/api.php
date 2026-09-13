@@ -58,6 +58,17 @@ Route::prefix('v1')->group(function (): void {
 
             Route::delete('/notifications/devices/{device}', [PushDeviceController::class, 'destroy'])
                 ->name('api.notifications.devices.destroy');
+
+            // One record, which is what a device fetches when a push arrives: the
+            // payload carries a type and this id and nothing else (ADR 0045 §4).
+            //
+            // Declared last so that every literal segment above — `preferences`,
+            // `devices` — is matched before a record id could be. Constrained to a UUID
+            // because the column is one: without it `read-all`, or any other word, would
+            // reach PostgreSQL as a malformed uuid and fail as a 500 instead of a 404.
+            Route::get('/notifications/{notification}', [NotificationInboxController::class, 'show'])
+                ->whereUuid('notification')
+                ->name('api.notifications.show');
         });
 
     // The device registry, administrative and read-mostly (ADR 0045). Behind

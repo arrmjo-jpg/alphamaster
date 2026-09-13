@@ -4827,6 +4827,63 @@
                 }
             }
         },
+        "/notifications/{notification}": {
+            "get": {
+                "operationId": "notifications.show",
+                "description": "What a device fetches when a push arrives. The payload carries a type and this\nrecord's id and nothing else (ADR 0045 \u00a74), so this is the only way a phone learns\nwhat it was told \u2014 and it asks with its own credential, on the same terms as the\ninbox: another account's record is a 404.\n\nReading it does not mark it read. A phone fetching a message to put in a system\nnotification is not the person reading it, and the difference is the one fact the\ninbox keeps; marking it read stays its own call.",
+                "summary": "One of the account's own records",
+                "tags": [
+                    "NotificationInbox"
+                ],
+                "parameters": [
+                    {
+                        "name": "notification",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/NotificationRecordResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "404": {
+                        "description": "The caller has no record with that identifier.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/notifications/preferences": {
             "get": {
                 "operationId": "notifications.preferences.index",
@@ -11873,6 +11930,24 @@
                     "has_credentials": {
                         "type": "boolean"
                     },
+                    "credential_summary": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "description": "For a Firebase provider with a stored service account, the project it sends\nthrough. Null for every other provider, and when nothing is stored.",
+                        "properties": {
+                            "project_id": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "project_id"
+                        ]
+                    },
                     "is_active": {
                         "type": "boolean"
                     },
@@ -11897,6 +11972,7 @@
                     "label",
                     "settings",
                     "has_credentials",
+                    "credential_summary",
                     "is_active",
                     "is_default",
                     "priority",
@@ -13299,6 +13375,10 @@
                         "additionalProperties": {
                             "type": "string"
                         }
+                    },
+                    "service_account_json": {
+                        "type": "string",
+                        "description": "A Google service-account file, pasted whole. Firebase providers only. It\nreplaces the stored credentials in full, and only the project, the client\naddress and the private key are kept. Remove credentials with\n`credentials: null`; omitting this leaves them as they are."
                     },
                     "is_active": {
                         "type": "boolean"

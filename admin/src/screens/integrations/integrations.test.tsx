@@ -56,6 +56,7 @@ function provider(over: Record<string, unknown> = {}) {
         label: 'Log driver',
         settings: null,
         has_credentials: false,
+        credential_summary: null,
         is_active: true,
         is_default: true,
         priority: 0,

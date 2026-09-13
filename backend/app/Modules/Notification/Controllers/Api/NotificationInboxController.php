@@ -103,6 +103,32 @@ class NotificationInboxController extends BaseApiController
     }
 
     /**
+     * One of the account's own records.
+     *
+     * What a device fetches when a push arrives. The payload carries a type and this
+     * record's id and nothing else (ADR 0045 §4), so this is the only way a phone learns
+     * what it was told — and it asks with its own credential, on the same terms as the
+     * inbox: another account's record is a 404.
+     *
+     * Reading it does not mark it read. A phone fetching a message to put in a system
+     * notification is not the person reading it, and the difference is the one fact the
+     * inbox keeps; marking it read stays its own call.
+     */
+    #[Response(200, type: 'array{success: bool, data: NotificationRecordResource}')]
+    #[Response(404, description: 'The caller has no record with that identifier.')]
+    public function show(Request $request, string $notification): JsonResponse
+    {
+        $user = $request->user();
+
+        $record = NotificationRecord::query()
+            ->for($user::class, (string) $user->getKey())
+            ->whereKey($notification)
+            ->firstOrFail();
+
+        return $this->successResponse(new NotificationRecordResource($record));
+    }
+
+    /**
      * Mark everything unread as read, and say how many that was.
      */
     #[Response(200, type: 'array{success: bool, message: string, data: array{marked: int}}')]

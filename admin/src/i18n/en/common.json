@@ -678,11 +678,19 @@
             }
         },
         "serviceAccount": {
-            "label": "Service account (JSON)",
-            "hint": "Paste the whole service-account file from the Firebase console. Only the project, the client address and the private key are kept; nothing is shown back once it is saved.",
+            "label": "Firebase Service Account JSON",
+            "hint": "Paste the whole service-account file downloaded from Firebase. The platform checks it and keeps only the project, the client address and the private key, encrypted; nothing from it is shown back once it is saved.",
             "notJson": "This is not a JSON document.",
             "missing": "The document is missing: {{fields}}.",
-            "found": "Found a service account for project {{project}}."
+            "found": "Found a service account for project {{project}}.",
+            "set": "Add service account",
+            "replace": "Replace service account",
+            "save": "Save service account",
+            "account": "Service account",
+            "project": "Project",
+            "configured": "Configured",
+            "notConfigured": "Not configured",
+            "unreadable": "Stored, but it cannot be read"
         }
     },
     "languages": {

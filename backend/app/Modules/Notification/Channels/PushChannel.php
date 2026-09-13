@@ -21,6 +21,8 @@ use Illuminate\Support\Facades\Log;
  *
  *   * a recipient with no registered device is skipped, not failed — the same rule the
  *     SMS channel follows for somebody with no number;
+ *   * a push that cannot go out because no vendor is configured is skipped and logged,
+ *     for a recipient who has a device to receive it;
  *   * a vendor saying a token no longer exists is authoritative, so the row goes;
  *   * everything else is a transient failure, logged and left alone.
  *
@@ -38,13 +40,6 @@ class PushChannel
             return;
         }
 
-        if (! $this->push->isConfigured()) {
-            // No vendor. Skipped silently rather than logged per recipient: an
-            // announcement to a thousand accounts must not write a thousand identical
-            // lines saying the operator has not configured Firebase.
-            return;
-        }
-
         $recipientId = $this->recipientId($notifiable);
 
         if ($recipientId === null) {
@@ -53,6 +48,12 @@ class PushChannel
 
         /** @var string $type */
         $type = (string) $notification->toPush($notifiable);
+
+        if (! $this->push->isConfigured()) {
+            $this->reportUnconfigured($recipientId, $type);
+
+            return;
+        }
 
         // The in-app record's id, assigned by the framework before any channel runs, so
         // a device that fetches it finds the same message the inbox shows. If the
@@ -67,6 +68,34 @@ class PushChannel
         foreach (PushDevice::query()->forAccount($recipientId)->get() as $device) {
             $this->deliver($device, $type, $recordId);
         }
+    }
+
+    /**
+     * Say that a push was dropped because there is no vendor to send it through.
+     *
+     * Only for a recipient with a registered handset, because only then was a message
+     * actually lost: they asked for push and have somewhere to receive it. A recipient
+     * with no device was never going to be reached, and a line for each of them would
+     * bury the ones that matter — which is why this used to say nothing at all, and why
+     * saying nothing hid a Firebase credential that could not be saved.
+     *
+     * The line names the account and the notification type. Never a device token,
+     * which is an address anybody could send to, and never the notification's words.
+     */
+    private function reportUnconfigured(string $recipientId, string $type): void
+    {
+        $devices = PushDevice::query()->forAccount($recipientId)->count();
+
+        if ($devices === 0) {
+            return;
+        }
+
+        Log::warning('A push notification was skipped because no push provider is configured.', [
+            'recipient' => $recipientId,
+            'type' => $type,
+            'devices' => $devices,
+            'error_code' => 'NOT_CONFIGURED',
+        ]);
     }
 
     private function deliver(PushDevice $device, string $type, string $recordId): void

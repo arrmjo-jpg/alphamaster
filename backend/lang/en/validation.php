@@ -197,6 +197,26 @@ return [
         'password' => [
             'min' => 'The password must be at least :minimum characters, the minimum this platform is configured to require.',
         ],
+        'credentials' => [
+            'array' => 'The credentials must be the named values this provider accepts. A Firebase service account takes exactly project_id, client_email and private_key.',
+            'project_id' => [
+                'regex' => 'The Firebase project ID must be 6 to 30 lowercase letters, digits or hyphens, starting with a letter.',
+            ],
+            'client_email' => [
+                'regex' => 'The client email must be a Google service account address, ending in .gserviceaccount.com.',
+            ],
+            'private_key' => [
+                'pem' => 'The private key must be the PEM key from the Firebase service-account file: an RSA key of at least 2048 bits.',
+            ],
+        ],
+        'service_account_json' => [
+            'json' => 'This is not a service-account file. Paste the whole JSON document downloaded from Firebase.',
+            'type' => 'This file is not a service account: its type must be service_account.',
+            'project_id' => 'The file\'s project_id is missing or is not a Firebase project ID.',
+            'client_email' => 'The file\'s client_email is missing or is not a Google service-account address.',
+            'private_key' => 'The file\'s private_key is missing or is not a usable RSA key of at least 2048 bits.',
+            'token_uri' => 'The file\'s token_uri must be https://oauth2.googleapis.com/token.',
+        ],
         'preferred_locale' => [
             'exists' => 'An account may only prefer a language the platform has configured.',
         ],
@@ -241,6 +261,10 @@ return [
         'collection' => 'Collection',
         'credential' => 'Credential',
         'credentials' => 'Credentials',
+        'credentials.project_id' => 'Project ID',
+        'credentials.client_email' => 'Client Email',
+        'credentials.private_key' => 'Private Key',
+        'service_account_json' => 'Firebase Service Account JSON',
         'direction' => 'Direction',
         'email' => 'Email Address',
         'file' => 'File',

@@ -184,6 +184,23 @@ final class AuditAction
     public const AI_DEFAULT_CHANGED = 'ai.default_changed';
 
     /**
+     * A vendor provider's configuration was saved outside the AI control centre: which
+     * of its fields changed, and whether its credentials were set, replaced or cleared.
+     *
+     * Names, never values, and nothing derived from a credential — not a fragment, not a
+     * hash, not a length. That the Firebase service account was replaced is the fact an
+     * operator needs after a key rotation; what it contains is not the trail's to keep.
+     */
+    public const INTEGRATION_PROVIDER_UPDATED = 'integration.provider_updated';
+
+    /**
+     * An administrator raised an announcement: to which audience, and how many
+     * recipients it was queued for. The wording is in every recipient's in-app record
+     * and is not copied here.
+     */
+    public const ANNOUNCEMENT_SENT = 'notification.announcement_sent';
+
+    /**
      * A social identity can now sign in to an account (ADR 0050 §9, ADR 0037 extension
      * of 2026-09-13).
      *

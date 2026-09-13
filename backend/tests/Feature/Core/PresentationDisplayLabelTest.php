@@ -175,7 +175,7 @@ test('each resource exposes exactly its own fields, with the label beside the va
 
     expect(array_keys($resources['provider'][0]->toArray(request())))->toBe([
         'id', 'capability', 'capability_label', 'driver', 'label', 'settings',
-        'has_credentials', 'is_active', 'is_default', 'priority', 'updated_at',
+        'has_credentials', 'credential_summary', 'is_active', 'is_default', 'priority', 'updated_at',
     ]);
 
     expect(array_keys($resources['template'][0]->toArray(request())))->toBe([

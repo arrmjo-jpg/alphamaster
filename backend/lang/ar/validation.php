@@ -194,6 +194,26 @@ return [
         'password' => [
             'min' => 'يجب ألا تقل كلمة المرور عن :minimum محرفًا، وهو الحد الأدنى المهيّأ في هذه المنصّة.',
         ],
+        'credentials' => [
+            'array' => 'يجب أن تكون بيانات الاعتماد القيم المسمّاة التي يقبلها هذا المزوّد. حساب خدمة Firebase يقبل project_id وclient_email وprivate_key فقط.',
+            'project_id' => [
+                'regex' => 'يجب أن يتكوّن معرّف مشروع Firebase من 6 إلى 30 حرفًا لاتينيًا صغيرًا أو رقمًا أو شرطة، وأن يبدأ بحرف.',
+            ],
+            'client_email' => [
+                'regex' => 'يجب أن يكون بريد العميل عنوان حساب خدمة من Google ينتهي بـ .gserviceaccount.com.',
+            ],
+            'private_key' => [
+                'pem' => 'يجب أن يكون المفتاح الخاص مفتاح PEM من ملف حساب خدمة Firebase: مفتاح RSA لا يقل عن 2048 بت.',
+            ],
+        ],
+        'service_account_json' => [
+            'json' => 'هذا ليس ملف حساب خدمة. الصق مستند JSON كاملاً كما نزّلته من Firebase.',
+            'type' => 'هذا الملف ليس حساب خدمة: يجب أن تكون قيمة type هي service_account.',
+            'project_id' => 'قيمة project_id في الملف ناقصة أو ليست معرّف مشروع Firebase صالحًا.',
+            'client_email' => 'قيمة client_email في الملف ناقصة أو ليست عنوان حساب خدمة من Google.',
+            'private_key' => 'قيمة private_key في الملف ناقصة أو ليست مفتاح RSA صالحًا لا يقل عن 2048 بت.',
+            'token_uri' => 'يجب أن تكون قيمة token_uri في الملف https://oauth2.googleapis.com/token.',
+        ],
         'preferred_locale' => [
             'exists' => 'لا يمكن للحساب تفضيل لغة غير مهيّأة في المنصّة.',
         ],
@@ -238,6 +258,10 @@ return [
         'collection' => 'المجموعة',
         'credential' => 'بيانات الاعتماد',
         'credentials' => 'بيانات الاعتماد',
+        'credentials.project_id' => 'معرّف المشروع',
+        'credentials.client_email' => 'بريد العميل',
+        'credentials.private_key' => 'المفتاح الخاص',
+        'service_account_json' => 'ملف حساب خدمة Firebase (JSON)',
         'direction' => 'الاتجاه',
         'email' => 'البريد الإلكتروني',
         'file' => 'الملف',

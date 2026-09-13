@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Modules\Notification\Controllers\Admin;
 
+use App\Modules\Core\Audit\AuditAction;
+use App\Modules\Core\Contracts\AuditRecorderContract;
 use App\Modules\Core\Controllers\BaseApiController;
 use App\Modules\Notification\Contracts\NotifierContract;
 use App\Modules\Notification\Enums\AnnouncementAudience;
@@ -34,7 +36,8 @@ use Illuminate\Http\JsonResponse;
 class AnnouncementAdminController extends BaseApiController
 {
     public function __construct(
-        protected NotifierContract $notifier
+        protected NotifierContract $notifier,
+        protected AuditRecorderContract $audit,
     ) {}
 
     /**
@@ -63,6 +66,13 @@ class AnnouncementAdminController extends BaseApiController
 
             $recipients += $chunk->count();
         });
+
+        // Who was told, and how many — not what. The wording is in every recipient's
+        // in-app record already, and a second copy here would be one nobody versions.
+        $this->audit->succeeded(AuditAction::ANNOUNCEMENT_SENT, null, [
+            'audience' => $audience->value,
+            'recipients' => $recipients,
+        ]);
 
         return $this->successResponse(
             [
