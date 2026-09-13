@@ -25,6 +25,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $error_code
  * @property string|null $error_message
  * @property int|null $duration_ms
+ * @property int|null $units
  * @property Carbon|null $created_at
  */
 class IntegrationUsageLog extends BaseModel
@@ -40,6 +41,9 @@ class IntegrationUsageLog extends BaseModel
         'error_code',
         'error_message',
         'duration_ms',
+        // Tokens, for a capability that charges by them. Null where an attempt is the
+        // unit and the count is always one.
+        'units',
     ];
 
     /**
@@ -51,6 +55,7 @@ class IntegrationUsageLog extends BaseModel
             'capability' => IntegrationCapability::class,
             'status' => UsageStatus::class,
             'duration_ms' => 'integer',
+            'units' => 'integer',
         ]);
     }
 

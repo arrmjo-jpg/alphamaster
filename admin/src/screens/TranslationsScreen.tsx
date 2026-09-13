@@ -1,8 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Sparkles } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { ApiError } from '@/api/errors';
+import { useCurrentUser } from '@/auth/AuthProvider';
+import {
+    acceptSuggestion,
+    dismissSuggestion,
+    requestSuggestions,
+    suggestions as fetchSuggestions,
+    type Suggestion,
+} from '@/screens/ai/api';
 import { TranslationEntryRow } from '@/screens/translations/TranslationEntryRow';
 import {
     workshop as fetchWorkshop,
@@ -11,6 +20,7 @@ import {
     type TranslationSource,
 } from '@/screens/translations/api';
 import { Alert } from '@/ui/Alert';
+import { Button } from '@/ui/Button';
 import { Checkbox } from '@/ui/Checkbox';
 import { StateRail } from '@/ui/StateRail';
 
@@ -40,9 +50,59 @@ export function TranslationsScreen() {
     const [targetCode, setTargetCode] = useState<string | null>(null);
     const [untranslatedOnly, setUntranslatedOnly] = useState(false);
 
+    const viewer = useCurrentUser();
+    const mayUseAi = viewer.permissions.includes('ai.use');
+
     const state = useQuery({
         queryKey: ['translations'],
         queryFn: ({ signal }) => fetchWorkshop(signal),
+    });
+
+    // Resolved here rather than after the early returns, because the suggestions query
+    // keys on it and hooks cannot come after a return. The picker's own state is only a
+    // preference: until somebody expresses one, the target is the first language that
+    // is not the one everything is translated from.
+    const locales = state.data?.locales ?? [];
+    const sourceLocale = locales.find((language) => language.is_default) ?? locales[0];
+    const targetLocales = locales.filter((language) => language.code !== sourceLocale?.code);
+    const targetLocale =
+        targetLocales.find((language) => language.code === targetCode) ?? targetLocales[0];
+
+    // Suggestions arrive asynchronously — a generation takes seconds and runs on a
+    // queue (ADR 0044 §4) — so the client polls instead of waiting. Polling stops as
+    // soon as nothing is outstanding, because a screen that keeps asking about work
+    // that has finished is a screen that never goes quiet.
+    const proposals = useQuery({
+        queryKey: ['translation-suggestions', targetLocale?.code],
+        queryFn: ({ signal }) => fetchSuggestions(targetLocale?.code ?? '', signal),
+        enabled: targetLocale !== undefined,
+        refetchInterval: (query) =>
+            (query.state.data ?? []).some((row: Suggestion) => row.status === 'pending')
+                ? 3000
+                : false,
+    });
+
+    const ask = useMutation({
+        mutationFn: (locale: string) => requestSuggestions({ locale }),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['translation-suggestions'] }),
+    });
+
+    const decide = useMutation({
+        mutationFn: async (decision: { id: string; text?: string }) => {
+            if (decision.text === undefined) {
+                await dismissSuggestion(decision.id);
+
+                return;
+            }
+
+            await acceptSuggestion(decision.id, decision.text);
+        },
+        onSuccess: async () => {
+            // Both: accepting writes a translation, so the workshop's own view of the
+            // content is stale as well as the suggestion list.
+            await queryClient.invalidateQueries({ queryKey: ['translation-suggestions'] });
+            await queryClient.invalidateQueries({ queryKey: ['translations'] });
+        },
     });
 
     const save = useMutation({
@@ -72,14 +132,14 @@ export function TranslationsScreen() {
         );
     }
 
-    const { locales, sources } = state.data;
+    const { sources } = state.data;
 
     // The default language is what everything else is translated *from*: it is the one
     // the platform falls back to, so it is the one an operator is reading when they
     // write another.
-    const source = locales.find((language) => language.is_default) ?? locales[0];
-    const targets = locales.filter((language) => language.code !== source?.code);
-    const target = targets.find((language) => language.code === targetCode) ?? targets[0];
+    const source = sourceLocale;
+    const targets = targetLocales;
+    const target = targetLocale;
 
     if (source === undefined || target === undefined) {
         return (
@@ -135,7 +195,43 @@ export function TranslationsScreen() {
                     />
                     {t('translations.untranslatedOnly')}
                 </label>
+
+                {mayUseAi ? (
+                    <div className="flex flex-col gap-1">
+                        <Button
+                            loading={ask.isPending}
+                            onClick={() => ask.mutate(target.code)}
+                            size="sm"
+                            variant="secondary"
+                        >
+                            <Sparkles aria-hidden className="size-3.5" />
+                            {t('translations.suggestion.askFor', {
+                                language: target.native_name,
+                            })}
+                        </Button>
+                        {/* Said before it is pressed, because the alternative is an
+                            operator discovering it after a bill. */}
+                        <span className="text-(length:--text-2xs) text-(--text-muted)">
+                            {t('translations.suggestion.askNote')}
+                        </span>
+                    </div>
+                ) : null}
             </section>
+
+            {ask.error !== null ? (
+                <Alert tone="danger">
+                    {ask.error instanceof ApiError ? ask.error.message : t('state.error')}
+                </Alert>
+            ) : null}
+
+            {ask.data !== undefined ? (
+                <Alert tone="info">
+                    {t('translations.suggestion.asked', {
+                        queued: ask.data.queued,
+                        skipped: ask.data.skipped,
+                    })}
+                </Alert>
+            ) : null}
 
             {sources.length === 0 ? (
                 <Alert tone="info">{t('translations.nothingReadable')}</Alert>
@@ -145,6 +241,8 @@ export function TranslationsScreen() {
                 <SourceSection
                     body={body}
                     key={body.key}
+                    onAcceptSuggestion={(id, text) => decide.mutateAsync({ id, text })}
+                    onDismissSuggestion={(id) => decide.mutateAsync({ id })}
                     onSave={(id, values) =>
                         save.mutateAsync({
                             source: body.key,
@@ -154,6 +252,7 @@ export function TranslationsScreen() {
                         })
                     }
                     source={source}
+                    suggestions={proposals.data ?? []}
                     target={target}
                     untranslatedOnly={untranslatedOnly}
                 />
@@ -184,9 +283,21 @@ interface SourceSectionProps {
     target: TranslationLocale;
     untranslatedOnly: boolean;
     onSave: (id: string, values: Record<string, string>) => Promise<void>;
+    suggestions: Suggestion[];
+    onAcceptSuggestion: (id: string, text: string) => Promise<void>;
+    onDismissSuggestion: (id: string) => Promise<void>;
 }
 
-function SourceSection({ body, source, target, untranslatedOnly, onSave }: SourceSectionProps) {
+function SourceSection({
+    body,
+    source,
+    target,
+    untranslatedOnly,
+    onSave,
+    suggestions,
+    onAcceptSuggestion,
+    onDismissSuggestion,
+}: SourceSectionProps) {
     const { t } = useTranslation();
 
     const counts = body.completeness[target.code] ?? { total: 0, translated: 0 };
@@ -233,12 +344,38 @@ function SourceSection({ body, source, target, untranslatedOnly, onSave }: Sourc
                         entry={entry}
                         key={entry.id}
                         mayWrite={body.may_write}
+                        onAcceptSuggestion={onAcceptSuggestion}
+                        onDismissSuggestion={onDismissSuggestion}
                         onSave={(values) => onSave(entry.id, values)}
                         source={source}
+                        suggestions={forEntry(suggestions, body.key, entry.id)}
                         target={target}
                     />
                 ))
             )}
         </section>
     );
+}
+
+/**
+ * The suggestions belonging to one item, keyed by field.
+ *
+ * The list arrives flat because it is addressed the way the workshop addresses
+ * anything — source, item, field, locale (ADR 0043) — and grouping it here keeps that
+ * address the API's rather than a shape the client invented.
+ */
+function forEntry(
+    suggestions: Suggestion[],
+    sourceKey: string,
+    itemId: string,
+): Record<string, Suggestion> {
+    const mine: Record<string, Suggestion> = {};
+
+    for (const row of suggestions) {
+        if (row.source === sourceKey && row.item_id === itemId) {
+            mine[row.field] = row;
+        }
+    }
+
+    return mine;
 }

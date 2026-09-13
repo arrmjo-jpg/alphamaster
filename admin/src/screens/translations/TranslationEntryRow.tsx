@@ -5,6 +5,9 @@ import { ApiError } from '@/api/errors';
 import { Alert } from '@/ui/Alert';
 import { Button } from '@/ui/Button';
 
+import type { Suggestion } from '@/screens/ai/api';
+import { SuggestionPanel } from '@/screens/translations/SuggestionPanel';
+
 import type { TranslationEntry, TranslationLocale } from './api';
 
 export interface TranslationEntryRowProps {
@@ -13,6 +16,10 @@ export interface TranslationEntryRowProps {
     target: TranslationLocale;
     mayWrite: boolean;
     onSave: (values: Record<string, string>) => Promise<void>;
+    /** Proposed translations for this entry's fields, keyed by field name. */
+    suggestions?: Record<string, Suggestion>;
+    onAcceptSuggestion?: (id: string, text: string) => Promise<void>;
+    onDismissSuggestion?: (id: string) => Promise<void>;
 }
 
 /**
@@ -37,6 +44,9 @@ export function TranslationEntryRow({
     target,
     mayWrite,
     onSave,
+    suggestions = {},
+    onAcceptSuggestion,
+    onDismissSuggestion,
 }: TranslationEntryRowProps) {
     const { t } = useTranslation();
 
@@ -44,6 +54,7 @@ export function TranslationEntryRow({
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [saved, setSaved] = useState(false);
+    const [deciding, setDeciding] = useState<string | null>(null);
 
     const valueFor = (field: TranslationEntry['fields'][number]): string =>
         draft[field.name] ?? field.values[target.code] ?? '';
@@ -77,6 +88,31 @@ export function TranslationEntryRow({
         }
     };
 
+    /**
+     * Accept what is in the field, not what the model said.
+     *
+     * The two may differ, and that is the entire point of a review step: a suggestion
+     * a translator rewrote is a translation they wrote, and the platform records which
+     * of those happened.
+     */
+    const decide = async (id: string, run: () => Promise<void>) => {
+        setDeciding(id);
+        setError(null);
+
+        try {
+            await run();
+            setDraft({});
+        } catch (caught) {
+            if (!(caught instanceof ApiError)) {
+                throw caught;
+            }
+
+            setError(caught.message);
+        } finally {
+            setDeciding(null);
+        }
+    };
+
     return (
         <div className="flex flex-col gap-2 border-t border-(--border-default) py-3 first:border-t-0">
             <div className="flex flex-wrap items-baseline gap-2">
@@ -94,6 +130,7 @@ export function TranslationEntryRow({
             {entry.fields.map((field) => {
                 const original = field.values[source.code] ?? '';
                 const current = valueFor(field);
+                const suggestion = suggestions[field.name];
 
                 return (
                     <div className="grid gap-2 md:grid-cols-2" key={field.name}>
@@ -139,6 +176,33 @@ export function TranslationEntryRow({
                                 rows={field.multiline ? 6 : 1}
                                 value={current}
                             />
+
+                            {suggestion !== undefined &&
+                            onAcceptSuggestion !== undefined &&
+                            onDismissSuggestion !== undefined ? (
+                                <SuggestionPanel
+                                    busy={deciding === suggestion.id}
+                                    current={current}
+                                    dir={target.direction}
+                                    lang={target.code}
+                                    mayWrite={mayWrite}
+                                    onAccept={() =>
+                                        void decide(suggestion.id, () =>
+                                            onAcceptSuggestion(suggestion.id, current),
+                                        )
+                                    }
+                                    onDismiss={() =>
+                                        void decide(suggestion.id, () =>
+                                            onDismissSuggestion(suggestion.id),
+                                        )
+                                    }
+                                    onUse={(text) => {
+                                        setSaved(false);
+                                        setDraft((held) => ({ ...held, [field.name]: text }));
+                                    }}
+                                    suggestion={suggestion}
+                                />
+                            ) : null}
                         </div>
                     </div>
                 );

@@ -60,6 +60,35 @@ class IntegrationProviderSeeder extends Seeder
                 'is_default' => true,
                 'priority' => 0,
             ],
+            [
+                // Inactive and credential-less, for the reasons Twilio and reCAPTCHA
+                // are — and for a third that belongs to this capability. There is no
+                // log-style AI driver and there will not be one: a generator that
+                // answers without asking a vendor produces plausible text with no
+                // relationship to the request, which is worse than no answer when the
+                // answer is a translation somebody may accept.
+                //
+                // `base_url` is a setting rather than a constant because every
+                // OpenAI-compatible gateway — Azure, a proxy, a corporate egress —
+                // speaks this protocol at a different address. Empty means the
+                // vendor's own.
+                'capability' => IntegrationCapability::AI,
+                'driver' => 'openai',
+                'label' => 'OpenAI',
+                'settings' => ['base_url' => ''],
+                'is_active' => false,
+                'is_default' => true,
+                'priority' => 0,
+            ],
+            [
+                'capability' => IntegrationCapability::AI,
+                'driver' => 'anthropic',
+                'label' => 'Anthropic',
+                'settings' => ['base_url' => ''],
+                'is_active' => false,
+                'is_default' => false,
+                'priority' => 10,
+            ],
         ];
     }
 

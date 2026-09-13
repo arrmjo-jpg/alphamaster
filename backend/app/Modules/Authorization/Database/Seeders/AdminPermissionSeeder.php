@@ -49,6 +49,12 @@ class AdminPermissionSeeder extends Seeder
                 AdminPermission::NOTIFICATIONS_UPDATE,
                 AdminPermission::MEDIA_VIEW,
                 AdminPermission::MEDIA_DELETE,
+                // Withholding this from the role that configures the vendor would be
+                // theatre: an administrator holding `integrations.update` can activate
+                // a provider and choose a model, so they can already cause the spending
+                // this permission governs. It is separately grantable for the roles
+                // that do not configure anything.
+                AdminPermission::AI_USE,
             ],
             'editor' => [
                 AdminPermission::USERS_VIEW,

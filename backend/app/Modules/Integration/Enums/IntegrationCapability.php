@@ -27,6 +27,12 @@ enum IntegrationCapability: string
     case CAPTCHA = 'captcha';
 
     /**
+     * Text generation (ADR 0044). Present because the translation workshop asks for
+     * suggestions; it is the one AI task the platform has a consumer for.
+     */
+    case AI = 'ai';
+
+    /**
      * @return array<int, string>
      */
     public static function values(): array

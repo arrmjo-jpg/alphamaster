@@ -159,7 +159,8 @@
         "generalSettings": "General settings",
         "permissions": "Permissions",
         "account": "Your account",
-        "translations": "Translations"
+        "translations": "Translations",
+        "ai": "AI"
     },
     "dashboard": {
         "platform": {
@@ -661,7 +662,12 @@
             "status": "Status",
             "interface": "Console",
             "order": "Order"
-        }
+        },
+        "fillSection": "Filling this language",
+        "fillDescription": "Ask the AI provider to translate everything still missing in this language. Suggestions appear in the Translations workspace, where you read, edit and accept them — nothing is saved until you do.",
+        "fillWithAi": "Suggest the missing translations",
+        "filled": "Asked for {{queued}} translations. Review them in Translations.",
+        "fillUnavailable": "No AI provider is configured, so nothing can be suggested. Translations can still be written by hand in the Translations workspace."
     },
     "media": {
         "eyebrow": "Platform",
@@ -971,6 +977,45 @@
         "noneOutstanding": "Everything here is translated.",
         "complete": "Fully translated into {{language}}",
         "outstanding_one": "{{count}} of {{total}} fields still untranslated",
-        "outstanding_other": "{{count}} of {{total}} fields still untranslated"
+        "outstanding_other": "{{count}} of {{total}} fields still untranslated",
+        "suggestion": {
+            "askFor": "Suggest {{language}} with AI",
+            "askNote": "Asks the configured provider to translate what is missing. Each request costs tokens.",
+            "asked": "Asked for {{queued}}; skipped {{skipped}} that were already translated or had nothing to translate from.",
+            "waiting": "Waiting for the provider…",
+            "ready": "AI suggested",
+            "edited": "Edited",
+            "failed": "This one was not generated.",
+            "notSavedYet": "Nothing is saved until you accept.",
+            "use": "Use this text",
+            "accept": "Accept",
+            "acceptEdited": "Accept your version",
+            "dismiss": "Discard"
+        }
+    },
+    "ai": {
+        "eyebrow": "Integrations",
+        "description": "Whether the platform can generate text, which vendor answers, and whether it last did. Configuring the vendor is on the Integrations screen; the model is a setting.",
+        "provider": "Provider",
+        "ready": "Ready",
+        "notReady": "Not ready",
+        "noProvider": "No AI provider is switched on.",
+        "credentialStored": "Credential stored",
+        "credentialMissing": "No credential",
+        "configuredElsewhere": "The vendor and its credential are set on the Integrations screen. The model, the answer ceiling and the timeout are settings.",
+        "availableDrivers": "Vendors this platform can speak to: {{drivers}}.",
+        "lastAttempt": "Last attempt",
+        "neverAsked": "Nothing has been asked of the provider yet.",
+        "answered": "Answered",
+        "didNotAnswer": "Did not answer",
+        "units_one": "{{count}} token.",
+        "units_other": "{{count}} tokens.",
+        "recentFailures_one": "{{count}} failure in the last day.",
+        "recentFailures_other": "{{count}} failures in the last day.",
+        "check": "Ask the provider",
+        "checkNote": "A real request with a real cost — a handful of tokens. A check that did not call the vendor would only repeat the configuration above.",
+        "checkNeedsPermission": "Running a check needs permission to use AI.",
+        "checkAnswered": "{{driver}} answered.",
+        "checkFailed": "The provider did not answer."
     }
 }

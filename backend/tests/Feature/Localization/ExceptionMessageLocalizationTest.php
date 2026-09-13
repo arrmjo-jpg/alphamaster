@@ -372,10 +372,10 @@ test('every key this scope introduced exists in both dictionaries', function ():
     // Phase 16B-2 the unknown-revision one, 16B-3 the failed-verification one, and
     // 16B-6 the rejected-value one. Email verification added the throttled and
     // invalid-link messages, and the rollback preview the one asking which revision
-    // to preview. Phone verification added four, and the translation workshop six —
+    // to preview. Phone verification added four, the translation workshop six, and AI two —
     // the scope grew to include those, because a workshop for translations that
     // refuses in one language only would be a poor joke.
-    expect($keys)->toHaveCount(51);
+    expect($keys)->toHaveCount(53);
 
     foreach ($keys as $key) {
         expect($ar)->toHaveKey($key)

@@ -1,9 +1,11 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Star, X } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Sparkles, Star, X } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { ApiError } from '@/api/errors';
+import { useCurrentUser } from '@/auth/AuthProvider';
+import { aiState, requestSuggestions } from '@/screens/ai/api';
 import { isSupportedLocale } from '@/i18n';
 import { Alert } from '@/ui/Alert';
 import { Button } from '@/ui/Button';
@@ -148,6 +150,21 @@ export function LanguageDetail({ language, onClose, onCreated }: LanguageDetailP
 
     const translated = isSupportedLocale(draft.code.trim());
 
+    const viewer = useCurrentUser();
+    const mayUseAi = viewer.permissions.includes('ai.use');
+
+    // Only asked when the panel could offer the action, so a console whose operator
+    // cannot spend on AI never calls the endpoint that describes it.
+    const ai = useQuery({
+        queryKey: ['ai-state'],
+        queryFn: ({ signal }) => aiState(signal),
+        enabled: mayUseAi && !creating,
+    });
+
+    const fill = useMutation({
+        mutationFn: (locale: string) => requestSuggestions({ locale }),
+    });
+
     return (
         <div className="flex flex-col border border-(--border-default) bg-(--surface-default)">
             <header className="flex items-start justify-between gap-2 border-b border-(--border-default) px-3 py-2.5">
@@ -236,6 +253,51 @@ export function LanguageDetail({ language, onClose, onCreated }: LanguageDetailP
                                     {t('languages.makeDefaultActivates')}
                                 </p>
                             )}
+
+                            {mayUseAi && language.is_active && !language.is_default ? (
+                                <div className="mt-1 flex flex-col gap-2 border-t border-(--border-default) pt-3">
+                                    <h3 data-eyebrow>{t('languages.fillSection')}</h3>
+
+                                    {ai.data?.configured === true ? (
+                                        <>
+                                            <p className="text-(length:--text-sm) text-(--text-secondary)">
+                                                {t('languages.fillDescription')}
+                                            </p>
+
+                                            <div>
+                                                <Button
+                                                    loading={fill.isPending}
+                                                    onClick={() => fill.mutate(language.code)}
+                                                    size="sm"
+                                                    variant="secondary"
+                                                >
+                                                    <Sparkles aria-hidden className="size-3.5" />
+                                                    {t('languages.fillWithAi')}
+                                                </Button>
+                                            </div>
+
+                                            {fill.data !== undefined ? (
+                                                <Alert tone="info">
+                                                    {t('languages.filled', {
+                                                        queued: fill.data.queued,
+                                                    })}
+                                                </Alert>
+                                            ) : null}
+
+                                            {fill.error instanceof ApiError ? (
+                                                <Alert tone="danger">{fill.error.message}</Alert>
+                                            ) : null}
+                                        </>
+                                    ) : (
+                                        // The manual workflow is unaffected and stays
+                                        // available; the action explains its own absence
+                                        // rather than being a button that always fails.
+                                        <p className="text-(length:--text-sm) text-(--text-muted)">
+                                            {t('languages.fillUnavailable')}
+                                        </p>
+                                    )}
+                                </div>
+                            ) : null}
 
                             {toggle.error instanceof ApiError ? (
                                 <Alert tone="danger">{toggle.error.message}</Alert>

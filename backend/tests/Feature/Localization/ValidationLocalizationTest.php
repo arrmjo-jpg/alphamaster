@@ -277,8 +277,8 @@ test('every FormRequest still validates', function (): void {
     // credential-rotation one, and 16B-5 the export and restore pair. The account
     // lifecycle added the create and update pair, M3-A the announcement, phone
     // verification the request that carries a code, and the translation workshop its
-    // write.
-    expect($requests)->toHaveCount(23);
+    // write. AI added asking for suggestions and accepting one.
+    expect($requests)->toHaveCount(25);
 
     foreach ($requests as $file) {
         $source = (string) file_get_contents($file);
