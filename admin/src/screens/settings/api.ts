@@ -1,5 +1,6 @@
 import { fetchData, request } from '@/api/client';
 import type {
+    AdminAuthSocialLoginSetupResponses,
     AdminSettingsDefinitionsResponses,
     AdminSettingsHistoryResponses,
     AdminSettingsRollbackPreviewResponses,
@@ -122,6 +123,20 @@ export async function rollback(name: string, revisionId: string, version: string
 
 export async function testMail(): Promise<void> {
     await request('/admin/settings/mail/test', { method: 'POST' });
+}
+
+export type SocialLoginSetupState = AdminAuthSocialLoginSetupResponses[200]['data'];
+
+/**
+ * What social sign-in still needs, and the return addresses to register with Google.
+ *
+ * Assembled by the platform from configured values only. It never suggests an address:
+ * no frontend domain is assumed, so the operator names every one of them.
+ */
+export async function socialLoginSetup(signal?: AbortSignal): Promise<SocialLoginSetupState> {
+    return fetchData<SocialLoginSetupState>('/admin/auth/social-login/setup', {
+        ...(signal ? { signal } : {}),
+    });
 }
 
 /**

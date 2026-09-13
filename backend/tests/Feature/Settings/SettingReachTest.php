@@ -75,7 +75,6 @@ function settingsNothingReadsYet(): array
         'branding.watermark_margin_percent' => 'image pipeline',
 
         // ── Decided and unbuilt ──
-        'auth.registration_enabled' => 'public registration',
         // A grep for a key name finds what reads a setting, and a secret's value is
         // never read by name — so this one looked used because it was mentioned.
         // Nothing authenticates with it: no header check, no middleware, no caller.

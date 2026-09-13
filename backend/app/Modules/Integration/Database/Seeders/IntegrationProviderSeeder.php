@@ -94,6 +94,27 @@ class IntegrationProviderSeeder extends Seeder
                 'priority' => 0,
             ],
             [
+                // Inactive and credential-less, like every other vendor row, and with no
+                // log-style fallback for the reason captcha has none: a social login that
+                // answers without asking the vendor is not an identity at all.
+                //
+                // The client id is a setting because it is public — it travels in the
+                // authorization URL a browser is sent to. The client secret is a credential
+                // and lives encrypted on this row (ADR 0050 §10). The row is not offered to
+                // anyone until it is active and both are present.
+                //
+                // The default flag means nothing to social login — a person chooses the
+                // provider, and there is no failover — but every capability keeps exactly
+                // one default row, so the first provider carries it.
+                'capability' => IntegrationCapability::SOCIAL_LOGIN,
+                'driver' => 'google',
+                'label' => 'Google',
+                'settings' => ['client_id' => ''],
+                'is_active' => false,
+                'is_default' => true,
+                'priority' => 0,
+            ],
+            [
                 'capability' => IntegrationCapability::AI,
                 'driver' => 'anthropic',
                 'label' => 'Anthropic',

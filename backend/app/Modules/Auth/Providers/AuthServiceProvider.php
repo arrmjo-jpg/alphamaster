@@ -13,13 +13,17 @@ use App\Modules\Auth\Services\ConfirmedMfaSmsRecipientResolver;
 use App\Modules\Auth\Services\Mfa\SmsOtpMethod;
 use App\Modules\Auth\Services\Mfa\TotpMethod;
 use App\Modules\Auth\Services\MfaManager;
+use App\Modules\Auth\Services\PasswordRecoveryService;
 use App\Modules\Auth\Support\AuthCookie;
 use App\Modules\Core\Contracts\MfaEnrolmentStatus;
 use App\Modules\Core\Contracts\SmsRecipientResolverInterface;
+use Illuminate\Auth\Notifications\ResetPassword;
+use Illuminate\Contracts\Auth\CanResetPassword;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Sanctum\Sanctum;
+use LogicException;
 use PragmaRX\Google2FA\Google2FA;
 
 class AuthServiceProvider extends ServiceProvider
@@ -62,6 +66,7 @@ class AuthServiceProvider extends ServiceProvider
         $this->loadMigrationsFrom(dirname(__DIR__).'/Database/Migrations');
         $this->registerRoutes();
         $this->registerCookieTransport();
+        $this->registerPasswordResetLinks();
     }
 
     /**
@@ -89,6 +94,32 @@ class AuthServiceProvider extends ServiceProvider
             }
 
             return $request->bearerToken();
+        });
+    }
+
+    /**
+     * Where a password reset link points (ADR 0050 §12).
+     *
+     * The framework's notification would otherwise build a URL to a `password.reset`
+     * route on this API, which does not exist and would not be where a person enters a
+     * new password. The client that does is named by an operator, and no domain is
+     * assumed: the link goes to `auth.password_reset_url` carrying the token and the
+     * address it was issued for.
+     */
+    protected function registerPasswordResetLinks(): void
+    {
+        ResetPassword::createUrlUsing(static function (CanResetPassword $user, string $token): string {
+            // Judged again at the moment the link is built. A mail with a link to nowhere,
+            // or to an address this environment refuses, is not sent at all.
+            $target = app(PasswordRecoveryService::class)->resetPageUrl()
+                ?? throw new LogicException('A password reset link was requested while no usable reset page is configured.');
+
+            $separator = str_contains($target, '?') ? '&' : '?';
+
+            return $target.$separator.http_build_query([
+                'token' => $token,
+                'email' => $user->getEmailForPasswordReset(),
+            ], '', '&', PHP_QUERY_RFC3986);
         });
     }
 
