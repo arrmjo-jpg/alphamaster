@@ -315,5 +315,19 @@
     "settings.rollback.skipped.undeclared": "This setting is no longer declared by the platform.",
     "settings.secret.verification.failed": "The service did not accept it.",
     "settings.secret.verification.unavailable": "Stored without checking — nothing can verify this credential.",
-    "settings.secret.verification.verified": "Confirmed with the service before it was stored."
+    "settings.secret.verification.verified": "Confirmed with the service before it was stored.",
+    "api.translations.written": "The translation was saved.",
+    "api.error.translations.unknown_source": "There is no translatable content called :source.",
+    "api.error.translations.unknown_item": "There is no :source item with the identifier :id.",
+    "api.error.translations.unknown_field": ":source has no translatable field called :field.",
+    "api.error.translations.unknown_locale": ":locale is not one of the platform’s active languages.",
+    "api.error.translations.write_refused": "Changing :source is not something this account may do.",
+    "translations.sources.settings": "Settings copy",
+    "translations.sources.roles": "Role labels",
+    "translations.sources.notificationTemplates": "Notification wording",
+    "translations.fields.value": "Value",
+    "translations.fields.label": "Label",
+    "translations.fields.subject": "Subject",
+    "translations.fields.body": "Body",
+    "api.error.translations.template_needs_both": "A template needs both a subject and a body in :locale, or neither."
 }

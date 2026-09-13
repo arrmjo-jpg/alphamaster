@@ -158,7 +158,8 @@
         "operations": "Operations",
         "generalSettings": "General settings",
         "permissions": "Permissions",
-        "account": "Your account"
+        "account": "Your account",
+        "translations": "Translations"
     },
     "dashboard": {
         "platform": {
@@ -950,5 +951,22 @@
         "codeHint": "The digits in the message. It expires shortly after it is sent.",
         "confirm": "Confirm the number",
         "numberSetByAdministrator": "The number itself is set by an administrator. Ask one to change it, then confirm the new number here."
+    },
+    "translations": {
+        "eyebrow": "Localization",
+        "description": "What the platform says, in every language it says it in. The languages workspace decides which languages exist; this is what is written in them.",
+        "from": "Translating from",
+        "into": "Into",
+        "untranslatedOnly": "Only what is untranslated",
+        "save": "Save",
+        "saved": "Saved",
+        "readOnly": "You can read this content but not change it.",
+        "nothingWritten": "Nothing written",
+        "nothingReadable": "There is no translatable content you have permission to read.",
+        "oneLanguage": "The platform serves one language, so there is nothing to translate into.",
+        "noneOutstanding": "Everything here is translated.",
+        "complete": "Fully translated into {{language}}",
+        "outstanding_one": "{{count}} of {{total}} fields still untranslated",
+        "outstanding_other": "{{count}} of {{total}} fields still untranslated"
     }
 }

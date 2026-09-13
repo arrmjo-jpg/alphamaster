@@ -92,9 +92,11 @@ class SettingService implements SettingServiceInterface
      * @param  array<string, mixed>  $settings
      * @return array<string, mixed>
      */
-    public function updateGroup(string $group, array $settings): array
+    public function updateGroup(string $group, array $settings, ?string $locale = null): array
     {
-        return DB::transaction(function () use ($group, $settings): array {
+        $locale ??= $this->locale();
+
+        return DB::transaction(function () use ($group, $settings, $locale): array {
             // Translations come with them: a localized write reads the value it is
             // superseding for the caller's locale (ADR 0040), and lazy loading is
             // disabled platform-wide — which caught this rather than letting it become
@@ -152,10 +154,10 @@ class SettingService implements SettingServiceInterface
                 $setting->version = $setting->version + 1;
 
                 if ($setting->is_localized) {
-                    // A localized write lands in the caller's locale and leaves every
-                    // other language alone. Writing it to the base column instead would
-                    // silently change what every other locale falls back to.
-                    $setting->setLocalizedValue($this->locale(), $serialized);
+                    // A localized write lands in one language and leaves every other
+                    // alone. Writing it to the base column instead would silently
+                    // change what every other locale falls back to.
+                    $setting->setLocalizedValue($locale, $serialized);
                     $setting->save();
                 } else {
                     $setting->setRawValue($serialized);

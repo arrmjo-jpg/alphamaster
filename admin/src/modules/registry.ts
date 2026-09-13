@@ -3,6 +3,7 @@ import {
     Activity,
     Bell,
     CircleUser,
+    Languages as LanguagesIcon,
     Globe,
     Images,
     KeyRound,
@@ -24,6 +25,7 @@ import { OperationsScreen } from '@/screens/OperationsScreen';
 import { PermissionsScreen } from '@/screens/PermissionsScreen';
 import { RolesScreen } from '@/screens/RolesScreen';
 import { SettingsScreen } from '@/screens/SettingsScreen';
+import { TranslationsScreen } from '@/screens/TranslationsScreen';
 import { UsersScreen } from '@/screens/UsersScreen';
 
 /**
@@ -196,6 +198,20 @@ export const MODULES: ModuleManifest[] = [
         // gate that only looks like security.
         order: 60,
         component: LanguagesScreen,
+    },
+    {
+        id: 'translations',
+        path: '/translations',
+        label: 'modules.translations',
+        icon: LanguagesIcon,
+        // No permission, and for the same reason Languages has none: the workshop
+        // reaches content owned by three modules with three different permissions, so
+        // a single one named here could only ever be the wrong question for two of
+        // them. The API answers per body of content and the screen renders what it is
+        // given — an operator holding none of the three sees the screen and nothing
+        // in it, which is a truthful answer rather than a hidden one.
+        order: 65,
+        component: TranslationsScreen,
     },
     {
         id: 'media',

@@ -363,7 +363,7 @@ test('every key this scope introduced exists in both dictionaries', function ():
     $keys = array_values(array_filter(
         array_keys($en),
         static fn (string $key): bool => (bool) preg_match(
-            '/^api\.error\.(auth|authorization|media|settings|integration|notification)\./',
+            '/^api\.error\.(auth|authorization|media|settings|integration|notification|translations)\./',
             $key
         )
     ));
@@ -372,10 +372,10 @@ test('every key this scope introduced exists in both dictionaries', function ():
     // Phase 16B-2 the unknown-revision one, 16B-3 the failed-verification one, and
     // 16B-6 the rejected-value one. Email verification added the throttled and
     // invalid-link messages, and the rollback preview the one asking which revision
-    // to preview. Phone verification added four: no number, already verified,
-    // throttled, and the one answer that covers a wrong code, an expired one and a
-    // code whose number has since changed.
-    expect($keys)->toHaveCount(45);
+    // to preview. Phone verification added four, and the translation workshop six —
+    // the scope grew to include those, because a workshop for translations that
+    // refuses in one language only would be a poor joke.
+    expect($keys)->toHaveCount(51);
 
     foreach ($keys as $key) {
         expect($ar)->toHaveKey($key)
