@@ -102,6 +102,10 @@ export type ExportConfigurationRequest = {
     include_secrets?: boolean;
 };
 
+export type ForgotPasswordRequest = {
+    email: string;
+};
+
 export type IntegrationProviderResource = {
     id: string;
     capability: string;
@@ -277,6 +281,45 @@ export type NotificationTemplateResource = {
  */
 export type NotificationType = 'security.alert' | 'account.updated' | 'admin.announcement';
 
+export type PhoneSignInRequest = {
+    phone: string;
+    code: string;
+    /**
+     * Needed only when the number has no account yet; the account is created with it.
+     */
+    name?: string | null;
+    preferred_locale?: string | null;
+};
+
+export type ProfileResource = {
+    id: string;
+    account_type: string;
+    name: string;
+    email: string | null;
+    email_verified: string;
+    email_verified_at: string | null;
+    phone: string | null;
+    phone_verified: boolean;
+    phone_verified_at: string | null;
+    has_password: boolean;
+    preferred_locale: string | null;
+    bio: string | null;
+    avatar_url: string | null;
+    location: {
+        country_code: string | null;
+        region: string | null;
+        city: string | null;
+        latitude: number | null;
+        longitude: number | null;
+        updated_at: string | null;
+    };
+    links: Array<{
+        platform: string;
+        url: string;
+        position: number;
+    }>;
+};
+
 /**
  * A device asking to be reachable.
  */
@@ -300,6 +343,18 @@ export type RegisterPushDeviceRequest = {
     label?: string | null;
 };
 
+export type RegisterRequest = {
+    name: string;
+    email: string;
+    password: string;
+    /**
+     * Stored unverified; confirm it through phone verification.
+     */
+    phone?: string | null;
+    preferred_locale?: string | null;
+    password_confirmation: string;
+};
+
 /**
  * Ask for translations of what is missing in one language.
  */
@@ -321,6 +376,13 @@ export type RequestSuggestionsRequest = {
      * request an operator makes on purpose.
      */
     include_translated?: boolean;
+};
+
+export type ResetPasswordRequest = {
+    email: string;
+    token: string;
+    password: string;
+    password_confirmation: string;
 };
 
 export type RestoreConfigurationRequest = {
@@ -419,6 +481,13 @@ export type SendAnnouncementRequest = {
     audience: AnnouncementAudience;
 };
 
+export type SendPhoneSignInCodeRequest = {
+    /**
+     * The number to sign in or register with, with its country code.
+     */
+    phone: string;
+};
+
 export type SettingDefinitionResource = {
     key: string;
     group: string;
@@ -473,6 +542,31 @@ export type SettingDefinitionResource = {
      */
     permission: string | null;
     deprecated: boolean;
+};
+
+export type SocialAuthorizeRequest = {
+    /**
+     * Must be one of the redirect URIs an operator allowed, exactly.
+     */
+    redirect_uri: string;
+    code_challenge: string;
+    code_challenge_method: 'S256';
+};
+
+export type SocialCallbackRequest = {
+    code: string;
+    state: string;
+    /**
+     * RFC 7636: 43 to 128 unreserved characters.
+     */
+    code_verifier: string;
+};
+
+export type StoreAvatarRequest = {
+    /**
+     * Maximum file size: 5120 kilobytes.
+     */
+    file: Blob | File;
 };
 
 export type StoreLanguageRequest = {
@@ -571,6 +665,51 @@ export type UpdateNotificationTemplateRequest = {
     }>;
 };
 
+export type UpdateProfileLinksRequest = {
+    links: Array<{
+        platform: 'website' | 'facebook' | 'instagram' | 'x' | 'linkedin' | 'youtube' | 'tiktok' | 'snapchat' | 'telegram' | 'whatsapp' | 'github' | 'other';
+        /**
+         * ClientUrlPolicy's web-page rule: https in production, no credentials, no
+         * fragment, never this machine.
+         */
+        url: string;
+    }>;
+};
+
+export type UpdateProfilePasswordRequest = {
+    /**
+     * Required when the account already has a password.
+     */
+    current_password?: string | null;
+    password: string;
+    password_confirmation: string;
+};
+
+export type UpdateProfileRequest = {
+    name?: string;
+    email?: string;
+    /**
+     * A new number is stored unverified. Null removes it.
+     */
+    phone?: string | null;
+    preferred_locale?: string | null;
+    bio?: string | null;
+    /**
+     * ISO 3166-1 alpha-2, e.g. JO.
+     */
+    country_code?: string | null;
+    region?: string | null;
+    city?: string | null;
+    /**
+     * Both or neither.
+     */
+    latitude?: number | null;
+    /**
+     * Both or neither.
+     */
+    longitude?: number | null;
+};
+
 export type UpdateUserRequest = {
     name?: string;
     email?: string;
@@ -590,7 +729,7 @@ export type UpdateUserRequest = {
 export type UserResource = {
     id: string;
     name: string;
-    email: string;
+    email: string | null;
     account_type: string;
     account_type_label: string;
     is_active: boolean;
@@ -615,6 +754,15 @@ export type UserResource = {
      * Whether a confirmed second factor exists. Which one is not published.
      */
     mfa_enrolled: boolean;
+    /**
+     * Whether a social identity can sign in to this account today. While true the
+     * account cannot be promoted; identities unlinked in the past do not count.
+     */
+    has_linked_social_identity: boolean;
+    /**
+     * The providers linked today. Never an identity's subject or address.
+     */
+    linked_social_providers: Array<string>;
     roles: Array<string>;
     permissions: Array<string>;
 };
@@ -1567,6 +1715,192 @@ export type AuthMeResponses = {
 };
 
 export type AuthMeResponse = AuthMeResponses[keyof AuthMeResponses];
+
+export type ProfileAvatarDestroyData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/profile/avatar';
+};
+
+export type ProfileAvatarDestroyErrors = {
+    /**
+     * Unauthenticated
+     */
+    401: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+};
+
+export type ProfileAvatarDestroyError = ProfileAvatarDestroyErrors[keyof ProfileAvatarDestroyErrors];
+
+export type ProfileAvatarDestroyResponses = {
+    /**
+     * Removed, or there was none.
+     */
+    204: string;
+};
+
+export type ProfileAvatarDestroyResponse = ProfileAvatarDestroyResponses[keyof ProfileAvatarDestroyResponses];
+
+export type ProfileAvatarStoreData = {
+    body: StoreAvatarRequest;
+    path?: never;
+    query?: never;
+    url: '/profile/avatar';
+};
+
+export type ProfileAvatarStoreErrors = {
+    /**
+     * Unauthenticated
+     */
+    401: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+    /**
+     * MEDIA_REJECTED (the bytes are not an acceptable image) or VALIDATION_ERROR.
+     */
+    422: {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'MEDIA_REJECTED';
+            message: string;
+            details: {
+                reason: string;
+            };
+        };
+    };
+};
+
+export type ProfileAvatarStoreError = ProfileAvatarStoreErrors[keyof ProfileAvatarStoreErrors];
+
+export type ProfileAvatarStoreResponses = {
+    201: {
+        success: boolean;
+        message: string;
+        data: {
+            media_id: string;
+            status: string;
+            avatar_url: string | null;
+        };
+    };
+};
+
+export type ProfileAvatarStoreResponse = ProfileAvatarStoreResponses[keyof ProfileAvatarStoreResponses];
+
+export type AdminCacheIndexData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/admin/cache';
+};
+
+export type AdminCacheIndexErrors = {
+    /**
+     * Unauthenticated
+     */
+    401: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+};
+
+export type AdminCacheIndexError = AdminCacheIndexErrors[keyof AdminCacheIndexErrors];
+
+export type AdminCacheIndexResponses = {
+    200: {
+        success: boolean;
+        data: Array<{
+            namespace: string;
+            ttl_seconds: number;
+            failure_mode: string;
+            version: number;
+            generation: number;
+            flushable: boolean;
+        }>;
+    };
+};
+
+export type AdminCacheIndexResponse = AdminCacheIndexResponses[keyof AdminCacheIndexResponses];
+
+export type AdminCacheFlushData = {
+    body?: never;
+    path: {
+        namespace: string;
+    };
+    query?: never;
+    url: '/admin/cache/{namespace}/flush';
+};
+
+export type AdminCacheFlushErrors = {
+    /**
+     * Unauthenticated
+     */
+    401: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+    /**
+     * NOT_FOUND: no such namespace.
+     */
+    404: {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'NOT_FOUND';
+            message: string;
+            details: null;
+        };
+    };
+    /**
+     * CACHE_NAMESPACE_PROTECTED: auth and authorization cannot be invalidated here.
+     */
+    409: {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'CACHE_NAMESPACE_PROTECTED';
+            message: string;
+            details: null;
+        };
+    };
+};
+
+export type AdminCacheFlushError = AdminCacheFlushErrors[keyof AdminCacheFlushErrors];
+
+export type AdminCacheFlushResponses = {
+    200: {
+        success: boolean;
+        message: string;
+        data: {
+            namespace: string;
+            ttl_seconds: number;
+            failure_mode: string;
+            version: number;
+            generation: number;
+            flushable: boolean;
+        };
+    };
+};
+
+export type AdminCacheFlushResponse = AdminCacheFlushResponses[keyof AdminCacheFlushResponses];
 
 export type AdminConfigurationExportData = {
     body?: ExportConfigurationRequest;
@@ -3098,6 +3432,255 @@ export type AdminNotificationsTemplatesUpdateResponses = {
 
 export type AdminNotificationsTemplatesUpdateResponse = AdminNotificationsTemplatesUpdateResponses[keyof AdminNotificationsTemplatesUpdateResponses];
 
+export type AuthPasswordForgotData = {
+    body: ForgotPasswordRequest;
+    path?: never;
+    query?: never;
+    url: '/auth/password/forgot';
+};
+
+export type AuthPasswordForgotErrors = {
+    /**
+     * Validation error
+     */
+    422: {
+        /**
+         * Errors overview.
+         */
+        message: string;
+        /**
+         * A detailed description of each field that failed validation.
+         */
+        errors: {
+            [key: string]: Array<string>;
+        };
+    };
+    /**
+     * TOO_MANY_ATTEMPTS: every request counts, because each can send a message.
+     */
+    429: {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'TOO_MANY_ATTEMPTS';
+            message: string;
+            details: {
+                retry_after: number;
+            };
+        };
+    };
+};
+
+export type AuthPasswordForgotError = AuthPasswordForgotErrors[keyof AuthPasswordForgotErrors];
+
+export type AuthPasswordForgotResponses = {
+    200: {
+        success: boolean;
+        message: string;
+        data: null;
+        meta: string;
+    };
+};
+
+export type AuthPasswordForgotResponse = AuthPasswordForgotResponses[keyof AuthPasswordForgotResponses];
+
+export type AuthPasswordResetData = {
+    body: ResetPasswordRequest;
+    path?: never;
+    query?: never;
+    url: '/auth/password/reset';
+};
+
+export type AuthPasswordResetErrors = {
+    /**
+     * PASSWORD_RESET_INVALID (the same answer for a wrong, expired or used token and for an address with no account) or VALIDATION_ERROR.
+     */
+    422: {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'PASSWORD_RESET_INVALID';
+            message: string;
+            details: null;
+        };
+    };
+    /**
+     * TOO_MANY_ATTEMPTS.
+     */
+    429: {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'TOO_MANY_ATTEMPTS';
+            message: string;
+            details: {
+                retry_after: number;
+            };
+        };
+    };
+};
+
+export type AuthPasswordResetError = AuthPasswordResetErrors[keyof AuthPasswordResetErrors];
+
+export type AuthPasswordResetResponses = {
+    200: {
+        success: boolean;
+        message: string;
+        data: null;
+        meta: string;
+    };
+};
+
+export type AuthPasswordResetResponse = AuthPasswordResetResponses[keyof AuthPasswordResetResponses];
+
+export type AuthPhoneCodeData = {
+    body: SendPhoneSignInCodeRequest;
+    path?: never;
+    query?: never;
+    url: '/auth/phone/code';
+};
+
+export type AuthPhoneCodeErrors = {
+    /**
+     * PHONE_SIGN_IN_UNAVAILABLE: phone sign-in is switched off.
+     */
+    404: string;
+    /**
+     * CAPTCHA_FAILED or VALIDATION_ERROR.
+     */
+    422: {
+        /**
+         * Errors overview.
+         */
+        message: string;
+        /**
+         * A detailed description of each field that failed validation.
+         */
+        errors: {
+            [key: string]: Array<string>;
+        };
+    };
+    /**
+     * TOO_MANY_ATTEMPTS, with Retry-After.
+     */
+    429: {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'TOO_MANY_ATTEMPTS';
+            message: string;
+            details: {
+                retry_after: number;
+            };
+        };
+    };
+};
+
+export type AuthPhoneCodeError = AuthPhoneCodeErrors[keyof AuthPhoneCodeErrors];
+
+export type AuthPhoneCodeResponses = {
+    200: {
+        success: boolean;
+        message: string;
+        data: {
+            expires_in: number;
+            resend_after: number;
+        };
+    };
+};
+
+export type AuthPhoneCodeResponse = AuthPhoneCodeResponses[keyof AuthPhoneCodeResponses];
+
+export type AuthPhoneSignInData = {
+    body: PhoneSignInRequest;
+    path?: never;
+    query?: never;
+    url: '/auth/phone/sign-in';
+};
+
+export type AuthPhoneSignInErrors = {
+    /**
+     * ACCOUNT_SUSPENDED or REGISTRATION_CLOSED.
+     */
+    403: {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'ACCOUNT_SUSPENDED';
+            message: string;
+            details: null;
+        };
+    };
+    /**
+     * PHONE_SIGN_IN_UNAVAILABLE.
+     */
+    404: string;
+    /**
+     * PHONE_SIGN_IN_INVALID_CODE (no live code, a wrong one, or a number that may not sign in), REGISTRATION_DETAILS_REQUIRED (the code is right, the number has no account, and no name was given; the code is not spent) or VALIDATION_ERROR.
+     */
+    422: {
+        /**
+         * Errors overview.
+         */
+        message: string;
+        /**
+         * A detailed description of each field that failed validation.
+         */
+        errors: {
+            [key: string]: Array<string>;
+        };
+    };
+    /**
+     * TOO_MANY_ATTEMPTS, with Retry-After.
+     */
+    429: {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'TOO_MANY_ATTEMPTS';
+            message: string;
+            details: {
+                retry_after: number;
+            };
+        };
+    };
+};
+
+export type AuthPhoneSignInError = AuthPhoneSignInErrors[keyof AuthPhoneSignInErrors];
+
+export type AuthPhoneSignInResponses = {
+    200: {
+        success: boolean;
+        message: string;
+        data: {
+            token?: string;
+            token_type?: string;
+            abilities?: Array<string>;
+            mfa_required?: boolean;
+            mfa_token?: string;
+            expires_in?: number;
+        };
+    };
+    /**
+     * The code registered a new user account. The body is the same as for 200.
+     */
+    201: string;
+};
+
+export type AuthPhoneSignInResponse = AuthPhoneSignInResponses[keyof AuthPhoneSignInResponses];
+
 export type AuthPhoneVerifySendData = {
     body?: never;
     path?: never;
@@ -3179,6 +3762,202 @@ export type AuthPhoneVerifyResponses = {
 };
 
 export type AuthPhoneVerifyResponse = AuthPhoneVerifyResponses[keyof AuthPhoneVerifyResponses];
+
+export type ProfileShowData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/profile';
+};
+
+export type ProfileShowErrors = {
+    /**
+     * Unauthenticated
+     */
+    401: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+};
+
+export type ProfileShowError = ProfileShowErrors[keyof ProfileShowErrors];
+
+export type ProfileShowResponses = {
+    200: {
+        success: boolean;
+        data: ProfileResource;
+    };
+};
+
+export type ProfileShowResponse = ProfileShowResponses[keyof ProfileShowResponses];
+
+export type ProfileUpdateData = {
+    body?: UpdateProfileRequest;
+    path?: never;
+    query?: never;
+    url: '/profile';
+};
+
+export type ProfileUpdateErrors = {
+    /**
+     * Unauthenticated
+     */
+    401: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+    /**
+     * PROFILE_EMAIL_MANAGED: an administrator's address is changed through account management.
+     */
+    403: {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'PROFILE_EMAIL_MANAGED';
+            message: string;
+            details: null;
+        };
+    };
+    /**
+     * LAST_SIGN_IN_METHOD: removing the number would leave the account no way to sign in.
+     */
+    409: {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'LAST_SIGN_IN_METHOD';
+            message: string;
+            details: null;
+        };
+    };
+    /**
+     * Validation error
+     */
+    422: {
+        /**
+         * Errors overview.
+         */
+        message: string;
+        /**
+         * A detailed description of each field that failed validation.
+         */
+        errors: {
+            [key: string]: Array<string>;
+        };
+    };
+};
+
+export type ProfileUpdateError = ProfileUpdateErrors[keyof ProfileUpdateErrors];
+
+export type ProfileUpdateResponses = {
+    200: {
+        success: boolean;
+        message: string;
+        data: ProfileResource;
+    };
+};
+
+export type ProfileUpdateResponse = ProfileUpdateResponses[keyof ProfileUpdateResponses];
+
+export type ProfilePasswordData = {
+    body: UpdateProfilePasswordRequest;
+    path?: never;
+    query?: never;
+    url: '/profile/password';
+};
+
+export type ProfilePasswordErrors = {
+    /**
+     * Unauthenticated
+     */
+    401: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+    /**
+     * VALIDATION_ERROR, including a wrong current password.
+     */
+    422: {
+        /**
+         * Errors overview.
+         */
+        message: string;
+        /**
+         * A detailed description of each field that failed validation.
+         */
+        errors: {
+            [key: string]: Array<string>;
+        };
+    };
+};
+
+export type ProfilePasswordError = ProfilePasswordErrors[keyof ProfilePasswordErrors];
+
+export type ProfilePasswordResponses = {
+    200: {
+        success: boolean;
+        message: string;
+        data: null;
+    };
+};
+
+export type ProfilePasswordResponse = ProfilePasswordResponses[keyof ProfilePasswordResponses];
+
+export type ProfileLinksData = {
+    body: UpdateProfileLinksRequest;
+    path?: never;
+    query?: never;
+    url: '/profile/links';
+};
+
+export type ProfileLinksErrors = {
+    /**
+     * Unauthenticated
+     */
+    401: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+    /**
+     * Validation error
+     */
+    422: {
+        /**
+         * Errors overview.
+         */
+        message: string;
+        /**
+         * A detailed description of each field that failed validation.
+         */
+        errors: {
+            [key: string]: Array<string>;
+        };
+    };
+};
+
+export type ProfileLinksError = ProfileLinksErrors[keyof ProfileLinksErrors];
+
+export type ProfileLinksResponses = {
+    200: {
+        success: boolean;
+        message: string;
+        data: ProfileResource;
+    };
+};
+
+export type ProfileLinksResponse = ProfileLinksResponses[keyof ProfileLinksResponses];
 
 export type AdminNotificationsDevicesIndexData = {
     body?: never;
@@ -3437,6 +4216,68 @@ export type NotificationsDevicesDestroyResponses = {
 };
 
 export type NotificationsDevicesDestroyResponse = NotificationsDevicesDestroyResponses[keyof NotificationsDevicesDestroyResponses];
+
+export type AuthRegisterData = {
+    body: RegisterRequest;
+    path?: never;
+    query?: never;
+    url: '/auth/register';
+};
+
+export type AuthRegisterErrors = {
+    /**
+     * REGISTRATION_CLOSED.
+     */
+    403: string;
+    /**
+     * CAPTCHA_FAILED or VALIDATION_ERROR (including an address or number already in use).
+     */
+    422: {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'CAPTCHA_FAILED';
+            message: string;
+            details: null;
+        };
+    };
+    /**
+     * TOO_MANY_ATTEMPTS, with Retry-After.
+     */
+    429: {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'TOO_MANY_ATTEMPTS';
+            message: string;
+            details: {
+                retry_after: string;
+            };
+        };
+    };
+};
+
+export type AuthRegisterError = AuthRegisterErrors[keyof AuthRegisterErrors];
+
+export type AuthRegisterResponses = {
+    200: string;
+    201: {
+        success: boolean;
+        message: string;
+        data: {
+            token: string;
+            token_type: string;
+            abilities: Array<string>;
+            email_verification_sent: boolean;
+        };
+    };
+};
+
+export type AuthRegisterResponse = AuthRegisterResponses[keyof AuthRegisterResponses];
 
 export type AdminRolesIndexData = {
     body?: never;
@@ -4266,6 +5107,436 @@ export type SettingsShowResponses = {
 
 export type SettingsShowResponse = SettingsShowResponses[keyof SettingsShowResponses];
 
+export type AuthSocialProvidersData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/auth/social/providers';
+};
+
+export type AuthSocialProvidersResponses = {
+    200: {
+        success: boolean;
+        data: Array<{
+            key: string;
+            label: string;
+        }>;
+    };
+};
+
+export type AuthSocialProvidersResponse = AuthSocialProvidersResponses[keyof AuthSocialProvidersResponses];
+
+export type AuthSocialAuthorizeData = {
+    body: SocialAuthorizeRequest;
+    path: {
+        provider: string;
+    };
+    query?: never;
+    url: '/auth/social/{provider}/authorize';
+};
+
+export type AuthSocialAuthorizeErrors = {
+    /**
+     * SOCIAL_PROVIDER_UNAVAILABLE: social sign-in is off, or the provider is unknown, switched off or not fully configured.
+     */
+    404: string;
+    /**
+     * INVALID_REDIRECT_URI: the redirect URI is not an exact entry of auth.social_redirect_uris usable in this environment; or VALIDATION_ERROR.
+     */
+    422: {
+        /**
+         * Errors overview.
+         */
+        message: string;
+        /**
+         * A detailed description of each field that failed validation.
+         */
+        errors: {
+            [key: string]: Array<string>;
+        };
+    };
+};
+
+export type AuthSocialAuthorizeError = AuthSocialAuthorizeErrors[keyof AuthSocialAuthorizeErrors];
+
+export type AuthSocialAuthorizeResponses = {
+    200: {
+        success: boolean;
+        data: {
+            authorization_url: string;
+            expires_at: string;
+        };
+    };
+};
+
+export type AuthSocialAuthorizeResponse = AuthSocialAuthorizeResponses[keyof AuthSocialAuthorizeResponses];
+
+export type AuthSocialCallbackData = {
+    body: SocialCallbackRequest;
+    path: {
+        provider: string;
+    };
+    query?: never;
+    url: '/auth/social/{provider}/callback';
+};
+
+export type AuthSocialCallbackErrors = {
+    /**
+     * SOCIAL_SIGN_IN_REFUSED (administrator account or address, disabled account, unlinked identity, address the provider does not vouch for) or REGISTRATION_CLOSED.
+     */
+    403: string;
+    /**
+     * SOCIAL_PROVIDER_UNAVAILABLE.
+     */
+    404: string;
+    /**
+     * SOCIAL_IDENTITY_NOT_LINKED: the verified address belongs to an existing user, who signs in and links explicitly.
+     */
+    409: string;
+    /**
+     * SOCIAL_STATE_INVALID (unknown, expired, already used, or bound to another provider, intent or PKCE verifier) or VALIDATION_ERROR.
+     */
+    422: {
+        /**
+         * Errors overview.
+         */
+        message: string;
+        /**
+         * A detailed description of each field that failed validation.
+         */
+        errors: {
+            [key: string]: Array<string>;
+        };
+    };
+    /**
+     * TOO_MANY_ATTEMPTS, with Retry-After.
+     */
+    429: {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'TOO_MANY_ATTEMPTS';
+            message: string;
+            details: {
+                retry_after: number;
+            };
+        };
+    };
+    /**
+     * SOCIAL_PROVIDER_ERROR: the code exchange or ID token validation failed. The detail is recorded in the integration usage log only.
+     */
+    502: string;
+};
+
+export type AuthSocialCallbackError = AuthSocialCallbackErrors[keyof AuthSocialCallbackErrors];
+
+export type AuthSocialCallbackResponses = {
+    200: {
+        success: boolean;
+        message: string;
+        data: {
+            token?: string;
+            token_type?: string;
+            abilities?: Array<string>;
+            mfa_required?: boolean;
+            mfa_token?: string;
+            expires_in?: number;
+        };
+    };
+    /**
+     * The sign-in created a user account. The body is the same as for 200.
+     */
+    201: string;
+};
+
+export type AuthSocialCallbackResponse = AuthSocialCallbackResponses[keyof AuthSocialCallbackResponses];
+
+export type AuthSocialIdentitiesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/auth/social/identities';
+};
+
+export type AuthSocialIdentitiesErrors = {
+    /**
+     * Unauthenticated
+     */
+    401: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+};
+
+export type AuthSocialIdentitiesError = AuthSocialIdentitiesErrors[keyof AuthSocialIdentitiesErrors];
+
+export type AuthSocialIdentitiesResponses = {
+    200: {
+        success: boolean;
+        data: Array<{
+            id: string;
+            provider: string;
+            linked_at: string;
+            last_used_at: string | null;
+        }>;
+    };
+};
+
+export type AuthSocialIdentitiesResponse = AuthSocialIdentitiesResponses[keyof AuthSocialIdentitiesResponses];
+
+export type AuthSocialLinkAuthorizeData = {
+    body: SocialAuthorizeRequest;
+    path: {
+        provider: string;
+    };
+    query?: never;
+    url: '/auth/social/{provider}/link/authorize';
+};
+
+export type AuthSocialLinkAuthorizeErrors = {
+    /**
+     * Unauthenticated
+     */
+    401: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+    /**
+     * SOCIAL_SIGN_IN_REFUSED: administrators never link a social identity; or an administrator token.
+     */
+    403: string;
+    /**
+     * SOCIAL_PROVIDER_UNAVAILABLE.
+     */
+    404: string;
+    /**
+     * INVALID_REDIRECT_URI or VALIDATION_ERROR.
+     */
+    422: {
+        /**
+         * Errors overview.
+         */
+        message: string;
+        /**
+         * A detailed description of each field that failed validation.
+         */
+        errors: {
+            [key: string]: Array<string>;
+        };
+    };
+};
+
+export type AuthSocialLinkAuthorizeError = AuthSocialLinkAuthorizeErrors[keyof AuthSocialLinkAuthorizeErrors];
+
+export type AuthSocialLinkAuthorizeResponses = {
+    200: {
+        success: boolean;
+        data: {
+            authorization_url: string;
+            expires_at: string;
+        };
+    };
+};
+
+export type AuthSocialLinkAuthorizeResponse = AuthSocialLinkAuthorizeResponses[keyof AuthSocialLinkAuthorizeResponses];
+
+export type AuthSocialLinkData = {
+    body: SocialCallbackRequest;
+    path: {
+        provider: string;
+    };
+    query?: never;
+    url: '/auth/social/{provider}/link';
+};
+
+export type AuthSocialLinkErrors = {
+    /**
+     * Unauthenticated
+     */
+    401: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+    /**
+     * SOCIAL_SIGN_IN_REFUSED: administrators never link a social identity; or an administrator token.
+     */
+    403: string;
+    /**
+     * SOCIAL_PROVIDER_UNAVAILABLE.
+     */
+    404: string;
+    /**
+     * SOCIAL_IDENTITY_IN_USE (the identity belongs to another account, linked or not) or SOCIAL_PROVIDER_ALREADY_LINKED.
+     */
+    409: string;
+    /**
+     * SOCIAL_STATE_INVALID (including a state issued for signing in or to another account) or VALIDATION_ERROR.
+     */
+    422: {
+        /**
+         * Errors overview.
+         */
+        message: string;
+        /**
+         * A detailed description of each field that failed validation.
+         */
+        errors: {
+            [key: string]: Array<string>;
+        };
+    };
+    /**
+     * TOO_MANY_ATTEMPTS, with Retry-After.
+     */
+    429: {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'TOO_MANY_ATTEMPTS';
+            message: string;
+            details: {
+                retry_after: number;
+            };
+        };
+    };
+    /**
+     * SOCIAL_PROVIDER_ERROR.
+     */
+    502: string;
+};
+
+export type AuthSocialLinkError = AuthSocialLinkErrors[keyof AuthSocialLinkErrors];
+
+export type AuthSocialLinkResponses = {
+    200: string;
+    201: {
+        success: boolean;
+        message: string;
+        data: {
+            id: string;
+            provider: string;
+            linked_at: string;
+        };
+    };
+};
+
+export type AuthSocialLinkResponse = AuthSocialLinkResponses[keyof AuthSocialLinkResponses];
+
+export type AuthSocialUnlinkData = {
+    body?: never;
+    path: {
+        identity: string;
+    };
+    query?: never;
+    url: '/auth/social/identities/{identity}';
+};
+
+export type AuthSocialUnlinkErrors = {
+    /**
+     * Unauthenticated
+     */
+    401: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+    /**
+     * NOT_FOUND: no linked identity with that id belongs to this account.
+     */
+    404: string;
+    /**
+     * LAST_SIGN_IN_METHOD: the account has no password and no other linked identity.
+     */
+    409: string;
+};
+
+export type AuthSocialUnlinkError = AuthSocialUnlinkErrors[keyof AuthSocialUnlinkErrors];
+
+export type AuthSocialUnlinkResponses = {
+    200: string;
+    /**
+     * Unlinked. The row is kept and its subject stays reserved to this account.
+     */
+    204: string;
+};
+
+export type AuthSocialUnlinkResponse = AuthSocialUnlinkResponses[keyof AuthSocialUnlinkResponses];
+
+export type AdminAuthSocialLoginSetupData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/admin/auth/social-login/setup';
+};
+
+export type AdminAuthSocialLoginSetupErrors = {
+    /**
+     * Unauthenticated
+     */
+    401: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+    /**
+     * The caller is not an administrator holding settings.view.
+     */
+    403: string;
+};
+
+export type AdminAuthSocialLoginSetupError = AdminAuthSocialLoginSetupErrors[keyof AdminAuthSocialLoginSetupErrors];
+
+export type AdminAuthSocialLoginSetupResponses = {
+    200: {
+        success: boolean;
+        data: {
+            enabled: boolean;
+            registration_enabled: boolean;
+            production: boolean;
+            ready: boolean;
+            redirect_uris: Array<{
+                uri: string;
+                usable: boolean;
+                problem: string | null;
+                problem_label: string | null;
+            }>;
+            register_in_provider_console: Array<string>;
+            password_reset_url: {
+                value: string | null;
+                usable: boolean;
+                problem: string | null;
+                problem_label: string | null;
+            };
+            providers: Array<{
+                key: string;
+                label: string;
+                active: boolean;
+                effective: boolean;
+                client_id_configured: boolean;
+                client_secret_configured: boolean;
+                missing: Array<string>;
+            }>;
+            issues: Array<{
+                code: string;
+                label: string;
+            }>;
+        };
+    };
+};
+
+export type AdminAuthSocialLoginSetupResponse = AdminAuthSocialLoginSetupResponses[keyof AdminAuthSocialLoginSetupResponses];
+
 export type AdminTranslationsOverviewData = {
     body?: never;
     path?: never;
@@ -5084,6 +6355,19 @@ export type AdminUsersPromoteErrors = {
          * Error overview.
          */
         message: string;
+    };
+    409: {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'PROMOTION_REFUSED_SOCIAL_IDENTITY';
+            message: string;
+            details: {
+                linked_identities: string;
+            };
+        };
     };
 };
 

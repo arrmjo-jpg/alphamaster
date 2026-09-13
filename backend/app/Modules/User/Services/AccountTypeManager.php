@@ -7,6 +7,8 @@ namespace App\Modules\User\Services;
 use App\Modules\Authorization\Contracts\AdminRbacContract;
 use App\Modules\User\Contracts\AccountTypeManagerContract;
 use App\Modules\User\Enums\AccountType;
+use App\Modules\User\Exceptions\PromotionRefusedException;
+use App\Modules\User\Models\SocialIdentity;
 use App\Modules\User\Models\User;
 use Illuminate\Support\Facades\DB;
 
@@ -30,20 +32,49 @@ class AccountTypeManager implements AccountTypeManagerContract
      * standing. The account signs in again and, because MFA is mandatory for
      * administrators (ADR 0013), is taken through enrolment before it receives
      * admin:access.
+     *
+     * ## Refused while a social identity is linked (ADR 0050 §6)
+     *
+     * A linked identity is a live way for a vendor to sign in to this account, and
+     * promoting it would make that vendor an administrative sign-in method. The refusal
+     * raises rather than returning, so it cannot be mistaken for "already an
+     * administrator", and it changes nothing: no token is revoked, the type stays, and no
+     * identity is unlinked to make room. Once every identity is unlinked the rule no
+     * longer applies.
+     *
+     * The decision is made on the account as it stands under a row lock, not on the model
+     * the caller loaded. The link path takes the same lock, so a link racing this
+     * promotion is either committed before the check sees it or waits until the
+     * promotion is done — and the database refuses the combination either way.
+     *
+     * The lock lives for this one transaction and guards one state transition. It is not
+     * the lock across an editing session that ADR 0038 rejects for configuration.
+     *
+     * @throws PromotionRefusedException
      */
     public function promote(User $user): User
     {
-        if ($user->account_type === AccountType::ADMIN) {
-            return $user;
-        }
-
         return DB::transaction(function () use ($user): User {
-            $user->account_type = AccountType::ADMIN;
-            $user->save();
+            /** @var User $current */
+            $current = User::query()->whereKey($user->getKey())->lockForUpdate()->firstOrFail();
 
-            $user->tokens()->delete();
+            if ($current->account_type === AccountType::ADMIN) {
+                return $current;
+            }
 
-            return $user->refresh();
+            $linked = SocialIdentity::query()->linked()->where('user_id', $current->id)->count();
+
+            // Checked before anything changes, so a refusal leaves every token in place.
+            if ($linked > 0) {
+                throw new PromotionRefusedException($current->id, $linked);
+            }
+
+            $current->account_type = AccountType::ADMIN;
+            $current->save();
+
+            $current->tokens()->delete();
+
+            return $current->refresh();
         });
     }
 

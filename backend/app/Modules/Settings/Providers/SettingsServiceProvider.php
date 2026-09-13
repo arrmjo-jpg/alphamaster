@@ -13,6 +13,7 @@ use App\Modules\Settings\Contracts\SettingServiceInterface;
 use App\Modules\Settings\Definitions\Catalogues\AiCatalogue;
 use App\Modules\Settings\Definitions\Catalogues\AuthCatalogue;
 use App\Modules\Settings\Definitions\Catalogues\BrandingCatalogue;
+use App\Modules\Settings\Definitions\Catalogues\CdnCatalogue;
 use App\Modules\Settings\Definitions\Catalogues\GeneralCatalogue;
 use App\Modules\Settings\Definitions\Catalogues\LocalizationCatalogue;
 use App\Modules\Settings\Definitions\Catalogues\MailCatalogue;
@@ -137,6 +138,7 @@ class SettingsServiceProvider extends ServiceProvider
             SecurityCatalogue::class,
             RateLimitCatalogue::class,
             AiCatalogue::class,
+            CdnCatalogue::class,
         ];
     }
 

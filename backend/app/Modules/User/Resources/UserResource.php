@@ -26,12 +26,15 @@ class UserResource extends JsonResource
      * @param  bool  $mfaEnrolled  whether a confirmed second factor exists, asked
      *                             through the Core contract because this module may
      *                             not import the one that owns the answer
+     * @param  array<int, string>  $linkedSocialProviders  the providers with an identity
+     *                                                     linked to the account today
      */
     public function __construct(
         User $resource,
         private readonly array $roles,
         private readonly array $permissions,
         private readonly bool $mfaEnrolled = false,
+        private readonly array $linkedSocialProviders = [],
     ) {
         parent::__construct($resource);
     }
@@ -89,6 +92,13 @@ class UserResource extends JsonResource
 
             // Whether a confirmed second factor exists. Which one is not published.
             'mfa_enrolled' => $this->mfaEnrolled,
+
+            // Whether a social identity can sign in to this account today. While true the
+            // account cannot be promoted; identities unlinked in the past do not count.
+            'has_linked_social_identity' => $this->linkedSocialProviders !== [],
+
+            // The providers linked today. Never an identity's subject or address.
+            'linked_social_providers' => $this->linkedSocialProviders,
             'roles' => $this->roles,
             'permissions' => $this->permissions,
         ];

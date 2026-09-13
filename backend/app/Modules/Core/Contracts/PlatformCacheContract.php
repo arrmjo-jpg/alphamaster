@@ -33,6 +33,20 @@ interface PlatformCacheContract
     public function put(CacheNamespace $namespace, string $resource, array $discriminators, mixed $value, ?int $ttl = null): void;
 
     /**
+     * Store a value only if nothing is stored under the key, and answer whether this
+     * call is the one that stored it.
+     *
+     * Atomic on the stores the platform runs (Redis sets it with NX), which is what makes
+     * it usable to consume something exactly once: two requests racing to add the same
+     * key cannot both be told they won. A fail-open namespace that cannot reach its store
+     * answers false — this call could not prove it was first — and a fail-closed one
+     * lets the failure surface.
+     *
+     * @param  array<int|string, string|int|bool|null>  $discriminators
+     */
+    public function add(CacheNamespace $namespace, string $resource, array $discriminators, mixed $value, ?int $ttl = null): bool;
+
+    /**
      * @param  array<int|string, string|int|bool|null>  $discriminators
      */
     public function forget(CacheNamespace $namespace, string $resource, array $discriminators = []): void;
