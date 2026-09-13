@@ -6,6 +6,8 @@ namespace App\Modules\Core\Providers;
 
 use App\Modules\Core\Audit\AuditRecorder;
 use App\Modules\Core\Backup\ConfigurationPortability;
+use App\Modules\Core\Cache\CacheNamespace;
+use App\Modules\Core\Cache\CacheNamespaceRegistry;
 use App\Modules\Core\Cache\PlatformCache;
 use App\Modules\Core\Contracts\AuditRecorderContract;
 use App\Modules\Core\Contracts\PlatformCacheContract;
@@ -35,6 +37,16 @@ class CoreServiceProvider extends ServiceProvider
         // because the key builder is stateless and the generation lookup benefits
         // from not being reconstructed per call.
         $this->app->singleton(PlatformCacheContract::class, PlatformCache::class);
+
+        // Which cache namespaces exist (ADR 0052). Core declares the platform's own; a
+        // module that owns cached data registers its namespaces against this singleton
+        // from its own provider, so adding one never means editing Core.
+        $this->app->singleton(CacheNamespaceRegistry::class, static function (): CacheNamespaceRegistry {
+            $registry = new CacheNamespaceRegistry;
+            $registry->register(...CacheNamespace::cases());
+
+            return $registry;
+        });
 
         // The audit trail, which every module writes to (ADR 0037).
         $this->app->singleton(AuditRecorderContract::class, AuditRecorder::class);

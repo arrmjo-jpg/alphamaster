@@ -9,6 +9,7 @@ use App\Modules\Authorization\Models\Permission;
 use App\Modules\Authorization\Models\Role;
 use App\Modules\Authorization\Services\AdminEffectiveGrants;
 use App\Modules\Authorization\Services\AdminRbac;
+use App\Modules\Authorization\Services\PermissionCatalogue;
 use App\Modules\Authorization\Translation\RoleTranslationSource;
 use App\Modules\Core\Contracts\EffectiveGrants;
 use App\Modules\Core\Translation\TranslationRegistry;
@@ -29,6 +30,11 @@ class AuthorizationServiceProvider extends ServiceProvider
         // Authorization can still ask what an account may do (ADR 0028). Bound here
         // because this module owns the answer.
         $this->app->singleton(EffectiveGrants::class, AdminEffectiveGrants::class);
+
+        // Every declared permission, the platform's own and any a module registered
+        // (ADR 0052). A singleton because it is a catalogue populated at boot: a module
+        // registers its enum with callAfterResolving from its own provider.
+        $this->app->singleton(PermissionCatalogue::class);
     }
 
     /**

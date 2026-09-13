@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Modules\Authorization\Database\Seeders;
 
+use App\Modules\Authorization\Contracts\PermissionDefinition;
 use App\Modules\Authorization\Enums\AdminPermission;
 use App\Modules\Authorization\Models\Permission;
 use App\Modules\Authorization\Models\Role;
+use App\Modules\Authorization\Services\PermissionCatalogue;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\PermissionRegistrar;
 
@@ -18,14 +20,16 @@ class AdminPermissionSeeder extends Seeder
      * super_admin is granted every permission explicitly. It is a role like any
      * other, deliberately: administrative omnipotence should be something a row
      * says, and a test can assert, rather than an implicit consequence of being an
-     * administrator.
+     * administrator. "Every" means the whole catalogue, including permissions a module
+     * registered (ADR 0052); the other roles are the platform's own baseline, and a
+     * module's permissions reach them only when an operator grants them.
      *
-     * @return array<string, array<int, AdminPermission>>
+     * @return array<string, array<int, PermissionDefinition>>
      */
-    private function roleDefinitions(): array
+    private function roleDefinitions(PermissionCatalogue $catalogue): array
     {
         return [
-            'super_admin' => AdminPermission::cases(),
+            'super_admin' => $catalogue->all(),
             'administrator' => [
                 AdminPermission::USERS_VIEW,
                 AdminPermission::USERS_CREATE,
@@ -74,20 +78,22 @@ class AdminPermissionSeeder extends Seeder
      */
     public function run(): void
     {
+        $catalogue = app(PermissionCatalogue::class);
+
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-        foreach (AdminPermission::cases() as $permission) {
+        foreach ($catalogue->all() as $permission) {
             Permission::query()->firstOrCreate(
-                ['name' => $permission->value, 'guard_name' => 'web'],
+                ['name' => $permission->key(), 'guard_name' => 'web'],
                 ['module' => $permission->module()],
             );
         }
 
-        foreach ($this->roleDefinitions() as $roleName => $permissions) {
+        foreach ($this->roleDefinitions($catalogue) as $roleName => $permissions) {
             $role = Role::query()->firstOrCreate(['name' => $roleName, 'guard_name' => 'web']);
 
             $role->givePermissionTo(array_map(
-                static fn (AdminPermission $p): string => $p->value,
+                static fn (PermissionDefinition $p): string => $p->key(),
                 $permissions
             ));
         }

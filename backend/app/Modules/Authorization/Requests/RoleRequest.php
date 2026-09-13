@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Authorization\Requests;
 
-use App\Modules\Authorization\Enums\AdminPermission;
+use App\Modules\Authorization\Services\PermissionCatalogue;
 use App\Modules\Authorization\Services\RoleIdentifier;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
@@ -41,8 +41,9 @@ class RoleRequest extends FormRequest
             ],
             'permissions' => ['present', 'array', 'max:100'],
             // Only catalogued permissions may be attached, so a role cannot be given
-            // a permission string the platform does not actually enforce anywhere.
-            'permissions.*' => ['required', 'string', Rule::in(AdminPermission::values())],
+            // a permission string the platform does not actually enforce anywhere. The
+            // catalogue includes every module's registered permissions (ADR 0052).
+            'permissions.*' => ['required', 'string', Rule::in(app(PermissionCatalogue::class)->values())],
         ];
     }
 

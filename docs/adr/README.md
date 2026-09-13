@@ -55,3 +55,4 @@ This directory maintains the architectural decision records for the **alphamaste
 | [0049](0049-interface-translations-shipped-catalogues-with-database-overlays.md) | Interface Translations — Shipped Catalogues with Database Overlays | Proposed |
 | [0050](0050-social-login-for-user-accounts-only.md) | Social Login, for User Accounts Only | Accepted |
 | [0051](0051-phone-sign-in-registration-and-the-account-profile.md) | Phone Sign-In, Public Registration, and the Account Profile | Accepted |
+| [0052](0052-module-extension-points.md) | Module Extension Points | Accepted |
