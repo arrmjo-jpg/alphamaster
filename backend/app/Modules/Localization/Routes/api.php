@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Modules\Localization\Controllers\Admin\LanguageAdminController;
+use App\Modules\Localization\Controllers\Admin\TranslationOverviewController;
 use App\Modules\Localization\Controllers\Admin\TranslationSuggestionController;
 use App\Modules\Localization\Controllers\Admin\TranslationWorkshopController;
 use App\Modules\Localization\Controllers\Api\LanguageApiController;
@@ -36,6 +37,11 @@ Route::prefix('v1')->group(function (): void {
         ->group(function (): void {
             Route::get('/', [TranslationWorkshopController::class, 'index'])
                 ->name('admin.translations.index');
+
+            // Where every language stands: coverage, AI progress and availability, in
+            // one call for the Languages page (ADR 0048 §5).
+            Route::get('/overview', [TranslationOverviewController::class, 'show'])
+                ->name('admin.translations.overview');
 
             Route::put('/{source}/{id}', [TranslationWorkshopController::class, 'update'])
                 ->name('admin.translations.update');

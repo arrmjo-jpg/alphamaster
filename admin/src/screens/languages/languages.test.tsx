@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { HttpResponse, http } from 'msw';
-import { MemoryRouter } from 'react-router';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { AppProviders } from '@/app/AppProviders';
@@ -80,9 +80,29 @@ const ARABIC = language({
     sort_order: 1,
 });
 
+const NO_SUGGESTIONS = { pending: 0, ready: 0, failed: 0, accepted: 0, dismissed: 0 };
+
+function overview(
+    ai: { available: boolean; may_use: boolean } = { available: true, may_use: true },
+    languages: unknown[] = [
+        { code: 'en', coverage: { total: 10, translated: 10 }, suggestions: NO_SUGGESTIONS },
+        { code: 'ar', coverage: { total: 10, translated: 8 }, suggestions: NO_SUGGESTIONS },
+    ],
+) {
+    return { source_locale: 'en', ai, languages };
+}
+
+/** Where a navigation landed, so a test can read the address a button went to. */
+function Landed() {
+    const location = useLocation();
+
+    return <p data-testid="landed">{`${location.pathname}${location.search}`}</p>;
+}
+
 function renderScreen(
     rows: ReturnType<typeof language>[] = [language(), ARABIC],
     publicRows: ReturnType<typeof language>[] = rows.filter((row) => row.is_active),
+    standing: ReturnType<typeof overview> = overview(),
 ) {
     server.use(
         HEALTH,
@@ -91,6 +111,9 @@ function renderScreen(
         ),
         http.get('*/api/v1/admin/languages', () =>
             HttpResponse.json({ success: true, data: rows }),
+        ),
+        http.get('*/api/v1/admin/translations/overview', () =>
+            HttpResponse.json({ success: true, data: standing }),
         ),
         http.get('*/api/v1/auth/me', () =>
             HttpResponse.json({
@@ -112,10 +135,13 @@ function renderScreen(
     );
 
     return render(
-        <MemoryRouter>
+        <MemoryRouter initialEntries={['/languages']}>
             <AppProviders>
                 <AuthGate>
-                    <LanguagesScreen />
+                    <Routes>
+                        <Route element={<LanguagesScreen />} path="/languages" />
+                        <Route element={<Landed />} path="/translations" />
+                    </Routes>
                 </AuthGate>
             </AppProviders>
         </MemoryRouter>,
@@ -219,6 +245,192 @@ describe('the languages workspace', () => {
 
         expect(screen.getAllByText('Console translated')).toHaveLength(2);
         expect(screen.getAllByText('Console not translated')).toHaveLength(1);
+    });
+});
+
+describe('the language workflow', () => {
+    const FRENCH = language({
+        id: 'lang-fr',
+        code: 'fr',
+        name: 'French',
+        native_name: 'Français',
+        is_active: false,
+        is_default: false,
+        sort_order: 3,
+    });
+
+    it('shows each language’s coverage as the platform counts it', async () => {
+        renderScreen();
+
+        expect(await screen.findByText('80%')).toBeInTheDocument();
+        expect(screen.getByText('100%')).toBeInTheDocument();
+    });
+
+    it('marks a draft as not served', async () => {
+        renderScreen([language(), ARABIC, FRENCH]);
+
+        expect(await screen.findByText('Draft · Not served')).toBeInTheDocument();
+    });
+
+    it('says whether AI can help, and treats the default as the source', async () => {
+        renderScreen();
+
+        expect(await screen.findByText('AI ready')).toBeInTheDocument();
+        expect(screen.getByText('Source')).toBeInTheDocument();
+    });
+
+    it('says AI is not configured rather than offering it', async () => {
+        renderScreen(undefined, undefined, overview({ available: false, may_use: true }));
+
+        expect(await screen.findByText('Not configured')).toBeInTheDocument();
+    });
+
+    it('says AI is not permitted for an operator who may not spend on it', async () => {
+        renderScreen(undefined, undefined, overview({ available: true, may_use: false }));
+
+        expect(await screen.findByText('Not permitted')).toBeInTheDocument();
+    });
+
+    it('adds a language as a draft unless told to serve it', async () => {
+        const bodies: Array<Record<string, unknown>> = [];
+
+        server.use(
+            http.post('*/api/v1/admin/languages', async ({ request }) => {
+                bodies.push((await request.json()) as Record<string, unknown>);
+
+                return HttpResponse.json(
+                    { success: true, message: 'created', data: FRENCH },
+                    { status: 201 },
+                );
+            }),
+        );
+
+        renderScreen();
+
+        await userEvent.click(await screen.findByRole('button', { name: 'Add a language' }));
+        await userEvent.type(await screen.findByLabelText(/Code/), 'fr');
+        await userEvent.type(screen.getByLabelText(/Name in English/), 'French');
+        await userEvent.type(screen.getByLabelText(/Name in the language itself/), 'Français');
+
+        expect(screen.getByRole('checkbox', { name: /Serve it immediately/ })).not.toBeChecked();
+
+        await userEvent.click(screen.getByRole('button', { name: 'Add language' }));
+
+        await expect.poll(() => bodies.length).toBe(1);
+        expect(bodies[0]).toMatchObject({ code: 'fr', is_active: false });
+    });
+
+    it('serves a new language at once only when that is chosen', async () => {
+        const bodies: Array<Record<string, unknown>> = [];
+
+        server.use(
+            http.post('*/api/v1/admin/languages', async ({ request }) => {
+                bodies.push((await request.json()) as Record<string, unknown>);
+
+                return HttpResponse.json(
+                    { success: true, message: 'created', data: { ...FRENCH, is_active: true } },
+                    { status: 201 },
+                );
+            }),
+        );
+
+        renderScreen();
+
+        await userEvent.click(await screen.findByRole('button', { name: 'Add a language' }));
+        await userEvent.type(await screen.findByLabelText(/Code/), 'fr');
+        await userEvent.type(screen.getByLabelText(/Name in English/), 'French');
+        await userEvent.type(screen.getByLabelText(/Name in the language itself/), 'Français');
+        await userEvent.click(screen.getByRole('checkbox', { name: /Serve it immediately/ }));
+        await userEvent.click(screen.getByRole('button', { name: 'Add language' }));
+
+        await expect.poll(() => bodies.length).toBe(1);
+        expect(bodies[0]).toMatchObject({ is_active: true });
+    });
+
+    it('opens the missing entries when translating by hand', async () => {
+        renderScreen();
+
+        await userEvent.click(await screen.findByText('Arabic'));
+        await userEvent.click(screen.getByRole('button', { name: 'Translate manually' }));
+
+        expect(await screen.findByTestId('landed')).toHaveTextContent(
+            '/translations?target=ar&state=missing',
+        );
+    });
+
+    it('asks AI for what is missing, and says nothing was saved', async () => {
+        const asked: Array<Record<string, unknown>> = [];
+
+        server.use(
+            http.post('*/api/v1/admin/translations/suggestions', async ({ request }) => {
+                asked.push((await request.json()) as Record<string, unknown>);
+
+                return HttpResponse.json({
+                    success: true,
+                    message: 'queued',
+                    data: { queued: 12, skipped: 3 },
+                });
+            }),
+        );
+
+        renderScreen();
+
+        await userEvent.click(await screen.findByText('Arabic'));
+        await userEvent.click(await screen.findByRole('button', { name: 'Translate with AI' }));
+
+        expect(await screen.findByText(/Asked for 12; skipped 3/)).toBeInTheDocument();
+        expect(asked).toEqual([{ locale: 'ar' }]);
+    });
+
+    it('disables translating with AI, with the reason, when no provider is configured', async () => {
+        renderScreen(undefined, undefined, overview({ available: false, may_use: true }));
+
+        await userEvent.click(await screen.findByText('Arabic'));
+
+        expect(screen.getByRole('button', { name: 'Translate with AI' })).toBeDisabled();
+        expect(screen.getByText(/AI provider not configured/)).toBeInTheDocument();
+        // The manual path is untouched.
+        expect(screen.getByRole('button', { name: 'Translate manually' })).toBeEnabled();
+    });
+
+    it('shows AI progress by the states the platform stores', async () => {
+        renderScreen(
+            undefined,
+            undefined,
+            overview(undefined, [
+                {
+                    code: 'en',
+                    coverage: { total: 10, translated: 10 },
+                    suggestions: NO_SUGGESTIONS,
+                },
+                {
+                    code: 'ar',
+                    coverage: { total: 10, translated: 4 },
+                    suggestions: { pending: 0, ready: 3, failed: 1, accepted: 4, dismissed: 0 },
+                },
+            ]),
+        );
+
+        await userEvent.click(await screen.findByText('Arabic'));
+
+        expect(screen.getByText('Ready for review')).toBeInTheDocument();
+        expect(
+            screen.getByText('Suggestions are not translations until somebody accepts them.'),
+        ).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Review suggestions' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Retry failed' })).toBeInTheDocument();
+    });
+
+    it('offers no translation workflow for the source language', async () => {
+        renderScreen();
+
+        const [english] = await screen.findAllByText('English');
+        await userEvent.click(english as HTMLElement);
+
+        expect(
+            screen.queryByRole('button', { name: 'Translate manually' }),
+        ).not.toBeInTheDocument();
+        expect(screen.getByText(/Everything is translated from this language/)).toBeInTheDocument();
     });
 });
 

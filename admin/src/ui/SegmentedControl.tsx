@@ -28,13 +28,43 @@ export function SegmentedControl<T extends string>({
     onChange,
     className,
 }: SegmentedControlProps<T>) {
+    // A radio group moves with the arrow keys (WAI-ARIA radio group pattern): only the
+    // selected option is in the tab order, so without this every other option would be
+    // unreachable from the keyboard. Left and right follow the reading direction.
+    const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+        const rtl = document.documentElement.dir === 'rtl';
+        const forward = ['ArrowDown', rtl ? 'ArrowLeft' : 'ArrowRight'];
+        const backward = ['ArrowUp', rtl ? 'ArrowRight' : 'ArrowLeft'];
+
+        if (!forward.includes(event.key) && !backward.includes(event.key)) {
+            return;
+        }
+
+        event.preventDefault();
+
+        const current = options.findIndex((option) => option.value === value);
+        const step = forward.includes(event.key) ? 1 : -1;
+        const nextIndex = (current + step + options.length) % options.length;
+        const next = options[nextIndex];
+
+        if (next === undefined) {
+            return;
+        }
+
+        onChange(next.value);
+
+        const buttons = event.currentTarget.querySelectorAll<HTMLElement>('[role="radio"]');
+        buttons[nextIndex]?.focus();
+    };
+
     return (
         <div
             aria-label={label}
             className={cn(
-                'inline-flex items-center gap-0.5 bg-(--action-secondary) p-0.5',
+                'inline-flex flex-wrap items-center gap-0.5 bg-(--action-secondary) p-0.5',
                 className,
             )}
+            onKeyDown={onKeyDown}
             role="radiogroup"
         >
             {options.map((option) => {
@@ -55,9 +85,8 @@ export function SegmentedControl<T extends string>({
                         key={option.value}
                         onClick={() => onChange(option.value)}
                         role="radio"
-                        // Only the selected option is in the tab order; arrow keys are
-                        // not reimplemented here because the group is never more than
-                        // three items and each remains directly reachable.
+                        // Only the selected option is in the tab order; the arrow keys
+                        // move between the others (see onKeyDown above).
                         tabIndex={selected ? 0 : -1}
                         type="button"
                     >

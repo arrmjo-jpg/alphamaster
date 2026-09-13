@@ -11,11 +11,16 @@ use App\Modules\Core\Translation\TranslationRefusedException;
 use App\Modules\Core\Translation\TranslationRegistry;
 use App\Modules\Core\Translation\TranslationSource;
 use App\Modules\Core\Translation\UnknownTranslationTargetException;
+use App\Modules\Localization\Enums\SuggestionStatus;
 use App\Modules\Localization\Models\Language;
+use App\Modules\Localization\Models\TranslationSuggestion;
+use App\Modules\Localization\Requests\WorkshopQueryRequest;
 use App\Modules\Localization\Requests\WriteTranslationRequest;
+use App\Modules\Localization\Services\SuggestionCoordinator;
+use App\Modules\Localization\Services\TranslationAudit;
+use App\Modules\Localization\Services\TranslationCoverage;
 use Dedoc\Scramble\Attributes\Response;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 /**
  * Everything the platform has to say, in every language it says it in.
@@ -35,61 +40,104 @@ use Illuminate\Http\Request;
  * notifications screen does; a workshop that granted itself a way around that would be
  * an escalation with a friendly name. An operator sees the sources they may read and
  * writes only the ones they may change.
+ *
+ * It is queried rather than downloaded (ADR 0048 §4): one target language, filtered
+ * and searched here, one page at a time. And that target may be a language the
+ * platform does not serve yet — translating before publishing is the point of a draft.
  */
 class TranslationWorkshopController extends BaseApiController
 {
     public function __construct(
         private readonly TranslationRegistry $registry,
         private readonly EffectiveGrants $grants,
+        private readonly TranslationCoverage $coverage,
+        private readonly SuggestionCoordinator $coordinator,
+        private readonly TranslationAudit $audit,
     ) {}
 
     /**
-     * Every translatable body of content, and how far each language has got.
+     * One language's translations, filtered, searched and a page at a time.
      *
-     * The locales are the platform's active languages, so the columns an operator is
-     * asked to fill are the ones the platform actually serves.
+     * `locales` lists every language the platform knows, served or not, so a draft can
+     * be chosen as the target. The source is always the default language.
      */
-    #[Response(200, type: 'array{success: bool, data: array{locales: array<int, array{code: string, name: string, native_name: string, direction: string, is_default: bool}>, sources: array<int, array{key: string, label: string, may_write: bool, entries: array<int, array{id: string, title: string, context: string|null, fields: array<int, array{name: string, label: string, multiline: bool, values: array<string, string>}>}>, completeness: array<string, array{total: int, translated: int}>}>}}')]
-    public function index(Request $request): JsonResponse
+    #[Response(200, type: 'array{success: bool, data: array{locales: array<int, array{code: string, name: string, native_name: string, direction: string, is_default: bool, is_active: bool}>, source_locale: string|null, target: string|null, coverage: array{total: int, translated: int}, sources: array<int, array{key: string, label: string, may_write: bool, completeness: array{total: int, translated: int}}>, entries: array<int, array{source: string, id: string, title: string, context: string|null, fields: array<int, array{name: string, label: string, multiline: bool, values: array<string, string>}>}>, pagination: array{page: int, per_page: int, total: int, last_page: int}}}')]
+    #[Response(422, description: 'The target is not a language the platform knows.')]
+    public function index(WorkshopQueryRequest $request): JsonResponse
     {
         $permissions = $this->grants->permissionsFor($request->user());
-        $locales = $this->activeLocales();
+
+        /** @var array<int, Language> $languages */
+        $languages = Language::query()->ordered()->get()->all();
+        $codes = array_map(static fn (Language $language): string => $language->code, $languages);
+
+        $sourceLocale = $this->defaultCode($languages);
+
+        $requested = trim((string) $request->validated('target', ''));
+
+        if ($requested !== '' && ! in_array($requested, $codes, true)) {
+            return $this->errorResponse(
+                'UNKNOWN_LOCALE',
+                'api.error.translations.unknown_locale',
+                null,
+                422,
+                ['locale' => $requested]
+            );
+        }
+
+        $target = $requested !== '' ? $requested : $this->firstTarget($codes, $sourceLocale);
+
+        $state = (string) ($request->validated('state') ?? 'all');
+        $search = mb_strtolower(trim((string) $request->validated('search', '')));
+        $only = trim((string) $request->validated('source', ''));
+        $perPage = (int) $request->validated('per_page', WorkshopQueryRequest::DEFAULT_PER_PAGE);
+        $page = (int) $request->validated('page', 1);
+
+        // The suggestion states the filter can ask about, keyed the way the workshop
+        // addresses a field. Only this language's, and only what is stored.
+        $reviewable = $target === null ? [] : $this->coordinator->forLocale($target);
 
         $sources = [];
+        $coverage = ['total' => 0, 'translated' => 0];
+        $matches = [];
 
-        foreach ($this->registry->all() as $source) {
-            if (! $this->mayView($source, $permissions)) {
-                // Absent rather than empty. An operator who cannot read notification
-                // wording is not helped by a heading over nothing, and a count of
-                // untranslated items they cannot see is a statement about content
-                // they were not granted.
-                continue;
-            }
-
+        foreach ($this->coverage->viewableSources($permissions) as $source) {
             $entries = $source->entries();
+
+            $counts = $target === null
+                ? ['total' => 0, 'translated' => 0]
+                : $this->coverage->count($entries, [$target])[$target];
+
+            $coverage['total'] += $counts['total'];
+            $coverage['translated'] += $counts['translated'];
 
             $sources[] = [
                 'key' => $source->key(),
                 'label' => __($source->label()),
                 'may_write' => in_array($source->writePermission(), $permissions, true),
-                'entries' => array_map(fn (TranslationEntry $entry): array => [
-                    'id' => $entry->id,
-                    'title' => $entry->title,
-                    'context' => $entry->context,
-                    'fields' => array_map(fn ($field): array => [
-                        'name' => $field->name,
-                        'label' => __($field->label),
-                        'multiline' => $field->multiline,
-                        // Only what has been written. A fallback here would show the
-                        // English in the Arabic column and make an untranslated item
-                        // look finished, which is the exact confusion this exists to
-                        // remove.
-                        'values' => $field->values,
-                    ], $entry->fields),
-                ], $entries),
-                'completeness' => $this->completeness($entries, $locales),
+                'completeness' => $counts,
             ];
+
+            if ($target === null || ($only !== '' && $source->key() !== $only)) {
+                continue;
+            }
+
+            foreach ($entries as $entry) {
+                if ($this->matchesState($source, $entry, $target, $state, $reviewable)
+                    && $this->matchesSearch($entry, $search, $sourceLocale, $target)) {
+                    $matches[] = [$source, $entry];
+                }
+            }
         }
+
+        $total = count($matches);
+        $lastPage = max(1, (int) ceil($total / $perPage));
+        $page = min(max(1, $page), $lastPage);
+
+        $entries = array_map(
+            fn (array $match): array => $this->present($match[0], $match[1], $sourceLocale, (string) $target),
+            array_slice($matches, ($page - 1) * $perPage, $perPage)
+        );
 
         return $this->successResponse([
             'locales' => array_map(fn (Language $language): array => [
@@ -98,8 +146,19 @@ class TranslationWorkshopController extends BaseApiController
                 'native_name' => $language->native_name,
                 'direction' => $language->direction->value,
                 'is_default' => $language->is_default,
-            ], $locales),
+                'is_active' => $language->is_active,
+            ], $languages),
+            'source_locale' => $sourceLocale,
+            'target' => $target,
+            'coverage' => $coverage,
             'sources' => $sources,
+            'entries' => $entries,
+            'pagination' => [
+                'page' => $page,
+                'per_page' => $perPage,
+                'total' => $total,
+                'last_page' => $lastPage,
+            ],
         ]);
     }
 
@@ -113,7 +172,7 @@ class TranslationWorkshopController extends BaseApiController
     #[Response(200, type: 'array{success: bool, message: string, data: array{source: string, id: string, locale: string}}')]
     #[Response(403, description: 'The caller may not change this kind of content.')]
     #[Response(404, description: 'No such source, or no such item within it.')]
-    #[Response(422, description: 'The language is not served, or the write would leave the content in a state its owner does not allow.')]
+    #[Response(422, description: 'The language does not exist, or the write would leave the content in a state its owner does not allow.')]
     public function update(WriteTranslationRequest $request, string $source, string $id): JsonResponse
     {
         $found = $this->registry->find($source);
@@ -133,7 +192,7 @@ class TranslationWorkshopController extends BaseApiController
         // Both, and in this order. Refusing a write on content the caller cannot even
         // read must not distinguish "you may not write this" from "there is no such
         // item", because the second answer describes content they were not granted.
-        if (! $this->mayView($found, $permissions)) {
+        if (! $this->coverage->mayView($found, $permissions)) {
             return $this->errorResponse(
                 'UNKNOWN_TRANSLATION_SOURCE',
                 'api.error.translations.unknown_source',
@@ -155,7 +214,9 @@ class TranslationWorkshopController extends BaseApiController
 
         $locale = (string) $request->validated('locale');
 
-        if (! $this->isActiveLocale($locale)) {
+        // Any language the platform knows, served or not (ADR 0048 §2): a draft is
+        // translated before it is published, not after.
+        if (! Language::query()->where('code', $locale)->exists()) {
             return $this->errorResponse(
                 'UNKNOWN_LOCALE',
                 'api.error.translations.unknown_locale',
@@ -167,6 +228,8 @@ class TranslationWorkshopController extends BaseApiController
 
         /** @var array<string, string|null> $values */
         $values = $request->validated('values');
+
+        $before = $this->audit->snapshot($found, $id, $locale);
 
         try {
             $found->write($id, $locale, $values);
@@ -190,6 +253,14 @@ class TranslationWorkshopController extends BaseApiController
             );
         }
 
+        $this->audit->record(
+            $found->key(),
+            $id,
+            $locale,
+            $this->audit->changedFields($before, $values),
+            TranslationAudit::ORIGIN_MANUAL
+        );
+
         return $this->successResponse(
             ['source' => $source, 'id' => $id, 'locale' => $locale],
             'api.translations.written'
@@ -197,69 +268,134 @@ class TranslationWorkshopController extends BaseApiController
     }
 
     /**
-     * How many of a source's fields are written in each locale.
+     * Whether an entry is in the state the operator asked to see.
      *
-     * Counted in fields rather than items, because an item is finished only when
-     * every one of its fields is — a template with an Arabic subject and an English
-     * body is not half translated in any sense a reader would recognise.
-     *
-     * @param  array<int, TranslationEntry>  $entries
-     * @param  array<int, Language>  $locales
-     * @return array<string, array{total: int, translated: int}>
+     * @param  array<string, TranslationSuggestion>  $reviewable
      */
-    private function completeness(array $entries, array $locales): array
-    {
-        $counts = [];
-
-        foreach ($locales as $language) {
-            $total = 0;
-            $translated = 0;
-
-            foreach ($entries as $entry) {
-                foreach ($entry->fields as $field) {
-                    $total++;
-
-                    if ($field->hasValueFor($language->code)) {
-                        $translated++;
-                    }
-                }
-            }
-
-            $counts[$language->code] = ['total' => $total, 'translated' => $translated];
-        }
-
-        return $counts;
+    private function matchesState(
+        TranslationSource $source,
+        TranslationEntry $entry,
+        string $target,
+        string $state,
+        array $reviewable,
+    ): bool {
+        return match ($state) {
+            'missing' => $entry->missingIn($target) > 0,
+            'translated' => $entry->missingIn($target) === 0,
+            'needs_review' => $this->hasSuggestion($source, $entry, SuggestionStatus::READY, $reviewable),
+            'failed' => $this->hasSuggestion($source, $entry, SuggestionStatus::FAILED, $reviewable),
+            default => true,
+        };
     }
 
     /**
-     * @param  array<int, string>  $permissions
+     * @param  array<string, TranslationSuggestion>  $reviewable
      */
-    private function mayView(TranslationSource $source, array $permissions): bool
-    {
-        $required = $source->viewPermission();
+    private function hasSuggestion(
+        TranslationSource $source,
+        TranslationEntry $entry,
+        SuggestionStatus $status,
+        array $reviewable,
+    ): bool {
+        foreach ($entry->fields as $field) {
+            $row = $reviewable[$this->coordinator->addressOf($source->key(), $entry->id, $field->name)] ?? null;
 
-        return $required === null || in_array($required, $permissions, true);
-    }
-
-    /**
-     * @return array<int, Language>
-     */
-    private function activeLocales(): array
-    {
-        /** @var array<int, Language> $languages */
-        $languages = Language::query()->where('is_active', true)->ordered()->get()->all();
-
-        return $languages;
-    }
-
-    private function isActiveLocale(string $locale): bool
-    {
-        foreach ($this->activeLocales() as $language) {
-            if ($language->code === $locale) {
+            if ($row !== null && $row->status === $status) {
                 return true;
             }
         }
 
         return false;
+    }
+
+    /**
+     * Whether the search appears in what an operator would read: the item's title and
+     * context, and its text in the source and target languages.
+     */
+    private function matchesSearch(TranslationEntry $entry, string $needle, ?string $sourceLocale, string $target): bool
+    {
+        if ($needle === '') {
+            return true;
+        }
+
+        $haystacks = [$entry->title, (string) $entry->context];
+
+        foreach ($entry->fields as $field) {
+            $haystacks[] = (string) ($sourceLocale === null ? '' : $field->valueFor($sourceLocale));
+            $haystacks[] = (string) $field->valueFor($target);
+        }
+
+        foreach ($haystacks as $haystack) {
+            if ($haystack !== '' && str_contains(mb_strtolower($haystack), $needle)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * One entry as the workshop shows it: the source language beside the target, and
+     * only what has actually been written in each. A fallback here would put the
+     * English in the French column and make an untranslated item look finished
+     * (ADR 0043 §4).
+     *
+     * @return array<string, mixed>
+     */
+    private function present(TranslationSource $source, TranslationEntry $entry, ?string $sourceLocale, string $target): array
+    {
+        return [
+            'source' => $source->key(),
+            'id' => $entry->id,
+            'title' => $entry->title,
+            'context' => $entry->context,
+            'fields' => array_map(function ($field) use ($sourceLocale, $target): array {
+                $values = [];
+
+                foreach (array_unique(array_filter([$sourceLocale, $target])) as $code) {
+                    if ($field->hasValueFor($code)) {
+                        $values[$code] = (string) $field->valueFor($code);
+                    }
+                }
+
+                return [
+                    'name' => $field->name,
+                    'label' => __($field->label),
+                    'multiline' => $field->multiline,
+                    'values' => $values,
+                ];
+            }, $entry->fields),
+        ];
+    }
+
+    /**
+     * @param  array<int, Language>  $languages
+     */
+    private function defaultCode(array $languages): ?string
+    {
+        foreach ($languages as $language) {
+            if ($language->is_default) {
+                return $language->code;
+            }
+        }
+
+        return $languages[0]->code ?? null;
+    }
+
+    /**
+     * The language a workshop opens on when nobody chose one: the first that is not
+     * the one everything is translated from.
+     *
+     * @param  array<int, string>  $codes
+     */
+    private function firstTarget(array $codes, ?string $sourceLocale): ?string
+    {
+        foreach ($codes as $code) {
+            if ($code !== $sourceLocale) {
+                return $code;
+            }
+        }
+
+        return null;
     }
 }
