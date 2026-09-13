@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { Search, ShieldCheck, ShieldOff } from 'lucide-react';
+import { Plus, Search, ShieldCheck, ShieldOff } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -9,8 +9,17 @@ import { cn } from '@/lib/cn';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import { users } from '@/screens/access/api';
 import { UserDetail } from '@/screens/access/UserDetail';
+import { UserForm } from '@/screens/access/UserForm';
+import { Button } from '@/ui/Button';
 import { Input } from '@/ui/Input';
 import { StatusBadge } from '@/ui/StatusBadge';
+
+/** Nothing open, an account being read, one being edited, or one being created. */
+type Panel =
+    | { kind: 'none' }
+    | { kind: 'detail'; id: string }
+    | { kind: 'edit'; id: string }
+    | { kind: 'new' };
 
 /**
  * The identity console: every account, and what it may do.
@@ -29,7 +38,13 @@ export function UsersScreen() {
     const { t } = useTranslation();
     const viewer = useCurrentUser();
     const [term, setTerm] = useState('');
-    const [selected, setSelected] = useState<string | null>(null);
+    const [panel, setPanel] = useState<Panel>({ kind: 'none' });
+
+    const mayCreate = viewer.permissions.includes('users.create');
+    const mayUpdate = viewer.permissions.includes('users.update');
+
+    /** The account the panel is about, whichever mode it is in. */
+    const selected = panel.kind === 'detail' || panel.kind === 'edit' ? panel.id : null;
 
     // A structural switch, not a styling one: the table and the record list are
     // different markup, and rendering both — hidden by CSS — would put every account
@@ -99,6 +114,13 @@ export function UsersScreen() {
                         {t('access.filterNote', { count: list.data?.length ?? 0 })}
                     </p>
                 </div>
+
+                {mayCreate ? (
+                    <Button onClick={() => setPanel({ kind: 'new' })} variant="secondary">
+                        <Plus aria-hidden className="size-3.5" />
+                        {t('access.users.add')}
+                    </Button>
+                ) : null}
             </header>
 
             <div className="grid grid-cols-1 gap-(--section-gap) xl:grid-cols-[1fr_380px]">
@@ -124,7 +146,7 @@ export function UsersScreen() {
                                                 : 'hover:bg-(--action-ghost-hover)',
                                         )}
                                         key={account.id}
-                                        onClick={() => setSelected(account.id)}
+                                        onClick={() => setPanel({ kind: 'detail', id: account.id })}
                                     >
                                         <Td>
                                             {/* A real control, not a clickable row. The
@@ -136,7 +158,9 @@ export function UsersScreen() {
                                                 a no-op, so the two paths can coexist. */}
                                             <button
                                                 className="relative flex w-full flex-col ps-3 text-start focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-(--focus-ring)"
-                                                onClick={() => setSelected(account.id)}
+                                                onClick={() =>
+                                                    setPanel({ kind: 'detail', id: account.id })
+                                                }
                                                 type="button"
                                             >
                                                 <span
@@ -197,7 +221,7 @@ export function UsersScreen() {
                                 <li key={account.id}>
                                     <button
                                         className="relative w-full px-3 py-2.5 ps-4 text-start hover:bg-(--action-ghost-hover)"
-                                        onClick={() => setSelected(account.id)}
+                                        onClick={() => setPanel({ kind: 'detail', id: account.id })}
                                         type="button"
                                     >
                                         <span
@@ -258,17 +282,38 @@ export function UsersScreen() {
                     ) : null}
                 </div>
 
-                <aside className="min-w-0">
-                    {selected === null ? (
+                <aside aria-label={t('access.account')} className="min-w-0">
+                    {panel.kind === 'new' ? (
+                        <UserForm
+                            account={null}
+                            key="new"
+                            onClose={() => setPanel({ kind: 'none' })}
+                            onSaved={(created) => setPanel({ kind: 'detail', id: created.id })}
+                        />
+                    ) : panel.kind === 'edit' ? (
+                        <UserForm
+                            account={list.data?.find((row) => row.id === panel.id) ?? null}
+                            key={panel.id}
+                            onClose={() => setPanel({ kind: 'detail', id: panel.id })}
+                            onSaved={(saved) => setPanel({ kind: 'detail', id: saved.id })}
+                        />
+                    ) : panel.kind === 'detail' ? (
+                        <UserDetail
+                            id={panel.id}
+                            key={panel.id}
+                            onClose={() => setPanel({ kind: 'none' })}
+                            onEdit={
+                                mayUpdate
+                                    ? () => setPanel({ kind: 'edit', id: panel.id })
+                                    : undefined
+                            }
+                            viewerId={viewer.id}
+                            viewerPermissions={viewer.permissions}
+                        />
+                    ) : (
                         <p className="border border-(--border-default) bg-(--surface-default) p-4 text-(--text-muted)">
                             {t('access.chooseUser')}
                         </p>
-                    ) : (
-                        <UserDetail
-                            id={selected}
-                            onClose={() => setSelected(null)}
-                            viewerPermissions={viewer.permissions}
-                        />
                     )}
                 </aside>
             </div>

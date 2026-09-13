@@ -274,8 +274,9 @@ test('every FormRequest still validates', function (): void {
     $requests = glob(app_path('Modules/*/Requests/*.php'));
 
     // 14 through Phase 16A; Phase 16B-2 added the rollback request, 16B-3 the
-    // credential-rotation one, and 16B-5 the export and restore pair.
-    expect($requests)->toHaveCount(18);
+    // credential-rotation one, and 16B-5 the export and restore pair. The account
+    // lifecycle added the create and update pair.
+    expect($requests)->toHaveCount(20);
 
     foreach ($requests as $file) {
         $source = (string) file_get_contents($file);
@@ -284,15 +285,21 @@ test('every FormRequest still validates', function (): void {
     }
 });
 
-test('the five requests with custom messages still declare them', function (): void {
+test('the requests with custom messages still declare them', function (): void {
     $expected = [
         'MfaEnrolRequest.php' => 1,
         // RoleRequest declares one here; its second custom message belongs to a
         // closure rule and is asserted separately below.
         'RoleRequest.php' => 1,
         'StoreMediaRequest.php' => 2,
+        // The password minimum is a configured setting, so its message has to name
+        // the number that actually applies rather than the one in the rule string.
+        'StoreUserRequest.php' => 1,
         'UpdateNotificationTemplateRequest.php' => 1,
         'UpdateGroupSettingsRequest.php' => 3,
+        // `preferred_locale` is validated against the languages table, and "the
+        // selected preferred locale is invalid" says nothing an operator can act on.
+        'UpdateUserRequest.php' => 1,
     ];
 
     $found = [];

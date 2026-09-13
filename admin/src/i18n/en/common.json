@@ -142,18 +142,22 @@
             "title": "The console stopped",
             "body": "Something in the interface failed to render. The platform itself is unaffected — nothing was saved or lost by this.",
             "reload": "Reload"
-        }
+        },
+        "expandGroup": "Expand {{group}}",
+        "collapseGroup": "Collapse {{group}}"
     },
     "modules": {
         "dashboard": "Dashboard",
         "settings": "Settings",
         "users": "Users",
-        "roles": "Roles & permissions",
+        "roles": "Roles",
         "integrations": "Integrations",
         "languages": "Languages",
         "media": "Media",
         "notifications": "Notifications",
-        "operations": "Operations"
+        "operations": "Operations",
+        "generalSettings": "General settings",
+        "permissions": "Permissions"
     },
     "dashboard": {
         "platform": {
@@ -413,6 +417,7 @@
             "readOnly": "You may read these permissions but not change them. Creating, changing and deleting a role need the roles.update permission."
         },
         "role": "Role",
+        "rolesTitle": "Roles",
         "effective": "Effective permissions",
         "effectiveNote": "Everything this account holds, directly or through a role. The platform does not say which, so neither does this.",
         "filter": "Filter accounts",
@@ -448,7 +453,65 @@
         "noRoles": "No roles are defined.",
         "activity": "Activity",
         "viewActivity": "Show what this account did",
-        "unsupported": "Creating an account, suspending one, and deleting one are not offered because the platform publishes no endpoint for any of them on this surface. An account is created by signing up; standing is changed by the platform itself."
+        "unsupported": "Deleting an account is not offered: the platform publishes no endpoint for it. Stopping sign-in is the reversible equivalent, and it is above.",
+        "users": {
+            "eyebrow": "Access",
+            "add": "Add an account",
+            "editing": "Editing an account",
+            "close": "Close",
+            "name": "Name",
+            "email": "Email address",
+            "emailChangeHint": "Changing the address marks it unverified. The account keeps everything it had; the platform simply stops treating the new address as confirmed.",
+            "phone": "Phone number",
+            "phoneHint": "Optional. Include the country code — the platform stores E.164 and will not guess one.",
+            "password": "First password",
+            "passwordHint": "Set once, here. The account can change it afterwards, and no administrator can set it again from this console.",
+            "passwordConfirm": "Confirm the password",
+            "passwordMismatch": "The two passwords do not match.",
+            "activeOnCreate": "Let this account sign in",
+            "activeOnCreateNote": "Leave it off to create the account now and let it in later.",
+            "createNote": "This creates a regular account. Making it an administrator is a separate, deliberate step, taken from the account panel afterwards.",
+            "create": "Create account",
+            "save": "Save changes",
+            "cancel": "Cancel",
+            "edit": "Edit identity",
+            "preferredLocale": "Preferred language",
+            "localeUnchanged": "Leave unchanged",
+            "localeHint": "The language the platform writes to this account in.",
+            "noPasswordEdit": "There is no password field on an edit. Setting somebody else’s password is a credential reset, and this platform does not offer one from here.",
+            "activate": "Allow sign-in",
+            "deactivate": "Stop sign-in",
+            "deactivateConfirm": "Stop it",
+            "deactivateWarning": "The account is signed out everywhere at once and refused at sign-in until it is allowed back. Nothing it owns is deleted, and this can be undone.",
+            "cannotDeactivateSelf": "You cannot stop your own account signing in."
+        },
+        "permissions": {
+            "eyebrow": "Access",
+            "readOnly": "Read-only catalogue",
+            "catalogueNote": "Every permission the platform enforces is defined in its code and seeded from there. Permissions are not created, renamed or removed — not here and nowhere else in the console. What an operator changes is which roles carry them.",
+            "filter": "Filter permissions",
+            "filterPlaceholder": "Permission, description or role",
+            "count_zero": "No permissions.",
+            "count_one": "One permission, in one module.",
+            "count_other": "{{count}} permissions, grouped by the module that owns each.",
+            "carriedBy_zero": "No role carries this",
+            "carriedBy_one": "Carried by one role",
+            "carriedBy_other": "Carried by {{count}} roles",
+            "orphanNote": "A permission no role carries is enforced by the platform and held by nobody.",
+            "rolesHidden": "Seeing which roles carry a permission needs the roles.view permission.",
+            "manageRoles": "Change what roles carry",
+            "noMatches": "No permission matches that.",
+            "denied": "Reading the permission catalogue needs the permissions.view permission."
+        },
+        "permissionModules": {
+            "user": "Accounts",
+            "settings": "Settings",
+            "core": "Platform",
+            "authorization": "Access control",
+            "integration": "Integrations",
+            "notification": "Notifications",
+            "media": "Media"
+        }
     },
     "integrations": {
         "eyebrow": "Platform",

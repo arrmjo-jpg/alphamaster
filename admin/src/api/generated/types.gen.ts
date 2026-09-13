@@ -324,6 +324,23 @@ export type StoreMediaRequest = {
     visibility?: 'public' | 'private';
 };
 
+export type StoreUserRequest = {
+    name: string;
+    email: string;
+    /**
+     * The account's phone number. Stored canonically; the lookup hash is
+     * derived from it and is never accepted from outside.
+     */
+    phone?: string | null;
+    /**
+     * The account's first password. Must be confirmed, and must meet the
+     * minimum length this platform is configured to require.
+     */
+    password: string;
+    is_active?: boolean;
+    password_confirmation: string;
+};
+
 export type SyncUserRolesRequest = {
     roles: Array<string>;
 };
@@ -375,6 +392,22 @@ export type UpdateNotificationTemplateRequest = {
         subject: string;
         body: string;
     }>;
+};
+
+export type UpdateUserRequest = {
+    name?: string;
+    email?: string;
+    /**
+     * The account's phone number, or null to remove it. Stored canonically;
+     * the lookup hash is derived and is never accepted from outside.
+     */
+    phone?: string | null;
+    /**
+     * The language the platform addresses this account in. Constrained to the
+     * languages table, so a preference can never name one the platform does
+     * not serve.
+     */
+    preferred_locale?: string | null;
 };
 
 export type UserResource = {
@@ -3191,6 +3224,53 @@ export type AdminUsersIndexResponses = {
 
 export type AdminUsersIndexResponse = AdminUsersIndexResponses[keyof AdminUsersIndexResponses];
 
+export type AdminUsersStoreData = {
+    body: StoreUserRequest;
+    path?: never;
+    query?: never;
+    url: '/admin/users';
+};
+
+export type AdminUsersStoreErrors = {
+    /**
+     * Unauthenticated
+     */
+    401: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+    /**
+     * Validation error
+     */
+    422: {
+        /**
+         * Errors overview.
+         */
+        message: string;
+        /**
+         * A detailed description of each field that failed validation.
+         */
+        errors: {
+            [key: string]: Array<string>;
+        };
+    };
+};
+
+export type AdminUsersStoreError = AdminUsersStoreErrors[keyof AdminUsersStoreErrors];
+
+export type AdminUsersStoreResponses = {
+    201: {
+        success: boolean;
+        message: string;
+        data: UserResource;
+        meta: string;
+    };
+};
+
+export type AdminUsersStoreResponse = AdminUsersStoreResponses[keyof AdminUsersStoreResponses];
+
 export type AdminUsersShowData = {
     body?: never;
     path: {
@@ -3236,6 +3316,170 @@ export type AdminUsersShowResponses = {
 };
 
 export type AdminUsersShowResponse = AdminUsersShowResponses[keyof AdminUsersShowResponses];
+
+export type AdminUsersUpdateData = {
+    body?: UpdateUserRequest;
+    path: {
+        /**
+         * The user ID
+         */
+        user: string;
+    };
+    query?: never;
+    url: '/admin/users/{user}';
+};
+
+export type AdminUsersUpdateErrors = {
+    /**
+     * Unauthenticated
+     */
+    401: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+    /**
+     * Not found
+     */
+    404: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+    /**
+     * Validation error
+     */
+    422: {
+        /**
+         * Errors overview.
+         */
+        message: string;
+        /**
+         * A detailed description of each field that failed validation.
+         */
+        errors: {
+            [key: string]: Array<string>;
+        };
+    };
+};
+
+export type AdminUsersUpdateError = AdminUsersUpdateErrors[keyof AdminUsersUpdateErrors];
+
+export type AdminUsersUpdateResponses = {
+    200: {
+        success: boolean;
+        message: string;
+        data: UserResource;
+        meta: string;
+    };
+};
+
+export type AdminUsersUpdateResponse = AdminUsersUpdateResponses[keyof AdminUsersUpdateResponses];
+
+export type AdminUsersActivateData = {
+    body?: never;
+    path: {
+        /**
+         * The user ID
+         */
+        user: string;
+    };
+    query?: never;
+    url: '/admin/users/{user}/activate';
+};
+
+export type AdminUsersActivateErrors = {
+    /**
+     * Unauthenticated
+     */
+    401: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+    /**
+     * Not found
+     */
+    404: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+};
+
+export type AdminUsersActivateError = AdminUsersActivateErrors[keyof AdminUsersActivateErrors];
+
+export type AdminUsersActivateResponses = {
+    200: {
+        success: boolean;
+        message: string;
+        data: UserResource;
+        meta: string;
+    };
+};
+
+export type AdminUsersActivateResponse = AdminUsersActivateResponses[keyof AdminUsersActivateResponses];
+
+export type AdminUsersDeactivateData = {
+    body?: never;
+    path: {
+        /**
+         * The user ID
+         */
+        user: string;
+    };
+    query?: never;
+    url: '/admin/users/{user}/deactivate';
+};
+
+export type AdminUsersDeactivateErrors = {
+    /**
+     * Unauthenticated
+     */
+    401: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+    /**
+     * Not found
+     */
+    404: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+    422: {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'CANNOT_DEACTIVATE_SELF';
+            message: string;
+            details: null;
+        };
+    };
+};
+
+export type AdminUsersDeactivateError = AdminUsersDeactivateErrors[keyof AdminUsersDeactivateErrors];
+
+export type AdminUsersDeactivateResponses = {
+    200: {
+        success: boolean;
+        message: string;
+        data: UserResource;
+        meta: string;
+    };
+};
+
+export type AdminUsersDeactivateResponse = AdminUsersDeactivateResponses[keyof AdminUsersDeactivateResponses];
 
 export type AdminUsersPromoteData = {
     body?: never;

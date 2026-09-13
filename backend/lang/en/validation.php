@@ -174,6 +174,12 @@ return [
     'ulid' => 'The :attribute field must be a valid ULID.',
     'uuid' => 'The :attribute field must be a valid UUID.',
     'custom' => [
+        'password' => [
+            'min' => 'The password must be at least :minimum characters, the minimum this platform is configured to require.',
+        ],
+        'preferred_locale' => [
+            'exists' => 'An account may only prefer a language the platform has configured.',
+        ],
         'phone' => [
             'regex' => 'The phone number must be in international format, for example +15551234567.',
         ],

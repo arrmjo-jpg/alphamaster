@@ -27,9 +27,34 @@ Route::prefix('v1/admin')
             ->middleware('permission:'.AdminPermission::USERS_VIEW->value)
             ->name('admin.users.index');
 
+        // `users.create` has been in the catalogue and on the seeded administrator
+        // role since Phase 6 with nothing serving it. It creates a regular account:
+        // promotion remains the only route across the administrative boundary and
+        // needs `users.update`, so creating an administrator still takes both.
+        Route::post('/users', [UserAdminController::class, 'store'])
+            ->middleware('permission:'.AdminPermission::USERS_CREATE->value)
+            ->name('admin.users.store');
+
         Route::get('/users/{user}', [UserAdminController::class, 'show'])
             ->middleware('permission:'.AdminPermission::USERS_VIEW->value)
             ->name('admin.users.show');
+
+        // Identity only. Standing, roles and activation each have their own operation
+        // below, so this one cannot change what an account may do.
+        Route::put('/users/{user}', [UserAdminController::class, 'update'])
+            ->middleware('permission:'.AdminPermission::USERS_UPDATE->value)
+            ->name('admin.users.update');
+
+        // Two operations rather than one toggle: a toggle decides from state the
+        // caller read a moment ago, and the moment worth being sure about is the one
+        // where an account stops being able to sign in.
+        Route::post('/users/{user}/activate', [UserAdminController::class, 'activate'])
+            ->middleware('permission:'.AdminPermission::USERS_UPDATE->value)
+            ->name('admin.users.activate');
+
+        Route::post('/users/{user}/deactivate', [UserAdminController::class, 'deactivate'])
+            ->middleware('permission:'.AdminPermission::USERS_UPDATE->value)
+            ->name('admin.users.deactivate');
 
         Route::post('/users/{user}/promote', [UserAdminController::class, 'promote'])
             ->middleware('permission:'.AdminPermission::USERS_UPDATE->value)

@@ -3,6 +3,8 @@ import type {
     AdminPermissionsIndexResponses,
     AdminRolesIndexResponses,
     AdminUsersIndexResponses,
+    StoreUserRequest,
+    UpdateUserRequest,
 } from '@/api/generated';
 
 /**
@@ -12,6 +14,13 @@ import type {
  * there: `/admin/users` returns every account ordered by email. Filtering happens in
  * the browser and the interface says so, rather than presenting a search box that
  * looks like it asked the server a question.
+ *
+ * Standing, identity, activation and roles are four operations rather than one
+ * update, because that is how the platform models them and each carries different
+ * consequences: promotion revokes tokens and demands a second factor, deactivation
+ * revokes tokens and refuses sign-in, a role change alters what an account may do,
+ * and an identity edit alters none of those. A single `PATCH /users/{id}` taking all
+ * of them would let one permission do the work of three.
  */
 
 export type AdminUser = AdminUsersIndexResponses[200]['data'][number];
@@ -24,6 +33,47 @@ export async function users(signal?: AbortSignal): Promise<AdminUser[]> {
 
 export async function user(id: string, signal?: AbortSignal): Promise<AdminUser> {
     return fetchData<AdminUser>(`/admin/users/${id}`, { ...(signal ? { signal } : {}) });
+}
+
+/** The bodies the endpoints take. Never restated — these are the contract's own. */
+export type NewUser = StoreUserRequest;
+export type UserChanges = UpdateUserRequest;
+
+/**
+ * Create an account.
+ *
+ * A regular account, always: `account_type` is not a field this endpoint takes, and
+ * promotion remains the only route across the administrative boundary. The address is
+ * not verified, because nothing here can confirm somebody else's address.
+ */
+export async function createUser(body: NewUser): Promise<AdminUser> {
+    return fetchData<AdminUser>('/admin/users', { method: 'POST', body });
+}
+
+/**
+ * Change who an account is.
+ *
+ * Only the keys present are sent: every field is `sometimes`, so an absent one leaves
+ * the stored value alone. Changing the address clears its verification server-side,
+ * which is why the caller is told about it rather than left to notice.
+ */
+export async function updateUser(id: string, changes: UserChanges): Promise<AdminUser> {
+    return fetchData<AdminUser>(`/admin/users/${id}`, { method: 'PUT', body: changes });
+}
+
+/**
+ * Let an account sign in again, or stop it.
+ *
+ * Two operations rather than a toggle, because that is what the platform exposes: a
+ * toggle decides from state the caller read a moment ago, and the moment worth being
+ * sure about is the one where an account stops being able to sign in. Deactivating
+ * revokes the account's tokens, and the platform refuses an administrator who tries it
+ * on themselves.
+ */
+export async function setUserActive(id: string, active: boolean): Promise<AdminUser> {
+    return fetchData<AdminUser>(`/admin/users/${id}/${active ? 'activate' : 'deactivate'}`, {
+        method: 'POST',
+    });
 }
 
 /**
