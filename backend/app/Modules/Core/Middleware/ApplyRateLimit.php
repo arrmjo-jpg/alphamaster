@@ -48,6 +48,10 @@ class ApplyRateLimit extends ThrottleRequests
         'api.auth.social.callback',
         'api.auth.password.forgot',
         'api.auth.password.reset',
+        // Phone sign-in and registration (ADR 0051): the same shape.
+        'api.auth.phone.code',
+        'api.auth.phone.sign_in',
+        'api.auth.register',
     ];
 
     /**

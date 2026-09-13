@@ -4,6 +4,7 @@ import {
     Bell,
     BrainCircuit,
     CircleUser,
+    Database,
     Languages as LanguagesIcon,
     Globe,
     Images,
@@ -19,6 +20,7 @@ import type { ComponentType } from 'react';
 
 import { AccountScreen } from '@/screens/AccountScreen';
 import { AiScreen } from '@/screens/AiScreen';
+import { CacheScreen } from '@/screens/CacheScreen';
 import { DashboardScreen } from '@/screens/DashboardScreen';
 import { IntegrationsScreen } from '@/screens/IntegrationsScreen';
 import { LanguagesScreen } from '@/screens/LanguagesScreen';
@@ -240,6 +242,18 @@ export const MODULES: ModuleManifest[] = [
         group: 'settings',
         order: 260,
         component: IntegrationsScreen,
+    },
+    {
+        id: 'cache',
+        path: '/cache',
+        label: 'modules.cache',
+        icon: Database,
+        // Reading namespaces and their policies is a settings read. Invalidating needs
+        // `settings.update`, enforced by the API and reflected inside the screen.
+        permission: 'settings.view',
+        group: 'settings',
+        order: 290,
+        component: CacheScreen,
     },
     {
         id: 'languages',

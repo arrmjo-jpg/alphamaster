@@ -378,8 +378,9 @@ test('every key this scope introduced exists in both dictionaries', function ():
     // own, under a prefix the scope now covers, and the integrations refusal that sends
     // AI providers to the control centre. Social login (ADR 0050) added seven refusals and
     // the invalid reset link under auth, and the refusal to switch on a provider that is
-    // missing required configuration under integration.
-    expect($keys)->toHaveCount(68);
+    // missing required configuration under integration. Phone sign-in and registration
+    // (ADR 0051) added five under auth.
+    expect($keys)->toHaveCount(73);
 
     foreach ($keys as $key) {
         expect($ar)->toHaveKey($key)

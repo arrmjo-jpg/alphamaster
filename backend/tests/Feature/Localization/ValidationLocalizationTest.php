@@ -280,8 +280,9 @@ test('every FormRequest still validates', function (): void {
     // write. AI added asking for suggestions and accepting one, push the device
     // registration, the language workflow the workshop's query (ADR 0048), and the AI
     // setup the provider save and the connection test. Social login (ADR 0050) added the
-    // authorize and callback pair and the password recovery pair.
-    expect($requests)->toHaveCount(33);
+    // authorize and callback pair and the password recovery pair. ADR 0051 added the phone
+    // code and sign-in pair, registration, the three profile requests and the avatar.
+    expect($requests)->toHaveCount(40);
 
     foreach ($requests as $file) {
         $source = (string) file_get_contents($file);

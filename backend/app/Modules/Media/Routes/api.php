@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Modules\Authorization\Enums\AdminPermission;
 use App\Modules\Media\Controllers\Admin\MediaAdminController;
+use App\Modules\Media\Controllers\Api\AvatarController;
 use App\Modules\Media\Controllers\Api\MediaController;
 use Illuminate\Support\Facades\Route;
 
@@ -21,6 +22,13 @@ Route::prefix('v1')->group(function (): void {
             // access decision and the file it protects must not come apart.
             Route::get('/media/{media}/file', [MediaController::class, 'file'])
                 ->name('api.media.file');
+
+            // The caller's own profile picture (ADR 0051 §4). No identifier: it is always
+            // the signed-in account's.
+            Route::post('/profile/avatar', [AvatarController::class, 'store'])
+                ->name('api.profile.avatar.store');
+            Route::delete('/profile/avatar', [AvatarController::class, 'destroy'])
+                ->name('api.profile.avatar.destroy');
         });
 
     // Moderation is administrative, behind the full five-stage stack.

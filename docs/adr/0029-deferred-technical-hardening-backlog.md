@@ -46,9 +46,11 @@ This has been the arrangement since Phase 2 and the reporting has held up, but i
 
 *Closed by*: `.github/workflows/ci.yml` in Phase 11. The suite runs on PostgreSQL and on SQLite, plus architecture rules, Pint, whitespace, the secret scan and a from-scratch Docker build, all through `scripts/gate.sh` so CI and a developer issue the same commands. The scan carries positive controls and fails as unproven rather than clean. Preparing the Docker gate found the first thing it would have caught: both Dockerfiles had been unbuildable since Phase 1. ADR 0021 records which gates are live and which wait on Phases 12 and 13.
 
-### 3. `integration_usage_logs` grows without bound
+### 3. `integration_usage_logs` grows without bound — CLOSED (ADR 0051)
 
 Every send attempt writes a row, permanently. There is no pruning, retention window, or archival.
+
+*Closed on 2026-09-13*: a daily scheduled prune removes rows older than `operations.integration_usage_retention_days` (default 90), in bounded batches (ADR 0051 §6).
 
 *Deferred because*: the table is correct and useful as built; growth is an operational concern that no volume yet justifies.
 

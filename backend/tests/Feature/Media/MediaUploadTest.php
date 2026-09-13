@@ -356,12 +356,12 @@ test('with no CDN configured the storage URL is returned unchanged', function ()
 });
 
 test('a configured CDN rewrites public URLs but never private ones', function (): void {
-    app(SettingServiceInterface::class)->clearCache();
-    DB::table('settings')->insert([
-        ['id' => (string) Str::ulid(), 'group' => 'cdn', 'key' => 'enabled', 'value' => 'true', 'type' => 'boolean', 'is_secret' => false, 'is_public' => true, 'created_at' => now(), 'updated_at' => now()],
-        ['id' => (string) Str::ulid(), 'group' => 'cdn', 'key' => 'base_url', 'value' => 'https://cdn.example.com', 'type' => 'string', 'is_secret' => false, 'is_public' => true, 'created_at' => now(), 'updated_at' => now()],
-    ]);
-    app(SettingServiceInterface::class)->clearCache();
+    // The cdn group is declared now (ADR 0051 §7), so it is configured the way an
+    // operator configures it rather than by writing rows past the settings service.
+    $settings = app(SettingServiceInterface::class);
+    $settings->set('cdn', 'base_url', 'https://cdn.example.com');
+    $settings->set('cdn', 'enabled', true);
+    $settings->clearCache();
 
     $public = $this->media->store(new MediaUpload(pngFile(), MediaVisibility::PUBLIC, uploadedBy: $this->user->id));
 
