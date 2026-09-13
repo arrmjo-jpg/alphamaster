@@ -205,7 +205,7 @@ export function UsersScreen() {
                                                 </span>
                                             ) : (
                                                 <span className="text-(length:--text-sm)">
-                                                    {account.roles.join(', ')}
+                                                    {account.roles.join(t('list.separator'))}
                                                 </span>
                                             )}
                                         </Td>
@@ -266,7 +266,7 @@ export function UsersScreen() {
                                             <span className="text-(--text-secondary)">
                                                 {account.roles.length === 0
                                                     ? t('session.none')
-                                                    : account.roles.join(', ')}
+                                                    : account.roles.join(t('list.separator'))}
                                             </span>
                                         </span>
                                     </button>

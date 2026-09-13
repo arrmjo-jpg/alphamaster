@@ -83,7 +83,7 @@ export function ConfigurationPanel() {
                         </p>
                         <p className="mt-1">
                             {t('operations.configuration.export.sections', {
-                                sections: write.data.sections.join(', '),
+                                sections: write.data.sections.join(t('list.separator')),
                             })}
                         </p>
                         {/* Named rather than counted: an operator restoring this
@@ -92,7 +92,7 @@ export function ConfigurationPanel() {
                         {write.data.omitted_secrets.length > 0 ? (
                             <p className="mt-1">
                                 {t('operations.configuration.export.omitted', {
-                                    keys: write.data.omitted_secrets.join(', '),
+                                    keys: write.data.omitted_secrets.join(t('list.separator')),
                                 })}
                             </p>
                         ) : null}

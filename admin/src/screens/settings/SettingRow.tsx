@@ -146,7 +146,9 @@ export function SettingRow({ field, group, version, onChange, onRotated }: Setti
 
                 {field.unmet.length > 0 ? (
                     <Note icon={<Link2Off className="size-3.5" />}>
-                        {t('settings.unavailableUntil', { keys: field.unmet.join('، ') })}
+                        {t('settings.unavailableUntil', {
+                            keys: field.unmet.join(t('list.separator')),
+                        })}
                     </Note>
                 ) : null}
 
