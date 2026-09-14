@@ -571,6 +571,7 @@
             "branding": "Branding",
             "cdn": "CDN",
             "general": "General",
+            "media_analysis": "Media analysis",
             "localization": "Localization",
             "mail": "Mail",
             "operations": "Operations",
@@ -907,6 +908,40 @@
         "removeConfirm": "Remove it",
         "removeDenied": "You may read this file but not remove it. Removing one needs the media.delete permission.",
         "noReplace": "A stored file cannot be replaced or renamed. The bytes behind an identifier never change, which is what makes them cacheable forever; upload a new file instead.",
+        "analysis": {
+            "title": "AI video detection",
+            "intro": "Nothing is analysed unless someone asks. A result is an assessment of risk, never a verdict that the media is or is not generated.",
+            "unavailable": {
+                "disabled": "Media analysis is switched off in the settings.",
+                "not_configured": "No media analyzer is configured yet."
+            },
+            "notReady": "This file can be analysed once it is ready.",
+            "lookFor": "Look for",
+            "reanalyze": "Analyse again even if an equivalent analysis exists",
+            "request": "Request analysis",
+            "empty": "This file has not been analysed.",
+            "confidence": "Confidence",
+            "notAssessed": "Not assessed: {{types}}",
+            "superseded": "Superseded by a newer analysis",
+            "cancel": "Withdraw",
+            "type": {
+                "ai_generated": "AI generation",
+                "deepfake": "Deepfake",
+                "face_manipulation": "Face manipulation",
+                "visual_manipulation": "Visual manipulation",
+                "synthetic_audio": "Synthetic audio"
+            },
+            "review": {
+                "decision": "Your review",
+                "note": "Note",
+                "submit": "Record review",
+                "decisions": {
+                    "confirmed_synthetic": "Confirmed synthetic",
+                    "confirmed_authentic": "Confirmed authentic",
+                    "undetermined": "Undetermined"
+                }
+            }
+        },
         "empty": {
             "title": "Nothing is stored yet.",
             "body": "Uploading a file here puts it through the platform intake: it is stored, scanned where a scanner exists, and becomes servable once it is ready.",

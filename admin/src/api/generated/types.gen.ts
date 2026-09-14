@@ -183,6 +183,88 @@ export type MediaAdminResource = {
     created_at: string | null;
 };
 
+/**
+ * An advisory reading of an analysis's scores against the thresholds an operator set (ADR 0054). Advisory, and deliberately so. It is derived from the scores and the policy version recorded beside it; a consumer may use it, or apply its own threshold to the scores, or ignore both. It is null when no thresholds are configured, because a classification nobody defined would be the platform inventing a decision.
+ *
+ */
+export type MediaAnalysisClassification = 'likely_synthetic' | 'likely_authentic' | 'inconclusive';
+
+export type MediaAnalysisResource = {
+    id: string;
+    media_id: string;
+    consumer: string;
+    status: MediaAnalysisStatus;
+    status_label: string;
+    types: Array<MediaAnalysisType>;
+    classification: MediaAnalysisClassification | null;
+    classification_label: string | null;
+    confidence: number | null;
+    /**
+     * A score between 0 and 1 for each type the analyzer assessed. A type it did not assess is absent, never 0.
+     */
+    scores: {
+        [key: string]: number;
+    };
+    unsupported_types: Array<MediaAnalysisType>;
+    signals: Array<{}>;
+    provider: string | null;
+    analyzer: string | null;
+    model_version: string | null;
+    policy_version: string;
+    input_fingerprint: string;
+    attempts: number;
+    error_code: string | null;
+    error_message: string | null;
+    requested_at: string | null;
+    started_at: string | null;
+    completed_at: string | null;
+    superseded_by: string | null;
+    reanalysis_of: string | null;
+    type_labels: {
+        [key: string]: string;
+    };
+    reviews: Array<{
+        id: string;
+        decision: string;
+        decision_label: string;
+        note: string | null;
+        reviewer: string | null;
+        created_at: string | null;
+    }>;
+};
+
+/**
+ * What a person concluded after reading an analysis (ADR 0054). A review never edits the analysis it is about. It is recorded beside it, attributed and audited, so the analyzer's reading and the person's stay distinguishable forever.
+ *
+ */
+export type MediaAnalysisReviewDecision = 'confirmed_synthetic' | 'confirmed_authentic' | 'undetermined';
+
+/**
+ * Where one media analysis stands (ADR 0054). Only `completed` and `inconclusive` are assessments. `failed`, `unsupported` and `cancelled` say nothing about the media at all — and none of them, `inconclusive` included, means the media is authentic. A consumer that reads any of them as "human" is making a claim no analyzer supported.
+ * | |
+ * |---|
+ * | `pending` <br/>  |
+ * | `processing` <br/>  |
+ * | `completed` <br/> The analyzer returned scores for at least one requested type. |
+ * | `inconclusive` <br/> The analyzer ran and could not reach an assessment. |
+ * | `unsupported` <br/> The analyzer ran and supports none of the requested types for this media. |
+ * | `failed` <br/> The analysis could not be carried out. |
+ * | `cancelled` <br/> Withdrawn before it ran, or stopped because the capability or the media went away. |
+ */
+export type MediaAnalysisStatus = 'pending' | 'processing' | 'completed' | 'inconclusive' | 'unsupported' | 'failed' | 'cancelled';
+
+/**
+ * What a media analysis can be asked to look for (ADR 0054). The vocabulary is closed and owned here, so a consumer chooses from it and cannot invent a type an analyzer would not recognise. An analyzer declares the subset it supports; a type it does not support is reported as unsupported, never scored as zero.  Every type names an indicator of risk. None of them is a verdict: an analyzer can say a video carries signs of generation, and cannot say that it was or was not generated.
+ * | |
+ * |---|
+ * | `ai_generated` <br/> Signs that the media was produced by a generative model. |
+ * | `deepfake` <br/> Signs of a synthetic likeness of a real person. |
+ * | `face_manipulation` <br/> Signs that a face was swapped, re-enacted or altered. |
+ * | `visual_manipulation` <br/> Signs that frames were edited, spliced or composited. |
+ * | `synthetic_audio` <br/> Signs that speech or sound was synthesised. |
+ */
+export type MediaAnalysisType = 'ai_generated' | 'deepfake' | 'face_manipulation' | 'visual_manipulation' | 'synthetic_audio';
+
 export type MediaResource = {
     id: string;
     collection: string;
@@ -367,6 +449,17 @@ export type RegisterRequest = {
     password_confirmation: string;
 };
 
+export type RequestMediaAnalysisRequest = {
+    /**
+     * What to look for, from the platform's vocabulary. Types the configured analyzer does not support are reported, not scored.
+     */
+    types: Array<MediaAnalysisType>;
+    /**
+     * Run again even when an equivalent analysis exists; the new one supersedes the current one when it finishes.
+     */
+    reanalyze?: boolean;
+};
+
 /**
  * Ask for translations of what is missing in one language.
  */
@@ -406,6 +499,14 @@ export type RestoreConfigurationRequest = {
     location: string;
 };
 
+export type ReviewMediaAnalysisRequest = {
+    decision: MediaAnalysisReviewDecision;
+    /**
+     * The reviewer's reasoning. Kept with the review; the audit trail records only that one was given.
+     */
+    note?: string | null;
+};
+
 export type RoleRequest = {
     /**
      * `label` is what an administrator types, and it is named for what it
@@ -417,7 +518,7 @@ export type RoleRequest = {
      * same in a list while remaining distinct underneath.
      */
     label: string;
-    permissions: Array<'users.view' | 'users.create' | 'users.update' | 'users.delete' | 'settings.view' | 'settings.update' | 'settings.rollback' | 'settings.security.update' | 'settings.secrets.manage' | 'audit.view' | 'audit.manage' | 'settings.backup.manage' | 'roles.view' | 'roles.update' | 'permissions.view' | 'permissions.update' | 'integrations.view' | 'integrations.update' | 'notifications.view' | 'notifications.update' | 'notifications.send' | 'media.view' | 'media.delete' | 'ai.use' | 'cdn.view' | 'cdn.purge' | 'cdn.purge_everything'>;
+    permissions: Array<'users.view' | 'users.create' | 'users.update' | 'users.delete' | 'settings.view' | 'settings.update' | 'settings.rollback' | 'settings.security.update' | 'settings.secrets.manage' | 'audit.view' | 'audit.manage' | 'settings.backup.manage' | 'roles.view' | 'roles.update' | 'permissions.view' | 'permissions.update' | 'integrations.view' | 'integrations.update' | 'notifications.view' | 'notifications.update' | 'notifications.send' | 'media.view' | 'media.delete' | 'ai.use' | 'cdn.view' | 'cdn.purge' | 'cdn.purge_everything' | 'media.analysis.view' | 'media.analysis.request' | 'media.analysis.review'>;
 };
 
 export type RoleResource = {
@@ -3309,6 +3410,415 @@ export type AdminMediaShowResponses = {
 };
 
 export type AdminMediaShowResponse = AdminMediaShowResponses[keyof AdminMediaShowResponses];
+
+export type AdminMediaAnalysisStatusData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/admin/media/analysis';
+};
+
+export type AdminMediaAnalysisStatusErrors = {
+    /**
+     * Unauthenticated
+     */
+    401: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+};
+
+export type AdminMediaAnalysisStatusError = AdminMediaAnalysisStatusErrors[keyof AdminMediaAnalysisStatusErrors];
+
+export type AdminMediaAnalysisStatusResponses = {
+    200: {
+        success: boolean;
+        data: {
+            available: boolean;
+            reason: string | null;
+            supported_types: Array<string>;
+            analyzer: {
+                provider: string;
+                analyzer: string;
+                model_version: string | null;
+                supported_types: Array<string>;
+                accepted_mime_types: Array<string>;
+                max_bytes: number | null;
+                max_duration_seconds: number | null;
+            } | null;
+            policy: {
+                enabled: boolean;
+                max_bytes: number | null;
+                max_duration_seconds: number | null;
+                daily_limit: number | null;
+                timeout_seconds: number;
+                likely_synthetic_threshold: number | null;
+                likely_authentic_threshold: number | null;
+                version: string;
+            };
+            queue: {
+                pending: number;
+                processing: number;
+                failed_last_day: number;
+                requested_today: number;
+            };
+        };
+    };
+};
+
+export type AdminMediaAnalysisStatusResponse = AdminMediaAnalysisStatusResponses[keyof AdminMediaAnalysisStatusResponses];
+
+export type AdminMediaAnalysesShowData = {
+    body?: never;
+    path: {
+        analysis: string;
+    };
+    query?: never;
+    url: '/admin/media/analyses/{analysis}';
+};
+
+export type AdminMediaAnalysesShowErrors = {
+    /**
+     * Unauthenticated
+     */
+    401: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+    /**
+     * NOT_FOUND: no such analysis.
+     */
+    404: {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'NOT_FOUND';
+            message: string;
+            details: null;
+        };
+    };
+};
+
+export type AdminMediaAnalysesShowError = AdminMediaAnalysesShowErrors[keyof AdminMediaAnalysesShowErrors];
+
+export type AdminMediaAnalysesShowResponses = {
+    200: {
+        success: boolean;
+        data: MediaAnalysisResource;
+    };
+};
+
+export type AdminMediaAnalysesShowResponse = AdminMediaAnalysesShowResponses[keyof AdminMediaAnalysesShowResponses];
+
+export type AdminMediaAnalysesCancelData = {
+    body?: never;
+    path: {
+        analysis: string;
+    };
+    query?: never;
+    url: '/admin/media/analyses/{analysis}/cancel';
+};
+
+export type AdminMediaAnalysesCancelErrors = {
+    /**
+     * Unauthenticated
+     */
+    401: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+    /**
+     * NOT_FOUND: no such analysis.
+     */
+    404: {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'NOT_FOUND';
+            message: string;
+            details: null;
+        };
+    };
+    /**
+     * MEDIA_ANALYSIS_NOT_CANCELLABLE: only a pending analysis can be withdrawn.
+     */
+    409: {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'MEDIA_ANALYSIS_NOT_CANCELLABLE';
+            message: string;
+            details: null;
+        };
+    };
+};
+
+export type AdminMediaAnalysesCancelError = AdminMediaAnalysesCancelErrors[keyof AdminMediaAnalysesCancelErrors];
+
+export type AdminMediaAnalysesCancelResponses = {
+    200: {
+        success: boolean;
+        message: string;
+        data: MediaAnalysisResource;
+    };
+};
+
+export type AdminMediaAnalysesCancelResponse = AdminMediaAnalysesCancelResponses[keyof AdminMediaAnalysesCancelResponses];
+
+export type AdminMediaAnalysesReviewData = {
+    body: ReviewMediaAnalysisRequest;
+    path: {
+        analysis: string;
+    };
+    query?: never;
+    url: '/admin/media/analyses/{analysis}/reviews';
+};
+
+export type AdminMediaAnalysesReviewErrors = {
+    /**
+     * Unauthenticated
+     */
+    401: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+    /**
+     * NOT_FOUND: no such analysis.
+     */
+    404: {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'NOT_FOUND';
+            message: string;
+            details: null;
+        };
+    };
+    /**
+     * MEDIA_ANALYSIS_NOT_REVIEWABLE: only a completed or inconclusive analysis can be reviewed.
+     */
+    409: {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'MEDIA_ANALYSIS_NOT_REVIEWABLE';
+            message: string;
+            details: null;
+        };
+    };
+    /**
+     * Validation error
+     */
+    422: {
+        /**
+         * Errors overview.
+         */
+        message: string;
+        /**
+         * A detailed description of each field that failed validation.
+         */
+        errors: {
+            [key: string]: Array<string>;
+        };
+    };
+};
+
+export type AdminMediaAnalysesReviewError = AdminMediaAnalysesReviewErrors[keyof AdminMediaAnalysesReviewErrors];
+
+export type AdminMediaAnalysesReviewResponses = {
+    201: {
+        success: boolean;
+        message: string;
+        data: MediaAnalysisResource;
+    };
+};
+
+export type AdminMediaAnalysesReviewResponse = AdminMediaAnalysesReviewResponses[keyof AdminMediaAnalysesReviewResponses];
+
+export type AdminMediaAnalysesIndexData = {
+    body?: never;
+    path: {
+        /**
+         * The media ID
+         */
+        media: string;
+    };
+    query?: never;
+    url: '/admin/media/{media}/analyses';
+};
+
+export type AdminMediaAnalysesIndexErrors = {
+    /**
+     * Unauthenticated
+     */
+    401: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+    /**
+     * Not found
+     */
+    404: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+};
+
+export type AdminMediaAnalysesIndexError = AdminMediaAnalysesIndexErrors[keyof AdminMediaAnalysesIndexErrors];
+
+export type AdminMediaAnalysesIndexResponses = {
+    200: {
+        success: boolean;
+        data: Array<MediaAnalysisResource>;
+    };
+};
+
+export type AdminMediaAnalysesIndexResponse = AdminMediaAnalysesIndexResponses[keyof AdminMediaAnalysesIndexResponses];
+
+export type AdminMediaAnalysesStoreData = {
+    body: RequestMediaAnalysisRequest;
+    path: {
+        /**
+         * The media ID
+         */
+        media: string;
+    };
+    query?: never;
+    url: '/admin/media/{media}/analyses';
+};
+
+export type AdminMediaAnalysesStoreErrors = {
+    /**
+     * Unauthenticated
+     */
+    401: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+    /**
+     * Not found
+     */
+    404: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+    /**
+     * MEDIA_ANALYSIS_DISABLED, MEDIA_ANALYSIS_NOT_CONFIGURED or MEDIA_NOT_READY.
+     */
+    409: {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'MEDIA_ANALYSIS_DISABLED';
+            message: string;
+            details: null;
+        };
+    } | {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'MEDIA_ANALYSIS_NOT_CONFIGURED';
+            message: string;
+            details: null;
+        };
+    } | {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'MEDIA_NOT_READY';
+            message: string;
+            details: null;
+        };
+    };
+    /**
+     * MEDIA_ANALYSIS_UNSUPPORTED_MEDIA, MEDIA_ANALYSIS_UNSUPPORTED_TYPES or MEDIA_ANALYSIS_LIMIT_EXCEEDED; details name the unsupported types or the limit.
+     */
+    422: {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'MEDIA_ANALYSIS_UNSUPPORTED_MEDIA';
+            message: string;
+            details: null;
+        };
+    } | {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'MEDIA_ANALYSIS_UNSUPPORTED_TYPES';
+            message: string;
+            details: {
+                unsupported_types: Array<string>;
+            };
+        };
+    } | {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'MEDIA_ANALYSIS_LIMIT_EXCEEDED';
+            message: string;
+            details: {
+                limit: string | null;
+            };
+        };
+    };
+};
+
+export type AdminMediaAnalysesStoreError = AdminMediaAnalysesStoreErrors[keyof AdminMediaAnalysesStoreErrors];
+
+export type AdminMediaAnalysesStoreResponses = {
+    200: {
+        success: boolean;
+        message: string;
+        data: MediaAnalysisResource;
+        meta: string;
+    };
+    202: {
+        success: boolean;
+        message: string;
+        data: MediaAnalysisResource;
+    };
+};
+
+export type AdminMediaAnalysesStoreResponse = AdminMediaAnalysesStoreResponses[keyof AdminMediaAnalysesStoreResponses];
 
 export type AuthMfaDisableData = {
     body?: never;

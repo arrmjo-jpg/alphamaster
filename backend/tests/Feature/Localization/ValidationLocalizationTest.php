@@ -282,8 +282,9 @@ test('every FormRequest still validates', function (): void {
     // setup the provider save and the connection test. Social login (ADR 0050) added the
     // authorize and callback pair and the password recovery pair. ADR 0051 added the phone
     // code and sign-in pair, registration, the three profile requests and the avatar.
-    // ADR 0053 added the CDN purge request.
-    expect($requests)->toHaveCount(41);
+    // ADR 0053 added the CDN purge request, and ADR 0054 the media analysis request and
+    // its review.
+    expect($requests)->toHaveCount(43);
 
     foreach ($requests as $file) {
         $source = (string) file_get_contents($file);

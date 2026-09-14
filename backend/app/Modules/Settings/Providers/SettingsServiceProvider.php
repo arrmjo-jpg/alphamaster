@@ -17,6 +17,7 @@ use App\Modules\Settings\Definitions\Catalogues\CdnCatalogue;
 use App\Modules\Settings\Definitions\Catalogues\GeneralCatalogue;
 use App\Modules\Settings\Definitions\Catalogues\LocalizationCatalogue;
 use App\Modules\Settings\Definitions\Catalogues\MailCatalogue;
+use App\Modules\Settings\Definitions\Catalogues\MediaAnalysisCatalogue;
 use App\Modules\Settings\Definitions\Catalogues\OperationsCatalogue;
 use App\Modules\Settings\Definitions\Catalogues\RateLimitCatalogue;
 use App\Modules\Settings\Definitions\Catalogues\SecurityCatalogue;
@@ -139,6 +140,7 @@ class SettingsServiceProvider extends ServiceProvider
             RateLimitCatalogue::class,
             AiCatalogue::class,
             CdnCatalogue::class,
+            MediaAnalysisCatalogue::class,
         ];
     }
 

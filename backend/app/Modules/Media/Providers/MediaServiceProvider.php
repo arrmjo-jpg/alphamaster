@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace App\Modules\Media\Providers;
 
 use App\Modules\Core\Contracts\ProfileAvatarContract;
+use App\Modules\Core\MediaAnalysis\MediaAnalysisContract;
 use App\Modules\Media\Contracts\CdnUrlResolverContract;
 use App\Modules\Media\Contracts\MediaScannerContract;
 use App\Modules\Media\Contracts\MediaServiceContract;
 use App\Modules\Media\Contracts\MediaStorageContract;
 use App\Modules\Media\Enums\MediaType;
+use App\Modules\Media\Services\Analysis\MediaAnalysisPolicy;
+use App\Modules\Media\Services\Analysis\MediaAnalysisService;
 use App\Modules\Media\Services\MediaAccessResolver;
 use App\Modules\Media\Services\MediaService;
 use App\Modules\Media\Services\Processing\GenericFileProcessor;
@@ -56,6 +59,12 @@ class MediaServiceProvider extends ServiceProvider
         $this->app->singleton(MediaAccessResolver::class, fn (): MediaAccessResolver => new MediaAccessResolver);
 
         $this->app->singleton(MediaServiceContract::class, MediaService::class);
+
+        // Media analysis (ADR 0054): declared in Core so any module can call it, carried out
+        // here. Registering it starts nothing — an analysis exists only when a consumer
+        // asks for one, and nothing in the intake pipeline does.
+        $this->app->singleton(MediaAnalysisPolicy::class);
+        $this->app->singleton(MediaAnalysisContract::class, MediaAnalysisService::class);
     }
 
     /**

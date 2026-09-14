@@ -4,6 +4,7 @@ use App\Modules\Integration\Jobs\PruneCdnPurgeRequests;
 use App\Modules\Integration\Jobs\PruneIntegrationUsageLogs;
 use App\Modules\Integration\Jobs\SweepCdnPurgeRequests;
 use App\Modules\Media\Jobs\PurgeDeletedMedia;
+use App\Modules\Media\Jobs\SweepMediaAnalyses;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -41,6 +42,10 @@ Schedule::job(new SweepCdnPurgeRequests)->everyFiveMinutes()->name('cdn:sweep-pu
 Schedule::call(static function () use ($retention): void {
     PruneCdnPurgeRequests::dispatch($retention('operations.integration_usage_retention_days', 90));
 })->daily()->name('cdn:prune-purges');
+
+// Media analyses a dead worker or a lost dispatch left behind (ADR 0054). Recovery only:
+// nothing here requests an analysis.
+Schedule::job(new SweepMediaAnalyses)->everyFiveMinutes()->name('media:sweep-analyses');
 
 Schedule::command('auth:prune-codes')->daily();
 

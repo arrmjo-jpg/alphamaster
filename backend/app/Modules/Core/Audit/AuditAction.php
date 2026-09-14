@@ -244,6 +244,15 @@ final class AuditAction
      */
     public const CDN_PURGE_EVERYTHING_COMPLETED = 'cdn.purge_everything_completed';
 
+    /**
+     * An administrator asked for a media analysis by hand (ADR 0054). Analyses a module
+     * requests are not audited: the analysis row is their record.
+     */
+    public const MEDIA_ANALYSIS_REQUESTED = 'media.analysis_requested';
+
+    /** A person recorded a review of a media analysis (ADR 0054). */
+    public const MEDIA_ANALYSIS_REVIEWED = 'media.analysis_reviewed';
+
     /** An administrator put a failed purge back in the queue. */
     public const CDN_PURGE_RETRIED = 'cdn.purge_retried';
 

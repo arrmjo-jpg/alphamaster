@@ -5,6 +5,7 @@
 * **Revised**: 2026-09-04 — implemented; MediaLibrary evaluated and not adopted; `HasMediaAttachments` deferred to its first consumer
 * **Revised**: 2026-09-04 — named variants and watermarking recorded as target architecture, explicitly not implemented
 * **Revised**: 2026-09-05 — variant-set ownership, missing-variant behaviour, system assets, and the closed name vocabulary
+* **Revised**: 2026-09-14 — the unimplemented `MediaVerifierContract` is replaced by media analysis (ADR 0054)
 
 ## Context
 
@@ -26,7 +27,7 @@ Malware scanning is `MediaScannerContract`. No antivirus exists in this environm
 
 Access is two visibilities. Media knows whether a file needs authorization; who satisfies it is a business question — owner, team member, judge — that Media cannot anticipate, so it is delegated to a `MediaAccessPolicyContract` the attaching module registers. Private media attached to a type with no registered policy is denied: an unanswered question is not a yes.
 
-Authenticity assessment is `MediaVerifierContract`, defined and unimplemented. There is no consumer and no analyzer is possible without frame extraction, so the contract exists to settle the shape rather than to promise the capability. An implementation returns a risk assessment and never a verdict, because no analyzer can support the claim that a file definitively is or is not machine generated.
+Authenticity assessment is media analysis, decided in ADR 0054. It replaced `MediaVerifierContract`, `VerificationAssessment` and `VerificationStatus`, which were defined here and never bound, persisted or called. Their principles survive the replacement: an analysis reports risk and never a verdict, because no analyzer can support the claim that a file definitively is or is not machine generated; and a result names the analyzer and version that produced it, so a later one supersedes it rather than overwriting it.
 
 Intake is asynchronous on the `media` queue (ADR 0020): validate, store, scan, process, ready. Jobs take an id rather than a model so a retry re-reads current state, and each is idempotent. Deletion is soft; bytes are purged by an explicit retention job, never as a side effect of a row disappearing.
 

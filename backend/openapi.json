@@ -5509,6 +5509,944 @@
                 }
             }
         },
+        "/admin/media/analysis": {
+            "get": {
+                "operationId": "admin.media.analysis.status",
+                "summary": "The capability's state: whether it is on and configured, what the analyzer accepts, the operator's limits and thresholds, and the queue",
+                "tags": [
+                    "MediaAnalysisAdmin"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "available": {
+                                                    "type": "boolean"
+                                                },
+                                                "reason": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "supported_types": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "analyzer": {
+                                                    "type": [
+                                                        "object",
+                                                        "null"
+                                                    ],
+                                                    "properties": {
+                                                        "provider": {
+                                                            "type": "string"
+                                                        },
+                                                        "analyzer": {
+                                                            "type": "string"
+                                                        },
+                                                        "model_version": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "supported_types": {
+                                                            "type": "array",
+                                                            "items": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "accepted_mime_types": {
+                                                            "type": "array",
+                                                            "items": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "max_bytes": {
+                                                            "type": [
+                                                                "integer",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "max_duration_seconds": {
+                                                            "type": [
+                                                                "integer",
+                                                                "null"
+                                                            ]
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "provider",
+                                                        "analyzer",
+                                                        "model_version",
+                                                        "supported_types",
+                                                        "accepted_mime_types",
+                                                        "max_bytes",
+                                                        "max_duration_seconds"
+                                                    ]
+                                                },
+                                                "policy": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "enabled": {
+                                                            "type": "boolean"
+                                                        },
+                                                        "max_bytes": {
+                                                            "type": [
+                                                                "integer",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "max_duration_seconds": {
+                                                            "type": [
+                                                                "integer",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "daily_limit": {
+                                                            "type": [
+                                                                "integer",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "timeout_seconds": {
+                                                            "type": "integer"
+                                                        },
+                                                        "likely_synthetic_threshold": {
+                                                            "type": [
+                                                                "number",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "likely_authentic_threshold": {
+                                                            "type": [
+                                                                "number",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "version": {
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "enabled",
+                                                        "max_bytes",
+                                                        "max_duration_seconds",
+                                                        "daily_limit",
+                                                        "timeout_seconds",
+                                                        "likely_synthetic_threshold",
+                                                        "likely_authentic_threshold",
+                                                        "version"
+                                                    ]
+                                                },
+                                                "queue": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "pending": {
+                                                            "type": "integer"
+                                                        },
+                                                        "processing": {
+                                                            "type": "integer"
+                                                        },
+                                                        "failed_last_day": {
+                                                            "type": "integer"
+                                                        },
+                                                        "requested_today": {
+                                                            "type": "integer"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "pending",
+                                                        "processing",
+                                                        "failed_last_day",
+                                                        "requested_today"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "available",
+                                                "reason",
+                                                "supported_types",
+                                                "analyzer",
+                                                "policy",
+                                                "queue"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/admin/media/analyses/{analysis}": {
+            "get": {
+                "operationId": "admin.media.analyses.show",
+                "summary": "One analysis, with its reviews",
+                "tags": [
+                    "MediaAnalysisAdmin"
+                ],
+                "parameters": [
+                    {
+                        "name": "analysis",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "404": {
+                        "description": "NOT_FOUND: no such analysis.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "error": {
+                                            "type": "object",
+                                            "properties": {
+                                                "code": {
+                                                    "type": "string",
+                                                    "description": "`code` is contract and is never localized (ADR 0031).",
+                                                    "const": "NOT_FOUND"
+                                                },
+                                                "message": {
+                                                    "type": "string"
+                                                },
+                                                "details": {
+                                                    "type": "null"
+                                                }
+                                            },
+                                            "required": [
+                                                "code",
+                                                "message",
+                                                "details"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "error"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/MediaAnalysisResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/admin/media/analyses/{analysis}/cancel": {
+            "post": {
+                "operationId": "admin.media.analyses.cancel",
+                "summary": "Withdraw an analysis that has not started",
+                "tags": [
+                    "MediaAnalysisAdmin"
+                ],
+                "parameters": [
+                    {
+                        "name": "analysis",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/MediaAnalysisResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "message",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "MEDIA_ANALYSIS_NOT_CANCELLABLE: only a pending analysis can be withdrawn.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "error": {
+                                            "type": "object",
+                                            "properties": {
+                                                "code": {
+                                                    "type": "string",
+                                                    "description": "`code` is contract and is never localized (ADR 0031).",
+                                                    "const": "MEDIA_ANALYSIS_NOT_CANCELLABLE"
+                                                },
+                                                "message": {
+                                                    "type": "string"
+                                                },
+                                                "details": {
+                                                    "type": "null"
+                                                }
+                                            },
+                                            "required": [
+                                                "code",
+                                                "message",
+                                                "details"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "error"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "NOT_FOUND: no such analysis.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "error": {
+                                            "type": "object",
+                                            "properties": {
+                                                "code": {
+                                                    "type": "string",
+                                                    "description": "`code` is contract and is never localized (ADR 0031).",
+                                                    "const": "NOT_FOUND"
+                                                },
+                                                "message": {
+                                                    "type": "string"
+                                                },
+                                                "details": {
+                                                    "type": "null"
+                                                }
+                                            },
+                                            "required": [
+                                                "code",
+                                                "message",
+                                                "details"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "error"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/admin/media/analyses/{analysis}/reviews": {
+            "post": {
+                "operationId": "admin.media.analyses.review",
+                "summary": "Record a person's review of an assessment. The analysis itself is never changed. Recorded in the audit trail",
+                "tags": [
+                    "MediaAnalysisAdmin"
+                ],
+                "parameters": [
+                    {
+                        "name": "analysis",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ReviewMediaAnalysisRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/MediaAnalysisResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "message",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "MEDIA_ANALYSIS_NOT_REVIEWABLE: only a completed or inconclusive analysis can be reviewed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "error": {
+                                            "type": "object",
+                                            "properties": {
+                                                "code": {
+                                                    "type": "string",
+                                                    "description": "`code` is contract and is never localized (ADR 0031).",
+                                                    "const": "MEDIA_ANALYSIS_NOT_REVIEWABLE"
+                                                },
+                                                "message": {
+                                                    "type": "string"
+                                                },
+                                                "details": {
+                                                    "type": "null"
+                                                }
+                                            },
+                                            "required": [
+                                                "code",
+                                                "message",
+                                                "details"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "error"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "NOT_FOUND: no such analysis.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "error": {
+                                            "type": "object",
+                                            "properties": {
+                                                "code": {
+                                                    "type": "string",
+                                                    "description": "`code` is contract and is never localized (ADR 0031).",
+                                                    "const": "NOT_FOUND"
+                                                },
+                                                "message": {
+                                                    "type": "string"
+                                                },
+                                                "details": {
+                                                    "type": "null"
+                                                }
+                                            },
+                                            "required": [
+                                                "code",
+                                                "message",
+                                                "details"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "error"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/admin/media/{media}/analyses": {
+            "get": {
+                "operationId": "admin.media.analyses.index",
+                "summary": "Every analysis of a media file, newest first, with its reviews",
+                "tags": [
+                    "MediaAnalysisAdmin"
+                ],
+                "parameters": [
+                    {
+                        "name": "media",
+                        "in": "path",
+                        "required": true,
+                        "description": "The media ID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/MediaAnalysisResource"
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            },
+            "post": {
+                "operationId": "admin.media.analyses.store",
+                "description": "Answered 202 when an analysis was queued and 200 when an equivalent one already existed. Recorded in the audit trail when one is queued.",
+                "summary": "Ask for an analysis of this file, as an operator",
+                "tags": [
+                    "MediaAnalysisAdmin"
+                ],
+                "parameters": [
+                    {
+                        "name": "media",
+                        "in": "path",
+                        "required": true,
+                        "description": "The media ID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RequestMediaAnalysisRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "202": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/MediaAnalysisResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "message",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/MediaAnalysisResource"
+                                        },
+                                        "meta": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "message",
+                                        "data",
+                                        "meta"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "MEDIA_ANALYSIS_DISABLED, MEDIA_ANALYSIS_NOT_CONFIGURED or MEDIA_NOT_READY.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "anyOf": [
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "success": {
+                                                    "type": "boolean"
+                                                },
+                                                "error": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "code": {
+                                                            "type": "string",
+                                                            "description": "`code` is contract and is never localized (ADR 0031).",
+                                                            "const": "MEDIA_ANALYSIS_DISABLED"
+                                                        },
+                                                        "message": {
+                                                            "type": "string"
+                                                        },
+                                                        "details": {
+                                                            "type": "null"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "code",
+                                                        "message",
+                                                        "details"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "success",
+                                                "error"
+                                            ]
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "success": {
+                                                    "type": "boolean"
+                                                },
+                                                "error": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "code": {
+                                                            "type": "string",
+                                                            "description": "`code` is contract and is never localized (ADR 0031).",
+                                                            "const": "MEDIA_ANALYSIS_NOT_CONFIGURED"
+                                                        },
+                                                        "message": {
+                                                            "type": "string"
+                                                        },
+                                                        "details": {
+                                                            "type": "null"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "code",
+                                                        "message",
+                                                        "details"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "success",
+                                                "error"
+                                            ]
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "success": {
+                                                    "type": "boolean"
+                                                },
+                                                "error": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "code": {
+                                                            "type": "string",
+                                                            "description": "`code` is contract and is never localized (ADR 0031).",
+                                                            "const": "MEDIA_NOT_READY"
+                                                        },
+                                                        "message": {
+                                                            "type": "string"
+                                                        },
+                                                        "details": {
+                                                            "type": "null"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "code",
+                                                        "message",
+                                                        "details"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "success",
+                                                "error"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "422": {
+                        "description": "MEDIA_ANALYSIS_UNSUPPORTED_MEDIA, MEDIA_ANALYSIS_UNSUPPORTED_TYPES or MEDIA_ANALYSIS_LIMIT_EXCEEDED; details name the unsupported types or the limit.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "anyOf": [
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "success": {
+                                                    "type": "boolean"
+                                                },
+                                                "error": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "code": {
+                                                            "type": "string",
+                                                            "description": "`code` is contract and is never localized (ADR 0031).",
+                                                            "const": "MEDIA_ANALYSIS_UNSUPPORTED_MEDIA"
+                                                        },
+                                                        "message": {
+                                                            "type": "string"
+                                                        },
+                                                        "details": {
+                                                            "type": "null"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "code",
+                                                        "message",
+                                                        "details"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "success",
+                                                "error"
+                                            ]
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "success": {
+                                                    "type": "boolean"
+                                                },
+                                                "error": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "code": {
+                                                            "type": "string",
+                                                            "description": "`code` is contract and is never localized (ADR 0031).",
+                                                            "const": "MEDIA_ANALYSIS_UNSUPPORTED_TYPES"
+                                                        },
+                                                        "message": {
+                                                            "type": "string"
+                                                        },
+                                                        "details": {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "unsupported_types": {
+                                                                    "type": "array",
+                                                                    "items": {
+                                                                        "type": "string"
+                                                                    }
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "unsupported_types"
+                                                            ]
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "code",
+                                                        "message",
+                                                        "details"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "success",
+                                                "error"
+                                            ]
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "success": {
+                                                    "type": "boolean"
+                                                },
+                                                "error": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "code": {
+                                                            "type": "string",
+                                                            "description": "`code` is contract and is never localized (ADR 0031).",
+                                                            "const": "MEDIA_ANALYSIS_LIMIT_EXCEEDED"
+                                                        },
+                                                        "message": {
+                                                            "type": "string"
+                                                        },
+                                                        "details": {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "limit": {
+                                                                    "type": [
+                                                                        "string",
+                                                                        "null"
+                                                                    ]
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "limit"
+                                                            ]
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "code",
+                                                        "message",
+                                                        "details"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "success",
+                                                "error"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
         "/auth/mfa": {
             "get": {
                 "operationId": "auth.mfa.status",
@@ -13331,6 +14269,268 @@
                 ],
                 "title": "MediaAdminResource"
             },
+            "MediaAnalysisClassification": {
+                "type": "string",
+                "description": "An advisory reading of an analysis's scores against the thresholds an operator set (ADR 0054). Advisory, and deliberately so. It is derived from the scores and the policy version recorded beside it; a consumer may use it, or apply its own threshold to the scores, or ignore both. It is null when no thresholds are configured, because a classification nobody defined would be the platform inventing a decision.\n",
+                "enum": [
+                    "likely_synthetic",
+                    "likely_authentic",
+                    "inconclusive"
+                ],
+                "title": "MediaAnalysisClassification"
+            },
+            "MediaAnalysisResource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "media_id": {
+                        "type": "string"
+                    },
+                    "consumer": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/MediaAnalysisStatus"
+                    },
+                    "status_label": {
+                        "type": "string"
+                    },
+                    "types": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/MediaAnalysisType"
+                        }
+                    },
+                    "classification": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/MediaAnalysisClassification"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "classification_label": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "confidence": {
+                        "type": [
+                            "number",
+                            "null"
+                        ]
+                    },
+                    "scores": {
+                        "type": "object",
+                        "description": "A score between 0 and 1 for each type the analyzer assessed. A type it did not assess is absent, never 0.",
+                        "additionalProperties": {
+                            "type": "number"
+                        }
+                    },
+                    "unsupported_types": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/MediaAnalysisType"
+                        }
+                    },
+                    "signals": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": {}
+                        }
+                    },
+                    "provider": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "analyzer": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "model_version": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "policy_version": {
+                        "type": "string"
+                    },
+                    "input_fingerprint": {
+                        "type": "string"
+                    },
+                    "attempts": {
+                        "type": "integer"
+                    },
+                    "error_code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "error_message": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "requested_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "started_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "completed_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "superseded_by": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "reanalysis_of": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "type_labels": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    },
+                    "reviews": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "id": {
+                                    "type": "string"
+                                },
+                                "decision": {
+                                    "type": "string"
+                                },
+                                "decision_label": {
+                                    "type": "string"
+                                },
+                                "note": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ]
+                                },
+                                "reviewer": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ]
+                                },
+                                "created_at": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ]
+                                }
+                            },
+                            "required": [
+                                "id",
+                                "decision",
+                                "decision_label",
+                                "note",
+                                "reviewer",
+                                "created_at"
+                            ]
+                        }
+                    }
+                },
+                "required": [
+                    "id",
+                    "media_id",
+                    "consumer",
+                    "status",
+                    "status_label",
+                    "types",
+                    "classification",
+                    "classification_label",
+                    "confidence",
+                    "scores",
+                    "unsupported_types",
+                    "signals",
+                    "provider",
+                    "analyzer",
+                    "model_version",
+                    "policy_version",
+                    "input_fingerprint",
+                    "attempts",
+                    "error_code",
+                    "error_message",
+                    "requested_at",
+                    "started_at",
+                    "completed_at",
+                    "superseded_by",
+                    "reanalysis_of",
+                    "type_labels",
+                    "reviews"
+                ],
+                "title": "MediaAnalysisResource"
+            },
+            "MediaAnalysisReviewDecision": {
+                "type": "string",
+                "description": "What a person concluded after reading an analysis (ADR 0054). A review never edits the analysis it is about. It is recorded beside it, attributed and audited, so the analyzer's reading and the person's stay distinguishable forever.\n",
+                "enum": [
+                    "confirmed_synthetic",
+                    "confirmed_authentic",
+                    "undetermined"
+                ],
+                "title": "MediaAnalysisReviewDecision"
+            },
+            "MediaAnalysisStatus": {
+                "type": "string",
+                "description": "Where one media analysis stands (ADR 0054). Only `completed` and `inconclusive` are assessments. `failed`, `unsupported` and `cancelled` say nothing about the media at all \u2014 and none of them, `inconclusive` included, means the media is authentic. A consumer that reads any of them as \"human\" is making a claim no analyzer supported.\n| |\n|---|\n| `pending` <br/>  |\n| `processing` <br/>  |\n| `completed` <br/> The analyzer returned scores for at least one requested type. |\n| `inconclusive` <br/> The analyzer ran and could not reach an assessment. |\n| `unsupported` <br/> The analyzer ran and supports none of the requested types for this media. |\n| `failed` <br/> The analysis could not be carried out. |\n| `cancelled` <br/> Withdrawn before it ran, or stopped because the capability or the media went away. |",
+                "enum": [
+                    "pending",
+                    "processing",
+                    "completed",
+                    "inconclusive",
+                    "unsupported",
+                    "failed",
+                    "cancelled"
+                ],
+                "title": "MediaAnalysisStatus"
+            },
+            "MediaAnalysisType": {
+                "type": "string",
+                "description": "What a media analysis can be asked to look for (ADR 0054). The vocabulary is closed and owned here, so a consumer chooses from it and cannot invent a type an analyzer would not recognise. An analyzer declares the subset it supports; a type it does not support is reported as unsupported, never scored as zero.  Every type names an indicator of risk. None of them is a verdict: an analyzer can say a video carries signs of generation, and cannot say that it was or was not generated.\n| |\n|---|\n| `ai_generated` <br/> Signs that the media was produced by a generative model. |\n| `deepfake` <br/> Signs of a synthetic likeness of a real person. |\n| `face_manipulation` <br/> Signs that a face was swapped, re-enacted or altered. |\n| `visual_manipulation` <br/> Signs that frames were edited, spliced or composited. |\n| `synthetic_audio` <br/> Signs that speech or sound was synthesised. |",
+                "enum": [
+                    "ai_generated",
+                    "deepfake",
+                    "face_manipulation",
+                    "visual_manipulation",
+                    "synthetic_audio"
+                ],
+                "title": "MediaAnalysisType"
+            },
             "MediaResource": {
                 "type": "object",
                 "properties": {
@@ -13935,6 +15135,26 @@
                 ],
                 "title": "RegisterRequest"
             },
+            "RequestMediaAnalysisRequest": {
+                "type": "object",
+                "properties": {
+                    "types": {
+                        "type": "array",
+                        "description": "What to look for, from the platform's vocabulary. Types the configured analyzer does not support are reported, not scored.",
+                        "items": {
+                            "$ref": "#/components/schemas/MediaAnalysisType"
+                        }
+                    },
+                    "reanalyze": {
+                        "type": "boolean",
+                        "description": "Run again even when an equivalent analysis exists; the new one supersedes the current one when it finishes."
+                    }
+                },
+                "required": [
+                    "types"
+                ],
+                "title": "RequestMediaAnalysisRequest"
+            },
             "RequestSuggestionsRequest": {
                 "type": "object",
                 "description": "Ask for translations of what is missing in one language.",
@@ -14015,6 +15235,26 @@
                 ],
                 "title": "RestoreConfigurationRequest"
             },
+            "ReviewMediaAnalysisRequest": {
+                "type": "object",
+                "properties": {
+                    "decision": {
+                        "$ref": "#/components/schemas/MediaAnalysisReviewDecision"
+                    },
+                    "note": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "The reviewer's reasoning. Kept with the review; the audit trail records only that one was given.",
+                        "maxLength": 1000
+                    }
+                },
+                "required": [
+                    "decision"
+                ],
+                "title": "ReviewMediaAnalysisRequest"
+            },
             "RoleRequest": {
                 "type": "object",
                 "properties": {
@@ -14055,7 +15295,10 @@
                                 "ai.use",
                                 "cdn.view",
                                 "cdn.purge",
-                                "cdn.purge_everything"
+                                "cdn.purge_everything",
+                                "media.analysis.view",
+                                "media.analysis.request",
+                                "media.analysis.review"
                             ]
                         },
                         "maxItems": 100

@@ -64,6 +64,12 @@ class AdminPermissionSeeder extends Seeder
                 // grants it, because its failure mode is an origin outage (ADR 0036).
                 AdminPermission::CDN_VIEW,
                 AdminPermission::CDN_PURGE,
+                // Looking at, asking for and reviewing media analyses is moderation work the
+                // role that runs the platform does; configuring the analyzer stays with
+                // `integrations.update` and `settings.update`.
+                AdminPermission::MEDIA_ANALYSIS_VIEW,
+                AdminPermission::MEDIA_ANALYSIS_REQUEST,
+                AdminPermission::MEDIA_ANALYSIS_REVIEW,
             ],
             'editor' => [
                 AdminPermission::USERS_VIEW,

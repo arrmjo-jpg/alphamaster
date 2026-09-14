@@ -16,6 +16,8 @@ use App\Modules\Core\Delivery\NullEdgeCache;
 use App\Modules\Core\Http\Cache\HttpCacheProfile;
 use App\Modules\Core\Http\Cache\HttpCacheProfileRegistry;
 use App\Modules\Core\Http\Cache\ResponseCacheTags;
+use App\Modules\Core\MediaAnalysis\MediaAnalyzerContract;
+use App\Modules\Core\MediaAnalysis\NullMediaAnalyzer;
 use App\Modules\Core\Services\RateLimitPolicy;
 use App\Modules\Core\Support\ClientUrlPolicy;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -59,6 +61,10 @@ class CoreServiceProvider extends ServiceProvider
         // The edge cache (ADR 0053). Bound only if nothing else is: Integration binds the
         // configured CDN driver, and without it every invalidation answers not_configured.
         $this->app->singletonIf(EdgeCacheContract::class, NullEdgeCache::class);
+
+        // The media analyzer (ADR 0054). Bound only if nothing else is: Integration binds the
+        // configured provider, and without it every analysis is refused as not configured.
+        $this->app->singletonIf(MediaAnalyzerContract::class, NullMediaAnalyzer::class);
 
         // How public responses may be cached (ADR 0036, ADR 0053 §2). Core declares the
         // profile its own anonymous configuration endpoints use; a module registers its own

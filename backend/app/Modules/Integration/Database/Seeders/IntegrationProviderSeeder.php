@@ -19,6 +19,10 @@ class IntegrationProviderSeeder extends Seeder
      * operator activates it once they have supplied keys, exactly as a secret setting
      * is provisioned unset (ADR 0018).
      *
+     * Media analysis ships no row at all. Every row here names a vendor whose driver
+     * exists; no media analysis vendor has been chosen and no driver exists, so a row
+     * would invent one (ADR 0054 §6). The operator adds the provider when a driver does.
+     *
      * @return array<int, array<string, mixed>>
      */
     private function definitions(): array

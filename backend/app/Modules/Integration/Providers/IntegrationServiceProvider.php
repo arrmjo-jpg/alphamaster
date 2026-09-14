@@ -7,6 +7,7 @@ namespace App\Modules\Integration\Providers;
 use App\Modules\Core\Ai\TextGeneratorContract;
 use App\Modules\Core\Backup\ConfigurationPortability;
 use App\Modules\Core\Contracts\EdgeCacheContract;
+use App\Modules\Core\MediaAnalysis\MediaAnalyzerContract;
 use App\Modules\Integration\Backup\ProviderPortability;
 use App\Modules\Integration\Contracts\CaptchaVerifierContract;
 use App\Modules\Integration\Contracts\PushDispatcherContract;
@@ -17,6 +18,8 @@ use App\Modules\Integration\Services\CaptchaManager;
 use App\Modules\Integration\Services\CaptchaVerifier;
 use App\Modules\Integration\Services\CdnEdgeCache;
 use App\Modules\Integration\Services\CdnManager;
+use App\Modules\Integration\Services\IntegrationMediaAnalyzer;
+use App\Modules\Integration\Services\MediaAnalysisManager;
 use App\Modules\Integration\Services\PushDispatcher;
 use App\Modules\Integration\Services\PushManager;
 use App\Modules\Integration\Services\SmsDispatcher;
@@ -76,6 +79,13 @@ class IntegrationServiceProvider extends ServiceProvider
         // binds it, as the module that owns vendors.
         $this->app->singleton(CdnEdgeCache::class);
         $this->app->singleton(EdgeCacheContract::class, fn ($app): EdgeCacheContract => $app->make(CdnEdgeCache::class));
+
+        $this->app->singleton(MediaAnalysisManager::class, fn ($app): MediaAnalysisManager => new MediaAnalysisManager($app));
+
+        // The analyzer behind media analysis (ADR 0054). Media may not depend on this module,
+        // so it asks Core's seam and this module answers it with the configured provider.
+        $this->app->singleton(IntegrationMediaAnalyzer::class);
+        $this->app->singleton(MediaAnalyzerContract::class, fn ($app): MediaAnalyzerContract => $app->make(IntegrationMediaAnalyzer::class));
     }
 
     /**

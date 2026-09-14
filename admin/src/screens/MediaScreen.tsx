@@ -78,6 +78,9 @@ export function MediaScreen() {
     const [uploading, setUploading] = useState(false);
 
     const mayDelete = viewer.permissions.includes('media.delete');
+    const mayViewAnalysis = viewer.permissions.includes('media.analysis.view');
+    const mayRequestAnalysis = viewer.permissions.includes('media.analysis.request');
+    const mayReviewAnalysis = viewer.permissions.includes('media.analysis.review');
 
     const query = useQuery({
         queryKey: ['admin-media', page, status, type],
@@ -346,6 +349,9 @@ export function MediaScreen() {
                             id={selected}
                             key={selected}
                             mayDelete={mayDelete}
+                            mayRequestAnalysis={mayRequestAnalysis}
+                            mayReviewAnalysis={mayReviewAnalysis}
+                            mayViewAnalysis={mayViewAnalysis}
                             onClose={() => setSelected(null)}
                             onDeleted={() => setSelected(null)}
                             viewerEmail={viewer.email}

@@ -6,14 +6,17 @@ use App\Modules\Auth\Enums\MfaType;
 use App\Modules\Auth\Enums\TokenAbility;
 use App\Modules\Authorization\Enums\AdminPermission;
 use App\Modules\Core\Concerns\HasDisplayLabel;
+use App\Modules\Core\MediaAnalysis\MediaAnalysisClassification;
+use App\Modules\Core\MediaAnalysis\MediaAnalysisStatus;
+use App\Modules\Core\MediaAnalysis\MediaAnalysisType;
 use App\Modules\Integration\Enums\IntegrationCapability;
 use App\Modules\Integration\Enums\UsageStatus;
 use App\Modules\Localization\Enums\LanguageDirection;
+use App\Modules\Media\Enums\MediaAnalysisReviewDecision;
 use App\Modules\Media\Enums\MediaStatus;
 use App\Modules\Media\Enums\MediaType;
 use App\Modules\Media\Enums\MediaVisibility;
 use App\Modules\Media\Enums\ScanStatus;
-use App\Modules\Media\Enums\VerificationStatus;
 use App\Modules\Notification\Enums\NotificationChannel;
 use App\Modules\Notification\Enums\NotificationType;
 use App\Modules\Settings\Enums\SettingType;
@@ -40,6 +43,10 @@ function labelledEnums(): array
         UsageStatus::class,
         IntegrationCapability::class,
         SettingType::class,
+        MediaAnalysisType::class,
+        MediaAnalysisStatus::class,
+        MediaAnalysisClassification::class,
+        MediaAnalysisReviewDecision::class,
     ];
 }
 
@@ -203,14 +210,14 @@ test('no shipped label is left equal to its own identifier', function (): void {
 
 test('technical enums deliberately carry no display label', function (): void {
     // TokenAbility is an auth contract, AdminPermission has its own key
-    // namespace under ADR 0014, LanguageDirection is a rendering directive
-    // rather than text, and VerificationStatus has no consumer. Adding labels
-    // to any of them would ship a capability nothing asked for.
+    // namespace under ADR 0014, and LanguageDirection is a rendering directive
+    // rather than text. Adding labels to any of them would ship a capability
+    // nothing asked for. (VerificationStatus, once listed here, was replaced by
+    // media analysis under ADR 0054.)
     $excluded = [
         TokenAbility::class,
         AdminPermission::class,
         LanguageDirection::class,
-        VerificationStatus::class,
     ];
 
     foreach ($excluded as $enum) {

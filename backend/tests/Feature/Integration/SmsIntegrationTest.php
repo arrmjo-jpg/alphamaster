@@ -338,10 +338,18 @@ test('a capability can have at most one default provider', function (): void {
     // happened to be true while there was one capability.
     expect($rejected)->toBeTrue();
 
+    // A capability that ships provider rows has exactly one default among them. One that
+    // ships none — media analysis, whose vendor has not been chosen (ADR 0054 §6) — has
+    // no row to carry the flag, and a row invented to carry it would name a vendor nobody
+    // picked.
     foreach (IntegrationCapability::cases() as $capability) {
+        $shipped = IntegrationProvider::query()->forCapability($capability)->count();
+
         expect(IntegrationProvider::query()->forCapability($capability)->where('is_default', true)->count())
-            ->toBe(1, $capability->value.' should have exactly one default');
+            ->toBe($shipped === 0 ? 0 : 1, $capability->value.' should have exactly one default among its providers');
     }
+
+    expect(IntegrationProvider::query()->forCapability(IntegrationCapability::MEDIA_ANALYSIS)->count())->toBe(0);
 });
 
 // ── Admin API ─────────────────────────────────────────────────────────────────

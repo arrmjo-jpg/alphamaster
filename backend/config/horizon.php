@@ -210,6 +210,23 @@ return [
             'timeout' => 60,
             'nice' => 0,
         ],
+
+        // Media analysis (ADR 0054) runs alone. An analysis can take minutes, and on the
+        // shared supervisor it would hold a worker every other queue needs. One process by
+        // default: analysis is paid per file and paced by the vendor, not by throughput.
+        // The timeout sits above the longest `media_analysis.timeout_seconds` allows.
+        'supervisor-media-analysis' => [
+            'connection' => 'redis-media-analysis',
+            'queue' => ['media-analysis'],
+            'balance' => 'simple',
+            'maxProcesses' => 1,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 256,
+            'tries' => 1,
+            'timeout' => 1830,
+            'nice' => 0,
+        ],
     ],
 
     'environments' => [
