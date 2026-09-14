@@ -126,3 +126,7 @@ Every consumer works with the capability switched off. The workshop is a transla
 **Writing generated content directly.** Faster for an operator with hundreds of untranslated fields, and it breaks the audit trail's central claim. If bulk translation is wanted later, the honest shape is a job that produces a *batch of suggestions* an operator reviews and accepts, not a job that writes.
 
 **Firebase's or a cloud provider's managed AI.** No architectural difference — each would be a driver behind the same contract. The decision is deliberately vendor-shaped rather than vendor-named.
+
+## Amendment, 2026-09-14: review is per item (ADR 0056)
+
+§5 is unchanged: AI never writes, it proposes, and a person accepts. What a person accepts is now an item — every field of one role, template, setting, page or team member in one language — rather than one field at a time. The proposal is a `translation_batches` record; the operator reviews it once, may edit any field, and accepts it once. "Accept all ready" accepts ready items one by one and reports each result; nothing is ever accepted without a person asking for it. §6 now has three instructions — plain text, HTML and SEO — chosen from the field's metadata, and a field's output budget grows with its source above the operator's `ai.max_output_tokens`.

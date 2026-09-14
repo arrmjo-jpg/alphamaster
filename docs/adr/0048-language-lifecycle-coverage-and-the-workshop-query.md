@@ -83,3 +83,7 @@ A client of the old workshop shape breaks: the index now requires reading a targ
 
 * **Interface strings** — the console's own wording and API messages — remain code-owned catalogues. That is a separate translation domain and needs its own decision (ADR 0049, proposed).
 * **Batched AI requests.** A request queues one job per missing field from inside the HTTP request. That is right for hundreds of fields; at the §4 threshold it becomes one job that enumerates and fans out in chunks.
+
+## Amendment, 2026-09-14: coverage counts items (ADR 0056)
+
+§3's single calculation now counts translated items out of items, where an item is translated when its required fields have text. §4's filters are an item's statuses — `not_translated`, `incomplete`, `pending`, `ready`, `translated`, `failed` — and each source reports how many of its items are in each. §5's overview reports AI progress as item batches by state rather than suggestions by field.

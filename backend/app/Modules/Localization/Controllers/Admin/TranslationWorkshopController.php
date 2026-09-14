@@ -7,12 +7,15 @@ namespace App\Modules\Localization\Controllers\Admin;
 use App\Modules\Core\Contracts\EffectiveGrants;
 use App\Modules\Core\Controllers\BaseApiController;
 use App\Modules\Core\Translation\TranslationEntry;
+use App\Modules\Core\Translation\TranslationField;
+use App\Modules\Core\Translation\TranslationItemStatus;
 use App\Modules\Core\Translation\TranslationRefusedException;
 use App\Modules\Core\Translation\TranslationRegistry;
 use App\Modules\Core\Translation\TranslationSource;
 use App\Modules\Core\Translation\UnknownTranslationTargetException;
-use App\Modules\Localization\Enums\SuggestionStatus;
+use App\Modules\Localization\Enums\BatchStatus;
 use App\Modules\Localization\Models\Language;
+use App\Modules\Localization\Models\TranslationBatch;
 use App\Modules\Localization\Models\TranslationSuggestion;
 use App\Modules\Localization\Requests\WorkshopQueryRequest;
 use App\Modules\Localization\Requests\WriteTranslationRequest;
@@ -25,25 +28,27 @@ use Illuminate\Http\JsonResponse;
 /**
  * Everything the platform has to say, in every language it says it in.
  *
- * The languages screen manages *which* languages exist. This manages what is written
- * in them — and the two were never the same thing. Adding Arabic to the language list
- * did nothing to the roles, the settings copy or the notification wording, and there
- * was no surface anywhere that would tell an operator so.
+ * The languages screen manages *which* languages exist. This manages what is written in them.
+ * The content itself belongs to other modules and stays there: this assembles what they declare
+ * through `TranslationSource` and writes back through the same seam, which is why Localization
+ * can serve a workshop over content it may not import (ADR 0043).
  *
- * The content itself belongs to three other modules and stays there. This assembles
- * what they declare through `TranslationSource` and writes back through the same
- * seam, which is why Localization can serve a workshop over content it may not
- * import (ADR 0043).
+ * Every language the platform knows is here the moment it is added, with every existing item
+ * in it — nothing is registered per language and no empty row is created, because an item with
+ * no text in a language is simply not translated there (ADR 0056).
  *
- * Authorization is per source, not per screen. Translating notification wording is
- * editing notification wording, so it needs `notifications.update` exactly as the
- * notifications screen does; a workshop that granted itself a way around that would be
- * an escalation with a friendly name. An operator sees the sources they may read and
- * writes only the ones they may change.
+ * The item is the unit (ADR 0056). Each has one status in the target language — not translated,
+ * incomplete, being translated, ready for review, translated, failed — worked out from its
+ * fields' metadata and its open translation batch, and never from what its fields are called.
+ * The workshop knows nothing about a page body or a role label; it knows which fields are
+ * required, of which type, in which group.
  *
- * It is queried rather than downloaded (ADR 0048 §4): one target language, filtered
- * and searched here, one page at a time. And that target may be a language the
- * platform does not serve yet — translating before publishing is the point of a draft.
+ * Authorization is per source, not per screen (ADR 0043 §3). An operator sees the sources they
+ * may read, writes only the ones they may change, and sees what AI generated only for content
+ * they may write.
+ *
+ * It is queried rather than downloaded (ADR 0048 §4): one target language, filtered and
+ * searched here, one page at a time.
  */
 class TranslationWorkshopController extends BaseApiController
 {
@@ -56,12 +61,13 @@ class TranslationWorkshopController extends BaseApiController
     ) {}
 
     /**
-     * One language's translations, filtered, searched and a page at a time.
+     * One language's items, filtered, searched and a page at a time.
      *
-     * `locales` lists every language the platform knows, served or not, so a draft can
-     * be chosen as the target. The source is always the default language.
+     * `locales` lists every language the platform knows, served or not, so a draft can be
+     * chosen as the target. The source is always the default language. `completeness` counts
+     * items translated out of items; `statuses` counts the items of a source in each status.
      */
-    #[Response(200, type: 'array{success: bool, data: array{locales: array<int, array{code: string, name: string, native_name: string, direction: string, is_default: bool, is_active: bool}>, source_locale: string|null, target: string|null, coverage: array{total: int, translated: int}, sources: array<int, array{key: string, label: string, may_write: bool, completeness: array{total: int, translated: int}}>, entries: array<int, array{source: string, id: string, title: string, context: string|null, fields: array<int, array{name: string, label: string, multiline: bool, values: array<string, string>}>}>, pagination: array{page: int, per_page: int, total: int, last_page: int}}}')]
+    #[Response(200, type: 'array{success: bool, data: array{locales: array<int, array{code: string, name: string, native_name: string, direction: string, is_default: bool, is_active: bool}>, source_locale: string|null, target: string|null, coverage: array{total: int, translated: int}, sources: array<int, array{key: string, label: string, may_write: bool, source_locale: string|null, completeness: array{total: int, translated: int}, statuses: array{not_translated: int, incomplete: int, pending: int, ready: int, translated: int, failed: int}}>, entries: array<int, array{source: string, id: string, title: string, context: string|null, status: "not_translated"|"incomplete"|"pending"|"ready"|"translated"|"failed", status_label: string, progress: array{filled: int, total: int, complete: bool}, fields: array<int, array{name: string, label: string, multiline: bool, required: bool, type: "plain_text"|"html", group: "content"|"seo", max_length: int|null, translatable: bool, values: array<string, string>}>, batch: null|array{id: string, status: "pending"|"ready"|"failed"|"accepted"|"dismissed", status_label: string, fields_total: int, fields_ready: int, fields_failed: int, error_code: string|null, error_message: string|null, completed_at: string|null, suggestions: array<int, array{field: string, status: string, text: string|null, error_code: string|null, error_message: string|null}>}}>, pagination: array{page: int, per_page: int, total: int, last_page: int}}}')]
     #[Response(422, description: 'The target is not a language the platform knows.')]
     public function index(WorkshopQueryRequest $request): JsonResponse
     {
@@ -93,9 +99,7 @@ class TranslationWorkshopController extends BaseApiController
         $perPage = (int) $request->validated('per_page', WorkshopQueryRequest::DEFAULT_PER_PAGE);
         $page = (int) $request->validated('page', 1);
 
-        // The suggestion states the filter can ask about, keyed the way the workshop
-        // addresses a field. Only this language's, and only what is stored.
-        $reviewable = $target === null ? [] : $this->coordinator->forLocale($target);
+        $open = $target === null ? [] : $this->coordinator->openBatches($target);
 
         $sources = [];
         $coverage = ['total' => 0, 'translated' => 0];
@@ -103,6 +107,8 @@ class TranslationWorkshopController extends BaseApiController
 
         foreach ($this->coverage->viewableSources($permissions) as $source) {
             $entries = $source->entries();
+            $mayWrite = in_array($source->writePermission(), $permissions, true);
+            $statuses = array_fill_keys(TranslationItemStatus::values(), 0);
 
             $counts = $target === null
                 ? ['total' => 0, 'translated' => 0]
@@ -111,23 +117,35 @@ class TranslationWorkshopController extends BaseApiController
             $coverage['total'] += $counts['total'];
             $coverage['translated'] += $counts['translated'];
 
+            // The language this source is translated from: its own, or the default (ADR 0049).
+            $from = $this->coordinator->sourceLocaleOf($source, $sourceLocale);
+
+            foreach ($target === null ? [] : $entries as $entry) {
+                if ($entry->translatableFields() === []) {
+                    continue;
+                }
+
+                // What AI generated is shown only to whoever may write the content — it carries
+                // the text, and a batch for content the caller cannot accept is not theirs.
+                $batch = $mayWrite ? ($open[$this->coordinator->addressOf($source->key(), $entry->id)] ?? null) : null;
+                $status = $this->statusOf($entry, $target, $batch);
+                $statuses[$status->value]++;
+
+                if (($only === '' || $source->key() === $only)
+                    && ($state === 'all' || $status->value === $state)
+                    && $this->matchesSearch($entry, $search, $from, $target)) {
+                    $matches[] = [$source, $entry, $status, $batch, $from];
+                }
+            }
+
             $sources[] = [
                 'key' => $source->key(),
                 'label' => __($source->label()),
-                'may_write' => in_array($source->writePermission(), $permissions, true),
+                'may_write' => $mayWrite,
+                'source_locale' => $from,
                 'completeness' => $counts,
+                'statuses' => $statuses,
             ];
-
-            if ($target === null || ($only !== '' && $source->key() !== $only)) {
-                continue;
-            }
-
-            foreach ($entries as $entry) {
-                if ($this->matchesState($source, $entry, $target, $state, $reviewable)
-                    && $this->matchesSearch($entry, $search, $sourceLocale, $target)) {
-                    $matches[] = [$source, $entry];
-                }
-            }
         }
 
         $total = count($matches);
@@ -135,7 +153,7 @@ class TranslationWorkshopController extends BaseApiController
         $page = min(max(1, $page), $lastPage);
 
         $entries = array_map(
-            fn (array $match): array => $this->present($match[0], $match[1], $sourceLocale, (string) $target),
+            fn (array $match): array => $this->present($match[0], $match[1], $match[2], $match[3], $match[4], (string) $target),
             array_slice($matches, ($page - 1) * $perPage, $perPage)
         );
 
@@ -163,11 +181,11 @@ class TranslationWorkshopController extends BaseApiController
     }
 
     /**
-     * Write one item's fields in one language.
+     * Write one item's fields in one language, typed by a person.
      *
-     * One item and one locale per request, deliberately. A translator works down a
-     * list and a failure should cost the entry they are on rather than the batch they
-     * did not know they were sending.
+     * One item and one locale per request, deliberately. A translator works down a list and a
+     * failure should cost the entry they are on rather than a batch they did not know they were
+     * sending.
      */
     #[Response(200, type: 'array{success: bool, message: string, data: array{source: string, id: string, locale: string}}')]
     #[Response(403, description: 'The caller may not change this kind of content.')]
@@ -189,9 +207,9 @@ class TranslationWorkshopController extends BaseApiController
 
         $permissions = $this->grants->permissionsFor($request->user());
 
-        // Both, and in this order. Refusing a write on content the caller cannot even
-        // read must not distinguish "you may not write this" from "there is no such
-        // item", because the second answer describes content they were not granted.
+        // Both, and in this order. Refusing a write on content the caller cannot even read must
+        // not distinguish "you may not write this" from "there is no such item", because the
+        // second answer describes content they were not granted.
         if (! $this->coverage->mayView($found, $permissions)) {
             return $this->errorResponse(
                 'UNKNOWN_TRANSLATION_SOURCE',
@@ -214,8 +232,8 @@ class TranslationWorkshopController extends BaseApiController
 
         $locale = (string) $request->validated('locale');
 
-        // Any language the platform knows, served or not (ADR 0048 §2): a draft is
-        // translated before it is published, not after.
+        // Any language the platform knows, served or not (ADR 0048 §2): a draft is translated
+        // before it is published, not after.
         if (! Language::query()->where('code', $locale)->exists()) {
             return $this->errorResponse(
                 'UNKNOWN_LOCALE',
@@ -242,8 +260,8 @@ class TranslationWorkshopController extends BaseApiController
                 $e->translationParameters()
             );
         } catch (TranslationRefusedException $e) {
-            // The source's own reason, reported rather than interpreted. Only the
-            // module that owns the content knows what a valid translation of it is.
+            // The source's own reason, reported rather than interpreted. Only the module that
+            // owns the content knows what a valid translation of it is.
             return $this->errorResponse(
                 'TRANSLATION_REFUSED',
                 $e->translationKey(),
@@ -268,49 +286,21 @@ class TranslationWorkshopController extends BaseApiController
     }
 
     /**
-     * Whether an entry is in the state the operator asked to see.
-     *
-     * @param  array<string, TranslationSuggestion>  $reviewable
+     * An item's status: a translation in progress where there is one, otherwise what is written.
      */
-    private function matchesState(
-        TranslationSource $source,
-        TranslationEntry $entry,
-        string $target,
-        string $state,
-        array $reviewable,
-    ): bool {
-        return match ($state) {
-            'missing' => $entry->missingIn($target) > 0,
-            'translated' => $entry->missingIn($target) === 0,
-            'needs_review' => $this->hasSuggestion($source, $entry, SuggestionStatus::READY, $reviewable),
-            'failed' => $this->hasSuggestion($source, $entry, SuggestionStatus::FAILED, $reviewable),
-            default => true,
+    private function statusOf(TranslationEntry $entry, string $target, ?TranslationBatch $batch): TranslationItemStatus
+    {
+        return match ($batch?->status) {
+            BatchStatus::PENDING => TranslationItemStatus::PENDING,
+            BatchStatus::READY => TranslationItemStatus::READY,
+            BatchStatus::FAILED => TranslationItemStatus::FAILED,
+            default => $entry->statusIn($target),
         };
     }
 
     /**
-     * @param  array<string, TranslationSuggestion>  $reviewable
-     */
-    private function hasSuggestion(
-        TranslationSource $source,
-        TranslationEntry $entry,
-        SuggestionStatus $status,
-        array $reviewable,
-    ): bool {
-        foreach ($entry->fields as $field) {
-            $row = $reviewable[$this->coordinator->addressOf($source->key(), $entry->id, $field->name)] ?? null;
-
-            if ($row !== null && $row->status === $status) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /**
-     * Whether the search appears in what an operator would read: the item's title and
-     * context, and its text in the source and target languages.
+     * Whether the search appears in what an operator would read: the item's title and context,
+     * and its text in the source and target languages.
      */
     private function matchesSearch(TranslationEntry $entry, string $needle, ?string $sourceLocale, string $target): bool
     {
@@ -335,21 +325,31 @@ class TranslationWorkshopController extends BaseApiController
     }
 
     /**
-     * One entry as the workshop shows it: the source language beside the target, and
-     * only what has actually been written in each. A fallback here would put the
-     * English in the French column and make an untranslated item look finished
+     * One item as the workshop shows it: its status and progress, its fields as their source
+     * describes them with only what has actually been written in the source and target
+     * languages, and its open translation if there is one. A fallback here would put the default
+     * language's text in the target column and make an untranslated item look finished
      * (ADR 0043 §4).
      *
      * @return array<string, mixed>
      */
-    private function present(TranslationSource $source, TranslationEntry $entry, ?string $sourceLocale, string $target): array
-    {
+    private function present(
+        TranslationSource $source,
+        TranslationEntry $entry,
+        TranslationItemStatus $status,
+        ?TranslationBatch $batch,
+        ?string $sourceLocale,
+        string $target,
+    ): array {
         return [
             'source' => $source->key(),
             'id' => $entry->id,
             'title' => $entry->title,
             'context' => $entry->context,
-            'fields' => array_map(function ($field) use ($sourceLocale, $target): array {
+            'status' => $status->value,
+            'status_label' => $status->label(),
+            'progress' => $entry->progressIn($target)->toArray(),
+            'fields' => array_map(function (TranslationField $field) use ($sourceLocale, $target): array {
                 $values = [];
 
                 foreach (array_unique(array_filter([$sourceLocale, $target])) as $code) {
@@ -358,13 +358,34 @@ class TranslationWorkshopController extends BaseApiController
                     }
                 }
 
-                return [
-                    'name' => $field->name,
-                    'label' => __($field->label),
-                    'multiline' => $field->multiline,
-                    'values' => $values,
-                ];
-            }, $entry->fields),
+                return $field->describe() + ['values' => $values];
+            }, $entry->translatableFields()),
+            'batch' => $batch === null ? null : $this->presentBatch($batch),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function presentBatch(TranslationBatch $batch): array
+    {
+        return [
+            'id' => (string) $batch->getKey(),
+            'status' => $batch->status->value,
+            'status_label' => $batch->status->label(),
+            'fields_total' => $batch->fields_total,
+            'fields_ready' => $batch->fields_ready,
+            'fields_failed' => $batch->fields_failed,
+            'error_code' => $batch->error_code,
+            'error_message' => $batch->error_message,
+            'completed_at' => $batch->completed_at?->toIso8601String(),
+            'suggestions' => $batch->suggestions->map(fn (TranslationSuggestion $row): array => [
+                'field' => $row->field,
+                'status' => $row->status->value,
+                'text' => $row->suggestion,
+                'error_code' => $row->error_code,
+                'error_message' => $row->error_message,
+            ])->values()->all(),
         ];
     }
 
@@ -383,8 +404,8 @@ class TranslationWorkshopController extends BaseApiController
     }
 
     /**
-     * The language a workshop opens on when nobody chose one: the first that is not
-     * the one everything is translated from.
+     * The language a workshop opens on when nobody chose one: the first that is not the one
+     * everything is translated from.
      *
      * @param  array<int, string>  $codes
      */

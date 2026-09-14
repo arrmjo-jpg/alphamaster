@@ -6,13 +6,17 @@ use App\Modules\Authorization\Database\Seeders\AdminPermissionSeeder;
 use App\Modules\Authorization\Models\Role;
 use App\Modules\Core\Audit\AuditAction;
 use App\Modules\Core\Models\AuditRecord;
+use App\Modules\Core\Translation\TranslationItemStatus;
 use App\Modules\Integration\Database\Seeders\IntegrationProviderSeeder;
 use App\Modules\Integration\Enums\IntegrationCapability;
 use App\Modules\Integration\Models\IntegrationProvider;
 use App\Modules\Localization\Database\Seeders\LanguageSeeder;
+use App\Modules\Localization\Enums\BatchStatus;
 use App\Modules\Localization\Enums\SuggestionStatus;
 use App\Modules\Localization\Models\Language;
+use App\Modules\Localization\Models\TranslationBatch;
 use App\Modules\Localization\Models\TranslationSuggestion;
+use App\Modules\Localization\Requests\WorkshopQueryRequest;
 use App\Modules\Notification\Database\Seeders\NotificationTemplateSeeder;
 use App\Modules\Settings\Database\Seeders\SettingSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -21,12 +25,12 @@ use Illuminate\Support\Facades\Http;
 use Laravel\Sanctum\PersonalAccessToken;
 
 /**
- * Adding a language and translating it, end to end (ADR 0048).
+ * Adding a language and translating it, end to end (ADR 0048, ADR 0056).
  *
  * The workflow under test: a language is added as a draft the platform does not serve,
- * translated by hand or through AI suggestions a person accepts, its coverage read from
- * the one calculation both screens use — and it is served only when somebody activates
- * it. Every vendor call is faked at the wire.
+ * translated by hand or through AI translations a person accepts item by item, its coverage
+ * read from the one calculation both screens use — and it is served only when somebody
+ * activates it. Every vendor call is faked at the wire.
  */
 uses(RefreshDatabase::class);
 
@@ -95,20 +99,38 @@ function aiProviderAnswering(string $answer): void
 }
 
 /**
- * A stored suggestion, written directly — the states the filters read.
+ * A stored translation of one role, written directly — the states the filters read.
  */
-function storedSuggestion(Role $role, SuggestionStatus $status, string $locale = 'fr'): TranslationSuggestion
+function storedBatch(Role $role, BatchStatus $status, string $locale = 'fr'): TranslationBatch
 {
-    return TranslationSuggestion::query()->forceCreate([
+    $batch = TranslationBatch::query()->forceCreate([
+        'source_key' => 'roles',
+        'item_id' => (string) $role->getKey(),
+        'locale' => $locale,
+        'status' => $status,
+        'fields_total' => 1,
+        'fields_ready' => $status === BatchStatus::READY ? 1 : 0,
+        'fields_failed' => $status === BatchStatus::FAILED ? 1 : 0,
+        'error_code' => $status === BatchStatus::FAILED ? 'TIMEOUT' : null,
+    ]);
+
+    TranslationSuggestion::query()->forceCreate([
+        'batch_id' => $batch->getKey(),
         'source_key' => 'roles',
         'item_id' => (string) $role->getKey(),
         'field' => 'label',
         'locale' => $locale,
-        'status' => $status,
+        'status' => match ($status) {
+            BatchStatus::READY => SuggestionStatus::READY,
+            BatchStatus::FAILED => SuggestionStatus::FAILED,
+            default => SuggestionStatus::PENDING,
+        },
         'source_text' => 'Editor',
-        'suggestion' => $status === SuggestionStatus::PENDING ? null : 'Éditeur',
-        'error_code' => $status === SuggestionStatus::FAILED ? 'TIMEOUT' : null,
+        'suggestion' => $status === BatchStatus::READY ? 'Éditeur' : null,
+        'error_code' => $status === BatchStatus::FAILED ? 'TIMEOUT' : null,
     ]);
+
+    return $batch;
 }
 
 function workshopFor(mixed $test, string $token, string $query): mixed
@@ -148,11 +170,11 @@ test('a language can be added as a draft that the platform does not serve', func
         ->assertHeader('Content-Language', 'en');
 });
 
-test('a draft is a workshop target, with every field missing and nothing counted', function (): void {
+test('a draft is a workshop target, with every item not translated and nothing counted', function (): void {
     frenchDraft();
     $token = tokenWithPermissions(EVERY_VIEW);
 
-    $response = workshopFor($this, $token, 'target=fr');
+    $response = workshopFor($this, $token, 'target=fr&per_page=100');
 
     $fr = collect($response->json('data.locales'))->firstWhere('code', 'fr');
 
@@ -160,10 +182,11 @@ test('a draft is a workshop target, with every field missing and nothing counted
         ->and($response->json('data.source_locale'))->toBe('en')
         ->and($fr['is_active'])->toBeFalse()
         ->and($response->json('data.coverage.total'))->toBeGreaterThan(0)
-        ->and($response->json('data.coverage.translated'))->toBe(0);
+        ->and($response->json('data.coverage.translated'))->toBe(0)
+        ->and(array_values(array_unique(array_column($response->json('data.entries'), 'status'))))->toBe(['not_translated']);
 });
 
-test('a draft is translated by hand before it is served, and coverage moves by one field', function (): void {
+test('a draft is translated by hand before it is served, and coverage moves by one item', function (): void {
     frenchDraft();
     $role = editorRole();
     $token = tokenWithPermissions(EVERY_WRITE);
@@ -196,7 +219,11 @@ test('a target that is not a language is refused', function (): void {
 
 // ── Filters, search and pages are answered on the server ─────────────────────
 
-test('missing and translated are decided by what has been saved', function (): void {
+test('the filters are an item’s statuses and nothing else', function (): void {
+    expect(WorkshopQueryRequest::STATES)->toBe(['all', ...TranslationItemStatus::values()]);
+});
+
+test('not translated and translated are decided by what has been saved', function (): void {
     frenchDraft();
     $role = editorRole();
     $token = tokenWithPermissions(EVERY_WRITE);
@@ -207,14 +234,14 @@ test('missing and translated are decided by what has been saved', function (): v
     ])->assertOk();
 
     $translated = array_column(workshopFor($this, $token, 'target=fr&source=roles&state=translated')->json('data.entries'), 'id');
-    $missing = array_column(workshopFor($this, $token, 'target=fr&source=roles&state=missing&per_page=100')->json('data.entries'), 'id');
+    $missing = array_column(workshopFor($this, $token, 'target=fr&source=roles&state=not_translated&per_page=100')->json('data.entries'), 'id');
 
     expect($translated)->toBe([(string) $role->getKey()])
         ->and($missing)->not->toContain((string) $role->getKey())
         ->and($missing)->not->toBe([]);
 });
 
-test('needs review and failed come from the suggestion states the platform stores', function (): void {
+test('ready and failed come from the item translations the platform stores', function (): void {
     frenchDraft();
     $role = editorRole();
 
@@ -222,16 +249,19 @@ test('needs review and failed come from the suggestion states the platform store
     $other = Role::query()->where('name', '!=', 'editor')->firstOrFail();
     $other->setTranslation('en', ['label' => 'Other']);
 
-    storedSuggestion($role, SuggestionStatus::READY);
-    storedSuggestion($other, SuggestionStatus::FAILED);
+    storedBatch($role, BatchStatus::READY);
+    storedBatch($other, BatchStatus::FAILED);
 
     $token = tokenWithPermissions(EVERY_WRITE);
 
-    $review = array_column(workshopFor($this, $token, 'target=fr&state=needs_review')->json('data.entries'), 'id');
+    $review = array_column(workshopFor($this, $token, 'target=fr&state=ready')->json('data.entries'), 'id');
     $failed = array_column(workshopFor($this, $token, 'target=fr&state=failed')->json('data.entries'), 'id');
+    $roles = collect(workshopFor($this, $token, 'target=fr')->json('data.sources'))->firstWhere('key', 'roles');
 
     expect($review)->toBe([(string) $role->getKey()])
-        ->and($failed)->toBe([(string) $other->getKey()]);
+        ->and($failed)->toBe([(string) $other->getKey()])
+        ->and($roles['statuses']['ready'])->toBe(1)
+        ->and($roles['statuses']['failed'])->toBe(1);
 });
 
 test('search matches the source and the target text', function (): void {
@@ -309,24 +339,24 @@ test('coverage counts only the content the caller may read', function (): void {
         ->and($settingsOnly)->toBe(workshopFor($this, $narrow, 'target=fr')->json('data.coverage.total'));
 });
 
-test('AI progress counts the stored states, for content the caller may write', function (): void {
+test('AI progress counts items by their translation state, for content the caller may write', function (): void {
     frenchDraft();
     $role = editorRole();
-    storedSuggestion($role, SuggestionStatus::READY);
+    storedBatch($role, BatchStatus::READY);
 
     $writer = tokenWithPermissions(['roles.view', 'roles.update']);
     $reader = tokenWithPermissions(['roles.view']);
 
     $counts = fn (string $token): array => collect(
         $this->withToken($token)->getJson('/api/v1/admin/translations/overview')->json('data.languages')
-    )->firstWhere('code', 'fr')['suggestions'];
+    )->firstWhere('code', 'fr')['batches'];
 
     expect($counts($writer))->toBe(['pending' => 0, 'ready' => 1, 'failed' => 0, 'accepted' => 0, 'dismissed' => 0]);
 
     resetClient($this);
 
-    // A suggestion carries its source text; one for content the caller cannot write is
-    // not theirs to count.
+    // What AI generated carries its source text; a batch for content the caller cannot write
+    // is not theirs to count.
     expect($counts($reader)['ready'])->toBe(0);
 });
 
@@ -345,25 +375,25 @@ test('the overview says whether AI is there and whether the caller may use it', 
         ->assertJsonPath('data.ai.may_use', false);
 });
 
-// ── AI on a draft: proposed, reviewed, accepted ──────────────────────────────
+// ── AI on a draft: translated, reviewed, accepted ────────────────────────────
 
-test('AI fills a draft with suggestions and writes nothing', function (): void {
+test('AI translates a draft item and writes nothing', function (): void {
     frenchDraft();
     $role = editorRole();
     aiProviderAnswering('Éditeur');
 
     $token = tokenWithPermissions(['roles.view', 'roles.update', 'ai.use']);
 
-    $this->withToken($token)->postJson('/api/v1/admin/translations/suggestions', [
+    $this->withToken($token)->postJson('/api/v1/admin/translations/batches', [
         'locale' => 'fr',
         'source' => 'roles',
         'item' => (string) $role->getKey(),
     ])->assertOk()->assertJsonPath('data.queued', 1);
 
-    $suggestion = TranslationSuggestion::query()->sole();
+    $batch = TranslationBatch::query()->sole();
 
-    expect($suggestion->status)->toBe(SuggestionStatus::READY)
-        ->and($suggestion->suggestion)->toBe('Éditeur')
+    expect($batch->status)->toBe(BatchStatus::READY)
+        ->and($batch->suggestions->sole()->suggestion)->toBe('Éditeur')
         ->and($role->refresh()->translations->firstWhere('locale', 'fr'))->toBeNull()
         // Generated is not translated.
         ->and(workshopFor($this, $token, 'target=fr&source=roles&state=translated')->json('data.entries'))->toBe([]);
@@ -376,20 +406,20 @@ test('accepting records who accepted, and an AI translation in the trail without
 
     $token = tokenWithPermissions(['roles.view', 'roles.update', 'ai.use']);
 
-    $this->withToken($token)->postJson('/api/v1/admin/translations/suggestions', [
+    $this->withToken($token)->postJson('/api/v1/admin/translations/batches', [
         'locale' => 'fr', 'source' => 'roles', 'item' => (string) $role->getKey(),
     ])->assertOk();
 
-    $suggestion = TranslationSuggestion::query()->sole();
+    $batch = TranslationBatch::query()->sole();
 
     $this->withToken($token)
-        ->postJson("/api/v1/admin/translations/suggestions/{$suggestion->id}/accept", ['text' => 'Éditrice'])
+        ->postJson("/api/v1/admin/translations/batches/{$batch->id}/accept", ['values' => ['label' => 'Éditrice']])
         ->assertOk()
         ->assertJsonPath('data.edited', true);
 
     $record = AuditRecord::query()->where('action', AuditAction::TRANSLATION_UPDATED)->sole();
 
-    expect($suggestion->refresh()->accepted_by)->toBe(actorOf($token))
+    expect($batch->refresh()->accepted_by)->toBe(actorOf($token))
         ->and($record->actor_id)->toBe(actorOf($token))
         ->and($record->subject)->toBe('roles/'.$role->getKey())
         ->and($record->context)->toBe([
@@ -429,25 +459,25 @@ test('a manual save is recorded without its text, and a save that changes nothin
         ]);
 });
 
-test('a failed suggestion can be asked for again, and the existing translation is untouched', function (): void {
+test('a failed item can be asked for again, and the existing translation is untouched', function (): void {
     frenchDraft();
     $role = editorRole();
     $role->setTranslation('fr', ['label' => 'Écrit à la main']);
 
-    storedSuggestion($role, SuggestionStatus::FAILED);
+    storedBatch($role, BatchStatus::FAILED);
     aiProviderAnswering('Éditeur');
 
     $token = tokenWithPermissions(['roles.view', 'roles.update', 'ai.use']);
 
     // Asked for explicitly, because the field already has text.
-    $this->withToken($token)->postJson('/api/v1/admin/translations/suggestions', [
+    $this->withToken($token)->postJson('/api/v1/admin/translations/batches', [
         'locale' => 'fr', 'source' => 'roles', 'item' => (string) $role->getKey(), 'include_translated' => true,
     ])->assertOk()->assertJsonPath('data.queued', 1);
 
-    $suggestion = TranslationSuggestion::query()->sole();
+    $batch = TranslationBatch::query()->sole();
 
-    expect($suggestion->status)->toBe(SuggestionStatus::READY)
-        ->and($suggestion->error_code)->toBeNull()
+    expect($batch->status)->toBe(BatchStatus::READY)
+        ->and($batch->error_code)->toBeNull()
         ->and($role->refresh()->translate('label', 'fr'))->toBe('Écrit à la main');
 });
 
@@ -460,11 +490,15 @@ test('the default language still cannot be switched off', function (): void {
         ->assertJsonPath('error.code', 'CANNOT_DEACTIVATE_DEFAULT_LANGUAGE');
 });
 
-test('every translation action resolves a label in both locales', function (): void {
+test('every translation action and status resolves a label in both shipped locales', function (): void {
     foreach (['en', 'ar'] as $locale) {
         app()->setLocale($locale);
 
         expect(__('audit.action.'.AuditAction::TRANSLATION_UPDATED))
             ->not->toBe('audit.action.'.AuditAction::TRANSLATION_UPDATED);
+
+        foreach ([...TranslationItemStatus::cases(), ...BatchStatus::cases()] as $status) {
+            expect(__($status->translationKey()))->not->toBe($status->translationKey());
+        }
     }
 });

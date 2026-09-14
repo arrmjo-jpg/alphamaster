@@ -379,8 +379,13 @@ test('every key this scope introduced exists in both dictionaries', function ():
     // AI providers to the control centre. Social login (ADR 0050) added seven refusals and
     // the invalid reset link under auth, and the refusal to switch on a provider that is
     // missing required configuration under integration. Phone sign-in and registration
-    // (ADR 0051) added five under auth.
-    expect($keys)->toHaveCount(73);
+    // (ADR 0051) added five under auth. Item-level translation (ADR 0056) replaced the stale
+    // suggestion with a stale item and added six refusals: a target that is the source, an
+    // item not ready, an unknown field, a field too long, a required field left empty, and
+    // an item whose write failed. Interface translation (ADR 0049) removed the first — nothing is
+    // refused for being the source, it is skipped — and added a changed placeholder and a write
+    // to the interface's own language.
+    expect($keys)->toHaveCount(80);
 
     foreach ($keys as $key) {
         expect($ar)->toHaveKey($key)

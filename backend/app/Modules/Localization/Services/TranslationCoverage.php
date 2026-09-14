@@ -5,24 +5,25 @@ declare(strict_types=1);
 namespace App\Modules\Localization\Services;
 
 use App\Modules\Core\Translation\TranslationEntry;
+use App\Modules\Core\Translation\TranslationItemStatus;
 use App\Modules\Core\Translation\TranslationRegistry;
 use App\Modules\Core\Translation\TranslationSource;
 
 /**
  * How far each language has got — the only place that is counted (ADR 0048 §3).
  *
- * The workshop's counts and the Languages page both read this, so "French is at 40%"
- * cannot mean one thing on one screen and another on the next.
+ * The workshop's counts and the Languages page both read this, so "French is at 40%" cannot
+ * mean one thing on one screen and another on the next.
  *
- * Three rules, all inherited rather than invented here:
+ * Three rules:
  *
- * - **Fields, not items** (ADR 0043 §4). A template with a French subject over an
- *   English body is not half a French template in any sense a reader would recognise.
- * - **Only saved text counts.** An AI suggestion nobody has accepted is not a
- *   translation, and nothing falls back: an empty value is the same absence as a
- *   missing row.
- * - **Only what the caller may view.** A count of untranslated notification wording is
- *   a statement about content an operator without `notifications.view` was not granted
+ * - **Items, not fields** (ADR 0056). An item is translated when every one of its required
+ *   fields has text; a page without an SEO description is a translated page, and a template
+ *   with a subject over no body is not a translated template.
+ * - **Only saved text counts.** An AI translation nobody has accepted is not a translation, and
+ *   nothing falls back: an empty value is the same absence as a missing row.
+ * - **Only what the caller may view.** A count of untranslated notification wording is a
+ *   statement about content an operator without `notifications.view` was not granted
  *   (ADR 0043 §3), so coverage is per caller.
  */
 class TranslationCoverage
@@ -56,7 +57,10 @@ class TranslationCoverage
     }
 
     /**
-     * Written fields out of all fields, per locale, for one body of entries.
+     * Translated items out of all items, per locale, for one body of entries.
+     *
+     * An item with no translatable field is not counted at all: it is shown for context and has
+     * nothing in it to translate.
      *
      * @param  array<int, TranslationEntry>  $entries
      * @param  array<int, string>  $locales
@@ -71,12 +75,14 @@ class TranslationCoverage
             $translated = 0;
 
             foreach ($entries as $entry) {
-                foreach ($entry->fields as $field) {
-                    $total++;
+                if ($entry->translatableFields() === []) {
+                    continue;
+                }
 
-                    if ($field->hasValueFor($locale)) {
-                        $translated++;
-                    }
+                $total++;
+
+                if ($entry->statusIn($locale) === TranslationItemStatus::TRANSLATED) {
+                    $translated++;
                 }
             }
 

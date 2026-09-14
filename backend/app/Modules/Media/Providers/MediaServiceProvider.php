@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Media\Providers;
 
+use App\Modules\Core\Contracts\MediaReferenceContract;
 use App\Modules\Core\Contracts\ProfileAvatarContract;
 use App\Modules\Core\MediaAnalysis\MediaAnalysisContract;
 use App\Modules\Media\Console\ProbeMediaDurationsCommand;
@@ -15,6 +16,7 @@ use App\Modules\Media\Enums\MediaType;
 use App\Modules\Media\Services\Analysis\MediaAnalysisPolicy;
 use App\Modules\Media\Services\Analysis\MediaAnalysisService;
 use App\Modules\Media\Services\MediaAccessResolver;
+use App\Modules\Media\Services\MediaReferences;
 use App\Modules\Media\Services\MediaService;
 use App\Modules\Media\Services\Processing\FfprobeInspector;
 use App\Modules\Media\Services\Processing\GenericFileProcessor;
@@ -41,6 +43,10 @@ class MediaServiceProvider extends ServiceProvider
         // not depend on this module, so Core declares the question (ADR 0051 §4).
         $this->app->singleton(ProfileAvatars::class);
         $this->app->singleton(ProfileAvatarContract::class, fn ($app): ProfileAvatars => $app->make(ProfileAvatars::class));
+
+        // A media file, as a content module that may not depend on Media refers to it
+        // (ADR 0055 §10). Core declares the question; this answers it.
+        $this->app->singleton(MediaReferenceContract::class, MediaReferences::class);
 
         // The null scanner reports NOT_SCANNED rather than CLEAN. Swapping in a real
         // scanner is this one binding.

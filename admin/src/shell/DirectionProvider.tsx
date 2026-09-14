@@ -4,137 +4,158 @@ import { useTranslation } from 'react-i18next';
 
 import { fetchData, setRequestLocale } from '@/api/client';
 import type { LanguagesIndexResponses } from '@/api/generated';
-import { FALLBACK_LOCALE, isSupportedLocale, type SupportedLocale } from '@/i18n';
+import { CATALOGUE_LOCALE } from '@/i18n';
+
+import { applyInterfaceCatalogue, fetchInterfaceCatalogue } from './interfaceCatalogue';
 
 /**
  * Language and writing direction.
  *
- * The backend owns which languages exist, which are active and which way each one runs
- * (ADR 0015), and `/api/v1/languages` is public, so this asks rather than assumes. The
- * static map below is the fallback for the one case where asking is impossible — the
- * API is unreachable — because an admin that renders nothing when the network hiccups
- * is worse than one that renders in the wrong direction for a moment.
+ * Language Management is the one source of languages (ADR 0049). `/api/v1/languages` is public
+ * and lists every language the platform serves, with its direction and which is the default,
+ * and every one of them is a language this console can be read in: its wording comes from the
+ * platform when it is chosen, English fills whatever it has not translated, and nothing in this
+ * bundle has to know the language exists. Adding one in the Languages workspace offers it here
+ * after the next read.
  *
- * Two different things decide what an operator may switch to, and both have to hold:
- *
- *   the platform  — the language is in `/languages`, which returns the active ones
- *   this bundle   — the Admin ships a message catalogue for it
- *
- * The first is data and changes without a deploy; the second is a fact about the build
- * and cannot. So the offered set is the intersection, computed rather than listed, and
- * deactivating a language in the Languages workspace removes it from the switcher on
- * the next read instead of on the next release.
+ * Direction is the language's own. Nothing here knows which languages run right to left.
  */
 
 export type Direction = 'ltr' | 'rtl';
 
 const STORAGE_KEY = 'alphamaster.locale';
 
-const KNOWN_DIRECTIONS: Record<SupportedLocale, Direction> = { en: 'ltr', ar: 'rtl' };
+/** The direction of the language last chosen, for the moment before the list has loaded. */
+const DIRECTION_KEY = 'alphamaster.direction';
 
 /** The public list's rows, from the contract rather than restated. */
 export type LanguageOption = LanguagesIndexResponses[200]['data'][number];
 
 interface DirectionContextValue {
-    locale: SupportedLocale;
+    locale: string;
     direction: Direction;
-    /** Every active language the platform serves, translated interface or not. */
+    /** Every language the platform serves. */
     languages: LanguageOption[];
-    /** The subset this console can actually be read in, in the platform's order. */
+    /** The languages this console may be switched to: the same list, in the platform's order. */
     available: LanguageOption[];
-    setLocale: (next: SupportedLocale) => void;
+    setLocale: (next: string) => void;
 }
 
 const DirectionContext = createContext<DirectionContextValue | null>(null);
 
-function readStoredLocale(): SupportedLocale {
+function readStored(key: string): string | null {
     try {
-        const stored = localStorage.getItem(STORAGE_KEY);
+        const stored = localStorage.getItem(key);
 
-        if (stored !== null && isSupportedLocale(stored)) {
-            return stored;
-        }
+        return stored === null || stored.trim() === '' ? null : stored;
     } catch {
         // Unreadable storage is not a failure; it just means no preference.
+        return null;
     }
+}
 
-    return FALLBACK_LOCALE;
+function store(key: string, value: string): void {
+    try {
+        localStorage.setItem(key, value);
+    } catch {
+        // See above.
+    }
 }
 
 export function DirectionProvider({ children }: { children: React.ReactNode }) {
     const { i18n } = useTranslation();
     const queryClient = useQueryClient();
-    const [locale, setLocaleState] = useState<SupportedLocale>(readStoredLocale);
+    const [locale, setLocaleState] = useState<string>(
+        () => readStored(STORAGE_KEY) ?? CATALOGUE_LOCALE,
+    );
 
-    // The list is public, so it loads before sign-in and the login screen can be read
-    // in either language. Through the query cache rather than an effect of its own, so
-    // that activating a language in the Languages workspace can invalidate it and the
-    // switcher follows without a reload.
+    // The list is public, so it loads before sign-in and the login screen can be read in any
+    // language. Through the query cache rather than an effect of its own, so that adding or
+    // activating a language in the Languages workspace can invalidate it and the switcher
+    // follows without a reload.
     const query = useQuery({
         queryKey: ['languages'],
         queryFn: ({ signal }) => fetchData<LanguageOption[]>('/languages', { signal }),
-        // The set changes when an administrator changes it, which is rare and is
-        // followed by an explicit invalidation.
+        // The set changes when an administrator changes it, which is rare and is followed by
+        // an explicit invalidation.
         staleTime: 5 * 60_000,
     });
 
     const languages = useMemo(() => query.data ?? [], [query.data]);
 
-    const available = useMemo(
-        () => languages.filter((language) => isSupportedLocale(language.code)),
-        [languages],
-    );
+    const chosen = languages.find((language) => language.code === locale);
+    const storedDirection = readStored(DIRECTION_KEY);
 
     const direction: Direction =
-        languages.find((language) => language.code === locale)?.direction ??
-        KNOWN_DIRECTIONS[locale];
+        chosen?.direction === 'rtl' || chosen?.direction === 'ltr'
+            ? chosen.direction
+            : storedDirection === 'rtl'
+              ? 'rtl'
+              : 'ltr';
 
-    const setLocale = useCallback((next: SupportedLocale) => {
+    const setLocale = useCallback((next: string) => {
         setLocaleState(next);
-
-        try {
-            localStorage.setItem(STORAGE_KEY, next);
-        } catch {
-            // See above.
-        }
+        store(STORAGE_KEY, next);
     }, []);
 
-    // A locale the platform no longer serves is not a locale. This only runs on a list
-    // the platform actually answered with — an unreachable API leaves the operator's
-    // choice alone rather than resetting it because a request failed.
+    // A locale the platform no longer serves is not a locale. This only runs on a list the
+    // platform actually answered with — an unreachable API leaves the operator's choice alone
+    // rather than resetting it because a request failed.
     useEffect(() => {
-        if (available.length === 0 || available.some((language) => language.code === locale)) {
+        if (languages.length === 0 || chosen !== undefined) {
             return;
         }
 
-        const fallback =
-            available.find((language) => language.is_default) ?? available[0] ?? undefined;
+        const fallback = languages.find((language) => language.is_default) ?? languages[0];
 
-        if (fallback !== undefined && isSupportedLocale(fallback.code)) {
+        if (fallback !== undefined) {
             setLocale(fallback.code);
         }
-    }, [available, locale, setLocale]);
+    }, [languages, chosen, setLocale]);
 
     useEffect(() => {
         const root = document.documentElement;
         root.lang = locale;
         root.dir = direction;
+        store(DIRECTION_KEY, direction);
     }, [locale, direction]);
 
-    // Every request from here on asks the platform to answer in this language. The
-    // labels the API publishes beside its identifiers (ADR 0030) are resolved per
-    // request, so without this an Arabic interface reads its own strings in Arabic and
-    // the platform's in English.
+    // The chosen language's wording, from the platform. English ships in the bundle and is
+    // never fetched. Keyed by locale so that accepting a translation in the workshop can
+    // invalidate it and the console reads the new wording on its next render.
+    const catalogue = useQuery({
+        queryKey: ['interface-catalogue', locale],
+        queryFn: ({ signal }) => fetchInterfaceCatalogue(locale, signal),
+        enabled: locale !== CATALOGUE_LOCALE,
+        staleTime: 5 * 60_000,
+        retry: false,
+    });
+
+    useEffect(() => {
+        if (locale === CATALOGUE_LOCALE) {
+            void i18n.changeLanguage(locale);
+
+            return;
+        }
+
+        if (catalogue.data !== undefined) {
+            applyInterfaceCatalogue(locale, catalogue.data);
+        }
+
+        // Switched once the wording has arrived, or once it is known that it will not: a
+        // language with nothing translated, or an unreachable API, reads in English key by
+        // key rather than in raw keys.
+        if (catalogue.data !== undefined || catalogue.isError) {
+            void i18n.changeLanguage(locale);
+        }
+    }, [i18n, locale, catalogue.data, catalogue.isError]);
+
+    // Every request from here on asks the platform to answer in this language. The labels the
+    // API publishes beside its identifiers (ADR 0030) are resolved per request.
     //
-    // Changing it invalidates the cache, because a cached answer was rendered in the
-    // language that asked for it: without this, switching to Arabic leaves every
-    // status, capability and account type on screen in English until something else
-    // happens to refetch it. Keying each query by locale would work too and is the
-    // arrangement that produced the original gap — one screen remembered and the rest
-    // did not — so it is done once, here, where the locale is owned.
-    //
-    // Not on the first render: nothing is cached yet, and invalidating would send
-    // every query twice on load.
+    // Changing it invalidates the cache, because a cached answer was rendered in the language
+    // that asked for it. Not on the first render: nothing is cached yet, and invalidating
+    // would send every query twice on load.
     const settled = useRef(false);
 
     useEffect(() => {
@@ -149,13 +170,9 @@ export function DirectionProvider({ children }: { children: React.ReactNode }) {
         void queryClient.invalidateQueries();
     }, [locale, queryClient]);
 
-    useEffect(() => {
-        void i18n.changeLanguage(locale);
-    }, [i18n, locale]);
-
     const value = useMemo(
-        () => ({ locale, direction, languages, available, setLocale }),
-        [locale, direction, languages, available, setLocale],
+        () => ({ locale, direction, languages, available: languages, setLocale }),
+        [locale, direction, languages, setLocale],
     );
 
     return <DirectionContext value={value}>{children}</DirectionContext>;

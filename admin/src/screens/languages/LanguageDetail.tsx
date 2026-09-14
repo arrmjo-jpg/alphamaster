@@ -5,10 +5,8 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 
 import { ApiError } from '@/api/errors';
-import { isSupportedLocale } from '@/i18n';
-import { requestSuggestions } from '@/screens/ai/api';
 import { CoverageMeter } from '@/screens/languages/Coverage';
-import type { LanguageStanding, Overview } from '@/screens/translations/api';
+import { translateWithAi, type LanguageStanding, type Overview } from '@/screens/translations/api';
 import { Alert } from '@/ui/Alert';
 import { Button } from '@/ui/Button';
 import { Checkbox } from '@/ui/Checkbox';
@@ -59,8 +57,8 @@ function draftFrom(language: AdminLanguage | null): Draft {
     };
 }
 
-/** The suggestion states the platform stores, in the order a reviewer reads them. */
-const PROGRESS: { key: keyof LanguageStanding['suggestions']; tone: StateTone }[] = [
+/** The states of an item's AI translation, in the order a reviewer reads them. */
+const PROGRESS: { key: keyof LanguageStanding['batches']; tone: StateTone }[] = [
     { key: 'pending', tone: 'pending' },
     { key: 'ready', tone: 'info' },
     { key: 'failed', tone: 'danger' },
@@ -75,8 +73,8 @@ const PROGRESS: { key: keyof LanguageStanding['suggestions']; tone: StateTone }[
  * draft (ADR 0048), and an operator looking at it should not have to know that the
  * Translations screen exists to find out how to fill it — so the two ways to translate
  * it are offered here, each mapped to what the platform actually does: one opens the
- * missing entries for a person to write, the other queues AI suggestions a person then
- * reviews. Neither saves anything on its own.
+ * items not yet translated for a person to write, the other translates every missing item
+ * with AI for a person to review and accept item by item. Neither saves anything on its own.
  *
  * `is_active` and `is_default` are not form fields. They are states with rules — the
  * default must be served, and cannot be switched off — and the platform has an
@@ -157,8 +155,11 @@ export function LanguageDetail({
     });
 
     const fill = useMutation({
-        mutationFn: (locale: string) => requestSuggestions({ locale }),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['translation-overview'] }),
+        mutationFn: (locale: string) => translateWithAi({ locale }),
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ['translation-overview'] });
+            await queryClient.invalidateQueries({ queryKey: ['translations'] });
+        },
     });
 
     const set = (patch: Partial<Draft>) => setDraft((current) => ({ ...current, ...patch }));
@@ -181,8 +182,6 @@ export function LanguageDetail({
         return message === undefined ? {} : { error: message };
     };
 
-    const translated = isSupportedLocale(draft.code.trim());
-
     // Why AI cannot help here, if it cannot. Read from the platform, never assumed —
     // the action is disabled with its reason rather than hidden or left to fail.
     const aiBlocked =
@@ -194,8 +193,8 @@ export function LanguageDetail({
                 ? t('languages.aiUnavailableNoPermission')
                 : null;
 
-    const counts = standing?.suggestions;
-    const anySuggestions = counts !== undefined && Object.values(counts).some((n) => n > 0);
+    const counts = standing?.batches;
+    const anyBatches = counts !== undefined && Object.values(counts).some((n) => n > 0);
 
     const openTranslations = (code: string, state?: string): void => {
         void navigate(
@@ -279,7 +278,7 @@ export function LanguageDetail({
                                     <div>
                                         <Button
                                             onClick={() =>
-                                                openTranslations(language.code, 'missing')
+                                                openTranslations(language.code, 'not_translated')
                                             }
                                             size="sm"
                                             variant="primary"
@@ -315,6 +314,7 @@ export function LanguageDetail({
                                     <Alert tone="info">
                                         {t('languages.aiQueued', {
                                             queued: fill.data.queued,
+                                            existing: fill.data.existing,
                                             skipped: fill.data.skipped,
                                         })}
                                     </Alert>
@@ -337,7 +337,7 @@ export function LanguageDetail({
                             </section>
                         )}
 
-                        {anySuggestions && counts !== undefined ? (
+                        {anyBatches && counts !== undefined ? (
                             <section className="flex flex-col gap-2">
                                 <h3 data-eyebrow>{t('languages.progressTitle')}</h3>
                                 <dl className="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -366,18 +366,16 @@ export function LanguageDetail({
                                 <div className="flex flex-wrap gap-2">
                                     {counts.ready > 0 ? (
                                         <Button
-                                            onClick={() =>
-                                                openTranslations(language.code, 'needs_review')
-                                            }
+                                            onClick={() => openTranslations(language.code, 'ready')}
                                             size="sm"
                                             variant="secondary"
                                         >
-                                            {t('languages.reviewSuggestions')}
+                                            {t('languages.reviewTranslations')}
                                         </Button>
                                     ) : null}
                                     {counts.failed > 0 && aiBlocked === null && ai !== undefined ? (
-                                        // Asking again for what is missing is the retry: a
-                                        // failed field is still missing, so it is queued
+                                        // Translating what is missing again is the retry: a
+                                        // failed item is still missing, so it is asked for
                                         // again, and nothing already translated is touched.
                                         <Button
                                             loading={fill.isPending}
@@ -553,15 +551,6 @@ export function LanguageDetail({
                             </span>
                         </label>
                     ) : null}
-
-                    {/* Said where the decision is made, because the two are easy to
-                        confuse: adding a language here makes the platform able to serve
-                        it, and does not make this console speak it (ADR 0049). */}
-                    {draft.code.trim() === '' || translated ? null : (
-                        <Alert tone="info">
-                            {t('languages.noInterfaceTranslation', { code: draft.code.trim() })}
-                        </Alert>
-                    )}
 
                     {save.error instanceof ApiError && save.error.validationDetails === null ? (
                         <Alert tone="danger">{save.error.message}</Alert>

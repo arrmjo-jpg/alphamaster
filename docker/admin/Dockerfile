@@ -24,6 +24,10 @@ RUN npm ci --no-audit --no-fund
 
 COPY admin/ ./
 
+# The Interface Translation Catalog is the platform's (ADR 0049) and lives in the backend's
+# tree; the bundle takes its English source from there, at the path `vite.config.ts` reads.
+COPY backend/lang/interface /backend/lang/interface
+
 # `npm run build` typechecks before it bundles, so a type error fails the image
 # build rather than shipping.
 RUN npm run build

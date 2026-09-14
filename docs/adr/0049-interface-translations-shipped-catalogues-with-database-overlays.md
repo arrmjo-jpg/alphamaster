@@ -1,51 +1,99 @@
-# ADR 0049: Interface Translations — Shipped Catalogues with Database Overlays
+# ADR 0049: Interface Translations — One Language System, a Code Catalogue and a Database Overlay
 
-* **Status**: Proposed — not implemented
-* **Date**: 2026-09-11
-* **Relates to**: ADR 0015, ADR 0043, ADR 0048
+* **Status**: Accepted
+* **Date**: 2026-09-11, accepted and implemented 2026-09-14
+* **Relates to**: ADR 0015, ADR 0043, ADR 0048, ADR 0056
 
 ## Context
 
-The platform has **two translation domains**, and until now only one was named.
+The platform had two translation domains and only one of them followed Language Management.
 
-| | Content translations | Interface translations |
+| | Content translations | Interface translations (before) |
 | :--- | :--- | :--- |
-| Examples | Role labels, notification wording, localized settings | "Dashboard", "Save", "Sign out", API error messages, setting labels |
-| Where it lives | Database, owned by the module the content belongs to | `backend/lang/{en,ar}.json`, `admin/src/i18n/{en,ar}/common.json` |
-| Who changes it | Operators, through the workshop (ADR 0043) | Developers, in a commit |
-| Adding a language | Workshop shows it as 0% and it can be translated (ADR 0048) | **Nothing.** The Admin ships `en` and `ar` only; a new language falls back to English everywhere |
+| Examples | Role labels, notification wording, settings, pages, team | "Dashboard", "Save", menus, empty states, API and validation messages |
+| Where it lived | Database, owned by the module the content belongs to | `backend/lang/{en,ar}` and `admin/src/i18n/{en,ar}/common.json` |
+| Adding a language | Appears in the workshop as not translated (ADR 0048, ADR 0056) | **Nothing.** The Admin offered `SUPPORTED_LOCALES = ['en', 'ar']` and fell back to English |
 
-ADR 0043 kept language files out of the workshop on purpose: "making them editable at runtime would make a deployment able to silently revert an operator's edit". That concern is real and still has to be answered. But the consequence is that a platform which lets an operator add French cannot let anyone read its own console in French without a code change and a rebuild.
+An operator could add French and translate every page into it, and still could not read the console in French, or choose it in the top bar, without a developer adding a file, a code change and a rebuild.
 
-## The question
+## Decision
 
-Can operators translate interface strings into a new language at runtime — without a rebuild, without breaking the Admin's bundled catalogue, without a deploy able to undo their work, and with English remaining the explicit fallback?
+### 1. Language Management is the only source of languages
 
-## Proposal
+Which languages exist, which are served, which is the default and which way each runs are decided in Language Management and nowhere else.
 
-**Shipped base catalogue + database overlay = runtime catalogue.**
+The Admin has no list of languages:
+* The top bar offers every language `/api/v1/languages` returns.
+* The document's direction is the chosen language's own `direction`. Nothing knows which languages run right to left.
+* A language added in Language Management is a console language after a refresh, with no build, no code and no migration.
 
-1. **The shipped files stay the base and stay authoritative for the languages they ship.** English is the source and the final fallback. Arabic stays intact. Nothing writes to the files.
-2. **Overlays live in the database**: one row per language, catalogue and key — `(catalogue, locale, key) → value`, with the **hash of the English source text** the translation was written against.
-3. **Runtime merge, never file generation.**
-   * *Backend*: a translation loader that decorates Laravel's file loader, merging a language's overlay over its file (or over nothing, for a language with no file), cached per language in the platform cache (ADR 0035) and invalidated on write.
-   * *Admin*: the bundled `en`/`ar` catalogues remain; on selecting a language, the console fetches that language's overlay from an unauthenticated read endpoint and merges it with `i18n.addResourceBundle`. i18next already falls back to `en` key by key, so a partially translated French console shows French where it exists and English elsewhere — explicitly, not by accident.
-4. **Stale detection answers ADR 0043's concern.** A deploy that changes an English string changes its hash; overlays written against the old hash are shown as **needs review** rather than silently kept or silently lost. A deploy can never revert an overlay, because it never touches one.
-5. **In the workshop, as their own sources.** "Interface — console" and "Interface — API messages" become `TranslationSource`s, declared by Localization, stored in the overlay table, and kept separate from content sources in the UI. The two domains share the workshop and the coverage calculation (ADR 0048) and do not share storage.
+### 2. The Interface Translation Catalog is code, and English is its source
 
-## What blocks implementation — the decisions this needs
+The catalogue answers "what does the interface say". Language Management answers "in which languages".
 
-1. **Where the Admin's key catalogue comes from.** The backend has `lang/en.json`; it does **not** have `admin/src/i18n/en/common.json`, which lives in the Admin's source and build. For the workshop to list console strings, that catalogue has to reach the backend — most simply by copying it into the backend image at build time as a read-only manifest. That couples the two builds, and it is the decision that most needs making.
-2. **Whether shipped languages can be overridden.** Letting an operator override shipped Arabic is a different product from letting them add French. Recommendation: overlays apply only where the shipped file has no value, until there is a reason to do otherwise.
-3. **Permission.** A new `interface.translate` permission, or reuse of an existing one. Recommendation: a new one — rewriting the console's wording is not the same power as editing settings.
-4. **Keys that are not text.** Plural forms and interpolation placeholders must survive translation; the workshop has to validate that `{{count}}` in English is still present in French.
+| Catalogue | Source files | Placeholders |
+| :--- | :--- | :--- |
+| `console` — the Admin | `backend/lang/interface/console/en.json` | `{{name}}` |
+| `api` — API, validation and notification messages | `backend/lang/en.json`, `backend/lang/en/*.php` | `:name` |
 
-## Options considered
+The English files define every key. A key a developer adds to them *is* a catalogue entry: after deploy it appears in the workshop as not translated in every other language. No registration, no source, no migration.
 
-* **Status quo.** Honest, and the gap stays: a new language is a content language only.
-* **Generate files and rebuild.** Rejected: needs a deploy to add a translation, which is the thing being avoided.
-* **Replace the shipped files with the database.** Rejected: the platform would need a populated database to render its own sign-in screen, and English would stop being a guaranteed fallback.
+The console catalogue lives in the backend's tree because the platform serves it. The Admin bundles only its English file, at build time, as the fallback that must render without the API.
 
-## Consequences if accepted
+Files shipped for other languages — Arabic today — stay the base for that language and are never rewritten.
 
-Adding French becomes a complete operation: content and interface both appear in the workshop at 0%, both can be filled by hand or by AI suggestions (ADR 0044), and the console is readable in French as soon as its overlay has text. Until this is accepted and built, the Languages page states plainly that a new language's interface falls back to English.
+### 3. Operators' translations are a database overlay
+
+`interface_translations (catalogue, locale, key) → value` is written by the workshop, one row per key and language. Each row keeps the hash of the English text it was translated from.
+
+* **Resolution.** A language's wording is its shipped file, if any, overlaid by its rows, overlaid on English key by key.
+* **Deploys.** A deploy never touches a row.
+* **Stale rows.** A deploy that changes an English string changes its hash. A row written against the old hash still displays, and the workshop counts that key as not translated, so it is translated again.
+* **Fallback is display only.** A key a language has not translated is shown in English and remains **not translated** in the workshop.
+
+Resolution runs in two places:
+* **Backend.** A translation loader decorates Laravel's file loader and merges the overlay into JSON and group lines. `__()`, validation and notification messages are therefore translated without changing how they are written.
+* **Admin.** A public endpoint, `GET /api/v1/interface/console/{locale}`, serves the merged catalogue. The Admin adds it to i18next when the language is chosen.
+
+Both are cached per catalogue and language. Writing a translation, and changing any language, invalidates the application cache and the edge.
+
+### 4. The workshop, through the one translation system
+
+Two `TranslationSource`s are registered by Localization: **Interface — Admin Console** and **Interface — API Messages**. They use everything content uses (ADR 0056):
+* `TranslationField` metadata
+* item statuses and coverage
+* translation batches
+* AI generation
+* human review
+* accepting once, and accept all ready
+
+**Items.** An item is a group of keys under one parent, for example `modules` or `translations.item`. Its fields are the keys.
+* A sidebar, a dialog or a set of buttons is reviewed and accepted as one.
+* The grouping is derived from the key, so a new menu needs nothing.
+
+**Source language.** A source may declare the language it is translated from (`DeclaresSourceLocale`). The interface sources declare the catalogue's language, so interface wording is always translated from English, whatever the content default is.
+
+**Permission.** The sources are read and written with `interface.translate`, a permission of its own: rewriting the console's wording is not editing settings.
+
+### 5. Placeholders and plural forms are protected
+
+The same set of placeholders must be present in a translation as in its source:
+* `{{name}}` and `:name`
+* Laravel's plural segments and ranges
+
+A generation that changes the set fails. A write that changes it is refused.
+
+**Plural forms.**
+* **Workshop:** every plural form a key has in English is a field of its own.
+* **Admin display:** a language that needs more plural forms than English fills the missing ones from `_other`.
+
+### 6. Guarded
+
+A test fails when the Admin uses a literal key that is not in the English catalogue. A dynamic key must have a catalogue branch to resolve in.
+
+## Consequences
+
+* Adding French is one operation. It appears in the top bar, and every interface and content item appears in the workshop as not translated. "Translate all missing" translates both, a person reviews and accepts item by item, and the console reads in French.
+* Adding a menu is adding its English wording. After deploy the key is in the workshop in every language.
+* Arabic keeps its shipped wording. An operator's change to it is a row, and survives every deploy.
+* The Admin image is built with the catalogue from `backend/lang/interface`, so the two builds share one file instead of two copies.

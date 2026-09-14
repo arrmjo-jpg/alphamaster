@@ -1,22 +1,21 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Search, Sparkles } from 'lucide-react';
+import type { TFunction } from 'i18next';
+import { CheckCheck, Search, Sparkles } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router';
 
 import { ApiError } from '@/api/errors';
 import { useCurrentUser } from '@/auth/AuthProvider';
-import {
-    acceptSuggestion,
-    dismissSuggestion,
-    requestSuggestions,
-    suggestions as fetchSuggestions,
-    type Suggestion,
-} from '@/screens/ai/api';
 import { CoverageMeter } from '@/screens/languages/Coverage';
 import { TranslationEntryRow } from '@/screens/translations/TranslationEntryRow';
 import {
+    acceptAllReady,
+    acceptTranslation,
+    dismissTranslation,
+    ITEM_STATUSES,
     overview as fetchOverview,
+    translateWithAi,
     workshop as fetchWorkshop,
     writeTranslation,
     WORKSHOP_STATES,
@@ -37,22 +36,29 @@ function isWorkshopState(value: string | null): value is WorkshopState {
     return value !== null && (WORKSHOP_STATES as string[]).includes(value);
 }
 
+/** Items that "translate all missing" would start: not translated, incomplete, or failed. */
+function outstanding(source: TranslationSource): number {
+    return source.statuses.not_translated + source.statuses.incomplete + source.statuses.failed;
+}
+
 /**
  * What the platform says, in every language it says it in.
  *
- * The languages workspace manages *which* languages exist. This is what is written in
- * them, and the two were never the same thing: adding Arabic to the language list did
- * nothing to the roles, the settings copy or the notification wording, and no screen
- * anywhere reported that.
+ * The languages workspace manages *which* languages exist. This is what is written in them —
+ * and a language added there is here at once, with every item in it not translated, because
+ * nothing has to be set up per language (ADR 0056).
  *
- * Queried, not downloaded (ADR 0048 §4). The target, the filter, the search and the
- * page live in the address, so the Languages screen can link straight to "what is
- * missing in French" and a reload lands where the operator was. Every one of them is
- * answered by the server; the browser holds one page.
+ * The item is the unit. Each has one status in the target language and a count of the fields
+ * written ("3 / 5"). An operator translates a whole language, a source or one item with AI in
+ * one action, reviews an item once, and accepts it once — or accepts every ready item at once,
+ * item by item. Nothing is ever asked per field, and nothing is saved until it is accepted.
  *
- * Permissions are per body of content, not per screen (ADR 0043 §3). The API decides
- * what is visible and what is writable; this reflects the decision rather than making
- * one.
+ * Queried, not downloaded (ADR 0048 §4). The target, the filter, the search and the page live in
+ * the address, so the Languages screen can link straight to "what is ready in French" and a
+ * reload lands where the operator was.
+ *
+ * Permissions are per body of content, not per screen (ADR 0043 §3). The API decides what is
+ * visible and what is writable; this reflects the decision rather than making one.
  */
 export function TranslationsScreen() {
     const { t } = useTranslation();
@@ -95,28 +101,18 @@ export function TranslationsScreen() {
     const view = useQuery({
         queryKey: ['translations', query],
         queryFn: ({ signal }) => fetchWorkshop(query, signal),
-        // The previous page stays on screen while the next loads, so paging and
-        // filtering do not flash an empty workshop between answers.
+        // The previous page stays on screen while the next loads.
         placeholderData: keepPreviousData,
-    });
-
-    const targetCode = view.data?.target ?? null;
-
-    // Suggestions arrive asynchronously — a generation takes seconds and runs on a
-    // queue (ADR 0044 §4) — so the client polls instead of waiting, and stops as soon
-    // as nothing is outstanding.
-    const proposals = useQuery({
-        queryKey: ['translation-suggestions', targetCode],
-        queryFn: ({ signal }) => fetchSuggestions(targetCode ?? '', signal),
-        enabled: targetCode !== null,
+        // A translation arrives when it arrives — generation runs on a queue (ADR 0044 §4) —
+        // so the workshop follows while any item is being translated, and stops after.
         refetchInterval: (current) =>
-            (current.state.data ?? []).some((row: Suggestion) => row.status === 'pending')
+            (current.state.data?.sources ?? []).some((source) => source.statuses.pending > 0)
                 ? 3000
                 : false,
     });
 
-    // Whether AI is there at all, read from the platform rather than assumed, so the
-    // action explains its own absence instead of being a button that always fails.
+    // Whether AI is there at all, read from the platform rather than assumed, so the action
+    // explains its own absence instead of being a button that always fails.
     const standing = useQuery({
         queryKey: ['translation-overview'],
         queryFn: ({ signal }) => fetchOverview(signal),
@@ -125,42 +121,18 @@ export function TranslationsScreen() {
 
     const refreshAll = async () => {
         await queryClient.invalidateQueries({ queryKey: ['translations'] });
-        await queryClient.invalidateQueries({ queryKey: ['translation-suggestions'] });
         await queryClient.invalidateQueries({ queryKey: ['translation-overview'] });
+        // An accepted interface translation changes the console's own wording (ADR 0049).
+        await queryClient.invalidateQueries({ queryKey: ['interface-catalogue'] });
     };
 
-    const ask = useMutation({
-        mutationFn: (locale: string) => requestSuggestions({ locale }),
+    const translateMissing = useMutation({
+        mutationFn: (scope: { locale: string; source?: string }) => translateWithAi(scope),
         onSuccess: refreshAll,
     });
 
-    const decide = useMutation({
-        mutationFn: async (decision: { id: string; text?: string }) => {
-            if (decision.text === undefined) {
-                await dismissSuggestion(decision.id);
-
-                return;
-            }
-
-            await acceptSuggestion(decision.id, decision.text);
-        },
-        // Accepting writes a translation, so the workshop's own view of the content
-        // and the coverage are stale as well as the suggestion list.
-        onSuccess: refreshAll,
-    });
-
-    const save = useMutation({
-        mutationFn: ({
-            source,
-            id,
-            locale,
-            values,
-        }: {
-            source: string;
-            id: string;
-            locale: string;
-            values: Record<string, string>;
-        }) => writeTranslation(source, id, { locale, values }),
+    const acceptReady = useMutation({
+        mutationFn: (locale: string) => acceptAllReady({ locale }),
         onSuccess: refreshAll,
     });
 
@@ -196,6 +168,16 @@ export function TranslationsScreen() {
     const aiAvailable = standing.data?.ai.available;
     const groups = groupBySource(data.entries, data.sources);
 
+    const writable = data.sources.filter((candidate) => candidate.may_write);
+    const readyCount = writable.reduce((sum, candidate) => sum + candidate.statuses.ready, 0);
+    const missingCount = writable.reduce((sum, candidate) => sum + outstanding(candidate), 0);
+
+    const titleOf = (sourceKey: string, itemId: string): string =>
+        data.entries.find((entry) => entry.source === sourceKey && entry.id === itemId)?.title ??
+        itemId;
+
+    const refusals = (acceptReady.data?.results ?? []).filter((row) => row.status === 'failed');
+
     return (
         <div className="flex min-w-0 flex-col gap-(--section-gap)">
             <Header />
@@ -206,9 +188,8 @@ export function TranslationsScreen() {
                         <span className="text-(length:--text-xs) text-(--text-muted)">
                             {t('translations.from')}
                         </span>
-                        {/* Not a control. There is one default language and it is the
-                            one everything falls back to; offering a choice here would
-                            imply the platform could be read from somewhere else. */}
+                        {/* Not a control. There is one default language and it is the one
+                            everything is translated from. */}
                         <span className="text-(length:--text-sm) text-(--text-primary)">
                             {source.native_name}
                         </span>
@@ -244,29 +225,46 @@ export function TranslationsScreen() {
                         counts={data.coverage}
                     />
 
-                    {mayUseAi ? (
-                        <div className="flex flex-col gap-1">
+                    <div className="flex flex-wrap items-end gap-2">
+                        {mayUseAi ? (
+                            <div className="flex flex-col gap-1">
+                                <Button
+                                    disabled={aiAvailable === false || missingCount === 0}
+                                    loading={
+                                        translateMissing.isPending &&
+                                        translateMissing.variables.source === undefined
+                                    }
+                                    onClick={() => translateMissing.mutate({ locale: target.code })}
+                                    size="sm"
+                                    variant="secondary"
+                                >
+                                    <Sparkles aria-hidden className="size-3.5" />
+                                    {t('translations.batch.translateAll', {
+                                        language: target.native_name,
+                                    })}
+                                </Button>
+                                {/* Said before it is pressed: the alternative is an operator
+                                    discovering it after a bill, or after a refusal. */}
+                                <span className="max-w-72 text-(length:--text-2xs) text-(--text-muted)">
+                                    {aiAvailable === false
+                                        ? t('languages.aiUnavailableNotConfigured')
+                                        : t('translations.batch.translateAllNote')}
+                                </span>
+                            </div>
+                        ) : null}
+
+                        {readyCount > 0 ? (
                             <Button
-                                disabled={aiAvailable === false}
-                                loading={ask.isPending}
-                                onClick={() => ask.mutate(target.code)}
+                                loading={acceptReady.isPending}
+                                onClick={() => acceptReady.mutate(target.code)}
                                 size="sm"
-                                variant="secondary"
+                                variant="primary"
                             >
-                                <Sparkles aria-hidden className="size-3.5" />
-                                {t('translations.suggestion.askFor', {
-                                    language: target.native_name,
-                                })}
+                                <CheckCheck aria-hidden className="size-3.5" />
+                                {t('translations.batch.acceptAllReady', { ready: readyCount })}
                             </Button>
-                            {/* Said before it is pressed: the alternative is an operator
-                                discovering it after a bill, or after a refusal. */}
-                            <span className="max-w-72 text-(length:--text-2xs) text-(--text-muted)">
-                                {aiAvailable === false
-                                    ? t('languages.aiUnavailableNotConfigured')
-                                    : t('translations.suggestion.askNote')}
-                            </span>
-                        </div>
-                    ) : null}
+                        ) : null}
+                    </div>
                 </div>
 
                 {target.is_active ? null : (
@@ -324,18 +322,52 @@ export function TranslationsScreen() {
                 </div>
             </section>
 
-            {ask.error !== null ? (
+            {translateMissing.error !== null ? (
                 <Alert tone="danger">
-                    {ask.error instanceof ApiError ? ask.error.message : t('state.error')}
+                    {translateMissing.error instanceof ApiError
+                        ? translateMissing.error.message
+                        : t('state.error')}
                 </Alert>
             ) : null}
 
-            {ask.data !== undefined ? (
+            {translateMissing.data !== undefined ? (
                 <Alert tone="info">
-                    {t('translations.suggestion.asked', {
-                        queued: ask.data.queued,
-                        skipped: ask.data.skipped,
+                    {t('translations.batch.started', {
+                        queued: translateMissing.data.queued,
+                        existing: translateMissing.data.existing,
+                        skipped: translateMissing.data.skipped,
                     })}
+                </Alert>
+            ) : null}
+
+            {acceptReady.error !== null ? (
+                <Alert tone="danger">
+                    {acceptReady.error instanceof ApiError
+                        ? acceptReady.error.message
+                        : t('state.error')}
+                </Alert>
+            ) : null}
+
+            {acceptReady.data !== undefined ? (
+                <Alert tone={acceptReady.data.failed > 0 ? 'warning' : 'success'}>
+                    <p>
+                        {t('translations.batch.acceptedSummary', {
+                            accepted: acceptReady.data.accepted,
+                            failed: acceptReady.data.failed,
+                        })}
+                    </p>
+                    {refusals.length > 0 ? (
+                        <ul className="mt-1 list-disc ps-4 text-(length:--text-xs)">
+                            {refusals.map((row) => (
+                                <li key={row.batch}>
+                                    {t('translations.batch.refusedItem', {
+                                        item: titleOf(row.source, row.item_id),
+                                        reason: row.message ?? row.error_code ?? '',
+                                    })}
+                                </li>
+                            ))}
+                        </ul>
+                    ) : null}
                 </Alert>
             ) : null}
 
@@ -349,7 +381,7 @@ export function TranslationsScreen() {
 
             {data.sources.length > 0 && data.entries.length === 0 ? (
                 <p className="border border-(--border-default) bg-(--surface-raised) p-4 text-(length:--text-sm) text-(--text-muted)">
-                    {state === 'missing' && search === ''
+                    {state === 'not_translated' && search === ''
                         ? t('translations.noneOutstanding')
                         : t('translations.noMatches')}
                 </p>
@@ -360,24 +392,38 @@ export function TranslationsScreen() {
                     className="flex min-w-0 flex-col gap-2 border border-(--border-default) bg-(--surface-raised) p-4"
                     key={`${group.source.key}-${index}`}
                 >
-                    <div className="flex flex-wrap items-baseline justify-between gap-2">
-                        <h2 className="text-(length:--text-md) font-medium text-(--text-primary)">
-                            {group.source.label}
-                        </h2>
-                        {/* Fields, not items. A template with an Arabic subject over an
-                            English body is not half translated in any sense a recipient
-                            would recognise, and the number says so. */}
-                        <p className="text-(length:--text-sm) text-(--text-secondary)">
-                            {group.source.completeness.total ===
-                            group.source.completeness.translated
-                                ? t('translations.complete', { language: target.native_name })
-                                : t('translations.outstanding', {
-                                      count:
-                                          group.source.completeness.total -
-                                          group.source.completeness.translated,
-                                      total: group.source.completeness.total,
-                                  })}
-                        </p>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex min-w-0 flex-col gap-0.5">
+                            <h2 className="text-(length:--text-md) font-medium text-(--text-primary)">
+                                {group.source.label}
+                            </h2>
+                            {/* Items, not fields: the counts are the server's, for the whole
+                                source rather than this page. */}
+                            <p className="text-(length:--text-sm) text-(--text-secondary)">
+                                {sourceSummary(group.source, t)}
+                            </p>
+                        </div>
+
+                        {mayUseAi && group.source.may_write && outstanding(group.source) > 0 ? (
+                            <Button
+                                disabled={aiAvailable === false}
+                                loading={
+                                    translateMissing.isPending &&
+                                    translateMissing.variables.source === group.source.key
+                                }
+                                onClick={() =>
+                                    translateMissing.mutate({
+                                        locale: target.code,
+                                        source: group.source.key,
+                                    })
+                                }
+                                size="sm"
+                                variant="ghost"
+                            >
+                                <Sparkles aria-hidden className="size-3.5" />
+                                {t('translations.batch.translateSource')}
+                            </Button>
+                        ) : null}
                     </div>
 
                     {group.source.may_write ? null : (
@@ -388,21 +434,40 @@ export function TranslationsScreen() {
 
                     {group.entries.map((entry) => (
                         <TranslationEntryRow
+                            ai={{ mayUse: mayUseAi, available: aiAvailable }}
                             entry={entry}
                             key={`${entry.source}:${entry.id}`}
                             mayWrite={group.source.may_write}
-                            onAcceptSuggestion={(id, text) => decide.mutateAsync({ id, text })}
-                            onDismissSuggestion={(id) => decide.mutateAsync({ id })}
-                            onSave={(values) =>
-                                save.mutateAsync({
-                                    source: entry.source,
-                                    id: entry.id,
+                            onAccept={async (batchId, values) => {
+                                await acceptTranslation(batchId, values);
+                                await refreshAll();
+                            }}
+                            onDismiss={async (batchId) => {
+                                await dismissTranslation(batchId);
+                                await refreshAll();
+                            }}
+                            onSave={async (values) => {
+                                await writeTranslation(entry.source, entry.id, {
                                     locale: target.code,
                                     values,
-                                })
+                                });
+                                await refreshAll();
+                            }}
+                            onTranslate={async () => {
+                                await translateWithAi({
+                                    locale: target.code,
+                                    source: entry.source,
+                                    item: entry.id,
+                                });
+                                await refreshAll();
+                            }}
+                            // Each source's own language: the interface is translated from
+                            // its catalogue's, content from the default (ADR 0049).
+                            source={
+                                data.locales.find(
+                                    (language) => language.code === group.source.source_locale,
+                                ) ?? source
                             }
-                            source={source}
-                            suggestions={forEntry(proposals.data ?? [], entry.source, entry.id)}
                             target={target}
                         />
                     ))}
@@ -464,12 +529,30 @@ function Header() {
     );
 }
 
+/** "Items: 25 · Translated: 5 · Incomplete: 8 · Not translated: 12" — only what is there. */
+function sourceSummary(source: TranslationSource, t: TFunction): string {
+    const total = ITEM_STATUSES.reduce((sum, status) => sum + source.statuses[status], 0);
+    const parts = [t('translations.source.items', { total })];
+
+    for (const status of ITEM_STATUSES) {
+        if (source.statuses[status] > 0) {
+            parts.push(
+                t('translations.source.status', {
+                    status: t(`translations.filters.${status}`),
+                    number: source.statuses[status],
+                }),
+            );
+        }
+    }
+
+    return parts.join(' · ');
+}
+
 /**
  * The page's entries, gathered under the body of content each belongs to.
  *
- * The server returns one ordered list, source by source, so consecutive entries share
- * a heading; the heading's counts are the server's, for the whole source rather than
- * this page.
+ * The server returns one ordered list, source by source, so consecutive entries share a
+ * heading; the heading's counts are the server's, for the whole source rather than this page.
  */
 function groupBySource(
     entries: TranslationEntry[],
@@ -493,27 +576,4 @@ function groupBySource(
     }
 
     return groups;
-}
-
-/**
- * The suggestions belonging to one item, keyed by field.
- *
- * The list arrives flat because it is addressed the way the workshop addresses
- * anything — source, item, field, locale (ADR 0043) — and grouping it here keeps that
- * address the API's rather than a shape the client invented.
- */
-function forEntry(
-    suggestions: Suggestion[],
-    sourceKey: string,
-    itemId: string,
-): Record<string, Suggestion> {
-    const mine: Record<string, Suggestion> = {};
-
-    for (const row of suggestions) {
-        if (row.source === sourceKey && row.item_id === itemId) {
-            mine[row.field] = row;
-        }
-    }
-
-    return mine;
 }

@@ -21,13 +21,24 @@ import { fileURLToPath, URL } from 'node:url';
  */
 const API_ORIGIN = process.env.VITE_API_PROXY_TARGET ?? 'http://localhost:8080';
 
+/**
+ * The Interface Translation Catalog (ADR 0049). It belongs to the platform, which serves every
+ * language's wording from it, and the Admin bundles only its English source — so it is read
+ * from the backend's tree rather than copied into this one.
+ */
+const CATALOGUE = fileURLToPath(new URL('../backend/lang/interface', import.meta.url));
+
 export default defineConfig({
     plugins: [react(), tailwindcss()],
     resolve: {
-        alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
+        alias: {
+            '@': fileURLToPath(new URL('./src', import.meta.url)),
+            '@catalogue': CATALOGUE,
+        },
     },
     server: {
         port: 5173,
+        fs: { allow: [fileURLToPath(new URL('.', import.meta.url)), CATALOGUE] },
         proxy: {
             '/api': {
                 target: API_ORIGIN,

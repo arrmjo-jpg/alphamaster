@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use App\Modules\Authorization\Database\Seeders\AdminPermissionSeeder;
-use App\Modules\Authorization\Enums\AdminPermission;
+use App\Modules\Authorization\Services\PermissionCatalogue;
 use App\Modules\Localization\Database\Seeders\LanguageSeeder;
 use App\Modules\Settings\Database\Seeders\SettingSeeder;
 use App\Modules\User\Models\User;
@@ -79,7 +79,9 @@ test('a super_admin is told it holds every permission in the catalogue', functio
     expect($permissions)->toContain('settings.secrets.manage')
         ->and($permissions)->toContain('audit.manage')
         ->and($permissions)->toContain('settings.backup.manage')
-        ->and($permissions)->toHaveCount(count(AdminPermission::cases()));
+        // Every permission any module declares into the catalogue (ADR 0052), Pages and Team
+        // included, not only the platform's own.
+        ->and($permissions)->toHaveCount(count(app(PermissionCatalogue::class)->values()));
 });
 
 test('permissions granted directly, without a role, are reported', function (): void {

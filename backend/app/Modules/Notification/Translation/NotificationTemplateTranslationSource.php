@@ -74,16 +74,21 @@ class NotificationTemplateTranslationSource implements TranslationSource
                 id: (string) $template->getKey(),
                 title: $template->type->value,
                 fields: [
+                    // Both required: a subject without a body is a message that cannot be
+                    // sent, which is why `write()` refuses one without the other and why
+                    // they are translated and accepted as one item (ADR 0056).
                     new TranslationField(
                         name: 'subject',
                         label: 'translations.fields.subject',
                         values: $subjects,
+                        required: true,
                     ),
                     new TranslationField(
                         name: 'body',
                         label: 'translations.fields.body',
                         values: $bodies,
                         multiline: true,
+                        required: true,
                     ),
                 ],
             );

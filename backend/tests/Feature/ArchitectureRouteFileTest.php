@@ -38,6 +38,9 @@ function forbiddenDependencies(): array
         'Integration' => ['Auth', 'Settings', 'Localization', 'Notification', 'Media'],
         'Notification' => ['Auth', 'Localization', 'Media'],
         'Media' => ['Auth', 'Localization', 'Notification', 'Integration'],
+        // Content modules (ADR 0055): Core and Authorization's catalogue only.
+        'Pages' => ['Auth', 'User', 'Settings', 'Localization', 'Integration', 'Notification', 'Media', 'Team'],
+        'Team' => ['Auth', 'User', 'Settings', 'Localization', 'Integration', 'Notification', 'Media', 'Pages'],
     ];
 }
 
@@ -105,7 +108,7 @@ test('every module has a route file this check can see', function (): void {
     sort($modules);
 
     expect($modules)->toBe([
-        'Auth', 'Authorization', 'Core', 'Integration', 'Localization', 'Media', 'Notification', 'Settings', 'User',
+        'Auth', 'Authorization', 'Core', 'Integration', 'Localization', 'Media', 'Notification', 'Pages', 'Settings', 'Team', 'User',
     ]);
 });
 

@@ -73,6 +73,8 @@ class RoleTranslationSource implements TranslationSource
                         name: 'label',
                         label: 'translations.fields.label',
                         values: $written,
+                        required: true,
+                        maxLength: 150,
                     ),
                 ],
             );

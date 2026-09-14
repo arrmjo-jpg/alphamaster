@@ -7,7 +7,9 @@ use App\Modules\Integration\Providers\IntegrationServiceProvider;
 use App\Modules\Localization\Providers\LocalizationServiceProvider;
 use App\Modules\Media\Providers\MediaServiceProvider;
 use App\Modules\Notification\Providers\NotificationServiceProvider;
+use App\Modules\Pages\Providers\PagesServiceProvider;
 use App\Modules\Settings\Providers\SettingsServiceProvider;
+use App\Modules\Team\Providers\TeamServiceProvider;
 use App\Modules\User\Providers\UserServiceProvider;
 use App\Providers\AppServiceProvider;
 use App\Providers\HorizonServiceProvider;
@@ -25,5 +27,7 @@ return [
     IntegrationServiceProvider::class,
     NotificationServiceProvider::class,
     MediaServiceProvider::class,
+    PagesServiceProvider::class,
+    TeamServiceProvider::class,
     OpenApiServiceProvider::class,
 ];

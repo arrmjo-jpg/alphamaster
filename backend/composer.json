@@ -15,7 +15,8 @@
         "laravel/sanctum": "^4.3",
         "laravel/tinker": "^3.0",
         "pragmarx/google2fa": "^8.0",
-        "spatie/laravel-permission": "^6.0"
+        "spatie/laravel-permission": "^6.0",
+        "symfony/html-sanitizer": "^8.1"
     },
     "require-dev": {
         "dedoc/scramble": "^0.13.42",

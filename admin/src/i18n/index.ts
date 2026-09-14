@@ -1,36 +1,39 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 
-import arCommon from './ar/common.json';
-import enCommon from './en/common.json';
+import source from '@catalogue/console/en.json';
 
 /**
  * Every user-visible string goes through here.
  *
- * The catalogues are the platform's two shipped languages. Which one is *active*
- * is not decided here — the backend owns the language list and its direction
- * (ADR 0015), and DirectionProvider reads it from `/api/v1/languages`.
+ * The console's catalogue is the platform's Interface Translation Catalog (ADR 0049), kept in
+ * `backend/lang/interface/console` so the platform can offer its keys for translation. Its
+ * English file is the source: it defines every key the console has, and it is the only
+ * catalogue bundled here, because it is the fallback that must render even when the API
+ * cannot be reached.
+ *
+ * Which languages exist is not decided here. Language Management owns the list, its direction
+ * and its default, and `DirectionProvider` reads it from `/api/v1/languages`; each language's
+ * wording is fetched from the platform when it is chosen (`shell/interfaceCatalogue.ts`).
  */
-export const SUPPORTED_LOCALES = ['en', 'ar'] as const;
 
-export type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
-
-export const FALLBACK_LOCALE: SupportedLocale = 'en';
-
-export function isSupportedLocale(value: string): value is SupportedLocale {
-    return (SUPPORTED_LOCALES as readonly string[]).includes(value);
-}
+/**
+ * The language the console's catalogue is written in, and every other language is translated
+ * from. A fact about the source, not a list of what the console can be read in.
+ */
+export const CATALOGUE_LOCALE = 'en';
 
 void i18n.use(initReactI18next).init({
     resources: {
-        en: { common: enCommon },
-        ar: { common: arCommon },
+        [CATALOGUE_LOCALE]: { common: source },
     },
-    lng: FALLBACK_LOCALE,
-    fallbackLng: FALLBACK_LOCALE,
+    lng: CATALOGUE_LOCALE,
+    fallbackLng: CATALOGUE_LOCALE,
     defaultNS: 'common',
     interpolation: { escapeValue: false },
     react: { useSuspense: false },
+    // A key a language has translated to nothing is not translated: English is shown.
+    returnEmptyString: false,
 });
 
 export default i18n;

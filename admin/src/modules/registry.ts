@@ -4,7 +4,9 @@ import {
     Bell,
     BrainCircuit,
     CircleUser,
+    Contact,
     Database,
+    FileText,
     Languages as LanguagesIcon,
     Globe,
     Images,
@@ -29,9 +31,11 @@ import { LanguagesScreen } from '@/screens/LanguagesScreen';
 import { MediaScreen } from '@/screens/MediaScreen';
 import { NotificationsScreen } from '@/screens/NotificationsScreen';
 import { OperationsScreen } from '@/screens/OperationsScreen';
+import { PagesScreen } from '@/screens/PagesScreen';
 import { PermissionsScreen } from '@/screens/PermissionsScreen';
 import { RolesScreen } from '@/screens/RolesScreen';
 import { SettingsScreen } from '@/screens/SettingsScreen';
+import { TeamScreen } from '@/screens/TeamScreen';
 import { TranslationsScreen } from '@/screens/TranslationsScreen';
 import { UsersScreen } from '@/screens/UsersScreen';
 
@@ -150,6 +154,14 @@ export const MODULE_GROUPS: ModuleGroup[] = [
         icon: UsersRound,
         order: 100,
     },
+    {
+        // Content every site needs whatever it is about (ADR 0055): written once, in every
+        // language, and published on its own terms.
+        id: 'content',
+        label: 'modules.content',
+        icon: FileText,
+        order: 150,
+    },
 ];
 
 export const MODULES: ModuleManifest[] = [
@@ -216,6 +228,28 @@ export const MODULES: ModuleManifest[] = [
         permission: 'permissions.view',
         order: 130,
         component: PermissionsScreen,
+    },
+    {
+        id: 'pages',
+        path: '/content/pages',
+        label: 'modules.pages',
+        icon: FileText,
+        // Reading is the gate. Writing, publishing and deleting are each their own
+        // permission, enforced by the API and reflected control by control in the editor.
+        permission: 'pages.view',
+        group: 'content',
+        order: 160,
+        component: PagesScreen,
+    },
+    {
+        id: 'team',
+        path: '/content/team',
+        label: 'modules.team',
+        icon: Contact,
+        permission: 'team.view',
+        group: 'content',
+        order: 170,
+        component: TeamScreen,
     },
     {
         id: 'ai',
