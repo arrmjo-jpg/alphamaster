@@ -93,6 +93,18 @@ export type AuthenticatedUserResource = {
     permissions: Array<string>;
 };
 
+/**
+ * What an edge invalidation names (ADR 0036, ADR 0053). The five scopes every CDN this platform is likely to front offers in some form. A driver that cannot honour one says so, and the request is refused before it is queued rather than accepted and silently dropped.
+ * | |
+ * |---|
+ * | `urls` <br/> Exact addresses, as the edge keyed them. |
+ * | `tags` <br/> Every object the origin labelled with a tag (ADR 0053 §3). |
+ * | `prefixes` <br/> Every object whose address starts with a prefix. |
+ * | `hosts` <br/> Every object served for a host name. |
+ * | `everything` <br/> Everything. An incident tool, never an invalidation strategy (ADR 0036). |
+ */
+export type EdgeInvalidationKind = 'urls' | 'tags' | 'prefixes' | 'hosts' | 'everything';
+
 export type ExportConfigurationRequest = {
     /**
      * Defaults to false when absent. Carrying ciphertext has to be asked for:
@@ -405,7 +417,7 @@ export type RoleRequest = {
      * same in a list while remaining distinct underneath.
      */
     label: string;
-    permissions: Array<'users.view' | 'users.create' | 'users.update' | 'users.delete' | 'settings.view' | 'settings.update' | 'settings.rollback' | 'settings.security.update' | 'settings.secrets.manage' | 'audit.view' | 'audit.manage' | 'settings.backup.manage' | 'roles.view' | 'roles.update' | 'permissions.view' | 'permissions.update' | 'integrations.view' | 'integrations.update' | 'notifications.view' | 'notifications.update' | 'notifications.send' | 'media.view' | 'media.delete' | 'ai.use'>;
+    permissions: Array<'users.view' | 'users.create' | 'users.update' | 'users.delete' | 'settings.view' | 'settings.update' | 'settings.rollback' | 'settings.security.update' | 'settings.secrets.manage' | 'audit.view' | 'audit.manage' | 'settings.backup.manage' | 'roles.view' | 'roles.update' | 'permissions.view' | 'permissions.update' | 'integrations.view' | 'integrations.update' | 'notifications.view' | 'notifications.update' | 'notifications.send' | 'media.view' | 'media.delete' | 'ai.use' | 'cdn.view' | 'cdn.purge' | 'cdn.purge_everything'>;
 };
 
 export type RoleResource = {
@@ -567,6 +579,22 @@ export type StoreAvatarRequest = {
      * Maximum file size: 5120 kilobytes.
      */
     file: Blob | File;
+};
+
+export type StoreCdnPurgeRequest = {
+    kind: EdgeInvalidationKind;
+    /**
+     * What to purge: absolute URLs, tags, absolute URL prefixes or host names. Absent for everything.
+     */
+    items?: Array<string>;
+    /**
+     * Why, in the operator's words. Kept on each purge request and in the audit trail.
+     */
+    reason?: string | null;
+    /**
+     * Purging everything only: the verified scope's name, typed out.
+     */
+    confirm?: string | null;
 };
 
 export type StoreLanguageRequest = {
@@ -1868,7 +1896,7 @@ export type AdminCacheFlushErrors = {
         };
     };
     /**
-     * CACHE_NAMESPACE_PROTECTED: auth and authorization cannot be invalidated here.
+     * CACHE_NAMESPACE_PROTECTED: the namespace declares that it cannot be invalidated here.
      */
     409: {
         success: boolean;
@@ -1901,6 +1929,405 @@ export type AdminCacheFlushResponses = {
 };
 
 export type AdminCacheFlushResponse = AdminCacheFlushResponses[keyof AdminCacheFlushResponses];
+
+export type AdminCdnShowData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/admin/cdn';
+};
+
+export type AdminCdnShowErrors = {
+    /**
+     * Unauthenticated
+     */
+    401: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+};
+
+export type AdminCdnShowError = AdminCdnShowErrors[keyof AdminCdnShowErrors];
+
+export type AdminCdnShowResponses = {
+    200: {
+        success: boolean;
+        data: {
+            configured: boolean;
+            provider: {
+                id: string;
+                driver: string;
+                label: string;
+                is_active: boolean;
+                has_credentials: boolean;
+                settings: {
+                    [key: string]: string | null;
+                };
+            } | null;
+            fields: {
+                settings: Array<string>;
+                credentials: Array<string>;
+            };
+            missing: Array<string>;
+            verification: {
+                scope_name: string | null;
+                scope_status: string | null;
+                plan: string | null;
+                verified_at: string | null;
+                error_code: string | null;
+                error_message: string | null;
+            } | null;
+            limits: Array<{
+                kind: string;
+                supported: boolean;
+                items_per_request: number | null;
+                requests_per_minute: number | null;
+            }>;
+            tag_header: string | null;
+            delivery: {
+                enabled: boolean;
+                base_url: string | null;
+            };
+            queue: {
+                pending: number;
+                processing: number;
+                failed: number;
+                succeeded_last_day: number;
+            };
+            last_attempt: {
+                status: string;
+                at: string;
+                error_code: string | null;
+                error_message: string | null;
+            } | null;
+        };
+    };
+};
+
+export type AdminCdnShowResponse = AdminCdnShowResponses[keyof AdminCdnShowResponses];
+
+export type AdminCdnVerifyData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/admin/cdn/verify';
+};
+
+export type AdminCdnVerifyErrors = {
+    /**
+     * Unauthenticated
+     */
+    401: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+    /**
+     * CDN_NOT_CONFIGURED: there is no CDN provider row.
+     */
+    404: {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'CDN_NOT_CONFIGURED';
+            message: string;
+            details: null;
+        };
+    };
+    /**
+     * PROVIDER_CONFIGURATION_INCOMPLETE: the provider lacks required configuration; details name the fields.
+     */
+    422: {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'PROVIDER_CONFIGURATION_INCOMPLETE';
+            message: string;
+            details: {
+                missing: Array<string> | [
+                    'driver'
+                ];
+            };
+        };
+    };
+};
+
+export type AdminCdnVerifyError = AdminCdnVerifyErrors[keyof AdminCdnVerifyErrors];
+
+export type AdminCdnVerifyResponses = {
+    200: {
+        success: boolean;
+        message: string;
+        data: {
+            reachable: boolean;
+            verification: {
+                scope_name: string | null;
+                scope_status: string | null;
+                plan: string | null;
+                verified_at: string | null;
+                error_code: string | null;
+                error_message: string | null;
+            };
+            limits: Array<{
+                kind: string;
+                supported: boolean;
+                items_per_request: number | null;
+                requests_per_minute: number | null;
+            }>;
+        };
+    };
+};
+
+export type AdminCdnVerifyResponse = AdminCdnVerifyResponses[keyof AdminCdnVerifyResponses];
+
+export type AdminCdnPurgesIndexData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Only requests in this state.
+         */
+        status?: string;
+        /**
+         * Page number.
+         */
+        page?: number;
+    };
+    url: '/admin/cdn/purges';
+};
+
+export type AdminCdnPurgesIndexErrors = {
+    /**
+     * Unauthenticated
+     */
+    401: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+};
+
+export type AdminCdnPurgesIndexError = AdminCdnPurgesIndexErrors[keyof AdminCdnPurgesIndexErrors];
+
+export type AdminCdnPurgesIndexResponses = {
+    200: {
+        success: boolean;
+        data: Array<{
+            id: string;
+            driver: string;
+            kind: string;
+            kind_label: string;
+            items: Array<string>;
+            item_count: number;
+            status: string;
+            status_label: string;
+            attempts: number;
+            reason: string | null;
+            requested_by: string | null;
+            error_code: string | null;
+            error_message: string | null;
+            provider_reference: string | null;
+            available_at: string | null;
+            completed_at: string | null;
+            created_at: string | null;
+        }>;
+        meta: {
+            current_page: number;
+            last_page: number;
+            per_page: number;
+            total: number;
+        };
+    };
+};
+
+export type AdminCdnPurgesIndexResponse = AdminCdnPurgesIndexResponses[keyof AdminCdnPurgesIndexResponses];
+
+export type AdminCdnPurgesStoreData = {
+    body: StoreCdnPurgeRequest;
+    path?: never;
+    query?: never;
+    url: '/admin/cdn/purges';
+};
+
+export type AdminCdnPurgesStoreErrors = {
+    /**
+     * Unauthenticated
+     */
+    401: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+    /**
+     * FORBIDDEN: purging everything needs cdn.purge_everything.
+     */
+    403: string;
+    /**
+     * CDN_NOT_CONFIGURED: no active, configured CDN provider. CDN_NOT_VERIFIED: purging everything needs a verified scope.
+     */
+    409: string;
+    /**
+     * CDN_CONFIRMATION_MISMATCH: the confirmation is not the verified scope name. CDN_KIND_UNSUPPORTED: the vendor cannot purge this kind.
+     */
+    422: {
+        /**
+         * Errors overview.
+         */
+        message: string;
+        /**
+         * A detailed description of each field that failed validation.
+         */
+        errors: {
+            [key: string]: Array<string>;
+        };
+    };
+    /**
+     * TOO_MANY_ATTEMPTS: purging everything is limited per operator.
+     */
+    429: string;
+};
+
+export type AdminCdnPurgesStoreError = AdminCdnPurgesStoreErrors[keyof AdminCdnPurgesStoreErrors];
+
+export type AdminCdnPurgesStoreResponses = {
+    200: {
+        [key: string]: unknown;
+    };
+    202: {
+        success: boolean;
+        message: string;
+        data: Array<{
+            id: string;
+            driver: string;
+            kind: string;
+            kind_label: string;
+            items: Array<string>;
+            item_count: number;
+            status: string;
+            status_label: string;
+            attempts: number;
+            reason: string | null;
+            requested_by: string | null;
+            error_code: string | null;
+            error_message: string | null;
+            provider_reference: string | null;
+            available_at: string | null;
+            completed_at: string | null;
+            created_at: string | null;
+        }>;
+    };
+};
+
+export type AdminCdnPurgesStoreResponse = AdminCdnPurgesStoreResponses[keyof AdminCdnPurgesStoreResponses];
+
+export type AdminCdnPurgesRetryData = {
+    body?: never;
+    path: {
+        purge: string;
+    };
+    query?: never;
+    url: '/admin/cdn/purges/{purge}/retry';
+};
+
+export type AdminCdnPurgesRetryErrors = {
+    /**
+     * Unauthenticated
+     */
+    401: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+    403: {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'FORBIDDEN';
+            message: string;
+            details: null;
+        };
+    };
+    /**
+     * NOT_FOUND: no such purge request.
+     */
+    404: {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'NOT_FOUND';
+            message: string;
+            details: null;
+        };
+    };
+    /**
+     * CDN_PURGE_NOT_RETRYABLE: only a failed purge can be retried. CDN_NOT_CONFIGURED: no usable provider.
+     */
+    409: {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'CDN_NOT_CONFIGURED';
+            message: string;
+            details: null;
+        };
+    } | {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'CDN_PURGE_NOT_RETRYABLE';
+            message: string;
+            details: null;
+        };
+    };
+};
+
+export type AdminCdnPurgesRetryError = AdminCdnPurgesRetryErrors[keyof AdminCdnPurgesRetryErrors];
+
+export type AdminCdnPurgesRetryResponses = {
+    202: {
+        success: boolean;
+        message: string;
+        data: {
+            id: string;
+            driver: string;
+            kind: string;
+            kind_label: string;
+            items: Array<string>;
+            item_count: number;
+            status: string;
+            status_label: string;
+            attempts: number;
+            reason: string | null;
+            requested_by: string | null;
+            error_code: string | null;
+            error_message: string | null;
+            provider_reference: string | null;
+            available_at: string | null;
+            completed_at: string | null;
+            created_at: string | null;
+        };
+    };
+};
+
+export type AdminCdnPurgesRetryResponse = AdminCdnPurgesRetryResponses[keyof AdminCdnPurgesRetryResponses];
 
 export type AdminConfigurationExportData = {
     body?: ExportConfigurationRequest;

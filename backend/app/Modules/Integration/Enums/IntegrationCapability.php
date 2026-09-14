@@ -49,6 +49,16 @@ enum IntegrationCapability: string
     case SOCIAL_LOGIN = 'social_login';
 
     /**
+     * Invalidating a content delivery network's edge cache (ADR 0053).
+     *
+     * Consumed through Core's `EdgeCacheContract`, so the modules that invalidate — and the
+     * domain modules that will — never learn which vendor fronts the platform. No failover:
+     * a zone belongs to one vendor, and purging a second vendor's cache would not remove
+     * the object the first one is serving.
+     */
+    case CDN = 'cdn';
+
+    /**
      * @return array<int, string>
      */
     public static function values(): array

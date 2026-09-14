@@ -6,6 +6,7 @@ namespace App\Modules\Integration\Providers;
 
 use App\Modules\Core\Ai\TextGeneratorContract;
 use App\Modules\Core\Backup\ConfigurationPortability;
+use App\Modules\Core\Contracts\EdgeCacheContract;
 use App\Modules\Integration\Backup\ProviderPortability;
 use App\Modules\Integration\Contracts\CaptchaVerifierContract;
 use App\Modules\Integration\Contracts\PushDispatcherContract;
@@ -14,6 +15,8 @@ use App\Modules\Integration\Contracts\SocialLoginGatewayContract;
 use App\Modules\Integration\Services\AiManager;
 use App\Modules\Integration\Services\CaptchaManager;
 use App\Modules\Integration\Services\CaptchaVerifier;
+use App\Modules\Integration\Services\CdnEdgeCache;
+use App\Modules\Integration\Services\CdnManager;
 use App\Modules\Integration\Services\PushDispatcher;
 use App\Modules\Integration\Services\PushManager;
 use App\Modules\Integration\Services\SmsDispatcher;
@@ -65,6 +68,14 @@ class IntegrationServiceProvider extends ServiceProvider
         // provider is usable, redeeming the code and recording the attempt stay here. No
         // failover, because an authorization code belongs to the vendor that issued it.
         $this->app->singleton(SocialLoginGatewayContract::class, SocialLoginGateway::class);
+
+        $this->app->singleton(CdnManager::class, fn ($app): CdnManager => new CdnManager($app));
+
+        // The edge cache seam is Core's, so every module — and every domain module to come —
+        // invalidates the edge without knowing Integration exists (ADR 0053). Integration
+        // binds it, as the module that owns vendors.
+        $this->app->singleton(CdnEdgeCache::class);
+        $this->app->singleton(EdgeCacheContract::class, fn ($app): EdgeCacheContract => $app->make(CdnEdgeCache::class));
     }
 
     /**

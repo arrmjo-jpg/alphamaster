@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace App\Modules\Localization\Services;
 
 use App\Modules\Core\Cache\CacheNamespace;
+use App\Modules\Core\Contracts\EdgeCacheContract;
 use App\Modules\Core\Contracts\LocaleResolverInterface;
 use App\Modules\Core\Contracts\PlatformCacheContract;
+use App\Modules\Core\Delivery\EdgeCacheTag;
+use App\Modules\Core\Delivery\EdgeInvalidation;
 use App\Modules\Localization\Models\Language;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -243,6 +246,22 @@ class LocaleResolver implements LocaleResolverInterface
         $this->cache->forget(CacheNamespace::LOCALIZATION, self::RESOURCE_ACTIVE);
         $this->cache->forget(CacheNamespace::LOCALIZATION, self::RESOURCE_DEFAULT);
         $this->cache->forget(CacheNamespace::LOCALIZATION, self::RESOURCE_KNOWN);
+
+        // The public language list is cached at the edge under this tag (ADR 0053). The
+        // application cache and the edge are separate layers; forgetting the first does
+        // nothing to copies in the second.
+        rescue(static fn () => app(EdgeCacheContract::class)->invalidate(
+            EdgeInvalidation::tags([self::edgeTag()]),
+            'localization.languages_changed',
+        ));
+    }
+
+    /**
+     * The edge cache tag the public language list carries.
+     */
+    public static function edgeTag(): string
+    {
+        return EdgeCacheTag::for('localization', 'languages');
     }
 
     /**

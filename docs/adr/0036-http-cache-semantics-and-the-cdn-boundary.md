@@ -112,4 +112,6 @@ Every new endpoint acquires a question it must answer — which row of the table
 
 The CDN resolver's dead configuration path is closed by provisioning `cdn.*` through the definition registry (ADR 0018 as revised), which is the first time that resolver becomes reachable at all.
 
+**Implemented by ADR 0053.** Routes opt in through named HTTP cache profiles, and unclassified responses are `no-store`. Edge invalidation is an Integration capability behind Core's `EdgeCacheContract`, with Cloudflare as the first driver.
+
 The risk this record carries is that a later change alters what a response contains without altering its validator, producing a stale 304. The mitigation is that validators are derived from the payload rather than maintained beside it, and that the correctness tests attempt this deliberately rather than assuming it cannot happen.

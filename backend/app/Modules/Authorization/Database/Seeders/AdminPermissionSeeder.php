@@ -59,6 +59,11 @@ class AdminPermissionSeeder extends Seeder
                 // this permission governs. It is separately grantable for the roles
                 // that do not configure anything.
                 AdminPermission::AI_USE,
+                // Seeing the CDN and purging named objects are day-to-day operation.
+                // Purging everything is not: it stays with super_admin until an operator
+                // grants it, because its failure mode is an origin outage (ADR 0036).
+                AdminPermission::CDN_VIEW,
+                AdminPermission::CDN_PURGE,
             ],
             'editor' => [
                 AdminPermission::USERS_VIEW,

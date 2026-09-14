@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Modules\Media\Services;
 
+use App\Modules\Core\Contracts\EdgeCacheContract;
+use App\Modules\Core\Delivery\EdgeInvalidation;
 use App\Modules\Media\Contracts\CdnUrlResolverContract;
 use App\Modules\Media\Contracts\MediaServiceContract;
 use App\Modules\Media\Contracts\MediaStorageContract;
@@ -34,6 +36,7 @@ class MediaService implements MediaServiceContract
         private readonly MediaStorageContract $storage,
         private readonly CdnUrlResolverContract $cdn,
         private readonly MediaAccessResolver $access,
+        private readonly ?EdgeCacheContract $edge = null,
     ) {}
 
     /**
@@ -156,9 +159,40 @@ class MediaService implements MediaServiceContract
     /**
      * Soft delete only. The bytes are purged by an explicit job so a mistake is
      * recoverable and a failed purge is retryable.
+     *
+     * A public file served through a CDN is also removed from the edge (ADR 0053). Deleting
+     * the record stops the platform handing out its address; without a purge the edge would
+     * go on serving the bytes to anyone who kept it, for as long as the edge keeps them.
      */
     public function delete(MediaFile $media): void
     {
+        $edgeUrl = $this->edgeUrl($media);
+
         $media->delete();
+
+        if ($edgeUrl !== null) {
+            rescue(fn () => ($this->edge ?? app(EdgeCacheContract::class))
+                ->invalidate(EdgeInvalidation::urls([$edgeUrl]), 'media.deleted'));
+        }
+    }
+
+    /**
+     * The absolute address the edge serves this file at, or null when it is not on one.
+     */
+    private function edgeUrl(MediaFile $media): ?string
+    {
+        if (! $media->isPubliclyReadable() || ! $this->cdn->isEnabled()) {
+            return null;
+        }
+
+        $storageUrl = $this->storage->url($media->path, $media->disk);
+
+        if ($storageUrl === null) {
+            return null;
+        }
+
+        $resolved = $this->cdn->resolve($media, $storageUrl);
+
+        return preg_match('#^https?://#i', $resolved) === 1 ? $resolved : null;
     }
 }

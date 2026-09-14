@@ -139,10 +139,10 @@ test('every case of every enum these resources expose resolves in both locales',
         }
     }
 
-    // Ten cases per locale: AccountType has two, NotificationType three, and
-    // IntegrationCapability five — captcha joined sms, then AI (ADR 0044), push
-    // (ADR 0045) and social login (ADR 0050).
-    expect($checked)->toBe(20);
+    // Eleven cases per locale: AccountType has two, NotificationType three, and
+    // IntegrationCapability six — captcha joined sms, then AI (ADR 0044), push
+    // (ADR 0045), social login (ADR 0050) and the CDN (ADR 0053).
+    expect($checked)->toBe(22);
 });
 
 // ── The shapes ───────────────────────────────────────────────────────────────

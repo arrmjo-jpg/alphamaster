@@ -1,6 +1,8 @@
 <?php
 
+use App\Modules\Integration\Jobs\PruneCdnPurgeRequests;
 use App\Modules\Integration\Jobs\PruneIntegrationUsageLogs;
+use App\Modules\Integration\Jobs\SweepCdnPurgeRequests;
 use App\Modules\Media\Jobs\PurgeDeletedMedia;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -32,6 +34,13 @@ Schedule::call(static function () use ($retention): void {
 Schedule::call(static function () use ($retention): void {
     PruneIntegrationUsageLogs::dispatch($retention('operations.integration_usage_retention_days', 90));
 })->daily()->name('integrations:prune-usage');
+
+// Edge invalidations the queue lost, and finished ones past the retention window (ADR 0053).
+Schedule::job(new SweepCdnPurgeRequests)->everyFiveMinutes()->name('cdn:sweep-purges');
+
+Schedule::call(static function () use ($retention): void {
+    PruneCdnPurgeRequests::dispatch($retention('operations.integration_usage_retention_days', 90));
+})->daily()->name('cdn:prune-purges');
 
 Schedule::command('auth:prune-codes')->daily();
 

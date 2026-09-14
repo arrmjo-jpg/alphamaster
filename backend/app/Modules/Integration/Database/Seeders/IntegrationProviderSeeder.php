@@ -115,6 +115,19 @@ class IntegrationProviderSeeder extends Seeder
                 'priority' => 0,
             ],
             [
+                // Inactive and credential-less, like every other vendor row. A zone id is a
+                // setting and the API token a credential. There is no log-style CDN driver: a
+                // purge that answers "done" without asking a vendor leaves stale content
+                // behind a green interface, which ADR 0036 forbids outright.
+                'capability' => IntegrationCapability::CDN,
+                'driver' => 'cloudflare',
+                'label' => 'Cloudflare',
+                'settings' => ['zone_id' => ''],
+                'is_active' => false,
+                'is_default' => true,
+                'priority' => 0,
+            ],
+            [
                 'capability' => IntegrationCapability::AI,
                 'driver' => 'anthropic',
                 'label' => 'Anthropic',

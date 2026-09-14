@@ -197,6 +197,18 @@ return [
         'password' => [
             'min' => 'The password must be at least :minimum characters, the minimum this platform is configured to require.',
         ],
+        'cdn_item' => [
+            'empty' => 'An item cannot be empty.',
+            'too_long' => 'This item is longer than the CDN accepts.',
+            'characters' => 'A cache tag may contain only letters, digits and . _ : / - characters.',
+            'host' => 'This is not a host name.',
+            'not_absolute' => 'Give a complete address, starting with https://.',
+            'scheme' => 'Only http and https addresses can be purged.',
+            'userinfo' => 'An address to purge cannot contain credentials.',
+            'fragment' => 'An address to purge cannot contain a # fragment; the edge never sees it.',
+            'no_items' => 'Purging everything takes no items.',
+            'invalid' => 'One of the items cannot be purged.',
+        ],
         'preferred_locale' => [
             'exists' => 'An account may only prefer a language the platform has configured.',
         ],

@@ -111,6 +111,23 @@ enum AdminPermission: string implements PermissionDefinition
      */
     case AI_USE = 'ai.use';
 
+    /**
+     * See the CDN: its configuration state, limits and every purge request with its outcome
+     * (ADR 0053). Configuring the vendor stays `integrations.update`.
+     */
+    case CDN_VIEW = 'cdn.view';
+
+    /**
+     * Purge named objects from the edge: URLs, tags, prefixes, hosts.
+     */
+    case CDN_PURGE = 'cdn.purge';
+
+    /**
+     * Purge everything. Its own permission because it is an incident tool with an origin
+     * outage as its failure mode, not an invalidation (ADR 0036).
+     */
+    case CDN_PURGE_EVERYTHING = 'cdn.purge_everything';
+
     public function key(): string
     {
         return $this->value;
@@ -133,7 +150,7 @@ enum AdminPermission: string implements PermissionDefinition
             self::NOTIFICATIONS_VIEW, self::NOTIFICATIONS_UPDATE,
             self::NOTIFICATIONS_SEND => 'notification',
             self::MEDIA_VIEW, self::MEDIA_DELETE => 'media',
-            self::AI_USE => 'integration',
+            self::AI_USE, self::CDN_VIEW, self::CDN_PURGE, self::CDN_PURGE_EVERYTHING => 'integration',
         };
     }
 
