@@ -10,9 +10,9 @@ use App\Modules\Media\Enums\MediaType;
 /**
  * Resolves the processor for a media type, if one is registered.
  *
- * Returns null rather than throwing when a type has no processor: this environment
- * has no gd, imagick or ffprobe, so a video legitimately has nothing to run, and that
- * is an absence rather than an error.
+ * Returns null rather than throwing when a type has no processor: a type nothing is
+ * registered for legitimately has nothing to run, and that is an absence rather than an
+ * error.
  */
 class ProcessorRegistry
 {

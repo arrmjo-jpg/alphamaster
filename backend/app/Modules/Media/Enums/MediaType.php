@@ -32,6 +32,14 @@ enum MediaType: string
     }
 
     /**
+     * Whether a file of this type plays for a length of time, and so has a duration to read.
+     */
+    public function hasDuration(): bool
+    {
+        return $this === self::VIDEO || $this === self::AUDIO;
+    }
+
+    /**
      * @return array<int, string>
      */
     public static function values(): array
