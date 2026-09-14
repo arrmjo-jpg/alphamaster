@@ -137,9 +137,19 @@ test('every custom key resolves in both locales and never leaks a raw key', func
         'validation.custom.settings.required',
         'validation.custom.settings.array',
         'validation.custom.settings.max',
+        'validation.custom.credentials.array',
+        'validation.custom.credentials.project_id.regex',
+        'validation.custom.credentials.client_email.regex',
+        'validation.custom.credentials.private_key.pem',
+        'validation.custom.service_account_json.json',
+        'validation.custom.service_account_json.type',
+        'validation.custom.service_account_json.project_id',
+        'validation.custom.service_account_json.client_email',
+        'validation.custom.service_account_json.private_key',
+        'validation.custom.service_account_json.token_uri',
     ];
 
-    expect($keys)->toHaveCount(10);
+    expect($keys)->toHaveCount(20);
 
     foreach (['en', 'ar'] as $locale) {
         app()->setLocale($locale);

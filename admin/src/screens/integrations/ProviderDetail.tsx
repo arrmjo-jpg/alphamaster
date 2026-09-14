@@ -177,6 +177,32 @@ export function ProviderDetail({ provider, usage, mayUpdate, onClose }: Provider
                 </div>
 
                 <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-(length:--text-sm)">
+                    {provider.driver === 'fcm' ? (
+                        // What can be said about a stored service account without
+                        // reading it: that one is there, and the project it sends
+                        // through. Nothing else in the file is published.
+                        <>
+                            <dt className="text-(--text-muted)">
+                                {t('integrations.serviceAccount.account')}
+                            </dt>
+                            <dd className="text-(--text-primary)">
+                                {provider.has_credentials
+                                    ? t('integrations.serviceAccount.configured')
+                                    : t('integrations.serviceAccount.notConfigured')}
+                            </dd>
+                            {provider.credential_summary ? (
+                                <>
+                                    <dt className="text-(--text-muted)">
+                                        {t('integrations.serviceAccount.project')}
+                                    </dt>
+                                    <dd className="text-(--text-primary)" data-technical>
+                                        {provider.credential_summary.project_id ??
+                                            t('integrations.serviceAccount.unreadable')}
+                                    </dd>
+                                </>
+                            ) : null}
+                        </>
+                    ) : null}
                     <dt className="text-(--text-muted)">{t('integrations.attemptsLabel')}</dt>
                     <dd className="text-(--text-primary)">
                         {attempts === null
@@ -357,9 +383,13 @@ export function ProviderDetail({ provider, usage, mayUpdate, onClose }: Provider
                                         variant="secondary"
                                     >
                                         <KeyRound aria-hidden className="size-3.5" />
-                                        {provider.has_credentials
-                                            ? t('integrations.credentials.replace')
-                                            : t('integrations.credentials.set')}
+                                        {provider.driver === 'fcm'
+                                            ? provider.has_credentials
+                                                ? t('integrations.serviceAccount.replace')
+                                                : t('integrations.serviceAccount.set')
+                                            : provider.has_credentials
+                                              ? t('integrations.credentials.replace')
+                                              : t('integrations.credentials.set')}
                                     </Button>
 
                                     {provider.has_credentials ? (
@@ -384,10 +414,14 @@ export function ProviderDetail({ provider, usage, mayUpdate, onClose }: Provider
                                         // inputs cannot hold (ADR 0045 §2).
                                         <ServiceAccountField
                                             busy={save.isPending}
+                                            {...fieldError('service_account_json')}
                                             onCancel={() => setCredentials(null)}
-                                            onSubmit={(value) =>
+                                            onSubmit={(document) =>
                                                 save.mutate(
-                                                    { credentials: value },
+                                                    // The file as pasted. The platform
+                                                    // validates it and keeps only what
+                                                    // the driver reads.
+                                                    { service_account_json: document },
                                                     { onSuccess: () => setCredentials(null) },
                                                 )
                                             }

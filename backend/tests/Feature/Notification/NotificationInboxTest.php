@@ -12,6 +12,7 @@ use App\Modules\Settings\Database\Seeders\SettingSeeder;
 use App\Modules\User\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 
 uses(RefreshDatabase::class);
 
@@ -92,6 +93,64 @@ test('an inbox is one account and nothing reaches another', function (): void {
     expect($other->fresh()->read_at)->toBeNull();
 });
 
+// ── One record, as a device fetches it after a push ──────────────────────────
+
+test('a device fetches the one record a push named, with its own credential', function (): void {
+    [$user, $token] = signedIn();
+    raise($user);
+
+    $record = NotificationRecord::query()->where('notifiable_id', $user->id)->firstOrFail();
+
+    $response = $this->withToken($token)->getJson('/api/v1/notifications/'.$record->id)->assertOk();
+
+    expect($response->json('data.id'))->toBe($record->id)
+        ->and($response->json('data.type'))->toBe('admin.announcement')
+        ->and($response->json('data.subject'))->toBe('A subject')
+        ->and($response->json('data.body'))->toBe('A body')
+        // Fetching is not reading. A phone putting the message in a system
+        // notification is not the person reading it.
+        ->and($response->json('data.read_at'))->toBeNull()
+        ->and($record->fresh()->read_at)->toBeNull();
+});
+
+test('another account\'s record, or one that does not exist, is not found', function (): void {
+    [, $token] = signedIn();
+    [$theirs] = signedIn();
+    raise($theirs);
+
+    $other = NotificationRecord::query()->where('notifiable_id', $theirs->id)->firstOrFail();
+
+    $this->withToken($token)->getJson('/api/v1/notifications/'.$other->id)->assertNotFound();
+    $this->withToken($token)->getJson('/api/v1/notifications/'.Str::uuid()->toString())->assertNotFound();
+});
+
+test('a path that is not a record id is not found rather than a server error', function (): void {
+    [, $token] = signedIn();
+
+    // The id column is a uuid. A word in its place must never reach the database as one.
+    $this->withToken($token)->getJson('/api/v1/notifications/not-a-record')->assertNotFound();
+
+    // `read-all` is a real path with a POST route, so a GET on it is refused for its
+    // method — exactly as before a record could be fetched — and is never read as a
+    // record id.
+    $this->withToken($token)->getJson('/api/v1/notifications/read-all')->assertStatus(405);
+});
+
+test('a record is behind the perimeter', function (): void {
+    $this->getJson('/api/v1/notifications/'.Str::uuid()->toString())->assertUnauthorized();
+});
+
+test('the literal routes beside a record id still resolve to themselves', function (): void {
+    [, $token] = signedIn();
+
+    // `preferences` and `devices` are declared before `{notification}`, so neither is
+    // ever read as a record id.
+    expect($this->withToken($token)->getJson('/api/v1/notifications/preferences')->assertOk()->json('data'))
+        ->toBeArray()->not->toBeEmpty();
+    expect($this->withToken($token)->getJson('/api/v1/notifications/devices')->assertOk()->json('data'))
+        ->toBe([]);
+});
+
 test('the unread count describes the inbox rather than the page', function (): void {
     [$user, $token] = signedIn();
 
@@ -164,11 +223,12 @@ test('a record cannot be deleted, because it is the evidence it was sent', funct
 
     $record = NotificationRecord::query()->where('notifiable_id', $user->id)->firstOrFail();
 
-    // No route at all, deliberately — which is why this is a 404 and not a 405. A
-    // recipient who could remove a record could remove the evidence that they were
-    // told, the same reason the channel cannot be silenced (ADR 0019).
+    // No delete, deliberately. A recipient who could remove a record could remove the
+    // evidence that they were told, the same reason the channel cannot be silenced
+    // (ADR 0019). The path is now a real resource — a device fetches one record by it
+    // after a push (ADR 0045 §4) — so the missing verb reads as 405 rather than 404.
     $this->withToken($token)->deleteJson('/api/v1/notifications/'.$record->id)
-        ->assertNotFound();
+        ->assertStatus(405);
 
     expect($record->fresh())->not->toBeNull();
 });

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Integration\Resources;
 
+use App\Modules\Integration\Exceptions\CredentialDecryptionException;
 use App\Modules\Integration\Models\IntegrationProvider;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -39,10 +40,43 @@ class IntegrationProviderResource extends JsonResource
              */
             'settings' => $this->resource->settings,
             'has_credentials' => $this->resource->hasCredentials(),
+            /**
+             * For a Firebase provider with a stored service account, the project it sends
+             * through. Null for every other provider, and when nothing is stored.
+             *
+             * @var array{project_id: string|null}|null
+             */
+            'credential_summary' => $this->credentialSummary(),
             'is_active' => $this->resource->is_active,
             'is_default' => $this->resource->is_default,
             'priority' => $this->resource->priority,
             'updated_at' => $this->resource->updated_at?->toIso8601String(),
         ];
+    }
+
+    /**
+     * What can be said about a stored service account without revealing it.
+     *
+     * The project id is the one value in a service account that is not secret — it is in
+     * every client's Firebase configuration — and it is what an operator needs to see
+     * that the right file was saved. It is read from the credential rather than kept
+     * beside it, so it can never describe a key other than the one in use; a credential
+     * that no longer decrypts reports a null project rather than failing the listing.
+     *
+     * @return array{project_id: string|null}|null
+     */
+    private function credentialSummary(): ?array
+    {
+        if ($this->resource->driver !== 'fcm' || ! $this->resource->hasCredentials()) {
+            return null;
+        }
+
+        try {
+            $projectId = $this->resource->getCredentials()['project_id'] ?? null;
+        } catch (CredentialDecryptionException) {
+            $projectId = null;
+        }
+
+        return ['project_id' => is_string($projectId) ? $projectId : null];
     }
 }

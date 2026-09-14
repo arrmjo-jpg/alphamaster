@@ -131,6 +131,13 @@ export type IntegrationProviderResource = {
         [key: string]: string | null;
     } | null;
     has_credentials: boolean;
+    /**
+     * For a Firebase provider with a stored service account, the project it sends
+     * through. Null for every other provider, and when nothing is stored.
+     */
+    credential_summary: {
+        project_id: string | null;
+    } | null;
     is_active: boolean;
     is_default: boolean;
     priority: number;
@@ -764,6 +771,13 @@ export type UpdateIntegrationProviderRequest = {
     credentials?: {
         [key: string]: string;
     } | null;
+    /**
+     * A Google service-account file, pasted whole. Firebase providers only. It
+     * replaces the stored credentials in full, and only the project, the client
+     * address and the private key are kept. Remove credentials with
+     * `credentials: null`; omitting this leaves them as they are.
+     */
+    service_account_json?: string;
     is_active?: boolean;
     priority?: number;
 };
@@ -4177,6 +4191,42 @@ export type NotificationsReadResponses = {
 };
 
 export type NotificationsReadResponse = NotificationsReadResponses[keyof NotificationsReadResponses];
+
+export type NotificationsShowData = {
+    body?: never;
+    path: {
+        notification: string;
+    };
+    query?: never;
+    url: '/notifications/{notification}';
+};
+
+export type NotificationsShowErrors = {
+    /**
+     * Unauthenticated
+     */
+    401: {
+        /**
+         * Error overview.
+         */
+        message: string;
+    };
+    /**
+     * The caller has no record with that identifier.
+     */
+    404: string;
+};
+
+export type NotificationsShowError = NotificationsShowErrors[keyof NotificationsShowErrors];
+
+export type NotificationsShowResponses = {
+    200: {
+        success: boolean;
+        data: NotificationRecordResource;
+    };
+};
+
+export type NotificationsShowResponse = NotificationsShowResponses[keyof NotificationsShowResponses];
 
 export type NotificationsPreferencesIndexData = {
     body?: never;

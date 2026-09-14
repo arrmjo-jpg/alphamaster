@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\Modules\Integration\Controllers\Admin;
 
+use App\Modules\Core\Audit\AuditAction;
+use App\Modules\Core\Contracts\AuditRecorderContract;
 use App\Modules\Core\Controllers\BaseApiController;
+use App\Modules\Integration\Data\ServiceAccount;
 use App\Modules\Integration\Enums\IntegrationCapability;
 use App\Modules\Integration\Models\IntegrationProvider;
 use App\Modules\Integration\Models\IntegrationUsageLog;
@@ -18,6 +21,10 @@ use Illuminate\Support\Facades\DB;
 
 class IntegrationProviderAdminController extends BaseApiController
 {
+    public function __construct(
+        protected AuditRecorderContract $audit
+    ) {}
+
     /**
      * List configured providers.
      */
@@ -56,10 +63,32 @@ class IntegrationProviderAdminController extends BaseApiController
                 'priority' => $validated['priority'] ?? $provider->priority,
             ]);
 
+            // Read before the credentials are touched, so the column holding them can
+            // never be named among the fields that changed.
+            $fields = array_values(array_diff(array_keys($provider->getDirty()), ['credentials']));
+
             // Credentials are write-only: omitting the key leaves the stored secret
             // untouched, and sending null clears it. They are never read back out.
-            if (array_key_exists('credentials', $validated)) {
-                $provider->setCredentials($validated['credentials']);
+            // The same vocabulary the AI control centre records a key with.
+            $credentials = 'unchanged';
+
+            // A pasted service-account file becomes the three values the driver reads,
+            // and the file itself is not kept (ADR 0045 §2). It is a replacement, like
+            // every credential write; removal stays `credentials: null`, its own act.
+            $serviceAccount = array_key_exists('service_account_json', $validated)
+                ? ServiceAccount::parse((string) $validated['service_account_json'])
+                : null;
+
+            if ($serviceAccount instanceof ServiceAccount || array_key_exists('credentials', $validated)) {
+                $hadCredentials = $provider->hasCredentials();
+                $provider->setCredentials(
+                    $serviceAccount instanceof ServiceAccount ? $serviceAccount->credentials() : $validated['credentials']
+                );
+                $credentials = match (true) {
+                    ! $provider->hasCredentials() => 'cleared',
+                    $hadCredentials => 'replaced',
+                    default => 'set',
+                };
             }
 
             // A social login provider declares its required configuration, and one missing
@@ -119,6 +148,19 @@ class IntegrationProviderAdminController extends BaseApiController
             }
 
             $provider->save();
+
+            // A key rotation is the change an operator most needs to find afterwards,
+            // and until now it left no trace at all. What is recorded is that the
+            // credentials were set, replaced or cleared, and which other fields changed
+            // — by name. Never a value, and nothing derived from one (ADR 0037).
+            if ($fields !== [] || $credentials !== 'unchanged') {
+                $this->audit->succeeded(AuditAction::INTEGRATION_PROVIDER_UPDATED, $provider->id, [
+                    'capability' => $provider->capability->value,
+                    'driver' => $provider->driver,
+                    'fields' => $fields,
+                    'credentials' => $credentials,
+                ]);
+            }
 
             return $this->successResponse(new IntegrationProviderResource($provider->refresh()), 'Provider updated.');
         });

@@ -17,7 +17,9 @@ use App\Modules\Notification\Models\PushDevice;
 use App\Modules\Settings\Database\Seeders\SettingSeeder;
 use App\Modules\User\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 
 uses(RefreshDatabase::class);
@@ -209,6 +211,75 @@ test('a platform with no push provider does not try, and notifies on its other c
     Http::assertNothingSent();
 });
 
+/**
+ * The warnings written while `$run` executes.
+ *
+ * Collected from the framework's own log event rather than by replacing the logger, so
+ * every other channel the notification uses keeps its real logger.
+ *
+ * @return list<MessageLogged>
+ */
+function capturedWarnings(Closure $run): array
+{
+    $warnings = [];
+
+    Event::listen(MessageLogged::class, function (MessageLogged $event) use (&$warnings): void {
+        if ($event->level === 'warning') {
+            $warnings[] = $event;
+        }
+    });
+
+    $run();
+
+    return $warnings;
+}
+
+test('a push dropped for want of a provider is logged, without the token or the words', function (): void {
+    Http::fake();
+    [$user] = accountWithDevice('a-token-the-log-must-not-carry');
+
+    $warnings = array_values(array_filter(
+        capturedWarnings(fn () => notify($user)),
+        fn (MessageLogged $event): bool => str_contains($event->message, 'no push provider is configured'),
+    ));
+
+    expect($warnings)->toHaveCount(1)
+        ->and($warnings[0]->context)->toBe([
+            'recipient' => $user->id,
+            'type' => 'security.alert',
+            'devices' => 1,
+            'error_code' => 'NOT_CONFIGURED',
+        ]);
+
+    // An address anybody could send to, and the words of the message: neither is
+    // an operator's to read in a log.
+    $written = $warnings[0]->message.json_encode($warnings[0]->context);
+
+    expect($written)->not->toContain('a-token-the-log-must-not-carry')
+        ->and($written)->not->toContain('Sami')
+        ->and($written)->not->toContain('sign-in');
+
+    Http::assertNothingSent();
+});
+
+test('a recipient with no handset loses nothing, so nothing is logged for them', function (): void {
+    $user = makeAccount(['email' => 'no-handset@example.test']);
+
+    NotificationPreference::query()->create([
+        'user_id' => $user->id,
+        'type' => NotificationType::SECURITY_ALERT->value,
+        'channel' => NotificationChannel::PUSH->value,
+        'enabled' => true,
+    ]);
+
+    $warnings = array_filter(
+        capturedWarnings(fn () => notify($user)),
+        fn (MessageLogged $event): bool => str_contains($event->message, 'no push provider is configured'),
+    );
+
+    expect($warnings)->toBe([]);
+});
+
 // ── Token lifecycle ──────────────────────────────────────────────────────────
 
 test('a vendor saying the token is dead removes the device', function (): void {
@@ -360,6 +431,52 @@ test('signing out stops delivery to the handset that session registered', functi
     $remaining = PushDevice::query()->forAccount($user->id)->pluck('device_id')->all();
 
     expect($remaining)->toBe(['handset-2']);
+});
+
+test('a registration names a platform the registry knows', function (): void {
+    $user = makeAccount(['email' => 'bad-platform@example.test']);
+    $token = $user->createToken('test-token', ['user:access'])->plainTextToken;
+
+    $this->withToken($token)->postJson('/api/v1/notifications/devices', [
+        'token' => 'a-token',
+        'device_id' => 'handset-1',
+        'platform' => 'blackberry',
+    ])->assertUnprocessable()->assertJsonValidationErrors(responseKey: 'error.details', errors: ['platform']);
+
+    expect(PushDevice::query()->count())->toBe(0);
+});
+
+test('a registration without a token, a device identifier and a platform is refused', function (): void {
+    $user = makeAccount(['email' => 'empty-registration@example.test']);
+    $token = $user->createToken('test-token', ['user:access'])->plainTextToken;
+
+    $this->withToken($token)->postJson('/api/v1/notifications/devices', [])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(responseKey: 'error.details', errors: ['token', 'device_id', 'platform']);
+
+    // Longer than any vendor issues: an address this long is not an address.
+    $this->withToken($token)->postJson('/api/v1/notifications/devices', [
+        'token' => str_repeat('t', 513),
+        'device_id' => 'handset-1',
+        'platform' => 'android',
+    ])->assertUnprocessable()->assertJsonValidationErrors(responseKey: 'error.details', errors: ['token']);
+
+    expect(PushDevice::query()->count())->toBe(0);
+});
+
+test('an enrolment credential cannot register a device', function (): void {
+    $user = makeAccount(['email' => 'mid-enrolment@example.test']);
+    $token = $user->createToken('mfa-enrolment', ['mfa:enrol'])->plainTextToken;
+
+    // A handset is registered by a fully signed-in account, and an administrator
+    // part-way through MFA enrolment is not one yet.
+    $this->withToken($token)->postJson('/api/v1/notifications/devices', [
+        'token' => 'a-token',
+        'device_id' => 'handset-1',
+        'platform' => 'ios',
+    ])->assertForbidden();
+
+    expect(PushDevice::query()->count())->toBe(0);
 });
 
 test('the device routes are behind the perimeter', function (): void {

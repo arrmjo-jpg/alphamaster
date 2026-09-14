@@ -212,6 +212,8 @@
     "audit.action.configuration.exported": "Configuration exported",
     "audit.action.configuration.restored": "Configuration restored",
     "audit.action.mail.test_sent": "Mail configuration tested",
+    "audit.action.integration.provider_updated": "Integration provider updated",
+    "audit.action.notification.announcement_sent": "Announcement sent",
     "audit.action.role.created": "Role created",
     "audit.action.role.deleted": "Role deleted",
     "audit.action.role.permissions_changed": "Role permissions changed",
