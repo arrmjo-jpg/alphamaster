@@ -47,6 +47,7 @@ function definition(overrides: Partial<SettingDefinition>): SettingDefinition {
         default: null,
         depends_on: [],
         rules: [],
+        unit: null,
         permission: null,
         deprecated: false,
         ...overrides,
@@ -636,6 +637,37 @@ describe('the four ways a save is refused', () => {
         await userEvent.click(screen.getByRole('button', { name: 'Save 1 change' }));
 
         expect(await screen.findByText('The site name is too long.')).toBeInTheDocument();
+    });
+
+    it('reads a refusal the way the platform sends it: the setting by reference, with its messages', async () => {
+        // The shape `SETTING_VALUE_REJECTED` actually carries. Reading only `key` sent
+        // every such refusal to the form level, away from the field it was about.
+        server.use(
+            http.put('*/api/v1/admin/settings/general', () =>
+                HttpResponse.json(
+                    {
+                        success: false,
+                        error: {
+                            code: 'SETTING_VALUE_REJECTED',
+                            message: 'A value was rejected.',
+                            details: {
+                                setting: 'general.site_name',
+                                messages: ['The site name cannot be longer than the tagline.'],
+                            },
+                        },
+                    },
+                    { status: 422 },
+                ),
+            ),
+        );
+
+        renderSettings(['settings.view', 'settings.update']);
+        await editAndReview('Renamed');
+        await userEvent.click(screen.getByRole('button', { name: 'Save 1 change' }));
+
+        expect(
+            await screen.findByText('The site name cannot be longer than the tagline.'),
+        ).toBeInTheDocument();
     });
 
     it('shows a refusal that names no field instead of doing nothing', async () => {

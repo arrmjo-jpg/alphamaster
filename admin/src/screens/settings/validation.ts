@@ -1,3 +1,5 @@
+import { formatDuration } from '@/lib/duration';
+
 import type { SettingDefinition } from './api';
 
 /**
@@ -132,6 +134,35 @@ function check(
                 : numeric <= bound
                   ? null
                   : { key: 'settings.validation.max', values: { count: bound } };
+
+        case 'between': {
+            const lower = Number(rule.args[0]);
+            const upper = Number(rule.args[1]);
+
+            if (Number.isNaN(lower) || Number.isNaN(upper)) {
+                return null;
+            }
+
+            if (countsCharacters) {
+                return text.length >= lower && text.length <= upper
+                    ? null
+                    : {
+                          key: 'settings.validation.betweenLength',
+                          values: { min: lower, max: upper },
+                      };
+            }
+
+            // A duration's bounds are shown as durations, the way the field shows its value.
+            const shown = (bound: number) =>
+                definition.unit === 'seconds' ? formatDuration(bound) : bound;
+
+            return numeric >= lower && numeric <= upper
+                ? null
+                : {
+                      key: 'settings.validation.between',
+                      values: { min: shown(lower), max: shown(upper) },
+                  };
+        }
 
         case 'in':
             return rule.args.includes(text)

@@ -523,7 +523,15 @@
             "max": "At most {{count}}.",
             "minLength": "At least {{count}} characters.",
             "maxLength": "At most {{count}} characters.",
+            "between": "Between {{min}} and {{max}}.",
+            "betweenLength": "Between {{min}} and {{max}} characters.",
             "in": "One of: {{values}}."
+        },
+        "duration": {
+            "hint": "HH:MM:SS, MM:SS or seconds. Empty is no limit.",
+            "malformed": "That is not a duration yet, so it has not been staged. Use HH:MM:SS.",
+            "seconds_one": "{{count}} second",
+            "seconds_other": "{{count}} seconds"
         },
         "review": {
             "title": "Review changes",
@@ -916,6 +924,9 @@
                 "not_configured": "No media analyzer is configured yet."
             },
             "notReady": "This file can be analysed once it is ready.",
+            "durationRange": "Videos from {{min}} to {{max}} can be analysed.",
+            "durationMin": "Videos of at least {{min}} can be analysed.",
+            "durationMax": "Videos of up to {{max}} can be analysed.",
             "lookFor": "Look for",
             "reanalyze": "Analyse again even if an equivalent analysis exists",
             "request": "Request analysis",

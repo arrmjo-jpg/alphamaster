@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { cn } from '@/lib/cn';
+import { formatDuration, parseDuration } from '@/lib/duration';
 import { Input } from '@/ui/Input';
 import { SegmentedControl } from '@/ui/SegmentedControl';
 
@@ -78,6 +79,20 @@ export function SettingControl({
         );
     }
 
+    // A number of seconds is a length of time, and is typed as one.
+    if (definition.type === 'integer' && definition.unit === 'seconds') {
+        return (
+            <DurationControl
+                disabled={disabled}
+                id={id}
+                invalid={invalid}
+                onChange={onChange}
+                value={value}
+                {...described}
+            />
+        );
+    }
+
     if (definition.type === 'integer' || definition.type === 'float') {
         return (
             <Input
@@ -136,6 +151,74 @@ function fieldClass(invalid: boolean): string {
         'focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-(--focus-ring)',
         'disabled:cursor-not-allowed disabled:opacity-50',
         invalid ? 'border-(--state-danger-rail)' : 'border-(--border-control)',
+    );
+}
+
+/**
+ * A number of seconds, shown and typed as `HH:MM:SS`.
+ *
+ * What is staged is still the number the platform stores. Text that is not a duration yet
+ * is held as typed and reported rather than staged, the same way half-written JSON is: an
+ * editor that turned `00:0` into zero on the way to `00:05:00` would stage values nobody
+ * meant. Emptying the field stages null, which is "no limit", never zero.
+ */
+function DurationControl({
+    value,
+    disabled,
+    id,
+    invalid,
+    onChange,
+    ...described
+}: Omit<SettingControlProps, 'definition'>) {
+    const { t } = useTranslation();
+    const [text, setText] = useState(() =>
+        typeof value === 'number' ? formatDuration(value) : '',
+    );
+    const [malformed, setMalformed] = useState(false);
+
+    return (
+        <div className="flex flex-col gap-1">
+            <Input
+                autoComplete="off"
+                disabled={disabled}
+                id={id}
+                inputMode="numeric"
+                invalid={invalid || malformed}
+                onChange={(event) => {
+                    const next = event.target.value;
+                    setText(next);
+
+                    if (next.trim() === '') {
+                        setMalformed(false);
+                        onChange(null);
+
+                        return;
+                    }
+
+                    const seconds = parseDuration(next);
+                    setMalformed(seconds === null);
+
+                    if (seconds !== null) {
+                        onChange(seconds);
+                    }
+                }}
+                placeholder="HH:MM:SS"
+                type="text"
+                value={text}
+                {...described}
+            />
+            {malformed ? (
+                <p className="text-(length:--text-sm) text-(--text-danger)" role="alert">
+                    {t('settings.duration.malformed')}
+                </p>
+            ) : (
+                <p className="text-(length:--text-xs) text-(--text-muted)">
+                    {typeof value === 'number'
+                        ? t('settings.duration.seconds', { count: value })
+                        : t('settings.duration.hint')}
+                </p>
+            )}
+        </div>
     );
 }
 

@@ -34,7 +34,8 @@ function state(overrides: Partial<MediaAnalysisState> = {}): MediaAnalysisState 
         policy: {
             enabled: true,
             max_bytes: null,
-            max_duration_seconds: null,
+            min_video_duration_seconds: null,
+            max_video_duration_seconds: null,
             daily_limit: null,
             timeout_seconds: 300,
             likely_synthetic_threshold: null,
@@ -207,5 +208,54 @@ describe('media analysis panel', () => {
             decision: 'confirmed_synthetic',
             note: 'Hands change between frames.',
         });
+    });
+
+    it('states the duration limits for analysis as durations', async () => {
+        const base = state();
+
+        show(
+            state({
+                policy: {
+                    ...base.policy,
+                    min_video_duration_seconds: 180,
+                    max_video_duration_seconds: 300,
+                },
+            }),
+            [],
+        );
+
+        expect(
+            await screen.findByText('Videos from 00:03:00 to 00:05:00 can be analysed.'),
+        ).toBeInTheDocument();
+    });
+
+    it('shows a duration refusal as the platform worded it, and records nothing', async () => {
+        show(state(), []);
+
+        server.use(
+            http.post('*/api/v1/admin/media/:id/analyses', () =>
+                HttpResponse.json(
+                    {
+                        success: false,
+                        error: {
+                            code: 'MEDIA_ANALYSIS_DURATION_TOO_LONG',
+                            message:
+                                'This media is longer than the longest duration allowed for analysis.',
+                            details: { duration_ms: 480000, limit_seconds: 300 },
+                        },
+                    },
+                    { status: 422 },
+                ),
+            ),
+        );
+
+        await userEvent.click(await screen.findByRole('button', { name: 'Request analysis' }));
+
+        expect(
+            await screen.findByText(
+                'This media is longer than the longest duration allowed for analysis.',
+            ),
+        ).toBeInTheDocument();
+        expect(screen.getByText('This file has not been analysed.')).toBeInTheDocument();
     });
 });

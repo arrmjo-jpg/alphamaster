@@ -608,7 +608,19 @@
             "max": "لا يزيد عن {{count}}.",
             "minLength": "لا يقلّ عن {{count}} حرفًا.",
             "maxLength": "لا يزيد عن {{count}} حرفًا.",
+            "between": "بين {{min}} و{{max}}.",
+            "betweenLength": "بين {{min}} و{{max}} حرفًا.",
             "in": "أحد هذه: {{values}}."
+        },
+        "duration": {
+            "hint": "بصيغة HH:MM:SS أو MM:SS أو بالثواني. الفراغ يعني بلا حدّ.",
+            "malformed": "هذه ليست مدة صالحة بعد، فلم تُدرَج ضمن التغييرات. استخدم HH:MM:SS.",
+            "seconds_zero": "{{count}} ثانية",
+            "seconds_one": "ثانية واحدة",
+            "seconds_two": "ثانيتان",
+            "seconds_few": "{{count}} ثوانٍ",
+            "seconds_many": "{{count}} ثانية",
+            "seconds_other": "{{count}} ثانية"
         },
         "review": {
             "title": "مراجعة التغييرات",
@@ -1031,6 +1043,9 @@
                 "not_configured": "لم يُهيَّأ محلّل وسائط بعد."
             },
             "notReady": "يمكن تحليل هذا الملف حين يصبح جاهزًا.",
+            "durationRange": "تُحلَّل مقاطع الفيديو من {{min}} إلى {{max}}.",
+            "durationMin": "تُحلَّل مقاطع الفيديو التي لا تقل عن {{min}}.",
+            "durationMax": "تُحلَّل مقاطع الفيديو حتى {{max}}.",
             "lookFor": "ابحث عن",
             "reanalyze": "حلّل مجددًا حتى لو وُجد تحليل مكافئ",
             "request": "طلب تحليل",

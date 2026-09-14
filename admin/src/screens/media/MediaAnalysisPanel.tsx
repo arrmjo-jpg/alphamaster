@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { ApiError } from '@/api/errors';
+import { formatDuration } from '@/lib/duration';
 import { Alert } from '@/ui/Alert';
 import { Button } from '@/ui/Button';
 import { Checkbox } from '@/ui/Checkbox';
@@ -67,6 +68,22 @@ export function MediaAnalysisPanel({
     const supported = state.data?.supported_types ?? [];
     const types = chosen ?? supported;
 
+    // The operator's duration limits, as the platform reports them. They apply to this
+    // request only; the file itself was accepted whatever its length.
+    const minDuration = state.data?.policy.min_video_duration_seconds ?? null;
+    const maxDuration = state.data?.policy.max_video_duration_seconds ?? null;
+    const durationNote =
+        minDuration !== null && maxDuration !== null
+            ? t('media.analysis.durationRange', {
+                  min: formatDuration(minDuration),
+                  max: formatDuration(maxDuration),
+              })
+            : minDuration !== null
+              ? t('media.analysis.durationMin', { min: formatDuration(minDuration) })
+              : maxDuration !== null
+                ? t('media.analysis.durationMax', { max: formatDuration(maxDuration) })
+                : null;
+
     const request = useMutation({
         mutationFn: () => requestAnalysis(mediaId, types, reanalyze),
         onSuccess: refresh,
@@ -102,6 +119,12 @@ export function MediaAnalysisPanel({
                             request.mutate();
                         }}
                     >
+                        {durationNote !== null ? (
+                            <p className="text-(length:--text-sm) text-(--text-muted)">
+                                {durationNote}
+                            </p>
+                        ) : null}
+
                         <fieldset className="flex flex-col gap-1">
                             <legend className="text-(length:--text-sm) text-(--text-secondary)">
                                 {t('media.analysis.lookFor')}

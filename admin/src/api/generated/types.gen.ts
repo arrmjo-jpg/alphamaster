@@ -645,6 +645,7 @@ export type SettingDefinitionResource = {
      * permissive than the server.
      */
     rules: Array<string>;
+    unit: 'seconds' | null;
     /**
      * The permission required to change this setting, resolved rather than
      * repeated: `requiredPermission()` answers `settings.secrets.manage` for a
@@ -3451,7 +3452,8 @@ export type AdminMediaAnalysisStatusResponses = {
             policy: {
                 enabled: boolean;
                 max_bytes: number | null;
-                max_duration_seconds: number | null;
+                min_video_duration_seconds: number | null;
+                max_video_duration_seconds: number | null;
                 daily_limit: number | null;
                 timeout_seconds: number;
                 likely_synthetic_threshold: number | null;
@@ -3763,7 +3765,7 @@ export type AdminMediaAnalysesStoreErrors = {
         };
     };
     /**
-     * MEDIA_ANALYSIS_UNSUPPORTED_MEDIA, MEDIA_ANALYSIS_UNSUPPORTED_TYPES or MEDIA_ANALYSIS_LIMIT_EXCEEDED; details name the unsupported types or the limit.
+     * MEDIA_ANALYSIS_UNSUPPORTED_MEDIA, MEDIA_ANALYSIS_UNSUPPORTED_TYPES, MEDIA_ANALYSIS_LIMIT_EXCEEDED, MEDIA_ANALYSIS_DURATION_TOO_SHORT, MEDIA_ANALYSIS_DURATION_TOO_LONG or MEDIA_ANALYSIS_DURATION_UNAVAILABLE; details name the unsupported types, the limit, or the duration and the limit it failed.
      */
     422: {
         success: boolean;
@@ -3786,6 +3788,42 @@ export type AdminMediaAnalysesStoreErrors = {
             details: {
                 unsupported_types: Array<string>;
             };
+        };
+    } | {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'MEDIA_ANALYSIS_DURATION_TOO_SHORT';
+            message: string;
+            details: {
+                duration_ms: number | null;
+                limit_seconds: number | null;
+            };
+        };
+    } | {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'MEDIA_ANALYSIS_DURATION_TOO_LONG';
+            message: string;
+            details: {
+                duration_ms: number | null;
+                limit_seconds: number | null;
+            };
+        };
+    } | {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'MEDIA_ANALYSIS_DURATION_UNAVAILABLE';
+            message: string;
+            details: null;
         };
     } | {
         success: boolean;
