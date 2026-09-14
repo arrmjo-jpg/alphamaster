@@ -2606,7 +2606,7 @@
                         }
                     },
                     "409": {
-                        "description": "CACHE_NAMESPACE_PROTECTED: auth and authorization cannot be invalidated here.",
+                        "description": "CACHE_NAMESPACE_PROTECTED: the namespace declares that it cannot be invalidated here.",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -12787,7 +12787,7 @@
                         "type": "array",
                         "items": {
                             "type": "string",
-                            "description": "Only catalogued permissions may be attached, so a role cannot be given\na permission string the platform does not actually enforce anywhere.",
+                            "description": "Only catalogued permissions may be attached, so a role cannot be given\na permission string the platform does not actually enforce anywhere. The\ncatalogue includes every module's registered permissions (ADR 0052).",
                             "enum": [
                                 "users.view",
                                 "users.create",

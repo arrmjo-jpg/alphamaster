@@ -1868,7 +1868,7 @@ export type AdminCacheFlushErrors = {
         };
     };
     /**
-     * CACHE_NAMESPACE_PROTECTED: auth and authorization cannot be invalidated here.
+     * CACHE_NAMESPACE_PROTECTED: the namespace declares that it cannot be invalidated here.
      */
     409: {
         success: boolean;
