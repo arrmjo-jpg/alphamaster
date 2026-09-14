@@ -64,6 +64,8 @@ function adminAnalysisVideo(): MediaFile
         'visibility' => MediaVisibility::PRIVATE,
         'status' => MediaStatus::READY,
         'scan_status' => ScanStatus::NOT_SCANNED,
+        'duration_seconds' => 120,
+        'metadata' => ['duration_available' => true, 'duration_ms' => 120000],
     ])->save();
 
     return $media->refresh();

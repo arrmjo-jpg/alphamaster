@@ -16,12 +16,14 @@ final readonly class MediaAnalysisTicket
     /**
      * @param  list<string>  $unsupportedTypes  requested types the analyzer does not support
      * @param  string|null  $detail  which limit refused the request, or what about the media was unsupported
+     * @param  int|null  $limitSeconds  the duration limit that refused it, where one did
      */
     public function __construct(
         public MediaAnalysisOutcome $outcome,
         public ?string $analysisId = null,
         public array $unsupportedTypes = [],
         public ?string $detail = null,
+        public ?int $limitSeconds = null,
     ) {}
 
     public function accepted(): bool

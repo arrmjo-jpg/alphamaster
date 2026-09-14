@@ -5610,7 +5610,13 @@
                                                                 "null"
                                                             ]
                                                         },
-                                                        "max_duration_seconds": {
+                                                        "min_video_duration_seconds": {
+                                                            "type": [
+                                                                "integer",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "max_video_duration_seconds": {
                                                             "type": [
                                                                 "integer",
                                                                 "null"
@@ -5644,7 +5650,8 @@
                                                     "required": [
                                                         "enabled",
                                                         "max_bytes",
-                                                        "max_duration_seconds",
+                                                        "min_video_duration_seconds",
+                                                        "max_video_duration_seconds",
                                                         "daily_limit",
                                                         "timeout_seconds",
                                                         "likely_synthetic_threshold",
@@ -6310,7 +6317,7 @@
                         "$ref": "#/components/responses/ModelNotFoundException"
                     },
                     "422": {
-                        "description": "MEDIA_ANALYSIS_UNSUPPORTED_MEDIA, MEDIA_ANALYSIS_UNSUPPORTED_TYPES or MEDIA_ANALYSIS_LIMIT_EXCEEDED; details name the unsupported types or the limit.",
+                        "description": "MEDIA_ANALYSIS_UNSUPPORTED_MEDIA, MEDIA_ANALYSIS_UNSUPPORTED_TYPES, MEDIA_ANALYSIS_LIMIT_EXCEEDED, MEDIA_ANALYSIS_DURATION_TOO_SHORT, MEDIA_ANALYSIS_DURATION_TOO_LONG or MEDIA_ANALYSIS_DURATION_UNAVAILABLE; details name the unsupported types, the limit, or the duration and the limit it failed.",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -6378,6 +6385,141 @@
                                                             "required": [
                                                                 "unsupported_types"
                                                             ]
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "code",
+                                                        "message",
+                                                        "details"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "success",
+                                                "error"
+                                            ]
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "success": {
+                                                    "type": "boolean"
+                                                },
+                                                "error": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "code": {
+                                                            "type": "string",
+                                                            "description": "`code` is contract and is never localized (ADR 0031).",
+                                                            "const": "MEDIA_ANALYSIS_DURATION_TOO_SHORT"
+                                                        },
+                                                        "message": {
+                                                            "type": "string"
+                                                        },
+                                                        "details": {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "duration_ms": {
+                                                                    "type": [
+                                                                        "integer",
+                                                                        "null"
+                                                                    ]
+                                                                },
+                                                                "limit_seconds": {
+                                                                    "type": [
+                                                                        "integer",
+                                                                        "null"
+                                                                    ]
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "duration_ms",
+                                                                "limit_seconds"
+                                                            ]
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "code",
+                                                        "message",
+                                                        "details"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "success",
+                                                "error"
+                                            ]
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "success": {
+                                                    "type": "boolean"
+                                                },
+                                                "error": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "code": {
+                                                            "type": "string",
+                                                            "description": "`code` is contract and is never localized (ADR 0031).",
+                                                            "const": "MEDIA_ANALYSIS_DURATION_TOO_LONG"
+                                                        },
+                                                        "message": {
+                                                            "type": "string"
+                                                        },
+                                                        "details": {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "duration_ms": {
+                                                                    "type": [
+                                                                        "integer",
+                                                                        "null"
+                                                                    ]
+                                                                },
+                                                                "limit_seconds": {
+                                                                    "type": [
+                                                                        "integer",
+                                                                        "null"
+                                                                    ]
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "duration_ms",
+                                                                "limit_seconds"
+                                                            ]
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "code",
+                                                        "message",
+                                                        "details"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "success",
+                                                "error"
+                                            ]
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "success": {
+                                                    "type": "boolean"
+                                                },
+                                                "error": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "code": {
+                                                            "type": "string",
+                                                            "description": "`code` is contract and is never localized (ADR 0031).",
+                                                            "const": "MEDIA_ANALYSIS_DURATION_UNAVAILABLE"
+                                                        },
+                                                        "message": {
+                                                            "type": "string"
+                                                        },
+                                                        "details": {
+                                                            "type": "null"
                                                         }
                                                     },
                                                     "required": [
@@ -15512,6 +15654,16 @@
                             "type": "string"
                         }
                     },
+                    "unit": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "enum": [
+                            "seconds",
+                            null
+                        ]
+                    },
                     "permission": {
                         "type": [
                             "string",
@@ -15541,6 +15693,7 @@
                     "default",
                     "depends_on",
                     "rules",
+                    "unit",
                     "permission",
                     "deprecated"
                 ],

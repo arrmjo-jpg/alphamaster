@@ -179,6 +179,11 @@ class SettingService implements SettingServiceInterface
                 $this->recordChange($setting, $serialized, $previousValue, $locale);
             }
 
+            // Each value satisfied its own rules; this checks them against one another, as
+            // the group now stands. Thrown inside the transaction, so nothing written above
+            // survives a refusal.
+            $this->assertGroupConstraintsSatisfied($existing, $locale);
+
             // Invalidate only once the transaction has actually committed. Clearing
             // inside the transaction lets a concurrent reader repopulate the cache from
             // pre-commit state and pin stale values for a full TTL.
@@ -1131,6 +1136,39 @@ class SettingService implements SettingServiceInterface
 
         if ($messages !== []) {
             throw new SettingValueRejectedException($reference, $messages);
+        }
+    }
+
+    /**
+     * Refuse a write that leaves a group's settings contradicting one another.
+     *
+     * Secrets are left out: no constraint may be written over credential material, and
+     * reading it here would mean decrypting it to do so.
+     *
+     * @param  EloquentCollection<string, Setting>  $settings  the group, as written
+     *
+     * @throws SettingValueRejectedException
+     */
+    private function assertGroupConstraintsSatisfied(EloquentCollection $settings, string $locale): void
+    {
+        $constraints = $this->registry->constraints();
+
+        if ($constraints === []) {
+            return;
+        }
+
+        $values = [];
+
+        foreach ($settings as $setting) {
+            if (! $setting->is_secret) {
+                $values[$setting->group.'.'.$setting->key] = $setting->getTypedValue($locale);
+            }
+        }
+
+        foreach ($constraints as $catalogue) {
+            foreach ($catalogue->violations($values) as $reference => $message) {
+                throw new SettingValueRejectedException($reference, [$message]);
+            }
         }
     }
 

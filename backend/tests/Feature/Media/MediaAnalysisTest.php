@@ -72,6 +72,9 @@ function analysisVideo(array $overrides = []): MediaFile
         'visibility' => MediaVisibility::PRIVATE,
         'status' => MediaStatus::READY,
         'scan_status' => ScanStatus::NOT_SCANNED,
+        // What processing records for a readable four-minute video.
+        'duration_seconds' => 240,
+        'metadata' => ['duration_available' => true, 'duration_ms' => 240000],
     ], $overrides))->save();
 
     return $media->refresh();
@@ -235,19 +238,16 @@ test('a consumer cannot invent a type, and names itself as an identifier', funct
 
 // ── Limits ──────────────────────────────────────────────────────────────────────
 
-test('the operator\'s size and duration limits refuse a request before anything is recorded', function (): void {
+test('the operator\'s size limit refuses a request before anything is recorded', function (): void {
     FakeMediaAnalysisProvider::configure();
 
     analysisSetting('max_file_size_mb', 1);
     $large = requestAnalysis(analysisVideo(['size_bytes' => 2 * 1024 * 1024]));
 
-    analysisSetting('max_duration_seconds', 60);
-    $long = requestAnalysis(analysisVideo(['duration_seconds' => 120]));
-
     expect($large->outcome)->toBe(MediaAnalysisOutcome::LIMIT_EXCEEDED)
         ->and($large->detail)->toBe('max_file_size')
-        ->and($long->detail)->toBe('max_duration')
-        ->and(MediaAnalysis::query()->count())->toBe(0);
+        ->and(MediaAnalysis::query()->count())->toBe(0)
+        ->and(FakeMediaAnalysisProvider::$calls)->toBe(0);
 });
 
 test('the analyzer\'s own limit applies when it is stricter', function (): void {

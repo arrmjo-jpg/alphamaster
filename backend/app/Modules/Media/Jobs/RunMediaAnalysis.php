@@ -91,6 +91,16 @@ class RunMediaAnalysis implements ShouldQueue
             return;
         }
 
+        // The limits may have been tightened while this waited. Checked before the file is
+        // handed to the analyzer, never after.
+        $duration = $policy->durationVerdict($media, $descriptor->maxDurationSeconds);
+
+        if ($duration !== null) {
+            $this->finish($analysis, MediaAnalysisStatus::CANCELLED, strtoupper($duration->value), 'The media no longer meets the duration limits for analysis.');
+
+            return;
+        }
+
         $input = new MediaAnalysisInput(
             analysisId: $analysis->id,
             mediaId: $media->id,

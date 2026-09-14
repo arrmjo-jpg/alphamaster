@@ -46,6 +46,9 @@ final readonly class SettingDefinition
      *                               a screen can say so, rather than presenting a
      *                               control that changes nothing beside one that closes
      *                               an account after five failed sign-ins
+     * @param  string|null  $unit  what a number counts, so a screen can present
+     *                             `300` seconds as five minutes; the stored value is
+     *                             still the plain number
      */
     public function __construct(
         public string $group,
@@ -62,9 +65,17 @@ final readonly class SettingDefinition
         public array $dependsOn = [],
         public ?string $deprecatedSince = null,
         public SettingReach $reach = SettingReach::PLATFORM,
+        public ?string $unit = null,
     ) {
         $this->assertShape();
     }
+
+    /**
+     * The units a number may declare. A list rather than free text, because a client
+     * decides how to present the value from it and cannot present a unit it has never
+     * heard of.
+     */
+    public const UNITS = ['seconds'];
 
     /**
      * The sentence explaining this setting's reach, where one is needed.
@@ -224,6 +235,18 @@ final readonly class SettingDefinition
         if (! $this->nullable && $this->default === null) {
             throw new InvalidArgumentException(
                 "Non-nullable setting [{$this->reference()}] must declare a default value."
+            );
+        }
+
+        if ($this->unit !== null && ! in_array($this->unit, self::UNITS, true)) {
+            throw new InvalidArgumentException(
+                "Setting [{$this->reference()}] declares an unknown unit [{$this->unit}]."
+            );
+        }
+
+        if ($this->unit !== null && $this->type !== SettingType::INTEGER && $this->type !== SettingType::FLOAT) {
+            throw new InvalidArgumentException(
+                "Setting [{$this->reference()}] declares a unit, and only a number can have one."
             );
         }
 

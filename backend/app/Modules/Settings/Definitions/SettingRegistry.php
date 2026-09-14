@@ -30,6 +30,13 @@ class SettingRegistry
     private array $definitions = [];
 
     /**
+     * Catalogues whose settings constrain one another.
+     *
+     * @var list<ConstrainsSettings>
+     */
+    private array $constraints = [];
+
+    /**
      * Register one definition.
      *
      * A duplicate reference is a programming error rather than a merge: two
@@ -57,6 +64,20 @@ class SettingRegistry
         foreach ($catalogue->definitions() as $definition) {
             $this->register($definition);
         }
+
+        if ($catalogue instanceof ConstrainsSettings) {
+            $this->constraints[] = $catalogue;
+        }
+    }
+
+    /**
+     * Every catalogue that declares constraints across its settings.
+     *
+     * @return list<ConstrainsSettings>
+     */
+    public function constraints(): array
+    {
+        return $this->constraints;
     }
 
     /**

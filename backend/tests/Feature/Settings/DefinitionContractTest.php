@@ -193,6 +193,8 @@ test('the definition payload keeps every field it had', function (): void {
             // An addition is as much a contract change as a removal, which is what
             // this assertion is for.
             'reach', 'reach_notice',
+            // Added 2026-09-14: what a number counts, so a duration is shown as one.
+            'unit',
         ]);
 });
 

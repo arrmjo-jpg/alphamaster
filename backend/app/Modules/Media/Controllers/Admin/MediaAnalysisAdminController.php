@@ -49,7 +49,7 @@ class MediaAnalysisAdminController extends BaseApiController
     /**
      * The capability's state: whether it is on and configured, what the analyzer accepts, the operator's limits and thresholds, and the queue.
      */
-    #[Response(200, type: 'array{success: bool, data: array{available: bool, reason: string|null, supported_types: list<string>, analyzer: array{provider: string, analyzer: string, model_version: string|null, supported_types: list<string>, accepted_mime_types: list<string>, max_bytes: int|null, max_duration_seconds: int|null}|null, policy: array{enabled: bool, max_bytes: int|null, max_duration_seconds: int|null, daily_limit: int|null, timeout_seconds: int, likely_synthetic_threshold: float|null, likely_authentic_threshold: float|null, version: string}, queue: array{pending: int, processing: int, failed_last_day: int, requested_today: int}}}')]
+    #[Response(200, type: 'array{success: bool, data: array{available: bool, reason: string|null, supported_types: list<string>, analyzer: array{provider: string, analyzer: string, model_version: string|null, supported_types: list<string>, accepted_mime_types: list<string>, max_bytes: int|null, max_duration_seconds: int|null}|null, policy: array{enabled: bool, max_bytes: int|null, min_video_duration_seconds: int|null, max_video_duration_seconds: int|null, daily_limit: int|null, timeout_seconds: int, likely_synthetic_threshold: float|null, likely_authentic_threshold: float|null, version: string}, queue: array{pending: int, processing: int, failed_last_day: int, requested_today: int}}}')]
     public function status(): JsonResponse
     {
         $availability = $this->analyses->availability();
@@ -71,7 +71,8 @@ class MediaAnalysisAdminController extends BaseApiController
             'policy' => [
                 'enabled' => $this->policy->enabled(),
                 'max_bytes' => $this->policy->maxBytes(),
-                'max_duration_seconds' => $this->policy->maxDurationSeconds(),
+                'min_video_duration_seconds' => $this->policy->minDurationSeconds(),
+                'max_video_duration_seconds' => $this->policy->maxDurationSeconds(),
                 'daily_limit' => $this->policy->dailyLimit(),
                 'timeout_seconds' => $this->policy->timeoutSeconds(),
                 'likely_synthetic_threshold' => $this->policy->syntheticThreshold(),
@@ -113,7 +114,7 @@ class MediaAnalysisAdminController extends BaseApiController
      */
     #[Response(202, type: 'array{success: bool, message: string, data: MediaAnalysisResource}')]
     #[Response(409, description: 'MEDIA_ANALYSIS_DISABLED, MEDIA_ANALYSIS_NOT_CONFIGURED or MEDIA_NOT_READY.')]
-    #[Response(422, description: 'MEDIA_ANALYSIS_UNSUPPORTED_MEDIA, MEDIA_ANALYSIS_UNSUPPORTED_TYPES or MEDIA_ANALYSIS_LIMIT_EXCEEDED; details name the unsupported types or the limit.')]
+    #[Response(422, description: 'MEDIA_ANALYSIS_UNSUPPORTED_MEDIA, MEDIA_ANALYSIS_UNSUPPORTED_TYPES, MEDIA_ANALYSIS_LIMIT_EXCEEDED, MEDIA_ANALYSIS_DURATION_TOO_SHORT, MEDIA_ANALYSIS_DURATION_TOO_LONG or MEDIA_ANALYSIS_DURATION_UNAVAILABLE; details name the unsupported types, the limit, or the duration and the limit it failed.')]
     public function store(RequestMediaAnalysisRequest $request, MediaFile $media): JsonResponse
     {
         /** @var list<string> $types */
@@ -136,6 +137,9 @@ class MediaAnalysisAdminController extends BaseApiController
                 MediaAnalysisOutcome::MEDIA_NOT_FOUND => $this->errorResponse('NOT_FOUND', 'api.error.model_not_found', null, 404),
                 MediaAnalysisOutcome::UNSUPPORTED_MEDIA => $this->errorResponse('MEDIA_ANALYSIS_UNSUPPORTED_MEDIA', 'api.error.media_analysis.unsupported_media', null, 422),
                 MediaAnalysisOutcome::UNSUPPORTED_TYPES => $this->errorResponse('MEDIA_ANALYSIS_UNSUPPORTED_TYPES', 'api.error.media_analysis.unsupported_types', ['unsupported_types' => $ticket->unsupportedTypes], 422),
+                MediaAnalysisOutcome::DURATION_TOO_SHORT => $this->errorResponse('MEDIA_ANALYSIS_DURATION_TOO_SHORT', 'api.error.media_analysis.duration_too_short', ['duration_ms' => $media->durationMilliseconds(), 'limit_seconds' => $ticket->limitSeconds], 422),
+                MediaAnalysisOutcome::DURATION_TOO_LONG => $this->errorResponse('MEDIA_ANALYSIS_DURATION_TOO_LONG', 'api.error.media_analysis.duration_too_long', ['duration_ms' => $media->durationMilliseconds(), 'limit_seconds' => $ticket->limitSeconds], 422),
+                MediaAnalysisOutcome::DURATION_UNAVAILABLE => $this->errorResponse('MEDIA_ANALYSIS_DURATION_UNAVAILABLE', 'api.error.media_analysis.duration_unavailable', null, 422),
                 default => $this->errorResponse('MEDIA_ANALYSIS_LIMIT_EXCEEDED', 'api.error.media_analysis.limit_exceeded', ['limit' => $ticket->detail], 422),
             };
         }

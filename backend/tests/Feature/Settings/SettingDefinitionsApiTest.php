@@ -69,7 +69,10 @@ test('a definition row carries the metadata an interface cannot infer', function
         // Added 2026-09-10: who reads this setting, and the sentence saying so.
         // An interface cannot infer it — that is the whole reason it is published.
         'reach', 'reach_notice',
-        'default', 'depends_on', 'rules', 'permission', 'deprecated',
+        'default', 'depends_on', 'rules',
+        // Added 2026-09-14: what a number counts, so a duration is shown as one.
+        'unit',
+        'permission', 'deprecated',
     ]);
 });
 

@@ -99,6 +99,27 @@ class MediaAnalysisService implements MediaAnalysisContract
             return new MediaAnalysisTicket(MediaAnalysisOutcome::LIMIT_EXCEEDED, unsupportedTypes: $unsupported, detail: $limit);
         }
 
+        // Read from the duration intake recorded; the file is not probed again here.
+        $duration = $this->policy->durationVerdict($media, $descriptor->maxDurationSeconds);
+
+        if ($duration !== null) {
+            return match ($duration) {
+                MediaAnalysisOutcome::DURATION_TOO_SHORT => new MediaAnalysisTicket(
+                    $duration,
+                    unsupportedTypes: $unsupported,
+                    detail: 'min_duration',
+                    limitSeconds: $this->policy->minDurationSeconds(),
+                ),
+                MediaAnalysisOutcome::DURATION_TOO_LONG => new MediaAnalysisTicket(
+                    $duration,
+                    unsupportedTypes: $unsupported,
+                    detail: 'max_duration',
+                    limitSeconds: $this->policy->effectiveMaxDurationSeconds($descriptor->maxDurationSeconds),
+                ),
+                default => new MediaAnalysisTicket($duration, unsupportedTypes: $unsupported, detail: 'duration'),
+            };
+        }
+
         sort($supported);
         $policyVersion = $this->policy->version();
         $fingerprint = hash('sha256', (string) json_encode([
@@ -220,9 +241,8 @@ class MediaAnalysisService implements MediaAnalysisContract
     }
 
     /**
-     * Which limit this file exceeds, or null. The stricter of the operator's limit and the
-     * analyzer's applies. A duration the platform does not know cannot be checked here; the
-     * analyzer's own limit still applies when it runs.
+     * Which size limit this file exceeds, or null. The stricter of the operator's limit and
+     * the analyzer's applies. Duration has outcomes of its own; see the policy.
      */
     private function exceededLimit(MediaFile $media, AnalyzerDescriptor $descriptor): ?string
     {
@@ -230,12 +250,6 @@ class MediaAnalysisService implements MediaAnalysisContract
 
         if ($maxBytes !== null && $media->size_bytes > $maxBytes) {
             return 'max_file_size';
-        }
-
-        $maxDuration = $this->stricter($this->policy->maxDurationSeconds(), $descriptor->maxDurationSeconds);
-
-        if ($maxDuration !== null && $media->duration_seconds !== null && $media->duration_seconds > $maxDuration) {
-            return 'max_duration';
         }
 
         return null;

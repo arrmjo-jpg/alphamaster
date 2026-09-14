@@ -36,8 +36,20 @@ enum MediaAnalysisOutcome: string
     /** The configured analyzer supports none of the requested types. */
     case UNSUPPORTED_TYPES = 'unsupported_types';
 
-    /** A size, duration or daily limit refuses this request. */
+    /** A size or daily limit refuses this request. */
     case LIMIT_EXCEEDED = 'limit_exceeded';
+
+    /** The media is shorter than the shortest duration an operator allows analysed. */
+    case DURATION_TOO_SHORT = 'duration_too_short';
+
+    /** The media is longer than the longest duration the operator or the analyzer allows. */
+    case DURATION_TOO_LONG = 'duration_too_long';
+
+    /**
+     * The media plays for a length of time, and that length could not be read, so no duration
+     * limit can be checked against it and nothing is sent.
+     */
+    case DURATION_UNAVAILABLE = 'duration_unavailable';
 
     public function accepted(): bool
     {
