@@ -266,8 +266,7 @@ function MemberEditor({
             is_active?: boolean;
             social_links?: SocialLinks;
             avatar_media_id?: string | null;
-        }) =>
-            updateMember(member.id, body),
+        }) => updateMember(member.id, body),
         onSuccess: async (next) => {
             setLinks(linksFor(next));
             await refresh();

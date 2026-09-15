@@ -11,7 +11,8 @@ import { StatusBadge } from '@/ui/StatusBadge';
 import { initialsOf } from './initials';
 
 function Avatar({ name, url, size }: { name: string; url: string | null; size: 'sm' | 'lg' }) {
-    const box = size === 'sm' ? 'size-8 text-(length:--text-sm)' : 'size-11 text-(length:--text-lg)';
+    const box =
+        size === 'sm' ? 'size-8 text-(length:--text-sm)' : 'size-11 text-(length:--text-lg)';
 
     // The picture when the account has one that is ready to serve, and the initials otherwise:
     // a picture still being processed is null from the platform, not a broken image here.

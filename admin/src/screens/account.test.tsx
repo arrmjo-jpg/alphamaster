@@ -246,7 +246,7 @@ describe('the account page', () => {
 });
 
 describe('managing the account from the console (ADR 0057)', () => {
-    it('saves only what changed, through the account\'s own endpoint', async () => {
+    it("saves only what changed, through the account's own endpoint", async () => {
         let sent: unknown = null;
 
         renderScreen({}, [
@@ -308,7 +308,9 @@ describe('managing the account from the console (ADR 0057)', () => {
         await userEvent.click(screen.getByRole('button', { name: 'Change password' }));
 
         expect(
-            await screen.findByText('Your password was changed. Your other sessions were signed out.'),
+            await screen.findByText(
+                'Your password was changed. Your other sessions were signed out.',
+            ),
         ).toBeInTheDocument();
         expect(sent).toEqual({
             current_password: 'old-secret',
@@ -348,7 +350,7 @@ describe('managing the account from the console (ADR 0057)', () => {
         expect(sent).toEqual({ code: '12345678' });
     });
 
-    it('uploads a picture through the account\'s own endpoint and shows it from the session', async () => {
+    it("uploads a picture through the account's own endpoint and shows it from the session", async () => {
         let picture: string | null = null;
 
         renderScreen({}, [

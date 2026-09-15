@@ -69,14 +69,24 @@ function renderField(permissions: string[], onChange: (id: string | null) => voi
             HttpResponse.json({
                 success: true,
                 data: [
-                    { code: 'en', name: 'English', native_name: 'English', direction: 'ltr', is_default: true },
+                    {
+                        code: 'en',
+                        name: 'English',
+                        native_name: 'English',
+                        direction: 'ltr',
+                        is_default: true,
+                    },
                 ],
             }),
         ),
         http.get('*/api/v1/health', () =>
             HttpResponse.json({
                 success: true,
-                data: { status: 'healthy', timestamp: '2026-09-15T10:00:00+00:00', framework: 'Laravel 13' },
+                data: {
+                    status: 'healthy',
+                    timestamp: '2026-09-15T10:00:00+00:00',
+                    framework: 'Laravel 13',
+                },
             }),
         ),
         http.get('*/api/v1/auth/me', () =>
@@ -129,7 +139,10 @@ describe('the image field', () => {
                 // fields this asserts on are plain text parts of the body.
                 sent = await request.text();
 
-                return HttpResponse.json({ success: true, message: 'accepted', data: record() }, { status: 201 });
+                return HttpResponse.json(
+                    { success: true, message: 'accepted', data: record() },
+                    { status: 201 },
+                );
             }),
             http.get('*/api/v1/media/01hzzimage', () => {
                 asked += 1;
@@ -152,7 +165,9 @@ describe('the image field', () => {
         expect(asked).toBeGreaterThan(0);
         // No upload path of its own: the platform's media endpoint, and nothing else wrote.
         expect(
-            observed.filter((request) => request.method !== 'GET').map((request) => new URL(request.url).pathname),
+            observed
+                .filter((request) => request.method !== 'GET')
+                .map((request) => new URL(request.url).pathname),
         ).toContain('/api/v1/media');
     });
 
@@ -162,7 +177,11 @@ describe('the image field', () => {
         server.use(
             http.post('*/api/v1/media', () =>
                 HttpResponse.json(
-                    { success: true, message: 'accepted', data: record({ status: 'processing_failed' }) },
+                    {
+                        success: true,
+                        message: 'accepted',
+                        data: record({ status: 'processing_failed' }),
+                    },
                     { status: 201 },
                 ),
             ),
@@ -172,7 +191,9 @@ describe('the image field', () => {
 
         await userEvent.upload(await screen.findByLabelText('Upload an image'), png());
 
-        expect(await screen.findByText('The platform could not accept this image.')).toBeInTheDocument();
+        expect(
+            await screen.findByText('The platform could not accept this image.'),
+        ).toBeInTheDocument();
         expect(onChange).not.toHaveBeenCalled();
     });
 
@@ -189,17 +210,37 @@ describe('the image field', () => {
                 return HttpResponse.json({
                     success: true,
                     data: [
-                        { id: '01hzzpublic', url: '/storage/public.png', original_filename: 'public.png', visibility: 'public' },
-                        { id: '01hzzprivate', url: null, original_filename: 'private.png', visibility: 'private' },
+                        {
+                            id: '01hzzpublic',
+                            url: '/storage/public.png',
+                            original_filename: 'public.png',
+                            visibility: 'public',
+                        },
+                        {
+                            id: '01hzzprivate',
+                            url: null,
+                            original_filename: 'private.png',
+                            visibility: 'private',
+                        },
                     ],
-                    meta: { pagination: { current_page: 1, per_page: 25, total: 2, last_page: 1, has_more_pages: false } },
+                    meta: {
+                        pagination: {
+                            current_page: 1,
+                            per_page: 25,
+                            total: 2,
+                            last_page: 1,
+                            has_more_pages: false,
+                        },
+                    },
                 });
             }),
         );
 
         renderField(['team.update', 'media.view'], onChange);
 
-        await userEvent.click(await screen.findByRole('button', { name: 'Choose from the library' }));
+        await userEvent.click(
+            await screen.findByRole('button', { name: 'Choose from the library' }),
+        );
 
         const offered = await screen.findByRole('button', { name: 'public.png' });
 
@@ -218,6 +259,8 @@ describe('the image field', () => {
         renderField(['team.update'], vi.fn());
 
         expect(await screen.findByRole('button', { name: 'Upload an image' })).toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: 'Choose from the library' })).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Choose from the library' }),
+        ).not.toBeInTheDocument();
     });
 });

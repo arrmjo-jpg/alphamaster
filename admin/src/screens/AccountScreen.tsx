@@ -34,7 +34,8 @@ interface LanguageOption {
     native_name: string;
 }
 
-const SECTION = 'flex max-w-prose flex-col gap-3 border border-(--border-default) bg-(--surface-raised) p-4';
+const SECTION =
+    'flex max-w-prose flex-col gap-3 border border-(--border-default) bg-(--surface-raised) p-4';
 
 /**
  * The labels of the confirmed methods. The contract publishes the options as untyped entries, so
@@ -42,7 +43,10 @@ const SECTION = 'flex max-w-prose flex-col gap-3 border border-(--border-default
  */
 function methodLabels(options: unknown[]): string[] {
     return options.flatMap((option) =>
-        typeof option === 'object' && option !== null && 'label' in option && typeof option.label === 'string'
+        typeof option === 'object' &&
+        option !== null &&
+        'label' in option &&
+        typeof option.label === 'string'
             ? [option.label]
             : [],
     );
@@ -54,7 +58,9 @@ function refusal(error: unknown, field?: string): string | null {
         return null;
     }
 
-    return (field === undefined ? undefined : error.validationDetails?.[field]?.[0]) ?? error.message;
+    return (
+        (field === undefined ? undefined : error.validationDetails?.[field]?.[0]) ?? error.message
+    );
 }
 
 /**
@@ -97,26 +103,38 @@ export function AccountScreen() {
 
             <section className={SECTION}>
                 <p data-eyebrow>{t('account.identity')}</p>
-                <p className="text-(length:--text-md) font-medium text-(--text-primary)">{user.name}</p>
+                <p className="text-(length:--text-md) font-medium text-(--text-primary)">
+                    {user.name}
+                </p>
                 <p className="text-(length:--text-sm) text-(--text-secondary)" data-technical>
                     {user.email}
                 </p>
                 <div className="flex flex-wrap gap-1.5">
                     <StatusBadge tone={user.email_verified ? 'success' : 'warning'}>
-                        {user.email_verified ? t('account.emailVerified') : t('account.emailUnverified')}
+                        {user.email_verified
+                            ? t('account.emailVerified')
+                            : t('account.emailUnverified')}
                     </StatusBadge>
                 </div>
                 {isAdministrator(user) ? (
-                    <p className="text-(length:--text-xs) text-(--text-muted)">{t('account.emailManaged')}</p>
+                    <p className="text-(length:--text-xs) text-(--text-muted)">
+                        {t('account.emailManaged')}
+                    </p>
                 ) : null}
             </section>
 
-            {profile.isError ? <Alert tone="danger">{t('account.profileUnavailable')}</Alert> : null}
-            {profile.data !== undefined ? <ProfileSection key={profile.data.id} profile={profile.data} /> : null}
+            {profile.isError ? (
+                <Alert tone="danger">{t('account.profileUnavailable')}</Alert>
+            ) : null}
+            {profile.data !== undefined ? (
+                <ProfileSection key={profile.data.id} profile={profile.data} />
+            ) : null}
 
             <PhoneSection />
 
-            {profile.data !== undefined ? <PasswordSection hasPassword={profile.data.has_password} /> : null}
+            {profile.data !== undefined ? (
+                <PasswordSection hasPassword={profile.data.has_password} />
+            ) : null}
 
             <MfaSection />
         </div>
@@ -164,7 +182,11 @@ function PictureSection() {
             <p data-eyebrow>{t('account.picture')}</p>
             <div className="flex flex-wrap items-center gap-4">
                 {url !== null ? (
-                    <img alt={t('account.picture')} className="size-20 shrink-0 object-cover" src={url} />
+                    <img
+                        alt={t('account.picture')}
+                        className="size-20 shrink-0 object-cover"
+                        src={url}
+                    />
                 ) : (
                     <span
                         aria-hidden
@@ -204,12 +226,16 @@ function PictureSection() {
                     ) : null}
                 </div>
             </div>
-            <p className="text-(length:--text-xs) text-(--text-muted)">{t('account.pictureHint')}</p>
+            <p className="text-(length:--text-xs) text-(--text-muted)">
+                {t('account.pictureHint')}
+            </p>
             {tooLarge ? <Alert tone="danger">{t('account.pictureTooLarge')}</Alert> : null}
             {upload.isSuccess && upload.data.avatar_url === null ? (
                 <Alert tone="info">{t('account.pictureProcessing')}</Alert>
             ) : null}
-            {upload.error !== null ? <Alert tone="danger">{refusal(upload.error, 'file')}</Alert> : null}
+            {upload.error !== null ? (
+                <Alert tone="danger">{refusal(upload.error, 'file')}</Alert>
+            ) : null}
             {remove.error !== null ? <Alert tone="danger">{refusal(remove.error)}</Alert> : null}
         </section>
     );
@@ -342,17 +368,22 @@ function ProfileSection({ profile }: { profile: Profile }) {
             </Field>
 
             {save.error !== null ? (
-                <Alert tone="danger">
-                    {refusal(save.error, Object.keys(changes)[0])}
-                </Alert>
+                <Alert tone="danger">{refusal(save.error, Object.keys(changes)[0])}</Alert>
             ) : null}
 
             <div className="flex items-center gap-3">
-                <Button disabled={!dirty || name.trim() === ''} loading={save.isPending} type="submit" variant="primary">
+                <Button
+                    disabled={!dirty || name.trim() === ''}
+                    loading={save.isPending}
+                    type="submit"
+                    variant="primary"
+                >
                     {t('account.save')}
                 </Button>
                 {save.isSuccess && !dirty ? (
-                    <span className="text-(length:--text-xs) text-(--state-success-text)">{t('account.saved')}</span>
+                    <span className="text-(length:--text-xs) text-(--state-success-text)">
+                        {t('account.saved')}
+                    </span>
                 ) : null}
             </div>
         </form>
@@ -428,7 +459,9 @@ function PhoneSection() {
             <div className="flex flex-col gap-1">
                 <p data-eyebrow>{t('account.phone')}</p>
                 {user.phone === null ? (
-                    <p className="text-(length:--text-sm) text-(--text-secondary)">{t('account.noPhone')}</p>
+                    <p className="text-(length:--text-sm) text-(--text-secondary)">
+                        {t('account.noPhone')}
+                    </p>
                 ) : (
                     <>
                         <p className="text-(length:--text-md) text-(--text-primary)" data-technical>
@@ -436,7 +469,9 @@ function PhoneSection() {
                         </p>
                         <div className="flex flex-wrap gap-1.5">
                             <StatusBadge tone={user.phone_verified ? 'success' : 'warning'}>
-                                {user.phone_verified ? t('account.phoneVerified') : t('account.phoneUnverified')}
+                                {user.phone_verified
+                                    ? t('account.phoneVerified')
+                                    : t('account.phoneUnverified')}
                             </StatusBadge>
                         </div>
                     </>
@@ -459,7 +494,9 @@ function PhoneSection() {
                     noValidate
                     onSubmit={(event) => void confirm(event)}
                 >
-                    <p className="text-(length:--text-sm) text-(--text-secondary)">{t('account.confirmIntro')}</p>
+                    <p className="text-(length:--text-sm) text-(--text-secondary)">
+                        {t('account.confirmIntro')}
+                    </p>
 
                     {error !== null ? <Alert tone="danger">{error}</Alert> : null}
 
@@ -475,7 +512,9 @@ function PhoneSection() {
                             type="button"
                             variant="secondary"
                         >
-                            {cooling > 0 ? t('account.sendAgainIn', { count: cooling }) : t('account.sendCode')}
+                            {cooling > 0
+                                ? t('account.sendAgainIn', { count: cooling })
+                                : t('account.sendCode')}
                         </Button>
                     </div>
 
@@ -494,7 +533,12 @@ function PhoneSection() {
                     </Field>
 
                     <div>
-                        <Button disabled={code.trim() === ''} loading={confirming} type="submit" variant="primary">
+                        <Button
+                            disabled={code.trim() === ''}
+                            loading={confirming}
+                            type="submit"
+                            variant="primary"
+                        >
                             {t('account.confirm')}
                         </Button>
                     </div>
@@ -531,10 +575,11 @@ function PasswordSection({ hasPassword }: { hasPassword: boolean }) {
 
     const ready = next !== '' && repeat !== '' && !mismatch && (!hasPassword || current !== '');
 
-    const edit = (setter: (value: string) => void) => (event: React.ChangeEvent<HTMLInputElement>) => {
-        change.reset();
-        setter(event.target.value);
-    };
+    const edit =
+        (setter: (value: string) => void) => (event: React.ChangeEvent<HTMLInputElement>) => {
+            change.reset();
+            setter(event.target.value);
+        };
 
     return (
         <form
@@ -546,7 +591,9 @@ function PasswordSection({ hasPassword }: { hasPassword: boolean }) {
             }}
         >
             <p data-eyebrow>{t('account.password')}</p>
-            <p className="text-(length:--text-xs) text-(--text-muted)">{t('account.passwordHint')}</p>
+            <p className="text-(length:--text-xs) text-(--text-muted)">
+                {t('account.passwordHint')}
+            </p>
 
             {hasPassword ? (
                 <Field label={t('account.currentPassword')} required>
@@ -598,7 +645,12 @@ function PasswordSection({ hasPassword }: { hasPassword: boolean }) {
             {change.isSuccess ? <Alert tone="info">{t('account.passwordChanged')}</Alert> : null}
 
             <div>
-                <Button disabled={!ready} loading={change.isPending} type="submit" variant="primary">
+                <Button
+                    disabled={!ready}
+                    loading={change.isPending}
+                    type="submit"
+                    variant="primary"
+                >
                     {hasPassword ? t('account.changePassword') : t('account.setPassword')}
                 </Button>
             </div>
@@ -651,7 +703,9 @@ function MfaSection() {
                         {status.data.enabled && status.data.methods_options.length > 0 ? (
                             <span className="text-(length:--text-sm) text-(--text-secondary)">
                                 {t('account.mfaMethods', {
-                                    methods: methodLabels(status.data.methods_options).join(t('list.separator')),
+                                    methods: methodLabels(status.data.methods_options).join(
+                                        t('list.separator'),
+                                    ),
                                 })}
                             </span>
                         ) : null}
@@ -659,14 +713,20 @@ function MfaSection() {
 
                     {status.data.enabled ? (
                         <p className="text-(length:--text-xs) text-(--text-muted)">
-                            {t('account.mfaRecoveryRemaining', { count: status.data.recovery_codes_remaining })}
+                            {t('account.mfaRecoveryRemaining', {
+                                count: status.data.recovery_codes_remaining,
+                            })}
                         </p>
                     ) : (
-                        <p className="text-(length:--text-xs) text-(--text-muted)">{t('account.mfaEnrolAtSignIn')}</p>
+                        <p className="text-(length:--text-xs) text-(--text-muted)">
+                            {t('account.mfaEnrolAtSignIn')}
+                        </p>
                     )}
 
                     {administrator ? (
-                        <p className="text-(length:--text-xs) text-(--text-muted)">{t('account.mfaRequired')}</p>
+                        <p className="text-(length:--text-xs) text-(--text-muted)">
+                            {t('account.mfaRequired')}
+                        </p>
                     ) : null}
 
                     {status.data.enabled ? (

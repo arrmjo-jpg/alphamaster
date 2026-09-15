@@ -65,7 +65,9 @@ export async function mfaStatus(signal?: AbortSignal): Promise<MfaStatus> {
  * For an administrator the platform also signs out every session, this one included, and asks
  * for enrolment again at the next sign-in — the answer says so in `tokens_revoked`.
  */
-export async function disableMfa(code: string): Promise<{ enabled: boolean; tokens_revoked?: boolean }> {
+export async function disableMfa(
+    code: string,
+): Promise<{ enabled: boolean; tokens_revoked?: boolean }> {
     return fetchData<{ enabled: boolean; tokens_revoked?: boolean }>('/auth/mfa', {
         method: 'DELETE',
         body: { code },

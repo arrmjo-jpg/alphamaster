@@ -79,7 +79,12 @@ export function MediaImageField({
         enabled: libraryOpen && mayBrowse,
     });
 
-    const shown = mediaId === null ? null : previewUrl !== undefined ? previewUrl : (record.data?.url ?? null);
+    const shown =
+        mediaId === null
+            ? null
+            : previewUrl !== undefined
+              ? previewUrl
+              : (record.data?.url ?? null);
 
     const pick = async (file: File | undefined): Promise<void> => {
         if (input.current !== null) {
@@ -91,7 +96,10 @@ export function MediaImageField({
         }
 
         if (file.size > MAX_BYTES) {
-            setNotice({ tone: 'danger', text: t('image.tooLarge', { size: formatBytes(MAX_BYTES, locale) }) });
+            setNotice({
+                tone: 'danger',
+                text: t('image.tooLarge', { size: formatBytes(MAX_BYTES, locale) }),
+            });
 
             return;
         }
@@ -133,7 +141,9 @@ export function MediaImageField({
 
     return (
         <div className="flex flex-col gap-2">
-            <span className="text-(length:--text-sm) font-medium text-(--text-primary)">{label}</span>
+            <span className="text-(length:--text-sm) font-medium text-(--text-primary)">
+                {label}
+            </span>
             {hint !== undefined ? (
                 <span className="text-(length:--text-xs) text-(--text-muted)">{hint}</span>
             ) : null}
@@ -143,7 +153,10 @@ export function MediaImageField({
                     {shown !== null ? (
                         <img alt={label} className="size-full object-cover" src={shown} />
                     ) : (
-                        <ImagePlus aria-label={t('image.none')} className="size-5 text-(--text-muted)" />
+                        <ImagePlus
+                            aria-label={t('image.none')}
+                            className="size-5 text-(--text-muted)"
+                        />
                     )}
                 </div>
 
@@ -201,9 +214,13 @@ export function MediaImageField({
                     className="flex flex-col gap-2 border border-(--border-default) p-2"
                 >
                     <p data-eyebrow>{t('image.libraryTitle')}</p>
-                    {library.isError ? <Alert tone="danger">{t('image.libraryUnavailable')}</Alert> : null}
+                    {library.isError ? (
+                        <Alert tone="danger">{t('image.libraryUnavailable')}</Alert>
+                    ) : null}
                     {library.data !== undefined && library.data.length === 0 ? (
-                        <p className="text-(length:--text-xs) text-(--text-muted)">{t('image.libraryEmpty')}</p>
+                        <p className="text-(length:--text-xs) text-(--text-muted)">
+                            {t('image.libraryEmpty')}
+                        </p>
                     ) : null}
                     <div className="grid grid-cols-[repeat(auto-fill,minmax(4.5rem,1fr))] gap-2">
                         {(library.data ?? []).map((image) => (
@@ -221,7 +238,11 @@ export function MediaImageField({
                                 type="button"
                             >
                                 {image.url !== null ? (
-                                    <img alt="" className="size-full object-cover" src={image.url} />
+                                    <img
+                                        alt=""
+                                        className="size-full object-cover"
+                                        src={image.url}
+                                    />
                                 ) : null}
                             </button>
                         ))}
@@ -229,7 +250,9 @@ export function MediaImageField({
                 </section>
             ) : null}
 
-            <span className="text-(length:--text-xs) text-(--text-muted)">{t('image.publicNote')}</span>
+            <span className="text-(length:--text-xs) text-(--text-muted)">
+                {t('image.publicNote')}
+            </span>
         </div>
     );
 }
