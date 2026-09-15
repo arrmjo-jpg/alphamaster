@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use App\Modules\Authorization\Database\Seeders\AdminPermissionSeeder;
+use App\Modules\Authorization\Models\Role;
 use App\Modules\Localization\Database\Seeders\LanguageSeeder;
 use App\Modules\Localization\Models\Language;
 use App\Modules\User\Enums\AccountType;
@@ -12,6 +14,7 @@ uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
     $this->seed(LanguageSeeder::class);
+    $this->seed(AdminPermissionSeeder::class);
 });
 
 test('public languages endpoint lists active languages with direction metadata', function (): void {
@@ -115,6 +118,7 @@ test('admin with admin:access token ability is allowed to access and create lang
         'password' => bcrypt('secret'),
         'account_type' => AccountType::ADMIN,
     ]);
+    $adminUser->givePermissionTo('languages.manage');
 
     $plainToken = $adminUser->createToken('admin-token', ['admin:access'])->plainTextToken;
 
@@ -139,6 +143,7 @@ test('admin cannot deactivate the default application language', function (): vo
         'password' => bcrypt('secret'),
         'account_type' => AccountType::ADMIN,
     ]);
+    $adminUser->givePermissionTo('languages.manage');
 
     $plainToken = $adminUser->createToken('admin-token', ['admin:access'])->plainTextToken;
     $defaultLang = Language::where('is_default', true)->firstOrFail();
@@ -156,6 +161,7 @@ test('admin can change the default language atomically', function (): void {
         'password' => bcrypt('secret'),
         'account_type' => AccountType::ADMIN,
     ]);
+    $adminUser->givePermissionTo('languages.manage');
 
     $plainToken = $adminUser->createToken('admin-token', ['admin:access'])->plainTextToken;
     $arabic = Language::where('code', 'ar')->firstOrFail();
@@ -168,4 +174,34 @@ test('admin can change the default language atomically', function (): void {
     expect(Language::where('code', 'ar')->value('is_default'))->toBeTrue()
         ->and(Language::where('code', 'en')->value('is_default'))->toBeFalse()
         ->and(Language::where('is_default', true)->count())->toBe(1);
+});
+
+test('an administrator without languages.manage reads languages and changes none', function (): void {
+    // Every editor of localized content needs the list, so reading stays open to the perimeter.
+    // Adding, editing, switching and making default each decide what the platform serves.
+    $token = tokenWithPermissions(['users.view']);
+    $arabic = Language::where('code', 'ar')->firstOrFail();
+
+    $this->withToken($token)->getJson('/api/v1/admin/languages')->assertOk();
+    $this->withToken($token)->getJson("/api/v1/admin/languages/{$arabic->id}")->assertOk();
+
+    $this->withToken($token)->postJson('/api/v1/admin/languages', [
+        'code' => 'fr', 'name' => 'French', 'native_name' => 'Français', 'direction' => 'ltr',
+    ])->assertForbidden();
+    $this->withToken($token)->putJson("/api/v1/admin/languages/{$arabic->id}", ['name' => 'Renamed'])->assertForbidden();
+    $this->withToken($token)->patchJson("/api/v1/admin/languages/{$arabic->id}/status")->assertForbidden();
+    $this->withToken($token)->patchJson("/api/v1/admin/languages/{$arabic->id}/default")->assertForbidden();
+
+    expect(Language::query()->where('code', 'fr')->exists())->toBeFalse()
+        ->and(Language::where('code', 'ar')->value('name'))->not->toBe('Renamed')
+        ->and(Language::where('code', 'en')->value('is_default'))->toBeTrue();
+});
+
+test('the seeded administrator role manages languages, and editors and support do not', function (): void {
+    $roles = Role::query()->with('permissions')->get()->keyBy('name');
+
+    expect($roles['administrator']->permissions->pluck('name'))->toContain('languages.manage')
+        ->and($roles['super_admin']->permissions->pluck('name'))->toContain('languages.manage')
+        ->and($roles['editor']->permissions->pluck('name'))->not->toContain('languages.manage')
+        ->and($roles['support']->permissions->pluck('name'))->not->toContain('languages.manage');
 });

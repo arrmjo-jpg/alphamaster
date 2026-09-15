@@ -103,6 +103,7 @@ function renderScreen(
     rows: ReturnType<typeof language>[] = [language(), ARABIC],
     publicRows: ReturnType<typeof language>[] = rows.filter((row) => row.is_active),
     standing: ReturnType<typeof overview> = overview(),
+    permissions: string[] = ['languages.manage'],
 ) {
     server.use(
         HEALTH,
@@ -128,7 +129,7 @@ function renderScreen(
                     email_verified_at: '2026-01-01T00:00:00+00:00',
                     abilities: ['admin:access'],
                     roles: ['administrator'],
-                    permissions: [],
+                    permissions,
                 },
             }),
         ),
@@ -214,6 +215,20 @@ describe('the languages workspace', () => {
 
         // A language is a console language as soon as it exists (ADR 0049).
         expect(screen.queryByText(/message catalogue/)).not.toBeInTheDocument();
+    });
+
+    it('shows languages without the controls to an operator who may not manage them', async () => {
+        renderScreen(undefined, undefined, undefined, []);
+
+        await userEvent.click(await screen.findByText('Arabic'));
+
+        // Reading is open to the perimeter; adding, switching, making default and saving are
+        // `languages.manage`, which the platform enforces, so none of them is offered.
+        expect(screen.getByText(/languages\.manage/)).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Add a language' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Activate' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Make default/ })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Save language' })).not.toBeInTheDocument();
     });
 
     it('reaches a language from the keyboard on a wide screen, not only by pointer', async () => {

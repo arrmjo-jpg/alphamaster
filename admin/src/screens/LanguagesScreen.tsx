@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 
 import { ApiError } from '@/api/errors';
+import { useCurrentUser } from '@/auth/AuthProvider';
 import { cn } from '@/lib/cn';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import { languages as fetchLanguages, type AdminLanguage } from '@/screens/languages/api';
@@ -46,6 +47,8 @@ export function LanguagesScreen() {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const [selection, setSelection] = useState<Selection>({ kind: 'none' });
+    // Reading languages is open to the perimeter; changing them is `languages.manage`.
+    const mayManage = useCurrentUser().permissions.includes('languages.manage');
 
     // A structural switch rather than a styling one: the table and the record list are
     // different markup, and rendering both would put every language in the
@@ -108,7 +111,7 @@ export function LanguagesScreen() {
     // A selection whose language is gone — renamed away under another session, say —
     // is not a selection. Falling back to the empty panel is better than rendering the
     // add form, which is what a null language otherwise means here.
-    const showDetail = selection.kind === 'new' || selected !== null;
+    const showDetail = (selection.kind === 'new' && mayManage) || selected !== null;
 
     const manage = (code: string): void => {
         void navigate(`/translations?target=${encodeURIComponent(code)}`);
@@ -117,10 +120,12 @@ export function LanguagesScreen() {
     return (
         <Screen
             action={
-                <Button onClick={() => setSelection({ kind: 'new' })} variant="secondary">
-                    <Plus aria-hidden className="size-3.5" />
-                    {t('languages.add')}
-                </Button>
+                mayManage ? (
+                    <Button onClick={() => setSelection({ kind: 'new' })} variant="secondary">
+                        <Plus aria-hidden className="size-3.5" />
+                        {t('languages.add')}
+                    </Button>
+                ) : undefined
             }
         >
             <p className="max-w-prose text-(--text-secondary)">{t('languages.intro')}</p>

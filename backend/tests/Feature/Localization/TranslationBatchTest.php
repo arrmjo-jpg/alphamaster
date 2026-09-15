@@ -227,7 +227,7 @@ function acceptTranslation(mixed $test, string $token, TranslationBatch $batch, 
 
 test('a language added in Language Management is in the workshop at once, with every item not translated', function (): void {
     englishAsSource();
-    $token = tokenWithPermissions(['settings.view', 'roles.view', 'notifications.view', PagePermission::VIEW->value, TeamPermission::VIEW->value]);
+    $token = tokenWithPermissions(['settings.view', 'roles.view', 'notifications.view', PagePermission::VIEW->value, TeamPermission::VIEW->value, 'languages.manage']);
 
     englishPage(['title' => 'About us', 'body' => '<p>Who we are.</p>']);
     englishTeamMember('Nadia Haddad', 'Editor');
@@ -895,7 +895,7 @@ test('pages, team profiles and settings are translated into a newly added langua
         'settings.view', 'settings.update',
         PagePermission::VIEW->value, PagePermission::UPDATE->value,
         TeamPermission::VIEW->value, TeamPermission::UPDATE->value,
-        'ai.use',
+        'ai.use', 'languages.manage',
     ]);
 
     $this->withToken($token)->postJson('/api/v1/admin/languages', [

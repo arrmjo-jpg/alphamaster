@@ -152,6 +152,16 @@ enum AdminPermission: string implements PermissionDefinition
      */
     case INTERFACE_TRANSLATE = 'interface.translate';
 
+    /**
+     * Add a language, change one, make one the default, or switch one on or off (ADR 0048).
+     *
+     * Its own permission because a language decides what the whole platform serves and reads
+     * in: deactivating one takes every address in it offline, and changing the default moves
+     * the fallback of every translation. Reading the list is not gated — every editor of
+     * localized content needs it — so only these writes are.
+     */
+    case LANGUAGES_MANAGE = 'languages.manage';
+
     public function key(): string
     {
         return $this->value;
@@ -176,7 +186,7 @@ enum AdminPermission: string implements PermissionDefinition
             self::MEDIA_VIEW, self::MEDIA_DELETE,
             self::MEDIA_ANALYSIS_VIEW, self::MEDIA_ANALYSIS_REQUEST, self::MEDIA_ANALYSIS_REVIEW => 'media',
             self::AI_USE, self::CDN_VIEW, self::CDN_PURGE, self::CDN_PURGE_EVERYTHING => 'integration',
-            self::INTERFACE_TRANSLATE => 'localization',
+            self::INTERFACE_TRANSLATE, self::LANGUAGES_MANAGE => 'localization',
         };
     }
 

@@ -150,7 +150,7 @@ const EVERY_WRITE = ['settings.view', 'settings.update', 'roles.view', 'roles.up
 // ── A draft exists and is not served ─────────────────────────────────────────
 
 test('a language can be added as a draft that the platform does not serve', function (): void {
-    $token = tokenWithPermissions([]);
+    $token = tokenWithPermissions(['languages.manage']);
 
     $this->withToken($token)->postJson('/api/v1/admin/languages', [
         'code' => 'fr',
@@ -482,7 +482,7 @@ test('a failed item can be asked for again, and the existing translation is unto
 });
 
 test('the default language still cannot be switched off', function (): void {
-    $token = tokenWithPermissions([]);
+    $token = tokenWithPermissions(['languages.manage']);
     $english = Language::query()->where('code', 'en')->sole();
 
     $this->withToken($token)->patchJson("/api/v1/admin/languages/{$english->id}/status")

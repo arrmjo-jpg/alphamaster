@@ -70,6 +70,10 @@ class AdminPermissionSeeder extends Seeder
                 AdminPermission::MEDIA_ANALYSIS_VIEW,
                 AdminPermission::MEDIA_ANALYSIS_REQUEST,
                 AdminPermission::MEDIA_ANALYSIS_REVIEW,
+                // Managing languages is running the platform: the role that could already do it
+                // behind the perimeter keeps it. Editors and support never held it on purpose;
+                // before this permission existed they could, which is what it closes.
+                AdminPermission::LANGUAGES_MANAGE,
             ],
             'editor' => [
                 AdminPermission::USERS_VIEW,

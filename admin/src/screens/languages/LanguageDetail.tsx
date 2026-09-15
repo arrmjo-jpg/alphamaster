@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 
 import { ApiError } from '@/api/errors';
+import { useCurrentUser } from '@/auth/AuthProvider';
 import { CoverageMeter } from '@/screens/languages/Coverage';
 import { translateWithAi, type LanguageStanding, type Overview } from '@/screens/translations/api';
 import { Alert } from '@/ui/Alert';
@@ -93,6 +94,9 @@ export function LanguageDetail({
     const navigate = useNavigate();
 
     const creating = language === null;
+    // Changing a language is `languages.manage`; without it the record is shown, not offered
+    // as a form the platform would refuse.
+    const mayManage = useCurrentUser().permissions.includes('languages.manage');
     const [draft, setDraft] = useState<Draft>(() => draftFrom(language));
     const [serveNow, setServeNow] = useState(false);
 
@@ -400,7 +404,11 @@ export function LanguageDetail({
                                 </p>
                             )}
 
-                            <div className="flex flex-wrap gap-2">
+                            {mayManage ? null : (
+                                <Alert tone="info">{t('languages.readOnly')}</Alert>
+                            )}
+
+                            <div className="flex flex-wrap gap-2" hidden={!mayManage}>
                                 <Button
                                     // The platform refuses to switch off the language it
                                     // falls back to, so the control is refused here too
@@ -560,7 +568,7 @@ export function LanguageDetail({
                         <Alert tone="success">{t('languages.saved')}</Alert>
                     ) : null}
 
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-2" hidden={!mayManage}>
                         <Button
                             disabled={!dirty || !complete || !Number.isInteger(sortOrder)}
                             loading={save.isPending}

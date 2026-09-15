@@ -26,16 +26,27 @@ Route::prefix('v1')->group(function (): void {
         ->middleware('http.cache:public-configuration,localization:interface')
         ->name('api.interface.console');
 
-    // Admin language management routes (protected by admin perimeter)
+    // Language management. Reading the list stays behind the perimeter alone: every editor of
+    // localized content — pages, team, settings, the workshop — needs every language, served or
+    // not. Changing one is `languages.manage`, because a language decides what the whole platform
+    // serves. The literal, not the enum, for the reason `ai.use` is one below.
     Route::prefix('admin/languages')
         ->middleware(['auth:sanctum', 'ability:admin:access', 'active', 'admin', 'email-verified'])
         ->group(function (): void {
             Route::get('/', [LanguageAdminController::class, 'index'])->name('admin.languages.index');
-            Route::post('/', [LanguageAdminController::class, 'store'])->name('admin.languages.store');
+            Route::post('/', [LanguageAdminController::class, 'store'])
+                ->middleware('permission:languages.manage')
+                ->name('admin.languages.store');
             Route::get('/{id}', [LanguageAdminController::class, 'show'])->name('admin.languages.show');
-            Route::put('/{id}', [LanguageAdminController::class, 'update'])->name('admin.languages.update');
-            Route::patch('/{id}/status', [LanguageAdminController::class, 'toggleStatus'])->name('admin.languages.status');
-            Route::patch('/{id}/default', [LanguageAdminController::class, 'setDefault'])->name('admin.languages.default');
+            Route::put('/{id}', [LanguageAdminController::class, 'update'])
+                ->middleware('permission:languages.manage')
+                ->name('admin.languages.update');
+            Route::patch('/{id}/status', [LanguageAdminController::class, 'toggleStatus'])
+                ->middleware('permission:languages.manage')
+                ->name('admin.languages.status');
+            Route::patch('/{id}/default', [LanguageAdminController::class, 'setDefault'])
+                ->middleware('permission:languages.manage')
+                ->name('admin.languages.default');
         });
 
     // AI translation of items (ADR 0044, ADR 0056).

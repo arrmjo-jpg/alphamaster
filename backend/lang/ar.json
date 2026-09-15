@@ -600,5 +600,6 @@
     "permission.team.create": "إضافة أعضاء الفريق",
     "permission.team.update": "تعديل أعضاء الفريق",
     "permission.team.delete": "إزالة أعضاء الفريق",
-    "permission.interface.translate": "ترجمة الواجهة"
+    "permission.interface.translate": "ترجمة الواجهة",
+    "permission.languages.manage": "إدارة اللغات"
 }

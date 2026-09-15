@@ -31,8 +31,8 @@ test('every permission in the catalogue resolves a label in both locales', funct
     // when asking a vendor for text became a power of its own. ADR 0053 added the CDN
     // trio: viewing the edge, purging named objects, and purging everything. ADR 0054
     // added viewing, requesting and reviewing media analyses. ADR 0049 added translating the
-    // interface.
-    expect($cases)->toHaveCount(31);
+    // interface, and managing languages became a permission of its own.
+    expect($cases)->toHaveCount(32);
 
     foreach (['en', 'ar'] as $locale) {
         app()->setLocale($locale);
@@ -178,8 +178,9 @@ test('every permission key exists in both dictionaries and differs between them'
     $keys = array_values(array_filter(array_keys($en), fn (string $k): bool => str_starts_with($k, 'permission.')));
 
     // 30 for the platform's own permissions; ADR 0055 added five for pages and four for the
-    // team directory, declared by those modules; ADR 0049 added translating the interface.
-    expect($keys)->toHaveCount(40);
+    // team directory, declared by those modules; ADR 0049 added translating the interface, and
+    // managing languages then became its own.
+    expect($keys)->toHaveCount(41);
 
     foreach ($keys as $key) {
         expect($ar)->toHaveKey($key)

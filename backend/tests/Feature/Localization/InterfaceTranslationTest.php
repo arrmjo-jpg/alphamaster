@@ -59,7 +59,7 @@ function languageNobodyCodedFor(mixed $test, string $direction = 'rtl'): string
 {
     $code = 'q'.Str::lower(Str::random(3));
 
-    $test->withToken(tokenWithPermissions([]))->postJson('/api/v1/admin/languages', [
+    $test->withToken(tokenWithPermissions(['languages.manage']))->postJson('/api/v1/admin/languages', [
         'code' => $code, 'name' => 'Invented', 'native_name' => 'Erfunden', 'direction' => $direction, 'is_active' => true,
     ])->assertCreated();
 
