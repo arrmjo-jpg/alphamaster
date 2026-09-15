@@ -242,5 +242,39 @@ final class AuditAction
      */
     public const CACHE_NAMESPACE_FLUSHED = 'cache.namespace_flushed';
 
+    /**
+     * An administrator asked the edge to purge named objects (ADR 0036, ADR 0053). The
+     * outcome is on the purge request rows; this records who asked for what.
+     */
+    public const CDN_PURGE_REQUESTED = 'cdn.purge_requested';
+
+    /**
+     * An administrator asked the edge to purge everything. Its own action, because it is
+     * the incident tool ADR 0036 requires to be separately visible.
+     */
+    public const CDN_PURGE_EVERYTHING_REQUESTED = 'cdn.purge_everything_requested';
+
+    /**
+     * What the vendor answered to a purge of everything, written by the worker when the
+     * request is final (ADR 0036: the provider's result is recorded, not assumed). The
+     * actor is empty because a worker has none; `requested_by` names the operator.
+     */
+    public const CDN_PURGE_EVERYTHING_COMPLETED = 'cdn.purge_everything_completed';
+
+    /**
+     * An administrator asked for a media analysis by hand (ADR 0054). Analyses a module
+     * requests are not audited: the analysis row is their record.
+     */
+    public const MEDIA_ANALYSIS_REQUESTED = 'media.analysis_requested';
+
+    /** A person recorded a review of a media analysis (ADR 0054). */
+    public const MEDIA_ANALYSIS_REVIEWED = 'media.analysis_reviewed';
+
+    /** An administrator put a failed purge back in the queue. */
+    public const CDN_PURGE_RETRIED = 'cdn.purge_retried';
+
+    /** An administrator asked the CDN vendor about the configured scope. */
+    public const CDN_SCOPE_VERIFIED = 'cdn.scope_verified';
+
     private function __construct() {}
 }

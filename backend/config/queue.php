@@ -73,6 +73,18 @@ return [
             'after_commit' => false,
         ],
 
+        // Media analysis (ADR 0054). The same Redis, with a retry_after above the longest
+        // analysis `media_analysis.timeout_seconds` allows (1800s) plus the worker's margin,
+        // so a long analysis is never handed to a second worker while the first still runs.
+        'redis-media-analysis' => [
+            'driver' => 'redis',
+            'connection' => env('REDIS_QUEUE_CONNECTION', 'default'),
+            'queue' => 'media-analysis',
+            'retry_after' => (int) env('MEDIA_ANALYSIS_QUEUE_RETRY_AFTER', 1900),
+            'block_for' => null,
+            'after_commit' => false,
+        ],
+
         'deferred' => [
             'driver' => 'deferred',
         ],

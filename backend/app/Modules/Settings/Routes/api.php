@@ -25,8 +25,15 @@ $groupPattern = '[a-z][a-z0-9_]{0,49}';
  */
 Route::prefix('v1')->group(function () use ($groupPattern): void {
     // Public Settings Endpoints (Minimal payload, zero secrets, zero internal flags)
-    Route::get('/settings', [SettingApiController::class, 'index'])->name('api.settings.index');
+    //
+    // Cacheable under the public configuration profile, tagged so a settings change purges
+    // them from the edge (ADR 0036, ADR 0053). The tag literal is SettingService's
+    // publicEdgeTag(), which the purge names; SettingsEdgeCachingTest pins the two together.
+    Route::get('/settings', [SettingApiController::class, 'index'])
+        ->middleware('http.cache:public-configuration,settings:public')
+        ->name('api.settings.index');
     Route::get('/settings/{group}', [SettingApiController::class, 'show'])
+        ->middleware('http.cache:public-configuration,settings:public')
         ->where('group', $groupPattern)
         ->name('api.settings.show');
 

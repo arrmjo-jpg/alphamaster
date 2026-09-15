@@ -82,6 +82,11 @@ class SettingDefinitionResource extends JsonResource
             // permissive than the server.
             'rules' => $definition->rules,
 
+            // What a number counts, so a screen can show 300 seconds as 00:05:00. The
+            // value written back is still the number.
+            /** @var 'seconds'|null */
+            'unit' => $definition->unit,
+
             // The permission required to change this setting, resolved rather than
             // repeated: `requiredPermission()` answers `settings.secrets.manage` for a
             // secret, which the raw declaration does not carry. Publishing the raw

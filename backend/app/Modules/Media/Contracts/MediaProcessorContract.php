@@ -10,10 +10,10 @@ use App\Modules\Media\Models\MediaFile;
 /**
  * Derives metadata from a stored file.
  *
- * One processor per media type, resolved by type. Only the processors this
- * environment can actually run are registered: thumbnailing needs gd or imagick and
- * video metadata needs ffprobe, neither of which is installed, so those remain
- * contracts without drivers rather than stubs pretending to work.
+ * One processor per media type, resolved by type. Only what this environment can
+ * actually derive is reported: thumbnailing needs gd or imagick, which is not installed,
+ * so it remains a contract without a driver rather than a stub pretending to work. Video
+ * and audio metadata is read with ffprobe, which the image installs.
  */
 interface MediaProcessorContract
 {

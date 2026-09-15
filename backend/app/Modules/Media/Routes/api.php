@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Modules\Authorization\Enums\AdminPermission;
 use App\Modules\Media\Controllers\Admin\MediaAdminController;
+use App\Modules\Media\Controllers\Admin\MediaAnalysisAdminController;
 use App\Modules\Media\Controllers\Api\AvatarController;
 use App\Modules\Media\Controllers\Api\MediaController;
 use Illuminate\Support\Facades\Route;
@@ -38,6 +39,33 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/', [MediaAdminController::class, 'index'])
                 ->middleware('permission:'.AdminPermission::MEDIA_VIEW->value)
                 ->name('admin.media.index');
+
+            // Media analysis (ADR 0054). Declared before `/{media}`, which would otherwise
+            // take `analysis` and `analyses` as a media id. The Admin is one consumer of the
+            // capability; modules call Core's contract directly and need none of these.
+            Route::get('/analysis', [MediaAnalysisAdminController::class, 'status'])
+                ->middleware('permission:'.AdminPermission::MEDIA_ANALYSIS_VIEW->value)
+                ->name('admin.media.analysis.status');
+
+            Route::get('/analyses/{analysis}', [MediaAnalysisAdminController::class, 'show'])
+                ->middleware('permission:'.AdminPermission::MEDIA_ANALYSIS_VIEW->value)
+                ->name('admin.media.analyses.show');
+
+            Route::post('/analyses/{analysis}/cancel', [MediaAnalysisAdminController::class, 'cancel'])
+                ->middleware('permission:'.AdminPermission::MEDIA_ANALYSIS_REQUEST->value)
+                ->name('admin.media.analyses.cancel');
+
+            Route::post('/analyses/{analysis}/reviews', [MediaAnalysisAdminController::class, 'review'])
+                ->middleware('permission:'.AdminPermission::MEDIA_ANALYSIS_REVIEW->value)
+                ->name('admin.media.analyses.review');
+
+            Route::get('/{media}/analyses', [MediaAnalysisAdminController::class, 'index'])
+                ->middleware('permission:'.AdminPermission::MEDIA_ANALYSIS_VIEW->value)
+                ->name('admin.media.analyses.index');
+
+            Route::post('/{media}/analyses', [MediaAnalysisAdminController::class, 'store'])
+                ->middleware('permission:'.AdminPermission::MEDIA_ANALYSIS_REQUEST->value)
+                ->name('admin.media.analyses.store');
 
             Route::get('/{media}', [MediaAdminController::class, 'show'])
                 ->middleware('permission:'.AdminPermission::MEDIA_VIEW->value)

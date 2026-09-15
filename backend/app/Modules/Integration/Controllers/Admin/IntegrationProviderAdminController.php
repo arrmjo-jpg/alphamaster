@@ -13,6 +13,8 @@ use App\Modules\Integration\Models\IntegrationProvider;
 use App\Modules\Integration\Models\IntegrationUsageLog;
 use App\Modules\Integration\Requests\UpdateIntegrationProviderRequest;
 use App\Modules\Integration\Resources\IntegrationProviderResource;
+use App\Modules\Integration\Services\CdnEdgeCache;
+use App\Modules\Integration\Services\IntegrationMediaAnalyzer;
 use App\Modules\Integration\Services\SocialLoginGateway;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -43,7 +45,7 @@ class IntegrationProviderAdminController extends BaseApiController
      * Update a provider: its label, non-secret settings, activation, failover
      * position, and optionally its credentials.
      */
-    public function update(UpdateIntegrationProviderRequest $request, IntegrationProvider $provider, SocialLoginGateway $socialLogin): JsonResponse
+    public function update(UpdateIntegrationProviderRequest $request, IntegrationProvider $provider, SocialLoginGateway $socialLogin, CdnEdgeCache $cdn, IntegrationMediaAnalyzer $mediaAnalyzer): JsonResponse
     {
         if ($provider->capability === IntegrationCapability::AI) {
             return $this->configuredInAiControlCentre();
@@ -51,7 +53,9 @@ class IntegrationProviderAdminController extends BaseApiController
 
         $validated = $request->validated();
 
-        return DB::transaction(function () use ($validated, $provider, $socialLogin): JsonResponse {
+        return DB::transaction(function () use ($validated, $provider, $socialLogin, $cdn, $mediaAnalyzer): JsonResponse {
+            $settingsBefore = $provider->settings;
+
             $provider->fill([
                 'label' => $validated['label'] ?? $provider->label,
                 'settings' => $validated['settings'] ?? $provider->settings,
@@ -94,6 +98,44 @@ class IntegrationProviderAdminController extends BaseApiController
             // The refusal names fields, never values.
             if ($provider->capability === IntegrationCapability::SOCIAL_LOGIN && $provider->is_active) {
                 $missing = $socialLogin->missingConfiguration($provider);
+
+                if ($missing !== []) {
+                    return $this->errorResponse(
+                        'PROVIDER_CONFIGURATION_INCOMPLETE',
+                        'api.error.integration.provider_configuration_incomplete',
+                        ['missing' => $missing],
+                        422
+                    );
+                }
+            }
+
+            // A CDN row carries what verification detected — the scope's name and plan, which
+            // set its limits (ADR 0053). Those survive an edit that leaves the verified
+            // settings alone, and are discarded when the zone itself changes, so limits are
+            // never derived from a scope nobody checked. The row cannot be on without its
+            // required configuration, the same rule social login follows.
+            if ($provider->capability === IntegrationCapability::CDN) {
+                $provider->settings = $cdn->retainVerification($provider, $settingsBefore, $provider->settings);
+
+                if ($provider->is_active) {
+                    $missing = $cdn->missingConfiguration($provider);
+
+                    if ($missing !== []) {
+                        return $this->errorResponse(
+                            'PROVIDER_CONFIGURATION_INCOMPLETE',
+                            'api.error.integration.provider_configuration_incomplete',
+                            ['missing' => $missing],
+                            422
+                        );
+                    }
+                }
+            }
+
+            // A media analysis provider cannot be on without its required configuration either
+            // (ADR 0054), for the same reason: an analyzer switched on half-configured would
+            // refuse every analysis while looking available.
+            if ($provider->capability === IntegrationCapability::MEDIA_ANALYSIS && $provider->is_active) {
+                $missing = $mediaAnalyzer->missingConfiguration($provider);
 
                 if ($missing !== []) {
                     return $this->errorResponse(

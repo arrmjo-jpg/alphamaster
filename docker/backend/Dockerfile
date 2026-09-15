@@ -43,6 +43,17 @@ RUN pecl install redis \
 
 RUN apk del $PHPIZE_DEPS
 
+# ffprobe reads a video's or an audio file's duration during media processing, which the
+# analysis limits of ADR 0054 are checked against; ffmpeg comes in the same package and is
+# what the test suite builds its sample media with. Runtime packages, not build ones, so
+# they stay after the compiler is removed.
+#
+# In the shared base rather than a worker-only stage. Every PHP service runs from this
+# image, and the suite runs in the backend container, so a probe the tests cannot reach
+# would be a probe nobody verifies. Only the queued media jobs execute it: the request
+# path never probes a file, and nothing passes a request value to either binary.
+RUN apk add --no-cache ffmpeg
+
 # Composer stays in the final image on purpose: the quality gate and CI both run
 # `composer install` inside a running backend container against the bind-mounted
 # tree, because the suite needs the dev dependencies this image deliberately

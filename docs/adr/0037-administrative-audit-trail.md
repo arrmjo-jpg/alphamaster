@@ -5,6 +5,7 @@
 * **Revised**: 2026-09-06 — retention settled: archival, as the single permitted removal path
 * **Revised**: 2026-09-10 — scope widened: the trail covers accounts, not only configuration
 * **Revised**: 2026-09-13 — four actions for Social Login (ADR 0050), as exceptions argued in their own extension; authentication events and refused operations otherwise stay out
+* **Revised**: 2026-09-14 — CDN purges (ADR 0053) and two media analysis actions (ADR 0054): a manual analysis request and a human review; analyses a module requests are not audited, their row is the record
 * **Built**: 2026-09-07 — Phase 16B-4 implements the archival operation, its permission, and the trail's first read endpoint
 
 ## Context

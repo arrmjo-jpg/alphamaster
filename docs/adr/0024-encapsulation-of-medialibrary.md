@@ -5,6 +5,7 @@
 * **Revised**: 2026-09-04 — implemented; MediaLibrary evaluated and not adopted; `HasMediaAttachments` deferred to its first consumer
 * **Revised**: 2026-09-04 — named variants and watermarking recorded as target architecture, explicitly not implemented
 * **Revised**: 2026-09-05 — variant-set ownership, missing-variant behaviour, system assets, and the closed name vocabulary
+* **Revised**: 2026-09-14 — the unimplemented `MediaVerifierContract` is replaced by media analysis (ADR 0054)
 
 ## Context
 
@@ -22,11 +23,11 @@ Attachment reaches a business model through a project-owned `HasMediaAttachments
 
 Storage is `MediaStorageContract` over Laravel's filesystem disks rather than a second configuration system: disks are already a driver abstraction, and the disk each file lives on is recorded per row so a migration between backends can proceed file by file. Delivery is `CdnUrlResolverContract`, configured from the Settings module's `cdn` group, naming no vendor and returning the storage URL unchanged when no CDN is configured. Private media is never routed through a CDN, because a shared cache in front of a signed URL is how private files stop being private.
 
-Malware scanning is `MediaScannerContract`. No antivirus exists in this environment, so the registered driver reports `not_scanned` and deliberately never reports `clean`: a row asserting cleanliness on the strength of a scanner that did not run is a guarantee nobody checked. Metadata extraction is `MediaProcessorContract`, resolved per media type, with only the processors this environment can actually run registered — image dimensions come from the file header without decoding, and thumbnailing and video metadata remain contracts without drivers until the container gains gd and ffprobe.
+Malware scanning is `MediaScannerContract`. No antivirus exists in this environment, so the registered driver reports `not_scanned` and deliberately never reports `clean`: a row asserting cleanliness on the strength of a scanner that did not run is a guarantee nobody checked. Metadata extraction is `MediaProcessorContract`, resolved per media type, with only the processors this environment can actually run registered — image dimensions come from the file header without decoding, and thumbnailing remains a contract without a driver until the container gains gd. Video and audio metadata — duration, dimensions, codecs — is read with ffprobe, which the image has installed since 2026-09-14 (ADR 0054 §11).
 
 Access is two visibilities. Media knows whether a file needs authorization; who satisfies it is a business question — owner, team member, judge — that Media cannot anticipate, so it is delegated to a `MediaAccessPolicyContract` the attaching module registers. Private media attached to a type with no registered policy is denied: an unanswered question is not a yes.
 
-Authenticity assessment is `MediaVerifierContract`, defined and unimplemented. There is no consumer and no analyzer is possible without frame extraction, so the contract exists to settle the shape rather than to promise the capability. An implementation returns a risk assessment and never a verdict, because no analyzer can support the claim that a file definitively is or is not machine generated.
+Authenticity assessment is media analysis, decided in ADR 0054. It replaced `MediaVerifierContract`, `VerificationAssessment` and `VerificationStatus`, which were defined here and never bound, persisted or called. Their principles survive the replacement: an analysis reports risk and never a verdict, because no analyzer can support the claim that a file definitively is or is not machine generated; and a result names the analyzer and version that produced it, so a later one supersedes it rather than overwriting it.
 
 Intake is asynchronous on the `media` queue (ADR 0020): validate, store, scan, process, ready. Jobs take an id rather than a model so a retry re-reads current state, and each is idempotent. Deletion is soft; bytes are purged by an explicit retention job, never as a side effect of a row disappearing.
 
@@ -35,6 +36,8 @@ Intake is asynchronous on the `media` queue (ADR 0020): validate, store, scan, p
 This section records target architecture. **None of it is implemented**, and the record above is unchanged: `MediaProcessorContract` exists, only processors this environment can run are registered, and image dimensions are read from the file header without decoding. Thumbnailing and video metadata remain contracts without drivers because the container has neither gd, imagick nor ffmpeg — verified again on 2026-09-04 against the built image, whose extension list is `pdo_pgsql, pgsql, pdo_sqlite, redis, pcntl, posix, bcmath, intl, zip, exif, opcache`.
 
 The audit asked that this be stated plainly rather than implied, so: the pipeline is built, the processors are not.
+
+*Revised 2026-09-14.* The image now installs `ffmpeg`, and video and audio metadata has a driver: `TimedMediaProcessor` reads duration, dimensions and codecs with ffprobe during intake (ADR 0054 §11). gd and imagick are still absent, so everything in this section about variants and watermarking stands as written.
 
 ### Variants are named, not dimensioned
 
@@ -122,7 +125,7 @@ Content images are the same mechanism with a different answer. A module owning a
 | Header-only image dimension reading | Implemented, Phase 10 |
 | Named variants, generation, regeneration | **Deferred** — requires gd or imagick |
 | Watermarking | **Deferred** — requires the above |
-| Video metadata | **Deferred** — requires ffprobe |
+| Video and audio metadata (duration, dimensions, codecs) | Implemented 2026-09-14 with ffprobe (ADR 0054 §11) |
 | `HasMediaAttachments` | **Deferred** to its first consumer |
 | Variant policy seam and its default | Decided 2026-09-05, **not implemented** |
 | Variant resolution and reporting of what was served | Decided 2026-09-05, **not implemented** |
@@ -135,4 +138,4 @@ Preserves the isolation the original decision was for, at a lower dependency cos
 
 Adopting a media vendor later remains open and cheap. `MediaStorageContract` and `MediaProcessorContract` are where one would attach, and no business model would change — which is the same guarantee this record made when it named a vendor, now demonstrated rather than asserted.
 
-The capabilities that need gd, imagick or ffmpeg are genuinely absent rather than stubbed, so a caller can tell what the platform does not do. Adding those extensions to the container image is what unblocks them; the contracts are already in place to receive them.
+The capabilities that need gd or imagick are genuinely absent rather than stubbed, so a caller can tell what the platform does not do. Adding those extensions to the container image is what unblocks them; the contracts are already in place to receive them. Adding ffmpeg did exactly that for video metadata, through the contract that was already here.

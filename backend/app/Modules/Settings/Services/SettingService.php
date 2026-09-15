@@ -7,8 +7,11 @@ namespace App\Modules\Settings\Services;
 use App\Modules\Core\Audit\AuditAction;
 use App\Modules\Core\Cache\CacheNamespace;
 use App\Modules\Core\Contracts\AuditRecorderContract;
+use App\Modules\Core\Contracts\EdgeCacheContract;
 use App\Modules\Core\Contracts\LocaleResolverInterface;
 use App\Modules\Core\Contracts\PlatformCacheContract;
+use App\Modules\Core\Delivery\EdgeCacheTag;
+use App\Modules\Core\Delivery\EdgeInvalidation;
 use App\Modules\Settings\Contracts\SettingServiceInterface;
 use App\Modules\Settings\Definitions\DefinitionValidator;
 use App\Modules\Settings\Definitions\SettingDefinition;
@@ -175,6 +178,11 @@ class SettingService implements SettingServiceInterface
 
                 $this->recordChange($setting, $serialized, $previousValue, $locale);
             }
+
+            // Each value satisfied its own rules; this checks them against one another, as
+            // the group now stands. Thrown inside the transaction, so nothing written above
+            // survives a refusal.
+            $this->assertGroupConstraintsSatisfied($existing, $locale);
 
             // Invalidate only once the transaction has actually committed. Clearing
             // inside the transaction lets a concurrent reader repopulate the cache from
@@ -912,6 +920,7 @@ class SettingService implements SettingServiceInterface
         // key outside this namespace, which is what ADR 0035 puts in place of a flush.
         if ($group === null) {
             $this->cache->flushNamespace(CacheNamespace::SETTINGS);
+            $this->invalidatePublicEdge();
 
             return;
         }
@@ -928,6 +937,47 @@ class SettingService implements SettingServiceInterface
             $this->cache->forget(CacheNamespace::SETTINGS, self::RESOURCE_PUBLIC_GROUP, ['group' => $group, 'locale' => $locale]);
             $this->cache->forget(CacheNamespace::SETTINGS, self::RESOURCE_GROUP_INDEX, ['group' => $group, 'locale' => $locale]);
         }
+
+        // Asked of the registry rather than of getPublicGroupNames(): that reads through
+        // the cache entry forgotten a few lines up, and would put it straight back.
+        if ($this->groupDeclaresPublicSettings($group)) {
+            $this->invalidatePublicEdge();
+        }
+    }
+
+    private function groupDeclaresPublicSettings(string $group): bool
+    {
+        foreach ($this->registry->forGroup($group) as $definition) {
+            if ($definition->isPublic) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * The edge cache tag every public settings response carries (ADR 0053).
+     */
+    public static function publicEdgeTag(): string
+    {
+        return EdgeCacheTag::for('settings', 'public');
+    }
+
+    /**
+     * Purge public settings from the edge.
+     *
+     * The application cache was just invalidated; copies an edge node holds are a
+     * separate layer that forgetting a key does not reach. Rescued: a CDN that cannot be
+     * asked must not turn a saved setting into a failed one, and the purge request records
+     * its own outcome.
+     */
+    private function invalidatePublicEdge(): void
+    {
+        rescue(static fn () => app(EdgeCacheContract::class)->invalidate(
+            EdgeInvalidation::tags([self::publicEdgeTag()]),
+            'settings.public_changed',
+        ));
     }
 
     /**
@@ -1086,6 +1136,39 @@ class SettingService implements SettingServiceInterface
 
         if ($messages !== []) {
             throw new SettingValueRejectedException($reference, $messages);
+        }
+    }
+
+    /**
+     * Refuse a write that leaves a group's settings contradicting one another.
+     *
+     * Secrets are left out: no constraint may be written over credential material, and
+     * reading it here would mean decrypting it to do so.
+     *
+     * @param  EloquentCollection<string, Setting>  $settings  the group, as written
+     *
+     * @throws SettingValueRejectedException
+     */
+    private function assertGroupConstraintsSatisfied(EloquentCollection $settings, string $locale): void
+    {
+        $constraints = $this->registry->constraints();
+
+        if ($constraints === []) {
+            return;
+        }
+
+        $values = [];
+
+        foreach ($settings as $setting) {
+            if (! $setting->is_secret) {
+                $values[$setting->group.'.'.$setting->key] = $setting->getTypedValue($locale);
+            }
+        }
+
+        foreach ($constraints as $catalogue) {
+            foreach ($catalogue->violations($values) as $reference => $message) {
+                throw new SettingValueRejectedException($reference, [$message]);
+            }
         }
     }
 

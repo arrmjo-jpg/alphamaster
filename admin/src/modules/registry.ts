@@ -10,6 +10,7 @@ import {
     Images,
     KeyRound,
     LayoutDashboard,
+    Network,
     Plug,
     ShieldCheck,
     SlidersHorizontal,
@@ -21,6 +22,7 @@ import type { ComponentType } from 'react';
 import { AccountScreen } from '@/screens/AccountScreen';
 import { AiScreen } from '@/screens/AiScreen';
 import { CacheScreen } from '@/screens/CacheScreen';
+import { CdnScreen } from '@/screens/CdnScreen';
 import { DashboardScreen } from '@/screens/DashboardScreen';
 import { IntegrationsScreen } from '@/screens/IntegrationsScreen';
 import { LanguagesScreen } from '@/screens/LanguagesScreen';
@@ -254,6 +256,19 @@ export const MODULES: ModuleManifest[] = [
         group: 'settings',
         order: 290,
         component: CacheScreen,
+    },
+    {
+        id: 'cdn',
+        path: '/cdn',
+        label: 'modules.cdn',
+        icon: Network,
+        // Reading the edge's state and its purge history is `cdn.view`. Connecting the
+        // vendor, editing delivery settings and purging are each their own permission,
+        // enforced by the API and reflected section by section inside the screen.
+        permission: 'cdn.view',
+        group: 'settings',
+        order: 295,
+        component: CdnScreen,
     },
     {
         id: 'languages',

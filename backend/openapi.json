@@ -2691,6 +2691,1234 @@
                 }
             }
         },
+        "/admin/cdn": {
+            "get": {
+                "operationId": "admin.cdn.show",
+                "summary": "The CDN's state: the configured provider, what verification found, the limits that follow, delivery settings and the purge queue",
+                "tags": [
+                    "CdnAdmin"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "configured": {
+                                                    "type": "boolean"
+                                                },
+                                                "provider": {
+                                                    "type": [
+                                                        "object",
+                                                        "null"
+                                                    ],
+                                                    "properties": {
+                                                        "id": {
+                                                            "type": "string"
+                                                        },
+                                                        "driver": {
+                                                            "type": "string"
+                                                        },
+                                                        "label": {
+                                                            "type": "string"
+                                                        },
+                                                        "is_active": {
+                                                            "type": "boolean"
+                                                        },
+                                                        "has_credentials": {
+                                                            "type": "boolean"
+                                                        },
+                                                        "settings": {
+                                                            "type": "object",
+                                                            "additionalProperties": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            }
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "id",
+                                                        "driver",
+                                                        "label",
+                                                        "is_active",
+                                                        "has_credentials",
+                                                        "settings"
+                                                    ]
+                                                },
+                                                "fields": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "settings": {
+                                                            "type": "array",
+                                                            "items": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "credentials": {
+                                                            "type": "array",
+                                                            "items": {
+                                                                "type": "string"
+                                                            }
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "settings",
+                                                        "credentials"
+                                                    ]
+                                                },
+                                                "missing": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "verification": {
+                                                    "type": [
+                                                        "object",
+                                                        "null"
+                                                    ],
+                                                    "properties": {
+                                                        "scope_name": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "scope_status": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "plan": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "verified_at": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "error_code": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "error_message": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "scope_name",
+                                                        "scope_status",
+                                                        "plan",
+                                                        "verified_at",
+                                                        "error_code",
+                                                        "error_message"
+                                                    ]
+                                                },
+                                                "limits": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "kind": {
+                                                                "type": "string"
+                                                            },
+                                                            "supported": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "items_per_request": {
+                                                                "type": [
+                                                                    "integer",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "requests_per_minute": {
+                                                                "type": [
+                                                                    "integer",
+                                                                    "null"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "kind",
+                                                            "supported",
+                                                            "items_per_request",
+                                                            "requests_per_minute"
+                                                        ]
+                                                    }
+                                                },
+                                                "tag_header": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "delivery": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "enabled": {
+                                                            "type": "boolean"
+                                                        },
+                                                        "base_url": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "enabled",
+                                                        "base_url"
+                                                    ]
+                                                },
+                                                "queue": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "pending": {
+                                                            "type": "integer"
+                                                        },
+                                                        "processing": {
+                                                            "type": "integer"
+                                                        },
+                                                        "failed": {
+                                                            "type": "integer"
+                                                        },
+                                                        "succeeded_last_day": {
+                                                            "type": "integer"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "pending",
+                                                        "processing",
+                                                        "failed",
+                                                        "succeeded_last_day"
+                                                    ]
+                                                },
+                                                "last_attempt": {
+                                                    "type": [
+                                                        "object",
+                                                        "null"
+                                                    ],
+                                                    "properties": {
+                                                        "status": {
+                                                            "type": "string"
+                                                        },
+                                                        "at": {
+                                                            "type": "string"
+                                                        },
+                                                        "error_code": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "error_message": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "status",
+                                                        "at",
+                                                        "error_code",
+                                                        "error_message"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "configured",
+                                                "provider",
+                                                "fields",
+                                                "missing",
+                                                "verification",
+                                                "limits",
+                                                "tag_header",
+                                                "delivery",
+                                                "queue",
+                                                "last_attempt"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/admin/cdn/verify": {
+            "post": {
+                "operationId": "admin.cdn.verify",
+                "description": "The plan detected here sets the limits purges are split and paced by. Recorded in the audit trail either way.",
+                "summary": "Ask the vendor about the configured scope with the stored credential, and keep what it reports",
+                "tags": [
+                    "CdnAdmin"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "reachable": {
+                                                    "type": "boolean"
+                                                },
+                                                "verification": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "scope_name": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "scope_status": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "plan": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "verified_at": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "error_code": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "error_message": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "scope_name",
+                                                        "scope_status",
+                                                        "plan",
+                                                        "verified_at",
+                                                        "error_code",
+                                                        "error_message"
+                                                    ]
+                                                },
+                                                "limits": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "kind": {
+                                                                "type": "string"
+                                                            },
+                                                            "supported": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "items_per_request": {
+                                                                "type": [
+                                                                    "integer",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "requests_per_minute": {
+                                                                "type": [
+                                                                    "integer",
+                                                                    "null"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "kind",
+                                                            "supported",
+                                                            "items_per_request",
+                                                            "requests_per_minute"
+                                                        ]
+                                                    }
+                                                }
+                                            },
+                                            "required": [
+                                                "reachable",
+                                                "verification",
+                                                "limits"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "message",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "PROVIDER_CONFIGURATION_INCOMPLETE: the provider lacks required configuration; details name the fields.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "error": {
+                                            "type": "object",
+                                            "properties": {
+                                                "code": {
+                                                    "type": "string",
+                                                    "description": "`code` is contract and is never localized (ADR 0031).",
+                                                    "const": "PROVIDER_CONFIGURATION_INCOMPLETE"
+                                                },
+                                                "message": {
+                                                    "type": "string"
+                                                },
+                                                "details": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "missing": {
+                                                            "anyOf": [
+                                                                {
+                                                                    "type": "array",
+                                                                    "items": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                {
+                                                                    "type": "array",
+                                                                    "prefixItems": [
+                                                                        {
+                                                                            "type": "string",
+                                                                            "const": "driver"
+                                                                        }
+                                                                    ],
+                                                                    "minItems": 1,
+                                                                    "maxItems": 1
+                                                                }
+                                                            ]
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "missing"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "code",
+                                                "message",
+                                                "details"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "error"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "CDN_NOT_CONFIGURED: there is no CDN provider row.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "error": {
+                                            "type": "object",
+                                            "properties": {
+                                                "code": {
+                                                    "type": "string",
+                                                    "description": "`code` is contract and is never localized (ADR 0031).",
+                                                    "const": "CDN_NOT_CONFIGURED"
+                                                },
+                                                "message": {
+                                                    "type": "string"
+                                                },
+                                                "details": {
+                                                    "type": "null"
+                                                }
+                                            },
+                                            "required": [
+                                                "code",
+                                                "message",
+                                                "details"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "error"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/admin/cdn/purges": {
+            "get": {
+                "operationId": "admin.cdn.purges.index",
+                "summary": "Purge requests, newest first, with their outcome",
+                "tags": [
+                    "CdnAdmin"
+                ],
+                "parameters": [
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "description": "Only requests in this state.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "Page number.",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "string"
+                                                    },
+                                                    "driver": {
+                                                        "type": "string"
+                                                    },
+                                                    "kind": {
+                                                        "type": "string"
+                                                    },
+                                                    "kind_label": {
+                                                        "type": "string"
+                                                    },
+                                                    "items": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "item_count": {
+                                                        "type": "integer"
+                                                    },
+                                                    "status": {
+                                                        "type": "string"
+                                                    },
+                                                    "status_label": {
+                                                        "type": "string"
+                                                    },
+                                                    "attempts": {
+                                                        "type": "integer"
+                                                    },
+                                                    "reason": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "requested_by": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "error_code": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "error_message": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "provider_reference": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "available_at": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "completed_at": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "created_at": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": [
+                                                    "id",
+                                                    "driver",
+                                                    "kind",
+                                                    "kind_label",
+                                                    "items",
+                                                    "item_count",
+                                                    "status",
+                                                    "status_label",
+                                                    "attempts",
+                                                    "reason",
+                                                    "requested_by",
+                                                    "error_code",
+                                                    "error_message",
+                                                    "provider_reference",
+                                                    "available_at",
+                                                    "completed_at",
+                                                    "created_at"
+                                                ]
+                                            }
+                                        },
+                                        "meta": {
+                                            "type": "object",
+                                            "properties": {
+                                                "current_page": {
+                                                    "type": "integer"
+                                                },
+                                                "last_page": {
+                                                    "type": "integer"
+                                                },
+                                                "per_page": {
+                                                    "type": "integer"
+                                                },
+                                                "total": {
+                                                    "type": "integer"
+                                                }
+                                            },
+                                            "required": [
+                                                "current_page",
+                                                "last_page",
+                                                "per_page",
+                                                "total"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "data",
+                                        "meta"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            },
+            "post": {
+                "operationId": "admin.cdn.purges.store",
+                "description": "Queued, never performed inline: the answer is the recorded requests, and each one's outcome is read from the purge list. Recorded in the audit trail.",
+                "summary": "Ask the edge to purge named objects, or everything",
+                "tags": [
+                    "CdnAdmin"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StoreCdnPurgeRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "description": "CDN_CONFIRMATION_MISMATCH: the confirmation is not the verified scope name. CDN_KIND_UNSUPPORTED: the vendor cannot purge this kind.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "description": "Errors overview."
+                                        },
+                                        "errors": {
+                                            "type": "object",
+                                            "description": "A detailed description of each field that failed validation.",
+                                            "additionalProperties": {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "string"
+                                                }
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "message",
+                                        "errors"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "202": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "string"
+                                                    },
+                                                    "driver": {
+                                                        "type": "string"
+                                                    },
+                                                    "kind": {
+                                                        "type": "string"
+                                                    },
+                                                    "kind_label": {
+                                                        "type": "string"
+                                                    },
+                                                    "items": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "item_count": {
+                                                        "type": "integer"
+                                                    },
+                                                    "status": {
+                                                        "type": "string"
+                                                    },
+                                                    "status_label": {
+                                                        "type": "string"
+                                                    },
+                                                    "attempts": {
+                                                        "type": "integer"
+                                                    },
+                                                    "reason": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "requested_by": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "error_code": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "error_message": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "provider_reference": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "available_at": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "completed_at": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "created_at": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": [
+                                                    "id",
+                                                    "driver",
+                                                    "kind",
+                                                    "kind_label",
+                                                    "items",
+                                                    "item_count",
+                                                    "status",
+                                                    "status_label",
+                                                    "attempts",
+                                                    "reason",
+                                                    "requested_by",
+                                                    "error_code",
+                                                    "error_message",
+                                                    "provider_reference",
+                                                    "available_at",
+                                                    "completed_at",
+                                                    "created_at"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "message",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "FORBIDDEN: purging everything needs cdn.purge_everything.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "CDN_NOT_CONFIGURED: no active, configured CDN provider. CDN_NOT_VERIFIED: purging everything needs a verified scope.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "TOO_MANY_ATTEMPTS: purging everything is limited per operator.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/cdn/purges/{purge}/retry": {
+            "post": {
+                "operationId": "admin.cdn.purges.retry",
+                "summary": "Put a failed purge back in the queue. Recorded in the audit trail",
+                "tags": [
+                    "CdnAdmin"
+                ],
+                "parameters": [
+                    {
+                        "name": "purge",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "id": {
+                                                    "type": "string"
+                                                },
+                                                "driver": {
+                                                    "type": "string"
+                                                },
+                                                "kind": {
+                                                    "type": "string"
+                                                },
+                                                "kind_label": {
+                                                    "type": "string"
+                                                },
+                                                "items": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "item_count": {
+                                                    "type": "integer"
+                                                },
+                                                "status": {
+                                                    "type": "string"
+                                                },
+                                                "status_label": {
+                                                    "type": "string"
+                                                },
+                                                "attempts": {
+                                                    "type": "integer"
+                                                },
+                                                "reason": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "requested_by": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "error_code": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "error_message": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "provider_reference": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "available_at": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "completed_at": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "created_at": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "id",
+                                                "driver",
+                                                "kind",
+                                                "kind_label",
+                                                "items",
+                                                "item_count",
+                                                "status",
+                                                "status_label",
+                                                "attempts",
+                                                "reason",
+                                                "requested_by",
+                                                "error_code",
+                                                "error_message",
+                                                "provider_reference",
+                                                "available_at",
+                                                "completed_at",
+                                                "created_at"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "message",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "CDN_PURGE_NOT_RETRYABLE: only a failed purge can be retried. CDN_NOT_CONFIGURED: no usable provider.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "anyOf": [
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "success": {
+                                                    "type": "boolean"
+                                                },
+                                                "error": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "code": {
+                                                            "type": "string",
+                                                            "description": "`code` is contract and is never localized (ADR 0031).",
+                                                            "const": "CDN_NOT_CONFIGURED"
+                                                        },
+                                                        "message": {
+                                                            "type": "string"
+                                                        },
+                                                        "details": {
+                                                            "type": "null"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "code",
+                                                        "message",
+                                                        "details"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "success",
+                                                "error"
+                                            ]
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "success": {
+                                                    "type": "boolean"
+                                                },
+                                                "error": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "code": {
+                                                            "type": "string",
+                                                            "description": "`code` is contract and is never localized (ADR 0031).",
+                                                            "const": "CDN_PURGE_NOT_RETRYABLE"
+                                                        },
+                                                        "message": {
+                                                            "type": "string"
+                                                        },
+                                                        "details": {
+                                                            "type": "null"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "code",
+                                                        "message",
+                                                        "details"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "success",
+                                                "error"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "error": {
+                                            "type": "object",
+                                            "properties": {
+                                                "code": {
+                                                    "type": "string",
+                                                    "description": "`code` is contract and is never localized (ADR 0031).",
+                                                    "const": "FORBIDDEN"
+                                                },
+                                                "message": {
+                                                    "type": "string"
+                                                },
+                                                "details": {
+                                                    "type": "null"
+                                                }
+                                            },
+                                            "required": [
+                                                "code",
+                                                "message",
+                                                "details"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "error"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "NOT_FOUND: no such purge request.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "error": {
+                                            "type": "object",
+                                            "properties": {
+                                                "code": {
+                                                    "type": "string",
+                                                    "description": "`code` is contract and is never localized (ADR 0031).",
+                                                    "const": "NOT_FOUND"
+                                                },
+                                                "message": {
+                                                    "type": "string"
+                                                },
+                                                "details": {
+                                                    "type": "null"
+                                                }
+                                            },
+                                            "required": [
+                                                "code",
+                                                "message",
+                                                "details"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "error"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
         "/admin/configuration/export": {
             "post": {
                 "operationId": "admin.configuration.export",
@@ -4274,6 +5502,1086 @@
                     },
                     "404": {
                         "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/admin/media/analysis": {
+            "get": {
+                "operationId": "admin.media.analysis.status",
+                "summary": "The capability's state: whether it is on and configured, what the analyzer accepts, the operator's limits and thresholds, and the queue",
+                "tags": [
+                    "MediaAnalysisAdmin"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "available": {
+                                                    "type": "boolean"
+                                                },
+                                                "reason": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "supported_types": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "analyzer": {
+                                                    "type": [
+                                                        "object",
+                                                        "null"
+                                                    ],
+                                                    "properties": {
+                                                        "provider": {
+                                                            "type": "string"
+                                                        },
+                                                        "analyzer": {
+                                                            "type": "string"
+                                                        },
+                                                        "model_version": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "supported_types": {
+                                                            "type": "array",
+                                                            "items": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "accepted_mime_types": {
+                                                            "type": "array",
+                                                            "items": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "max_bytes": {
+                                                            "type": [
+                                                                "integer",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "max_duration_seconds": {
+                                                            "type": [
+                                                                "integer",
+                                                                "null"
+                                                            ]
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "provider",
+                                                        "analyzer",
+                                                        "model_version",
+                                                        "supported_types",
+                                                        "accepted_mime_types",
+                                                        "max_bytes",
+                                                        "max_duration_seconds"
+                                                    ]
+                                                },
+                                                "policy": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "enabled": {
+                                                            "type": "boolean"
+                                                        },
+                                                        "max_bytes": {
+                                                            "type": [
+                                                                "integer",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "min_video_duration_seconds": {
+                                                            "type": [
+                                                                "integer",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "max_video_duration_seconds": {
+                                                            "type": [
+                                                                "integer",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "daily_limit": {
+                                                            "type": [
+                                                                "integer",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "timeout_seconds": {
+                                                            "type": "integer"
+                                                        },
+                                                        "likely_synthetic_threshold": {
+                                                            "type": [
+                                                                "number",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "likely_authentic_threshold": {
+                                                            "type": [
+                                                                "number",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "version": {
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "enabled",
+                                                        "max_bytes",
+                                                        "min_video_duration_seconds",
+                                                        "max_video_duration_seconds",
+                                                        "daily_limit",
+                                                        "timeout_seconds",
+                                                        "likely_synthetic_threshold",
+                                                        "likely_authentic_threshold",
+                                                        "version"
+                                                    ]
+                                                },
+                                                "queue": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "pending": {
+                                                            "type": "integer"
+                                                        },
+                                                        "processing": {
+                                                            "type": "integer"
+                                                        },
+                                                        "failed_last_day": {
+                                                            "type": "integer"
+                                                        },
+                                                        "requested_today": {
+                                                            "type": "integer"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "pending",
+                                                        "processing",
+                                                        "failed_last_day",
+                                                        "requested_today"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "available",
+                                                "reason",
+                                                "supported_types",
+                                                "analyzer",
+                                                "policy",
+                                                "queue"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/admin/media/analyses/{analysis}": {
+            "get": {
+                "operationId": "admin.media.analyses.show",
+                "summary": "One analysis, with its reviews",
+                "tags": [
+                    "MediaAnalysisAdmin"
+                ],
+                "parameters": [
+                    {
+                        "name": "analysis",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "404": {
+                        "description": "NOT_FOUND: no such analysis.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "error": {
+                                            "type": "object",
+                                            "properties": {
+                                                "code": {
+                                                    "type": "string",
+                                                    "description": "`code` is contract and is never localized (ADR 0031).",
+                                                    "const": "NOT_FOUND"
+                                                },
+                                                "message": {
+                                                    "type": "string"
+                                                },
+                                                "details": {
+                                                    "type": "null"
+                                                }
+                                            },
+                                            "required": [
+                                                "code",
+                                                "message",
+                                                "details"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "error"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/MediaAnalysisResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/admin/media/analyses/{analysis}/cancel": {
+            "post": {
+                "operationId": "admin.media.analyses.cancel",
+                "summary": "Withdraw an analysis that has not started",
+                "tags": [
+                    "MediaAnalysisAdmin"
+                ],
+                "parameters": [
+                    {
+                        "name": "analysis",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/MediaAnalysisResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "message",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "MEDIA_ANALYSIS_NOT_CANCELLABLE: only a pending analysis can be withdrawn.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "error": {
+                                            "type": "object",
+                                            "properties": {
+                                                "code": {
+                                                    "type": "string",
+                                                    "description": "`code` is contract and is never localized (ADR 0031).",
+                                                    "const": "MEDIA_ANALYSIS_NOT_CANCELLABLE"
+                                                },
+                                                "message": {
+                                                    "type": "string"
+                                                },
+                                                "details": {
+                                                    "type": "null"
+                                                }
+                                            },
+                                            "required": [
+                                                "code",
+                                                "message",
+                                                "details"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "error"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "NOT_FOUND: no such analysis.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "error": {
+                                            "type": "object",
+                                            "properties": {
+                                                "code": {
+                                                    "type": "string",
+                                                    "description": "`code` is contract and is never localized (ADR 0031).",
+                                                    "const": "NOT_FOUND"
+                                                },
+                                                "message": {
+                                                    "type": "string"
+                                                },
+                                                "details": {
+                                                    "type": "null"
+                                                }
+                                            },
+                                            "required": [
+                                                "code",
+                                                "message",
+                                                "details"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "error"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/admin/media/analyses/{analysis}/reviews": {
+            "post": {
+                "operationId": "admin.media.analyses.review",
+                "summary": "Record a person's review of an assessment. The analysis itself is never changed. Recorded in the audit trail",
+                "tags": [
+                    "MediaAnalysisAdmin"
+                ],
+                "parameters": [
+                    {
+                        "name": "analysis",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ReviewMediaAnalysisRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/MediaAnalysisResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "message",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "MEDIA_ANALYSIS_NOT_REVIEWABLE: only a completed or inconclusive analysis can be reviewed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "error": {
+                                            "type": "object",
+                                            "properties": {
+                                                "code": {
+                                                    "type": "string",
+                                                    "description": "`code` is contract and is never localized (ADR 0031).",
+                                                    "const": "MEDIA_ANALYSIS_NOT_REVIEWABLE"
+                                                },
+                                                "message": {
+                                                    "type": "string"
+                                                },
+                                                "details": {
+                                                    "type": "null"
+                                                }
+                                            },
+                                            "required": [
+                                                "code",
+                                                "message",
+                                                "details"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "error"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "NOT_FOUND: no such analysis.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "error": {
+                                            "type": "object",
+                                            "properties": {
+                                                "code": {
+                                                    "type": "string",
+                                                    "description": "`code` is contract and is never localized (ADR 0031).",
+                                                    "const": "NOT_FOUND"
+                                                },
+                                                "message": {
+                                                    "type": "string"
+                                                },
+                                                "details": {
+                                                    "type": "null"
+                                                }
+                                            },
+                                            "required": [
+                                                "code",
+                                                "message",
+                                                "details"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "error"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/admin/media/{media}/analyses": {
+            "get": {
+                "operationId": "admin.media.analyses.index",
+                "summary": "Every analysis of a media file, newest first, with its reviews",
+                "tags": [
+                    "MediaAnalysisAdmin"
+                ],
+                "parameters": [
+                    {
+                        "name": "media",
+                        "in": "path",
+                        "required": true,
+                        "description": "The media ID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/MediaAnalysisResource"
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            },
+            "post": {
+                "operationId": "admin.media.analyses.store",
+                "description": "Answered 202 when an analysis was queued and 200 when an equivalent one already existed. Recorded in the audit trail when one is queued.",
+                "summary": "Ask for an analysis of this file, as an operator",
+                "tags": [
+                    "MediaAnalysisAdmin"
+                ],
+                "parameters": [
+                    {
+                        "name": "media",
+                        "in": "path",
+                        "required": true,
+                        "description": "The media ID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RequestMediaAnalysisRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "202": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/MediaAnalysisResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "message",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/MediaAnalysisResource"
+                                        },
+                                        "meta": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "message",
+                                        "data",
+                                        "meta"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "MEDIA_ANALYSIS_DISABLED, MEDIA_ANALYSIS_NOT_CONFIGURED or MEDIA_NOT_READY.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "anyOf": [
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "success": {
+                                                    "type": "boolean"
+                                                },
+                                                "error": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "code": {
+                                                            "type": "string",
+                                                            "description": "`code` is contract and is never localized (ADR 0031).",
+                                                            "const": "MEDIA_ANALYSIS_DISABLED"
+                                                        },
+                                                        "message": {
+                                                            "type": "string"
+                                                        },
+                                                        "details": {
+                                                            "type": "null"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "code",
+                                                        "message",
+                                                        "details"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "success",
+                                                "error"
+                                            ]
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "success": {
+                                                    "type": "boolean"
+                                                },
+                                                "error": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "code": {
+                                                            "type": "string",
+                                                            "description": "`code` is contract and is never localized (ADR 0031).",
+                                                            "const": "MEDIA_ANALYSIS_NOT_CONFIGURED"
+                                                        },
+                                                        "message": {
+                                                            "type": "string"
+                                                        },
+                                                        "details": {
+                                                            "type": "null"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "code",
+                                                        "message",
+                                                        "details"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "success",
+                                                "error"
+                                            ]
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "success": {
+                                                    "type": "boolean"
+                                                },
+                                                "error": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "code": {
+                                                            "type": "string",
+                                                            "description": "`code` is contract and is never localized (ADR 0031).",
+                                                            "const": "MEDIA_NOT_READY"
+                                                        },
+                                                        "message": {
+                                                            "type": "string"
+                                                        },
+                                                        "details": {
+                                                            "type": "null"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "code",
+                                                        "message",
+                                                        "details"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "success",
+                                                "error"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "422": {
+                        "description": "MEDIA_ANALYSIS_UNSUPPORTED_MEDIA, MEDIA_ANALYSIS_UNSUPPORTED_TYPES, MEDIA_ANALYSIS_LIMIT_EXCEEDED, MEDIA_ANALYSIS_DURATION_TOO_SHORT, MEDIA_ANALYSIS_DURATION_TOO_LONG or MEDIA_ANALYSIS_DURATION_UNAVAILABLE; details name the unsupported types, the limit, or the duration and the limit it failed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "anyOf": [
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "success": {
+                                                    "type": "boolean"
+                                                },
+                                                "error": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "code": {
+                                                            "type": "string",
+                                                            "description": "`code` is contract and is never localized (ADR 0031).",
+                                                            "const": "MEDIA_ANALYSIS_UNSUPPORTED_MEDIA"
+                                                        },
+                                                        "message": {
+                                                            "type": "string"
+                                                        },
+                                                        "details": {
+                                                            "type": "null"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "code",
+                                                        "message",
+                                                        "details"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "success",
+                                                "error"
+                                            ]
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "success": {
+                                                    "type": "boolean"
+                                                },
+                                                "error": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "code": {
+                                                            "type": "string",
+                                                            "description": "`code` is contract and is never localized (ADR 0031).",
+                                                            "const": "MEDIA_ANALYSIS_UNSUPPORTED_TYPES"
+                                                        },
+                                                        "message": {
+                                                            "type": "string"
+                                                        },
+                                                        "details": {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "unsupported_types": {
+                                                                    "type": "array",
+                                                                    "items": {
+                                                                        "type": "string"
+                                                                    }
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "unsupported_types"
+                                                            ]
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "code",
+                                                        "message",
+                                                        "details"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "success",
+                                                "error"
+                                            ]
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "success": {
+                                                    "type": "boolean"
+                                                },
+                                                "error": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "code": {
+                                                            "type": "string",
+                                                            "description": "`code` is contract and is never localized (ADR 0031).",
+                                                            "const": "MEDIA_ANALYSIS_DURATION_TOO_SHORT"
+                                                        },
+                                                        "message": {
+                                                            "type": "string"
+                                                        },
+                                                        "details": {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "duration_ms": {
+                                                                    "type": [
+                                                                        "integer",
+                                                                        "null"
+                                                                    ]
+                                                                },
+                                                                "limit_seconds": {
+                                                                    "type": [
+                                                                        "integer",
+                                                                        "null"
+                                                                    ]
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "duration_ms",
+                                                                "limit_seconds"
+                                                            ]
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "code",
+                                                        "message",
+                                                        "details"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "success",
+                                                "error"
+                                            ]
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "success": {
+                                                    "type": "boolean"
+                                                },
+                                                "error": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "code": {
+                                                            "type": "string",
+                                                            "description": "`code` is contract and is never localized (ADR 0031).",
+                                                            "const": "MEDIA_ANALYSIS_DURATION_TOO_LONG"
+                                                        },
+                                                        "message": {
+                                                            "type": "string"
+                                                        },
+                                                        "details": {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "duration_ms": {
+                                                                    "type": [
+                                                                        "integer",
+                                                                        "null"
+                                                                    ]
+                                                                },
+                                                                "limit_seconds": {
+                                                                    "type": [
+                                                                        "integer",
+                                                                        "null"
+                                                                    ]
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "duration_ms",
+                                                                "limit_seconds"
+                                                            ]
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "code",
+                                                        "message",
+                                                        "details"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "success",
+                                                "error"
+                                            ]
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "success": {
+                                                    "type": "boolean"
+                                                },
+                                                "error": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "code": {
+                                                            "type": "string",
+                                                            "description": "`code` is contract and is never localized (ADR 0031).",
+                                                            "const": "MEDIA_ANALYSIS_DURATION_UNAVAILABLE"
+                                                        },
+                                                        "message": {
+                                                            "type": "string"
+                                                        },
+                                                        "details": {
+                                                            "type": "null"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "code",
+                                                        "message",
+                                                        "details"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "success",
+                                                "error"
+                                            ]
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "success": {
+                                                    "type": "boolean"
+                                                },
+                                                "error": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "code": {
+                                                            "type": "string",
+                                                            "description": "`code` is contract and is never localized (ADR 0031).",
+                                                            "const": "MEDIA_ANALYSIS_LIMIT_EXCEEDED"
+                                                        },
+                                                        "message": {
+                                                            "type": "string"
+                                                        },
+                                                        "details": {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "limit": {
+                                                                    "type": [
+                                                                        "string",
+                                                                        "null"
+                                                                    ]
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "limit"
+                                                            ]
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "code",
+                                                        "message",
+                                                        "details"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "success",
+                                                "error"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
                     },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
@@ -11872,6 +14180,18 @@
                 ],
                 "title": "AuthenticatedUserResource"
             },
+            "EdgeInvalidationKind": {
+                "type": "string",
+                "description": "What an edge invalidation names (ADR 0036, ADR 0053). The five scopes every CDN this platform is likely to front offers in some form. A driver that cannot honour one says so, and the request is refused before it is queued rather than accepted and silently dropped.\n| |\n|---|\n| `urls` <br/> Exact addresses, as the edge keyed them. |\n| `tags` <br/> Every object the origin labelled with a tag (ADR 0053 \u00a73). |\n| `prefixes` <br/> Every object whose address starts with a prefix. |\n| `hosts` <br/> Every object served for a host name. |\n| `everything` <br/> Everything. An incident tool, never an invalidation strategy (ADR 0036). |",
+                "enum": [
+                    "urls",
+                    "tags",
+                    "prefixes",
+                    "hosts",
+                    "everything"
+                ],
+                "title": "EdgeInvalidationKind"
+            },
             "ExportConfigurationRequest": {
                 "type": "object",
                 "properties": {
@@ -12166,6 +14486,268 @@
                     "created_at"
                 ],
                 "title": "MediaAdminResource"
+            },
+            "MediaAnalysisClassification": {
+                "type": "string",
+                "description": "An advisory reading of an analysis's scores against the thresholds an operator set (ADR 0054). Advisory, and deliberately so. It is derived from the scores and the policy version recorded beside it; a consumer may use it, or apply its own threshold to the scores, or ignore both. It is null when no thresholds are configured, because a classification nobody defined would be the platform inventing a decision.\n",
+                "enum": [
+                    "likely_synthetic",
+                    "likely_authentic",
+                    "inconclusive"
+                ],
+                "title": "MediaAnalysisClassification"
+            },
+            "MediaAnalysisResource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "media_id": {
+                        "type": "string"
+                    },
+                    "consumer": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/MediaAnalysisStatus"
+                    },
+                    "status_label": {
+                        "type": "string"
+                    },
+                    "types": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/MediaAnalysisType"
+                        }
+                    },
+                    "classification": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/MediaAnalysisClassification"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "classification_label": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "confidence": {
+                        "type": [
+                            "number",
+                            "null"
+                        ]
+                    },
+                    "scores": {
+                        "type": "object",
+                        "description": "A score between 0 and 1 for each type the analyzer assessed. A type it did not assess is absent, never 0.",
+                        "additionalProperties": {
+                            "type": "number"
+                        }
+                    },
+                    "unsupported_types": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/MediaAnalysisType"
+                        }
+                    },
+                    "signals": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": {}
+                        }
+                    },
+                    "provider": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "analyzer": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "model_version": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "policy_version": {
+                        "type": "string"
+                    },
+                    "input_fingerprint": {
+                        "type": "string"
+                    },
+                    "attempts": {
+                        "type": "integer"
+                    },
+                    "error_code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "error_message": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "requested_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "started_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "completed_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "superseded_by": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "reanalysis_of": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "type_labels": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    },
+                    "reviews": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "id": {
+                                    "type": "string"
+                                },
+                                "decision": {
+                                    "type": "string"
+                                },
+                                "decision_label": {
+                                    "type": "string"
+                                },
+                                "note": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ]
+                                },
+                                "reviewer": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ]
+                                },
+                                "created_at": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ]
+                                }
+                            },
+                            "required": [
+                                "id",
+                                "decision",
+                                "decision_label",
+                                "note",
+                                "reviewer",
+                                "created_at"
+                            ]
+                        }
+                    }
+                },
+                "required": [
+                    "id",
+                    "media_id",
+                    "consumer",
+                    "status",
+                    "status_label",
+                    "types",
+                    "classification",
+                    "classification_label",
+                    "confidence",
+                    "scores",
+                    "unsupported_types",
+                    "signals",
+                    "provider",
+                    "analyzer",
+                    "model_version",
+                    "policy_version",
+                    "input_fingerprint",
+                    "attempts",
+                    "error_code",
+                    "error_message",
+                    "requested_at",
+                    "started_at",
+                    "completed_at",
+                    "superseded_by",
+                    "reanalysis_of",
+                    "type_labels",
+                    "reviews"
+                ],
+                "title": "MediaAnalysisResource"
+            },
+            "MediaAnalysisReviewDecision": {
+                "type": "string",
+                "description": "What a person concluded after reading an analysis (ADR 0054). A review never edits the analysis it is about. It is recorded beside it, attributed and audited, so the analyzer's reading and the person's stay distinguishable forever.\n",
+                "enum": [
+                    "confirmed_synthetic",
+                    "confirmed_authentic",
+                    "undetermined"
+                ],
+                "title": "MediaAnalysisReviewDecision"
+            },
+            "MediaAnalysisStatus": {
+                "type": "string",
+                "description": "Where one media analysis stands (ADR 0054). Only `completed` and `inconclusive` are assessments. `failed`, `unsupported` and `cancelled` say nothing about the media at all \u2014 and none of them, `inconclusive` included, means the media is authentic. A consumer that reads any of them as \"human\" is making a claim no analyzer supported.\n| |\n|---|\n| `pending` <br/>  |\n| `processing` <br/>  |\n| `completed` <br/> The analyzer returned scores for at least one requested type. |\n| `inconclusive` <br/> The analyzer ran and could not reach an assessment. |\n| `unsupported` <br/> The analyzer ran and supports none of the requested types for this media. |\n| `failed` <br/> The analysis could not be carried out. |\n| `cancelled` <br/> Withdrawn before it ran, or stopped because the capability or the media went away. |",
+                "enum": [
+                    "pending",
+                    "processing",
+                    "completed",
+                    "inconclusive",
+                    "unsupported",
+                    "failed",
+                    "cancelled"
+                ],
+                "title": "MediaAnalysisStatus"
+            },
+            "MediaAnalysisType": {
+                "type": "string",
+                "description": "What a media analysis can be asked to look for (ADR 0054). The vocabulary is closed and owned here, so a consumer chooses from it and cannot invent a type an analyzer would not recognise. An analyzer declares the subset it supports; a type it does not support is reported as unsupported, never scored as zero.  Every type names an indicator of risk. None of them is a verdict: an analyzer can say a video carries signs of generation, and cannot say that it was or was not generated.\n| |\n|---|\n| `ai_generated` <br/> Signs that the media was produced by a generative model. |\n| `deepfake` <br/> Signs of a synthetic likeness of a real person. |\n| `face_manipulation` <br/> Signs that a face was swapped, re-enacted or altered. |\n| `visual_manipulation` <br/> Signs that frames were edited, spliced or composited. |\n| `synthetic_audio` <br/> Signs that speech or sound was synthesised. |",
+                "enum": [
+                    "ai_generated",
+                    "deepfake",
+                    "face_manipulation",
+                    "visual_manipulation",
+                    "synthetic_audio"
+                ],
+                "title": "MediaAnalysisType"
             },
             "MediaResource": {
                 "type": "object",
@@ -12771,6 +15353,26 @@
                 ],
                 "title": "RegisterRequest"
             },
+            "RequestMediaAnalysisRequest": {
+                "type": "object",
+                "properties": {
+                    "types": {
+                        "type": "array",
+                        "description": "What to look for, from the platform's vocabulary. Types the configured analyzer does not support are reported, not scored.",
+                        "items": {
+                            "$ref": "#/components/schemas/MediaAnalysisType"
+                        }
+                    },
+                    "reanalyze": {
+                        "type": "boolean",
+                        "description": "Run again even when an equivalent analysis exists; the new one supersedes the current one when it finishes."
+                    }
+                },
+                "required": [
+                    "types"
+                ],
+                "title": "RequestMediaAnalysisRequest"
+            },
             "RequestSuggestionsRequest": {
                 "type": "object",
                 "description": "Ask for translations of what is missing in one language.",
@@ -12851,6 +15453,26 @@
                 ],
                 "title": "RestoreConfigurationRequest"
             },
+            "ReviewMediaAnalysisRequest": {
+                "type": "object",
+                "properties": {
+                    "decision": {
+                        "$ref": "#/components/schemas/MediaAnalysisReviewDecision"
+                    },
+                    "note": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "The reviewer's reasoning. Kept with the review; the audit trail records only that one was given.",
+                        "maxLength": 1000
+                    }
+                },
+                "required": [
+                    "decision"
+                ],
+                "title": "ReviewMediaAnalysisRequest"
+            },
             "RoleRequest": {
                 "type": "object",
                 "properties": {
@@ -12888,7 +15510,13 @@
                                 "notifications.send",
                                 "media.view",
                                 "media.delete",
-                                "ai.use"
+                                "ai.use",
+                                "cdn.view",
+                                "cdn.purge",
+                                "cdn.purge_everything",
+                                "media.analysis.view",
+                                "media.analysis.request",
+                                "media.analysis.review"
                             ]
                         },
                         "maxItems": 100
@@ -13102,6 +15730,16 @@
                             "type": "string"
                         }
                     },
+                    "unit": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "enum": [
+                            "seconds",
+                            null
+                        ]
+                    },
                     "permission": {
                         "type": [
                             "string",
@@ -13131,6 +15769,7 @@
                     "default",
                     "depends_on",
                     "rules",
+                    "unit",
                     "permission",
                     "deprecated"
                 ],
@@ -13200,6 +15839,42 @@
                     "file"
                 ],
                 "title": "StoreAvatarRequest"
+            },
+            "StoreCdnPurgeRequest": {
+                "type": "object",
+                "properties": {
+                    "kind": {
+                        "$ref": "#/components/schemas/EdgeInvalidationKind"
+                    },
+                    "items": {
+                        "type": "array",
+                        "description": "What to purge: absolute URLs, tags, absolute URL prefixes or host names. Absent for everything.",
+                        "items": {
+                            "type": "string",
+                            "maxLength": 2048
+                        }
+                    },
+                    "reason": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "Why, in the operator's words. Kept on each purge request and in the audit trail.",
+                        "maxLength": 255
+                    },
+                    "confirm": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "Purging everything only: the verified scope's name, typed out.",
+                        "maxLength": 255
+                    }
+                },
+                "required": [
+                    "kind"
+                ],
+                "title": "StoreCdnPurgeRequest"
             },
             "StoreLanguageRequest": {
                 "type": "object",

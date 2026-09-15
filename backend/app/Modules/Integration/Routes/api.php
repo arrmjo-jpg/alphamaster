@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Modules\Authorization\Enums\AdminPermission;
 use App\Modules\Integration\Controllers\Admin\AiAdminController;
+use App\Modules\Integration\Controllers\Admin\CdnAdminController;
 use App\Modules\Integration\Controllers\Admin\IntegrationProviderAdminController;
 use Illuminate\Support\Facades\Route;
 
@@ -69,4 +70,37 @@ Route::prefix('v1/admin/ai')
         Route::post('/providers/{provider}/default', [AiAdminController::class, 'makeDefault'])
             ->middleware('permission:'.AdminPermission::INTEGRATIONS_UPDATE->value)
             ->name('admin.ai.providers.default');
+    });
+
+/**
+ * The CDN workspace (ADR 0053).
+ *
+ * Reading is `cdn.view`. Verifying the configured scope is a call to the vendor with the
+ * stored credential, and it writes what it detects onto the provider row, so it is
+ * configuring a vendor: `integrations.update`. Purging named objects is `cdn.purge`; purging
+ * everything additionally needs `cdn.purge_everything`, checked in the controller because
+ * the kind is in the body. Saving the zone and token is the ordinary provider update.
+ */
+Route::prefix('v1/admin/cdn')
+    ->middleware(['auth:sanctum', 'ability:admin:access', 'active', 'admin', 'email-verified'])
+    ->group(function (): void {
+        Route::get('/', [CdnAdminController::class, 'show'])
+            ->middleware('permission:'.AdminPermission::CDN_VIEW->value)
+            ->name('admin.cdn.show');
+
+        Route::post('/verify', [CdnAdminController::class, 'verify'])
+            ->middleware('permission:'.AdminPermission::INTEGRATIONS_UPDATE->value)
+            ->name('admin.cdn.verify');
+
+        Route::get('/purges', [CdnAdminController::class, 'purges'])
+            ->middleware('permission:'.AdminPermission::CDN_VIEW->value)
+            ->name('admin.cdn.purges.index');
+
+        Route::post('/purges', [CdnAdminController::class, 'purge'])
+            ->middleware('permission:'.AdminPermission::CDN_PURGE->value)
+            ->name('admin.cdn.purges.store');
+
+        Route::post('/purges/{purge}/retry', [CdnAdminController::class, 'retry'])
+            ->middleware('permission:'.AdminPermission::CDN_PURGE->value)
+            ->name('admin.cdn.purges.retry');
     });

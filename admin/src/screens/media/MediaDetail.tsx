@@ -12,6 +12,7 @@ import { StatusBadge } from '@/ui/StatusBadge';
 import type { StateTone } from '@/ui/state';
 
 import { deleteMedia, fileUrl, mediaFile } from './api';
+import { MediaAnalysisPanel } from './MediaAnalysisPanel';
 import { formatBytes, previewVerdict } from './preview';
 
 export interface MediaDetailProps {
@@ -19,6 +20,10 @@ export interface MediaDetailProps {
     /** The signed-in account's address, for deciding whether it may read the bytes. */
     viewerEmail: string | null;
     mayDelete: boolean;
+    /** `media.analysis.view`: whether to show AI video detection for this file at all. */
+    mayViewAnalysis?: boolean;
+    mayRequestAnalysis?: boolean;
+    mayReviewAnalysis?: boolean;
     onClose: () => void;
     onDeleted: () => void;
 }
@@ -34,7 +39,16 @@ export interface MediaDetailProps {
  * private media they did not upload. Where that applies the panel says so instead of
  * showing a broken image.
  */
-export function MediaDetail({ id, viewerEmail, mayDelete, onClose, onDeleted }: MediaDetailProps) {
+export function MediaDetail({
+    id,
+    viewerEmail,
+    mayDelete,
+    mayViewAnalysis = false,
+    mayRequestAnalysis = false,
+    mayReviewAnalysis = false,
+    onClose,
+    onDeleted,
+}: MediaDetailProps) {
     const { t } = useTranslation();
     const { locale } = useDirection();
     const queryClient = useQueryClient();
@@ -138,6 +152,15 @@ export function MediaDetail({ id, viewerEmail, mayDelete, onClose, onDeleted }: 
                             </span>
                         </Row>
                     </dl>
+
+                    {mayViewAnalysis ? (
+                        <MediaAnalysisPanel
+                            mayRequest={mayRequestAnalysis}
+                            mayReview={mayReviewAnalysis}
+                            mediaId={id}
+                            mediaStatus={record.data.status}
+                        />
+                    ) : null}
 
                     {mayDelete ? (
                         <section className="flex flex-col gap-2 border-t border-(--border-default) pt-3">

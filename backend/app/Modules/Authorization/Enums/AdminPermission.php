@@ -111,6 +111,40 @@ enum AdminPermission: string implements PermissionDefinition
      */
     case AI_USE = 'ai.use';
 
+    /**
+     * See the CDN: its configuration state, limits and every purge request with its outcome
+     * (ADR 0053). Configuring the vendor stays `integrations.update`.
+     */
+    case CDN_VIEW = 'cdn.view';
+
+    /**
+     * Purge named objects from the edge: URLs, tags, prefixes, hosts.
+     */
+    case CDN_PURGE = 'cdn.purge';
+
+    /**
+     * Purge everything. Its own permission because it is an incident tool with an origin
+     * outage as its failure mode, not an invalidation (ADR 0036).
+     */
+    case CDN_PURGE_EVERYTHING = 'cdn.purge_everything';
+
+    /**
+     * See media analyses and the capability's state (ADR 0054). Separate from `media.view`:
+     * an analysis is an assessment of someone's upload, not part of the file's record.
+     */
+    case MEDIA_ANALYSIS_VIEW = 'media.analysis.view';
+
+    /**
+     * Ask for an analysis, or withdraw one, from the Admin. It sends media to an analyzer and
+     * costs per file, so it is not implied by being able to look.
+     */
+    case MEDIA_ANALYSIS_REQUEST = 'media.analysis.request';
+
+    /**
+     * Record a human review of an assessment.
+     */
+    case MEDIA_ANALYSIS_REVIEW = 'media.analysis.review';
+
     public function key(): string
     {
         return $this->value;
@@ -132,8 +166,9 @@ enum AdminPermission: string implements PermissionDefinition
             self::INTEGRATIONS_VIEW, self::INTEGRATIONS_UPDATE => 'integration',
             self::NOTIFICATIONS_VIEW, self::NOTIFICATIONS_UPDATE,
             self::NOTIFICATIONS_SEND => 'notification',
-            self::MEDIA_VIEW, self::MEDIA_DELETE => 'media',
-            self::AI_USE => 'integration',
+            self::MEDIA_VIEW, self::MEDIA_DELETE,
+            self::MEDIA_ANALYSIS_VIEW, self::MEDIA_ANALYSIS_REQUEST, self::MEDIA_ANALYSIS_REVIEW => 'media',
+            self::AI_USE, self::CDN_VIEW, self::CDN_PURGE, self::CDN_PURGE_EVERYTHING => 'integration',
         };
     }
 

@@ -139,14 +139,36 @@ export function SettingsWorkspace({ name, definitions, onPendingChange }: Settin
                 return;
             }
 
-            // A rejected value names its key, so a batch of twenty says which one was
-            // refused rather than failing as a whole.
-            const details = error.details as { key?: unknown; message?: unknown } | null;
+            // A rejected value names its setting, so a batch of twenty says which one was
+            // refused rather than failing as a whole. The platform names it by reference,
+            // `group.key`, with its messages; a bare key and one message is accepted too.
+            const details = error.details as {
+                key?: unknown;
+                message?: unknown;
+                setting?: unknown;
+                messages?: unknown;
+            } | null;
 
-            if (typeof details?.key === 'string') {
+            const rejectedKey =
+                typeof details?.key === 'string'
+                    ? details.key
+                    : typeof details?.setting === 'string'
+                      ? details.setting.slice(details.setting.indexOf('.') + 1)
+                      : null;
+
+            if (rejectedKey !== null) {
+                const messages: unknown = details?.messages;
+                const first: unknown = Array.isArray(messages)
+                    ? (messages as unknown[])[0]
+                    : undefined;
+
                 setRejections({
-                    [details.key]:
-                        typeof details.message === 'string' ? details.message : error.message,
+                    [rejectedKey]:
+                        typeof details?.message === 'string'
+                            ? details.message
+                            : typeof first === 'string'
+                              ? first
+                              : error.message,
                 });
 
                 return;

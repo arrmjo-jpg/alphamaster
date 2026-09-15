@@ -13,9 +13,8 @@ use Illuminate\Support\Facades\Storage;
  * The metadata this environment can actually derive.
  *
  * Image dimensions come from EXIF where the file carries them; there is no gd or
- * imagick here, so nothing is decoded and no thumbnail is produced. Video duration
- * and dimensions need ffprobe, which is likewise absent, so a video yields only what
- * intake already established.
+ * imagick here, so nothing is decoded and no thumbnail is produced. Video and audio are
+ * not handled here: `TimedMediaProcessor` reads them with ffprobe.
  *
  * This processor is deliberately honest about that: it reports what it could not
  * determine rather than writing zeros, so a null width means unknown rather than a

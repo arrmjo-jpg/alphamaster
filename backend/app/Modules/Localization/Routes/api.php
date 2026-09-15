@@ -11,7 +11,11 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function (): void {
     // Public localization routes
-    Route::get('/languages', [LanguageApiController::class, 'index'])->name('api.languages.index');
+    // Cacheable, and tagged so a change to the language set purges it from the edge
+    // (ADR 0053). The tag literal is LocaleResolver::edgeTag().
+    Route::get('/languages', [LanguageApiController::class, 'index'])
+        ->middleware('http.cache:public-configuration,localization:languages')
+        ->name('api.languages.index');
 
     // Admin language management routes (protected by admin perimeter)
     Route::prefix('admin/languages')

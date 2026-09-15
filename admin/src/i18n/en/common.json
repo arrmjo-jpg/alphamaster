@@ -165,7 +165,8 @@
         "translations": "Translations",
         "ai": "AI",
         "access": "Users & permissions",
-        "cache": "Cache"
+        "cache": "Cache",
+        "cdn": "CDN"
     },
     "cache": {
         "eyebrow": "Platform",
@@ -190,6 +191,122 @@
             "auth": "Authentication",
             "authorization": "Permissions",
             "integration": "Integrations"
+        }
+    },
+    "cdn": {
+        "eyebrow": "Platform",
+        "title": "Content delivery network",
+        "intro": "The edge in front of the platform: which vendor it is, what that vendor allows, where public media is served from, and every purge with what the vendor answered.",
+        "layers": {
+            "title": "Three caches, three controls",
+            "application": "Application cache: values the platform computes, invalidated on the Cache page.",
+            "http": "HTTP cache: what browsers and the edge may store, declared per route by the platform.",
+            "edge": "Edge cache: copies held by the CDN, removed only by a purge from here."
+        },
+        "status": {
+            "title": "Status",
+            "ready": "Ready to purge",
+            "notReady": "Not ready to purge",
+            "active": "Switched on",
+            "inactive": "Switched off",
+            "missing": "Still needed: {{fields}}",
+            "tagHeader": "Responses carry cache tags in {{header}}.",
+            "noTagHeader": "No cache tags are sent until a provider is ready.",
+            "lastAttempt": "Last vendor call",
+            "never": "No call yet",
+            "pending": "Queued",
+            "processing": "In progress",
+            "failed": "Failed",
+            "succeededDay": "Purged in the last day"
+        },
+        "provider": {
+            "title": "Provider connection",
+            "none": "No CDN provider is installed.",
+            "tokenStored": "A token is stored. Leave the field empty to keep it.",
+            "tokenHelp": "Stored encrypted and never shown again. The token needs Zone → Cache Purge and Zone → Zone → Read.",
+            "switchOn": "Switch on after saving",
+            "save": "Save connection",
+            "saved": "The connection was saved.",
+            "readOnly": "Changing the connection needs the integrations.update permission.",
+            "field": {
+                "zone_id": "Zone ID",
+                "api_token": "API token"
+            }
+        },
+        "verify": {
+            "title": "Verification",
+            "action": "Verify with the vendor",
+            "never": "Not verified yet. Until it is, the most restrictive plan's limits apply.",
+            "scope": "Scope",
+            "scopeStatus": "Status",
+            "plan": "Plan",
+            "at": "Checked",
+            "failed": "The last check failed: {{code}}",
+            "done": "The vendor confirmed {{scope}}.",
+            "notConfirmed": "The vendor did not confirm the configured scope."
+        },
+        "limits": {
+            "title": "Vendor limits",
+            "kind": "Kind",
+            "perCall": "Items per call",
+            "perMinute": "Calls a minute",
+            "unbounded": "Not paced here",
+            "unsupported": "Not supported"
+        },
+        "delivery": {
+            "title": "Media delivery",
+            "intro": "Where public media is served from. Saved like any other setting: reviewed first, and refused if someone else saved in the meantime.",
+            "readOnly": "Changing these needs the settings.update permission."
+        },
+        "purge": {
+            "title": "Purge",
+            "intro": "Removes copies from the edge. Nothing is purged on the spot: each request is queued, sent within the vendor's limits, and its outcome appears below.",
+            "kind": "What to purge",
+            "items": "One per line",
+            "hint": {
+                "urls": "Complete addresses, e.g. https://cdn.example.com/logo.png",
+                "tags": "Cache tags, e.g. settings:public",
+                "prefixes": "Addresses every purged object starts with, e.g. https://cdn.example.com/media/",
+                "hosts": "Host names, e.g. cdn.example.com"
+            },
+            "reason": "Reason (kept with the request and in the audit trail)",
+            "submit": "Queue purge",
+            "queued_one": "{{count}} purge request was queued.",
+            "queued_other": "{{count}} purge requests were queued.",
+            "readOnly": "Purging needs the cdn.purge permission.",
+            "notReady": "Purging needs a provider that is switched on and fully configured.",
+            "tooMany": "At most {{max}} items at a time."
+        },
+        "everything": {
+            "title": "Purge everything",
+            "intro": "An incident tool, not a way to refresh content: every object at the edge is dropped at once and the origin serves all of them again. It has its own permission, is limited to three an hour, and is recorded.",
+            "confirm": "Type {{name}} to confirm",
+            "submit": "Purge everything",
+            "needsVerification": "Verify the provider first: the confirmation is the scope name the vendor confirmed.",
+            "forbidden": "Purging everything needs the cdn.purge_everything permission."
+        },
+        "history": {
+            "title": "Purge requests",
+            "all": "All",
+            "succeeded": "Purged",
+            "empty": "No purge requests.",
+            "items_one": "{{count}} item",
+            "items_other": "{{count}} items",
+            "attempts_one": "{{count}} attempt",
+            "attempts_other": "{{count}} attempts",
+            "nextAttempt": "Next attempt {{at}}",
+            "retry": "Retry",
+            "retried": "The purge was queued again.",
+            "newer": "Newer",
+            "older": "Older",
+            "page": "Page {{page}} of {{pages}}"
+        },
+        "kind": {
+            "urls": "URLs",
+            "tags": "Cache tags",
+            "prefixes": "URL prefixes",
+            "hosts": "Host names",
+            "everything": "Everything"
         }
     },
     "dashboard": {
@@ -406,7 +523,15 @@
             "max": "At most {{count}}.",
             "minLength": "At least {{count}} characters.",
             "maxLength": "At most {{count}} characters.",
+            "between": "Between {{min}} and {{max}}.",
+            "betweenLength": "Between {{min}} and {{max}} characters.",
             "in": "One of: {{values}}."
+        },
+        "duration": {
+            "hint": "HH:MM:SS, MM:SS or seconds. Empty is no limit.",
+            "malformed": "That is not a duration yet, so it has not been staged. Use HH:MM:SS.",
+            "seconds_one": "{{count}} second",
+            "seconds_other": "{{count}} seconds"
         },
         "review": {
             "title": "Review changes",
@@ -454,6 +579,7 @@
             "branding": "Branding",
             "cdn": "CDN",
             "general": "General",
+            "media_analysis": "Media analysis",
             "localization": "Localization",
             "mail": "Mail",
             "operations": "Operations",
@@ -798,6 +924,43 @@
         "removeConfirm": "Remove it",
         "removeDenied": "You may read this file but not remove it. Removing one needs the media.delete permission.",
         "noReplace": "A stored file cannot be replaced or renamed. The bytes behind an identifier never change, which is what makes them cacheable forever; upload a new file instead.",
+        "analysis": {
+            "title": "AI video detection",
+            "intro": "Nothing is analysed unless someone asks. A result is an assessment of risk, never a verdict that the media is or is not generated.",
+            "unavailable": {
+                "disabled": "Media analysis is switched off in the settings.",
+                "not_configured": "No media analyzer is configured yet."
+            },
+            "notReady": "This file can be analysed once it is ready.",
+            "durationRange": "Videos from {{min}} to {{max}} can be analysed.",
+            "durationMin": "Videos of at least {{min}} can be analysed.",
+            "durationMax": "Videos of up to {{max}} can be analysed.",
+            "lookFor": "Look for",
+            "reanalyze": "Analyse again even if an equivalent analysis exists",
+            "request": "Request analysis",
+            "empty": "This file has not been analysed.",
+            "confidence": "Confidence",
+            "notAssessed": "Not assessed: {{types}}",
+            "superseded": "Superseded by a newer analysis",
+            "cancel": "Withdraw",
+            "type": {
+                "ai_generated": "AI generation",
+                "deepfake": "Deepfake",
+                "face_manipulation": "Face manipulation",
+                "visual_manipulation": "Visual manipulation",
+                "synthetic_audio": "Synthetic audio"
+            },
+            "review": {
+                "decision": "Your review",
+                "note": "Note",
+                "submit": "Record review",
+                "decisions": {
+                    "confirmed_synthetic": "Confirmed synthetic",
+                    "confirmed_authentic": "Confirmed authentic",
+                    "undetermined": "Undetermined"
+                }
+            }
+        },
         "empty": {
             "title": "Nothing is stored yet.",
             "body": "Uploading a file here puts it through the platform intake: it is stored, scanned where a scanner exists, and becomes servable once it is ready.",

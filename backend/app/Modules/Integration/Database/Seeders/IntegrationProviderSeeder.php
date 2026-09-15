@@ -19,6 +19,10 @@ class IntegrationProviderSeeder extends Seeder
      * operator activates it once they have supplied keys, exactly as a secret setting
      * is provisioned unset (ADR 0018).
      *
+     * Media analysis ships no row at all. Every row here names a vendor whose driver
+     * exists; no media analysis vendor has been chosen and no driver exists, so a row
+     * would invent one (ADR 0054 §6). The operator adds the provider when a driver does.
+     *
      * @return array<int, array<string, mixed>>
      */
     private function definitions(): array
@@ -110,6 +114,19 @@ class IntegrationProviderSeeder extends Seeder
                 'driver' => 'google',
                 'label' => 'Google',
                 'settings' => ['client_id' => ''],
+                'is_active' => false,
+                'is_default' => true,
+                'priority' => 0,
+            ],
+            [
+                // Inactive and credential-less, like every other vendor row. A zone id is a
+                // setting and the API token a credential. There is no log-style CDN driver: a
+                // purge that answers "done" without asking a vendor leaves stale content
+                // behind a green interface, which ADR 0036 forbids outright.
+                'capability' => IntegrationCapability::CDN,
+                'driver' => 'cloudflare',
+                'label' => 'Cloudflare',
+                'settings' => ['zone_id' => ''],
                 'is_active' => false,
                 'is_default' => true,
                 'priority' => 0,

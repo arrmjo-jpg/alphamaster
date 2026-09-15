@@ -136,6 +136,24 @@ class MediaFile extends BaseModel
         return $this->status->isServable() && $this->scan_status->permitsServing();
     }
 
+    /**
+     * How long the file plays, to the millisecond, or null when that was never read.
+     *
+     * Read from the metadata processing recorded, so nothing asking about a duration probes
+     * the file again. The whole-second column is the fallback for a duration some other
+     * writer set without the precision.
+     */
+    public function durationMilliseconds(): ?int
+    {
+        $recorded = $this->metadata['duration_ms'] ?? null;
+
+        if (is_int($recorded) && $recorded >= 0) {
+            return $recorded;
+        }
+
+        return $this->duration_seconds === null ? null : $this->duration_seconds * 1000;
+    }
+
     public function isPubliclyReadable(): bool
     {
         return $this->visibility === MediaVisibility::PUBLIC;

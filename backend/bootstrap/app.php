@@ -3,8 +3,10 @@
 declare(strict_types=1);
 
 use App\Modules\Authorization\Middleware\EnsurePermission;
+use App\Modules\Core\Middleware\ApplyHttpCachePolicy;
 use App\Modules\Core\Middleware\ApplyRateLimit;
 use App\Modules\Core\Middleware\AttachRequestContext;
+use App\Modules\Core\Middleware\ClassifyHttpCaching;
 use App\Modules\Core\Middleware\EnsureAccountActive;
 use App\Modules\Core\Middleware\EnsureEmailVerified;
 use App\Modules\Core\Middleware\EnsureNotInMaintenance;
@@ -53,7 +55,13 @@ return Application::configure(basePath: dirname(__DIR__))
         // Append core middleware to API group. The limiter is last: it needs the
         // resolved route to choose a class, and the resolved user to choose an
         // identity.
-        $middleware->api(append: [
+        //
+        // The caching classifier is prepended, so it is the outermost API middleware and
+        // sees every response last — errors included — and marks anything no route
+        // classified as uncacheable (ADR 0036).
+        $middleware->api(prepend: [
+            ClassifyHttpCaching::class,
+        ], append: [
             ForceJsonResponse::class,
             AttachRequestContext::class,
             ApplyRateLimit::class,
@@ -77,6 +85,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'active' => EnsureAccountActive::class,
             'ability' => CheckForAnyAbility::class,
             'abilities' => CheckAbilities::class,
+            // A public response opts into caching by naming a profile (ADR 0036).
+            'http.cache' => ApplyHttpCachePolicy::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

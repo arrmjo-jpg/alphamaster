@@ -70,6 +70,7 @@ const EVERY_PERMISSION = [
     'integrations.view',
     'media.view',
     'audit.view',
+    'cdn.view',
 ];
 
 const ADMIN = {
@@ -134,10 +135,11 @@ describe('going to a page', () => {
         const trigger = await openConsole();
         await userEvent.click(trigger);
 
-        // Fourteen destinations, and this account may open all of them — the account
+        // Fifteen destinations, and this account may open all of them — the account
         // page among them: out of the navigation, but still somewhere a person can go.
-        // The cache workspace is the fourteenth (ADR 0051 §7).
-        expect(within(palette()).getAllByRole('option')).toHaveLength(14);
+        // The cache workspace is the fourteenth (ADR 0051 §7), the CDN the fifteenth
+        // (ADR 0053).
+        expect(within(palette()).getAllByRole('option')).toHaveLength(15);
 
         await userEvent.type(within(palette()).getByRole('combobox'), 'rol');
 

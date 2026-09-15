@@ -59,6 +59,17 @@ class AdminPermissionSeeder extends Seeder
                 // this permission governs. It is separately grantable for the roles
                 // that do not configure anything.
                 AdminPermission::AI_USE,
+                // Seeing the CDN and purging named objects are day-to-day operation.
+                // Purging everything is not: it stays with super_admin until an operator
+                // grants it, because its failure mode is an origin outage (ADR 0036).
+                AdminPermission::CDN_VIEW,
+                AdminPermission::CDN_PURGE,
+                // Looking at, asking for and reviewing media analyses is moderation work the
+                // role that runs the platform does; configuring the analyzer stays with
+                // `integrations.update` and `settings.update`.
+                AdminPermission::MEDIA_ANALYSIS_VIEW,
+                AdminPermission::MEDIA_ANALYSIS_REQUEST,
+                AdminPermission::MEDIA_ANALYSIS_REVIEW,
             ],
             'editor' => [
                 AdminPermission::USERS_VIEW,

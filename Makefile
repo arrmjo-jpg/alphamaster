@@ -65,9 +65,13 @@ adminer:
 adminer-down:
 	docker compose --profile tools rm -sf adminer
 
-# Run database migrations
+# Run database migrations, then materialise any setting the code now declares.
+# settings:sync is non-destructive: it creates missing rows and never overwrites a
+# value an operator saved. Without it a new settings group (cdn, for one) exists in
+# code and answers "group not found" until someone seeds by hand.
 migrate:
 	docker compose exec backend php artisan migrate
+	docker compose exec backend php artisan settings:sync
 
 # Seed database
 seed:

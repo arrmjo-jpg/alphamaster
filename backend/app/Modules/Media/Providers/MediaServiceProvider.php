@@ -5,14 +5,20 @@ declare(strict_types=1);
 namespace App\Modules\Media\Providers;
 
 use App\Modules\Core\Contracts\ProfileAvatarContract;
+use App\Modules\Core\MediaAnalysis\MediaAnalysisContract;
+use App\Modules\Media\Console\ProbeMediaDurationsCommand;
 use App\Modules\Media\Contracts\CdnUrlResolverContract;
 use App\Modules\Media\Contracts\MediaScannerContract;
 use App\Modules\Media\Contracts\MediaServiceContract;
 use App\Modules\Media\Contracts\MediaStorageContract;
 use App\Modules\Media\Enums\MediaType;
+use App\Modules\Media\Services\Analysis\MediaAnalysisPolicy;
+use App\Modules\Media\Services\Analysis\MediaAnalysisService;
 use App\Modules\Media\Services\MediaAccessResolver;
 use App\Modules\Media\Services\MediaService;
+use App\Modules\Media\Services\Processing\FfprobeInspector;
 use App\Modules\Media\Services\Processing\GenericFileProcessor;
+use App\Modules\Media\Services\Processing\TimedMediaProcessor;
 use App\Modules\Media\Services\ProcessorRegistry;
 use App\Modules\Media\Services\ProfileAvatars;
 use App\Modules\Media\Services\Scanning\NullMediaScanner;
@@ -40,14 +46,14 @@ class MediaServiceProvider extends ServiceProvider
         // scanner is this one binding.
         $this->app->singleton(MediaScannerContract::class, NullMediaScanner::class);
 
-        // Only the processors this environment can actually run are registered.
-        // Thumbnailing needs gd or imagick and video metadata needs ffprobe; neither
-        // is installed, so those types resolve to no processor rather than to a stub
-        // that would report values it never derived.
-        $this->app->singleton(ProcessorRegistry::class, fn (): ProcessorRegistry => new ProcessorRegistry([
+        // Images and documents yield what can be read without decoding them. Video and
+        // audio are read with ffprobe, which the image installs, for the duration media
+        // analysis limits are checked against (ADR 0054); where the binary is absent the
+        // duration is recorded as unavailable rather than invented.
+        $this->app->singleton(ProcessorRegistry::class, fn ($app): ProcessorRegistry => new ProcessorRegistry([
             new GenericFileProcessor(MediaType::IMAGE),
-            new GenericFileProcessor(MediaType::VIDEO),
-            new GenericFileProcessor(MediaType::AUDIO),
+            new TimedMediaProcessor(MediaType::VIDEO, $app->make(FfprobeInspector::class)),
+            new TimedMediaProcessor(MediaType::AUDIO, $app->make(FfprobeInspector::class)),
             new GenericFileProcessor(MediaType::DOCUMENT),
         ]));
 
@@ -56,6 +62,12 @@ class MediaServiceProvider extends ServiceProvider
         $this->app->singleton(MediaAccessResolver::class, fn (): MediaAccessResolver => new MediaAccessResolver);
 
         $this->app->singleton(MediaServiceContract::class, MediaService::class);
+
+        // Media analysis (ADR 0054): declared in Core so any module can call it, carried out
+        // here. Registering it starts nothing — an analysis exists only when a consumer
+        // asks for one, and nothing in the intake pipeline does.
+        $this->app->singleton(MediaAnalysisPolicy::class);
+        $this->app->singleton(MediaAnalysisContract::class, MediaAnalysisService::class);
     }
 
     /**
@@ -65,6 +77,10 @@ class MediaServiceProvider extends ServiceProvider
     {
         $this->loadMigrationsFrom(dirname(__DIR__).'/Database/Migrations');
         $this->registerRoutes();
+
+        if ($this->app->runningInConsole()) {
+            $this->commands([ProbeMediaDurationsCommand::class]);
+        }
     }
 
     /**

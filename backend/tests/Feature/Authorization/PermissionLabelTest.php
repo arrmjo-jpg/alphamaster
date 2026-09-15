@@ -27,8 +27,10 @@ test('every permission in the catalogue resolves a label in both locales', funct
     // 16 through Phase 15; Phase 16A added the security, secrets and audit trio,
     // Phase 16B-2 added rollback, 16B-4 audit archival, 16B-5 configuration backup,
     // M3-A `notifications.send` when announcements gained a sender, and M3-G `ai.use`
-    // when asking a vendor for text became a power of its own.
-    expect($cases)->toHaveCount(24);
+    // when asking a vendor for text became a power of its own. ADR 0053 added the CDN
+    // trio: viewing the edge, purging named objects, and purging everything. ADR 0054
+    // added viewing, requesting and reviewing media analyses.
+    expect($cases)->toHaveCount(30);
 
     foreach (['en', 'ar'] as $locale) {
         app()->setLocale($locale);
@@ -170,7 +172,7 @@ test('every permission key exists in both dictionaries and differs between them'
 
     $keys = array_values(array_filter(array_keys($en), fn (string $k): bool => str_starts_with($k, 'permission.')));
 
-    expect($keys)->toHaveCount(24);
+    expect($keys)->toHaveCount(30);
 
     foreach ($keys as $key) {
         expect($ar)->toHaveKey($key)

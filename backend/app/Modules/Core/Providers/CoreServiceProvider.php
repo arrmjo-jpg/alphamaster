@@ -10,7 +10,14 @@ use App\Modules\Core\Cache\CacheNamespace;
 use App\Modules\Core\Cache\CacheNamespaceRegistry;
 use App\Modules\Core\Cache\PlatformCache;
 use App\Modules\Core\Contracts\AuditRecorderContract;
+use App\Modules\Core\Contracts\EdgeCacheContract;
 use App\Modules\Core\Contracts\PlatformCacheContract;
+use App\Modules\Core\Delivery\NullEdgeCache;
+use App\Modules\Core\Http\Cache\HttpCacheProfile;
+use App\Modules\Core\Http\Cache\HttpCacheProfileRegistry;
+use App\Modules\Core\Http\Cache\ResponseCacheTags;
+use App\Modules\Core\MediaAnalysis\MediaAnalyzerContract;
+use App\Modules\Core\MediaAnalysis\NullMediaAnalyzer;
 use App\Modules\Core\Services\RateLimitPolicy;
 use App\Modules\Core\Support\ClientUrlPolicy;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -50,6 +57,38 @@ class CoreServiceProvider extends ServiceProvider
 
         // The audit trail, which every module writes to (ADR 0037).
         $this->app->singleton(AuditRecorderContract::class, AuditRecorder::class);
+
+        // The edge cache (ADR 0053). Bound only if nothing else is: Integration binds the
+        // configured CDN driver, and without it every invalidation answers not_configured.
+        $this->app->singletonIf(EdgeCacheContract::class, NullEdgeCache::class);
+
+        // The media analyzer (ADR 0054). Bound only if nothing else is: Integration binds the
+        // configured provider, and without it every analysis is refused as not configured.
+        $this->app->singletonIf(MediaAnalyzerContract::class, NullMediaAnalyzer::class);
+
+        // How public responses may be cached (ADR 0036, ADR 0053 §2). Core declares the
+        // profile its own anonymous configuration endpoints use; a module registers its own
+        // against this singleton.
+        $this->app->singleton(HttpCacheProfileRegistry::class, static function (): HttpCacheProfileRegistry {
+            $registry = new HttpCacheProfileRegistry;
+            $registry->register(new HttpCacheProfile(
+                name: HttpCacheProfile::PUBLIC_CONFIGURATION,
+                // A minute in the browser, which cannot be purged; five at the edge, which
+                // is purged when the configuration changes.
+                browserMaxAge: 60,
+                edgeMaxAge: 300,
+                staleWhileRevalidate: 60,
+                // A day of the last good copy while the origin is failing: configuration is
+                // what a client needs to render anything at all.
+                staleIfError: 86400,
+                localized: true,
+            ));
+
+            return $registry;
+        });
+
+        // One per request: the tags the response being built will carry to the edge.
+        $this->app->scoped(ResponseCacheTags::class);
     }
 
     /**

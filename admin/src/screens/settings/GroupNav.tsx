@@ -29,8 +29,17 @@ const GROUP_ORDER = [
     'security',
     'rate_limit',
     'operations',
-    'cdn',
 ];
+
+/**
+ * Groups a capability workspace of their own edits, so they are not listed twice.
+ *
+ * The values are the same settings, written through the same endpoint under the same
+ * precondition — only where an operator finds them changes. `cdn` lives in the CDN
+ * workspace beside the vendor connection and the purge queue (ADR 0053), where it is read
+ * together with what it affects. Its address under /settings still opens it.
+ */
+const GROUPS_MANAGED_ELSEWHERE = ['cdn'];
 
 /**
  * The groups, and what is in each of them.
@@ -46,24 +55,26 @@ const GROUP_ORDER = [
  */
 export function GroupNav({ catalogue, pendingByGroup, onNavigate }: GroupNavProps) {
     const { t } = useTranslation();
-    const groups = Object.keys(catalogue).toSorted((first, second) => {
-        const left = GROUP_ORDER.indexOf(first);
-        const right = GROUP_ORDER.indexOf(second);
+    const groups = Object.keys(catalogue)
+        .filter((name) => !GROUPS_MANAGED_ELSEWHERE.includes(name))
+        .toSorted((first, second) => {
+            const left = GROUP_ORDER.indexOf(first);
+            const right = GROUP_ORDER.indexOf(second);
 
-        if (left === -1 && right === -1) {
-            return first.localeCompare(second);
-        }
+            if (left === -1 && right === -1) {
+                return first.localeCompare(second);
+            }
 
-        if (left === -1) {
-            return 1;
-        }
+            if (left === -1) {
+                return 1;
+            }
 
-        if (right === -1) {
-            return -1;
-        }
+            if (right === -1) {
+                return -1;
+            }
 
-        return left - right;
-    });
+            return left - right;
+        });
 
     return (
         <nav aria-label={t('settings.groups')} className="flex flex-col">

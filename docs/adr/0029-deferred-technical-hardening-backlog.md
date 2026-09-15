@@ -215,7 +215,7 @@ said. The attempt is audited under `mail.test_sent`, including when it fails.
 
 *Decision*: ADR 0024, extended 2026-09-04. *Implementation*: deferred on an environment dependency.
 
-The processing pipeline exists; no processor can run. The container image has no gd, imagick or ffmpeg, re-verified on 2026-09-04.
+The processing pipeline exists; no image processor can run. The container image has no gd or imagick, re-verified on 2026-09-04. Since 2026-09-14 it installs ffmpeg, and video and audio metadata is read with ffprobe (ADR 0054 §11); that part of this item is closed, and variants and watermarking remain open.
 
 *Closed by*: adding the image extensions to the container image, then implementing named variants and watermarking against the existing contracts. The original is never modified and never watermarked.
 

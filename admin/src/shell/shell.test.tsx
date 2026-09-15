@@ -296,6 +296,7 @@ describe('the navigation tree', () => {
             'ai',
             'operations',
             'cache',
+            'cdn',
         ]);
 
         expect(childrenOf(tree, 'access')).toEqual(['users', 'roles', 'permissions']);
@@ -337,6 +338,7 @@ describe('the navigation tree', () => {
             'ai',
             'operations',
             'cache',
+            'cdn',
         ]);
     });
 
