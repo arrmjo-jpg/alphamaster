@@ -6,6 +6,7 @@ namespace App\Modules\Core\Seo;
 
 use App\Modules\Core\Content\ContentRefusedException;
 use App\Modules\Core\Contracts\MediaReferenceContract;
+use App\Modules\Core\Contracts\SiteSeoDefaultsContract;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
@@ -18,7 +19,10 @@ use Illuminate\Database\Eloquent\Model;
  */
 class SeoMetaStore
 {
-    public function __construct(private readonly MediaReferenceContract $media) {}
+    public function __construct(
+        private readonly MediaReferenceContract $media,
+        private readonly SiteSeoDefaultsContract $defaults,
+    ) {}
 
     public function for(Model $owner, string $locale): ?SeoFields
     {
@@ -108,27 +112,57 @@ class SeoMetaStore
     }
 
     /**
-     * What a page in this locale presents to search engines and link previews.
+     * What content in one language presents to search engines and link previews (ADR 0058 §4).
+     *
+     * Every step stays in the language asked for:
+     *
+     *     title        SEO title → the content's title → the site's name in this language
+     *     description  SEO description → the content's summary → the site's description here
+     *     og image     SEO image → the content's image → the site's default sharing image
+     *     robots       SEO robots → the site's policy (index,follow when none is set)
+     *     canonical    SEO canonical → the content's own address in this language
      *
      * @param  string  $title  the content's own title in this locale
      * @param  string|null  $description  the content's own summary in this locale
      * @param  string|null  $imageUrl  the content's own image, if it has one
+     * @param  string|null  $url  the content's own public address in this locale
      */
-    public function resolve(?SeoFields $meta, string $title, ?string $description, ?string $imageUrl = null): ResolvedSeo
+    public function resolve(?SeoFields $meta, string $locale, string $title, ?string $description, ?string $imageUrl = null, ?string $url = null): ResolvedSeo
     {
-        $resolvedTitle = $meta->title ?? $title;
-        $resolvedDescription = $meta->description ?? $description;
-        $ogImage = $meta?->ogMediaId !== null ? $this->media->publicImage($meta->ogMediaId)?->url : null;
+        $resolvedTitle = $meta->title ?? (trim($title) !== '' ? $title : ($this->defaults->title($locale) ?? $title));
+        $resolvedDescription = $meta->description
+            ?? ($description !== null && trim($description) !== '' ? $description : $this->defaults->description($locale));
+        $ogImage = ($meta?->ogMediaId !== null ? $this->media->publicImage($meta->ogMediaId)?->url : null)
+            ?? $imageUrl
+            ?? $this->defaults->imageUrl();
 
         return new ResolvedSeo(
             title: $resolvedTitle,
             description: $resolvedDescription,
-            robots: $meta?->robots,
-            canonicalUrl: $meta?->canonicalUrl,
+            robots: $meta->robots ?? $this->defaults->robots(),
+            canonicalUrl: $meta->canonicalUrl ?? $url,
             ogTitle: $meta->ogTitle ?? $resolvedTitle,
             ogDescription: $meta->ogDescription ?? $resolvedDescription,
-            ogImageUrl: $ogImage ?? $imageUrl,
+            ogImageUrl: $ogImage,
+            twitterCard: $ogImage !== null ? 'summary_large_image' : 'summary',
         );
+    }
+
+    /**
+     * The owners of one type whose SEO in any language uses this file as its sharing image.
+     *
+     * @return list<string>
+     */
+    public function ownersReferencingMedia(string $mediaId, string $morphClass): array
+    {
+        return SeoMeta::query()
+            ->where('og_media_id', $mediaId)
+            ->where('seoable_type', $morphClass)
+            ->distinct()
+            ->pluck('seoable_id')
+            ->map(static fn (mixed $id): string => (string) $id)
+            ->values()
+            ->all();
     }
 
     /**

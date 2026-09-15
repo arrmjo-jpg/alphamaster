@@ -108,19 +108,21 @@ test('resolution never leaves the language, and falls back to the content in tha
     $store->write($article, 'en', SeoFields::fromArray(['og_title' => 'Shared headline', 'robots' => 'noindex,follow']));
 
     // Arabic has no row, so nothing of the English one appears in it.
-    $arabic = $store->resolve($store->for($article, 'ar'), 'تقرير المباراة', 'ملخّص')->toArray();
+    $arabic = $store->resolve($store->for($article, 'ar'), 'ar', 'تقرير المباراة', 'ملخّص')->toArray();
 
+    // Robots falls to the site's policy — index,follow when none is set — never to English.
     expect($arabic)->toBe([
         'title' => 'تقرير المباراة',
         'description' => 'ملخّص',
-        'robots' => null,
+        'robots' => 'index,follow',
         'canonical_url' => null,
         'og_title' => 'تقرير المباراة',
         'og_description' => 'ملخّص',
         'og_image_url' => null,
+        'twitter_card' => 'summary',
     ]);
 
-    $english = $store->resolve($store->for($article, 'en'), 'Match report', null, 'https://cdn.example.test/avatar.png')->toArray();
+    $english = $store->resolve($store->for($article, 'en'), 'en', 'Match report', null, 'https://cdn.example.test/avatar.png')->toArray();
 
     expect($english['title'])->toBe('Match report')
         ->and($english['og_title'])->toBe('Shared headline')
@@ -135,7 +137,7 @@ test('a sharing image is a media reference: a ready public image resolves, anyth
 
     $store->write($article, 'en', SeoFields::fromArray(['og_media_id' => $image]));
 
-    expect($store->resolve($store->for($article, 'en'), 'Lineup', null)->ogImageUrl)->toBeString();
+    expect($store->resolve($store->for($article, 'en'), 'en', 'Lineup', null)->ogImageUrl)->toBeString();
 
     foreach ([
         seoImage(['visibility' => MediaVisibility::PRIVATE]),
@@ -198,5 +200,5 @@ test('markup typed into a text field is stored and returned as text, never inter
 
     // The API returns JSON: the value is a string, and escaping it is the renderer's job, as
     // for every other text field. Nothing strips it into something else on the way.
-    expect($store->resolve($store->for($article, 'en'), 'Headline', null)->title)->toBe($markup);
+    expect($store->resolve($store->for($article, 'en'), 'en', 'Headline', null)->title)->toBe($markup);
 });
