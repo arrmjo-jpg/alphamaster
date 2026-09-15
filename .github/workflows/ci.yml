@@ -93,10 +93,16 @@ jobs:
           echo "no service mounts the working tree in the baseline"
 
   # The quality gate itself, run inside the project's containers.
+  #
+  # The limit is a guard against a hung job, not a performance budget. Both full suites run
+  # here back to back: 16 and 15 minutes on PR #68, then 23 and more than 19 once localized
+  # pages, team and interface translation landed. At 45 minutes that cancelled a run whose
+  # every test had passed. 75 leaves room for the suite to keep growing without a green run
+  # being cut off.
   gate:
     name: Quality gate
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 75
 
     steps:
       - name: Checkout
