@@ -1189,9 +1189,6 @@ export type WritePageTranslationRequest = {
      * HTML. Sanitised on write: scripts, styles, event handlers and unsafe links are removed.
      */
     body?: string | null;
-    /**
-     * This language's search and sharing fields. Omit to leave them as they are.
-     */
     seo?: {
         title?: string | null;
         description?: string | null;

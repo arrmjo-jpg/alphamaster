@@ -6,6 +6,7 @@ namespace App\Modules\Pages\Models;
 
 use App\Modules\Core\Concerns\HasTranslations;
 use App\Modules\Core\Models\BaseModel;
+use App\Modules\Core\Seo\HasSeoMeta;
 use App\Modules\Pages\Enums\PageStatus;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -27,6 +28,8 @@ use Illuminate\Support\Carbon;
  */
 class Page extends BaseModel
 {
+    use HasSeoMeta;
+
     /** @use HasTranslations<PageTranslation> */
     use HasTranslations;
 

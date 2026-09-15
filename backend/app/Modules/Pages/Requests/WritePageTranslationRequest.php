@@ -7,7 +7,6 @@ namespace App\Modules\Pages\Requests;
 use App\Modules\Core\Seo\SeoFields;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 /**
  * One language's text, address and SEO for a page (ADR 0055).
@@ -34,15 +33,9 @@ class WritePageTranslationRequest extends FormRequest
             'summary' => ['sometimes', 'nullable', 'string', 'max:1000'],
             /** HTML. Sanitised on write: scripts, styles, event handlers and unsafe links are removed. */
             'body' => ['sometimes', 'nullable', 'string', 'max:200000'],
-            /** This language's search and sharing fields. Omit to leave them as they are. */
-            'seo' => ['sometimes', 'nullable', 'array'],
-            'seo.title' => ['sometimes', 'nullable', 'string', 'max:255'],
-            'seo.description' => ['sometimes', 'nullable', 'string', 'max:1000'],
-            'seo.robots' => ['sometimes', 'nullable', 'string', Rule::in(SeoFields::ROBOTS)],
-            'seo.canonical_url' => ['sometimes', 'nullable', 'string', 'max:2048', 'url:http,https'],
-            'seo.og_title' => ['sometimes', 'nullable', 'string', 'max:255'],
-            'seo.og_description' => ['sometimes', 'nullable', 'string', 'max:1000'],
-            'seo.og_media_id' => ['sometimes', 'nullable', 'string', 'ulid'],
+            // This language's search and sharing fields, validated by Core's rules. Omit to
+            // leave them as they are.
+            ...SeoFields::rules(),
         ];
     }
 

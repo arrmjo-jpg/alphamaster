@@ -19497,7 +19497,6 @@
                     },
                     "seo": {
                         "type": "object",
-                        "description": "This language's search and sharing fields. Omit to leave them as they are.",
                         "properties": {
                             "title": {
                                 "type": [

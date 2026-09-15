@@ -6,6 +6,7 @@ namespace App\Modules\Team\Models;
 
 use App\Modules\Core\Concerns\HasTranslations;
 use App\Modules\Core\Models\BaseModel;
+use App\Modules\Core\Seo\HasSeoMeta;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
@@ -25,6 +26,8 @@ use Illuminate\Support\Carbon;
  */
 class TeamMember extends BaseModel
 {
+    use HasSeoMeta;
+
     /** @use HasTranslations<TeamMemberTranslation> */
     use HasTranslations;
 
