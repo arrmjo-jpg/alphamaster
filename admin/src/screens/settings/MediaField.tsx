@@ -4,9 +4,11 @@ import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { ApiError } from '@/api/errors';
+import { mediaRecord, uploadPublicImage, type MediaRecord } from '@/screens/content/images';
 import { Button } from '@/ui/Button';
 
-import { mediaFile, uploadMedia, type MediaFile } from './api';
+/** A branding image is uploaded into its own collection of the one media library. */
+const COLLECTION = 'branding';
 
 /** The platform's own bound: `file` is validated `max:102400`, in kilobytes. */
 const MAX_BYTES = 102_400 * 1024;
@@ -44,7 +46,7 @@ export function MediaField({ value, disabled, onChange, id }: MediaFieldProps) {
     // and the URL to preview come from the media record itself.
     const media = useQuery({
         queryKey: ['media', mediaId],
-        queryFn: ({ signal }) => mediaFile(mediaId ?? '', signal),
+        queryFn: ({ signal }) => mediaRecord(mediaId ?? '', signal),
         enabled: mediaId !== null,
         retry: false,
     });
@@ -74,7 +76,7 @@ export function MediaField({ value, disabled, onChange, id }: MediaFieldProps) {
         setUploading(true);
 
         try {
-            const uploaded = await uploadMedia(file);
+            const uploaded = await uploadPublicImage(file, COLLECTION);
             onChange(uploaded.id);
         } catch (caught) {
             setError(messageFor(caught, t));
@@ -176,7 +178,7 @@ function messageFor(caught: unknown, t: (key: string) => string): string {
     return t('state.error');
 }
 
-function Preview({ file, loading }: { file: MediaFile | undefined; loading: boolean }) {
+function Preview({ file, loading }: { file: MediaRecord | undefined; loading: boolean }) {
     const { t } = useTranslation();
 
     return (

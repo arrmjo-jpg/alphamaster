@@ -596,5 +596,6 @@
     "permission.team.create": "Add team members",
     "permission.team.update": "Edit team members",
     "permission.team.delete": "Remove team members",
-    "permission.interface.translate": "Translate the interface"
+    "permission.interface.translate": "Translate the interface",
+    "permission.languages.manage": "Manage languages"
 }

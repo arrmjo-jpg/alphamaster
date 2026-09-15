@@ -309,12 +309,10 @@ export const MODULES: ModuleManifest[] = [
         path: '/languages',
         label: 'modules.languages',
         icon: Globe,
-        // No permission, and that is the platform's decision rather than an omission
-        // here. The language routes sit behind the administrative perimeter and behind
-        // no permission of their own — the catalogue has no `languages.*` entry — so
-        // every administrator who can reach the Admin can reach them. Naming one here
-        // would hide the module from accounts the API would happily serve, which is a
-        // gate that only looks like security.
+        // No permission on the module, because reading languages is open to the whole
+        // perimeter: every editor of localized content needs the list. Changing one needs
+        // `languages.manage`, which the API enforces and the screen reflects by showing the
+        // record without the controls.
         group: 'settings',
         order: 220,
         component: LanguagesScreen,

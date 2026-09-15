@@ -871,6 +871,7 @@
         "save": "Save language",
         "discard": "Discard",
         "saved": "The language was saved.",
+        "readOnly": "You can see this language but not change it. Changing languages needs the languages.manage permission.",
         "noDelete": "A language cannot be deleted. Settings and notification translations reference it by code, so the platform deactivates rather than removes.",
         "direction": {
             "ltr": "Left to right",

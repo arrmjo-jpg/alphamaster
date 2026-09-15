@@ -179,37 +179,6 @@ export async function rotateSecret(
     });
 }
 
-export interface MediaFile {
-    id: string;
-    original_filename: string;
-    mime_type: string;
-    type: string;
-    size_bytes: number;
-    url?: string | null;
-    status?: string;
-    status_label?: string;
-}
-
-/**
- * Upload a file and get back the record a media setting stores.
- *
- * A branding image is not a setting value that happens to be a file: the setting
- * stores a media id, and the file belongs to the media API. So the upload happens
- * here, the id it returns is staged into the draft like any other value, and the
- * group write that follows is the ordinary atomic one under `If-Match`. There is
- * deliberately no second save path that could bypass validation, permissions or the
- * precondition.
- */
-export async function uploadMedia(file: File, collection = 'branding'): Promise<MediaFile> {
-    const body = new FormData();
-    body.append('file', file);
-    body.append('collection', collection);
-    body.append('visibility', 'public');
-
-    return fetchData<MediaFile>('/media', { method: 'POST', formData: body });
-}
-
-/** One media record, for previewing what a setting already points at. */
-export async function mediaFile(id: string, signal?: AbortSignal): Promise<MediaFile> {
-    return fetchData<MediaFile>(`/media/${id}`, { ...(signal ? { signal } : {}) });
-}
+// A media setting stores a media id. Its upload and preview go through the shared helpers
+// in `@/screens/content/images`, the same ones content uses (ADR 0057 §4), and the group write
+// that stages the id stays the ordinary atomic one under `If-Match`.

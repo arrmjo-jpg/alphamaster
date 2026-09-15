@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Modules\Authorization\Database\Seeders\AdminPermissionSeeder;
 use App\Modules\Localization\Database\Seeders\LanguageSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
@@ -13,6 +14,8 @@ beforeEach(function (): void {
     Cache::flush();
 
     $this->seed(LanguageSeeder::class);
+    // Creating a language is `languages.manage`, so the catalogue has to exist to be granted.
+    $this->seed(AdminPermissionSeeder::class);
 });
 
 /**
@@ -146,7 +149,7 @@ test('a message differs between locales while its code does not', function (): v
 // ── The success envelope ─────────────────────────────────────────────────────
 
 test('a success message is resolved against the request locale', function (): void {
-    $response = $this->withHeaders(['Authorization' => 'Bearer '.adminToken(), 'X-Locale' => 'ar'])
+    $response = $this->withHeaders(['Authorization' => 'Bearer '.tokenWithPermissions(['languages.manage']), 'X-Locale' => 'ar'])
         ->postJson('/api/v1/admin/languages', [
             'code' => 'de',
             'name' => 'German',
@@ -159,7 +162,7 @@ test('a success message is resolved against the request locale', function (): vo
 });
 
 test('the same success message reads in English', function (): void {
-    $response = $this->withHeaders(['Authorization' => 'Bearer '.adminToken()])
+    $response = $this->withHeaders(['Authorization' => 'Bearer '.tokenWithPermissions(['languages.manage'])])
         ->postJson('/api/v1/admin/languages', [
             'code' => 'de',
             'name' => 'German',

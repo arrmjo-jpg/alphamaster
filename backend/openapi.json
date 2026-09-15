@@ -18111,6 +18111,7 @@
                                 "media.analysis.request",
                                 "media.analysis.review",
                                 "interface.translate",
+                                "languages.manage",
                                 "pages.view",
                                 "pages.create",
                                 "pages.update",

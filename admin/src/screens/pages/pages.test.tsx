@@ -219,6 +219,58 @@ describe('static pages', () => {
         expect(sent[0]).toEqual({ locale: 'ar', body: { title: 'سياسة الخصوصية' } });
     });
 
+    it('sets a sharing image for one language as a media reference, saved with that translation', async () => {
+        const sent: Array<{ locale: string; body: { seo?: { og_media_id?: unknown } } }> = [];
+
+        renderScreen(
+            [page()],
+            [
+                http.get('*/api/v1/admin/media', () =>
+                    HttpResponse.json({
+                        success: true,
+                        data: [
+                            {
+                                id: '01hzzshare',
+                                url: '/storage/share.png',
+                                original_filename: 'share.png',
+                                visibility: 'public',
+                            },
+                        ],
+                        meta: {},
+                    }),
+                ),
+                http.put(
+                    '*/api/v1/admin/pages/:id/translations/:locale',
+                    async ({ request, params }) => {
+                        sent.push({
+                            locale: String(params.locale),
+                            body: (await request.json()) as { seo?: { og_media_id?: unknown } },
+                        });
+
+                        return HttpResponse.json({ success: true, message: 'saved', data: page() });
+                    },
+                ),
+            ],
+            ['pages.view', 'pages.update', 'media.view'],
+        );
+
+        const editor = await openPrivacyPolicy();
+
+        await userEvent.click(
+            within(editor).getByRole('button', { name: 'Choose from the library' }),
+        );
+        await userEvent.click(await within(editor).findByRole('button', { name: 'share.png' }));
+
+        // Choosing stages the id into this language's SEO; nothing is written until the save.
+        expect(sent).toHaveLength(0);
+
+        await userEvent.click(within(editor).getByRole('button', { name: 'Save translation' }));
+
+        await expect.poll(() => sent.length).toBe(1);
+        expect(sent[0]?.locale).toBe('en');
+        expect(sent[0]?.body.seo?.og_media_id).toBe('01hzzshare');
+    });
+
     it('shows each language’s translation status and switches to a language from it', async () => {
         renderScreen();
 

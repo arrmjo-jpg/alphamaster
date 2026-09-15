@@ -67,7 +67,7 @@ test('a language nobody coded for is translated end to end, item by item, with n
         'notifications.view', 'notifications.update',
         PagePermission::VIEW->value, PagePermission::CREATE->value, PagePermission::UPDATE->value, PagePermission::PUBLISH->value,
         TeamPermission::VIEW->value, TeamPermission::CREATE->value, TeamPermission::UPDATE->value,
-        'ai.use',
+        'ai.use', 'languages.manage',
     ]);
 
     $this->withToken($token)
