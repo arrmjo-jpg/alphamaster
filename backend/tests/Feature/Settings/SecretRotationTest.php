@@ -8,6 +8,7 @@ use App\Modules\Localization\Database\Seeders\LanguageSeeder;
 use App\Modules\Settings\Contracts\SecretVerifierContract;
 use App\Modules\Settings\Contracts\SettingServiceInterface;
 use App\Modules\Settings\Database\Seeders\SettingSeeder;
+use App\Modules\Settings\Definitions\SettingRegistry;
 use App\Modules\Settings\Models\Setting;
 use App\Modules\Settings\Models\SettingRevision;
 use App\Modules\Settings\Secrets\SecretVerificationResult;
@@ -185,6 +186,92 @@ test('a refused rotation is recorded as a failed attempt', function (): void {
     // guessed at.
     expect($record->outcome)->toBe('failed')
         ->and($record->subject)->toBe('mail.password');
+});
+
+// ── Saying which refusal it was ──────────────────────────────────────────────
+//
+// Two refusals used to share one sentence — "not accepted" — so an operator whose
+// configuration was simply unsaved went looking for a password problem. These hold the
+// two apart.
+
+test('an incomplete configuration names the settings to save first', function (): void {
+    fakeVerifier('mail.password', SecretVerificationResult::incomplete(['mail.host', 'mail.from_address']));
+
+    $response = rotate($this, 'mail', 'password')
+        ->assertStatus(422)
+        // The same code either way, so a client branching on it keeps working.
+        ->assertJsonPath('error.code', 'SECRET_VERIFICATION_FAILED')
+        ->assertJsonPath('error.details.missing', ['mail.host', 'mail.from_address']);
+
+    $registry = app(SettingRegistry::class);
+    $message = (string) $response->json('error.message');
+
+    // Named by the labels the Settings screen shows, because that is where the operator
+    // is going to look for them.
+    expect($message)->toContain($registry->get('mail.host')->label())
+        ->and($message)->toContain($registry->get('mail.from_address')->label())
+        ->and($message)->not->toBe(__('api.error.settings.secret_verification_failed'));
+});
+
+test('an incomplete configuration is named in the language of the reader', function (): void {
+    fakeVerifier('mail.password', SecretVerificationResult::incomplete(['mail.host', 'mail.from_address']));
+
+    resetClient($this);
+
+    $response = $this->withToken(adminToken(roles: ['super_admin']))
+        ->withHeader('If-Match', '"'.settingsVersion('mail').'"')
+        ->withHeader('X-Locale', 'ar')
+        ->postJson('/api/v1/admin/settings/mail/secrets/password/rotate', ['credential' => CANDIDATE])
+        ->assertStatus(422);
+
+    // The Arabic labels the Settings screen shows, joined by the catalogue's separator —
+    // not an English name inside an Arabic sentence, and not a Latin comma.
+    app()->setLocale('ar');
+    $registry = app(SettingRegistry::class);
+    $expected = $registry->get('mail.host')->label()
+        .__('list.separator')
+        .$registry->get('mail.from_address')->label();
+
+    expect((string) $response->json('error.message'))->toContain($expected)
+        ->and($registry->get('mail.host')->label())->not->toBe('Host');
+});
+
+test('a rejected credential is not reported as an incomplete configuration', function (): void {
+    fakeVerifier('mail.password', SecretVerificationResult::failed('TransportException'));
+
+    $response = rotate($this, 'mail', 'password')
+        ->assertStatus(422)
+        ->assertJsonPath('error.details.detail', 'TransportException');
+
+    expect($response->json('error.details'))->not->toHaveKey('missing')
+        ->and($response->json('error.message'))->toBe(__('api.error.settings.secret_verification_failed'));
+});
+
+test('the mail verifier reports a missing prerequisite rather than a rejection', function (): void {
+    // The real verifier, not a fake. Its prerequisite check runs before any connection
+    // is attempted, so this opens no socket — and the seeded mail configuration has no
+    // host, no sender and no test recipient, and is switched off.
+    $response = rotate($this, 'mail', 'password')->assertStatus(422);
+
+    expect($response->json('error.details.missing'))
+        ->toContain('mail.enabled')
+        ->toContain('mail.host')
+        ->toContain('mail.from_address')
+        ->toContain('mail.test_recipient');
+});
+
+test('a refused rotation records what was missing, and never a value', function (): void {
+    AuditRecord::query()->getQuery()->delete();
+
+    fakeVerifier('mail.password', SecretVerificationResult::incomplete(['mail.host']));
+
+    rotate($this, 'mail', 'password')->assertStatus(422);
+
+    $record = AuditRecord::query()->where('action', 'secret.rotated')->firstOrFail();
+
+    expect($record->outcome)->toBe('failed')
+        ->and($record->context['missing'])->toBe(['mail.host'])
+        ->and(json_encode($record->context))->not->toContain(CANDIDATE);
 });
 
 // ── Nothing leaks ────────────────────────────────────────────────────────────

@@ -36,8 +36,18 @@ class MailPasswordVerifier implements SecretVerifierContract
         }
 
         // An incomplete configuration is not a rejected credential, and reporting it as
-        // one would send an operator hunting for a password problem that is really a
-        // missing host. It still blocks the rotation, because nothing verified it.
-        return SecretVerificationResult::failed($result->status);
+        // one sends an operator hunting for a password problem that is really an unsaved
+        // host. It still blocks the rotation, because nothing verified it — but it keeps
+        // the list of what was missing, so the operator can be told which settings to
+        // save first. This used to be flattened to the bare status here, which is how
+        // both refusals ended up under one sentence.
+        if ($result->status === 'incomplete') {
+            return SecretVerificationResult::incomplete($result->missing);
+        }
+
+        // The failure's class — `TransportException`, say — and never its message, for
+        // the reason the tester already gives: a transport message can carry the host,
+        // the username and occasionally the credential it tried.
+        return SecretVerificationResult::failed($result->failure ?? $result->status);
     }
 }
