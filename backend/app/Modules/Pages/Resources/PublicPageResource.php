@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Modules\Pages\Resources;
 
 use App\Modules\Core\Content\ContentLocales;
+use App\Modules\Core\Contracts\PublicUrlContract;
 use App\Modules\Core\Seo\SeoMetaStore;
+use App\Modules\Core\Seo\StructuredData\StructuredData;
 use App\Modules\Pages\Models\Page;
 use App\Modules\Pages\Models\PageTranslation;
 use App\Modules\Pages\Services\PageReader;
@@ -36,11 +38,14 @@ class PublicPageResource extends JsonResource
         /** @var PageTranslation $translation */
         $translation = $page->translationIn($this->locale);
         $store = app(SeoMetaStore::class);
+        $urls = app(PublicUrlContract::class);
+        $url = $urls->url('pages', $this->locale, ['slug' => (string) $translation->slug]);
         $alternates = [];
 
         foreach (app(PageReader::class)->availableLocales($page) as $locale) {
             if ($locale !== $this->locale) {
-                $alternates[] = ['locale' => $locale, 'slug' => (string) $page->translationIn($locale)?->getAttribute('slug')];
+                $slug = (string) $page->translationIn($locale)?->getAttribute('slug');
+                $alternates[] = ['locale' => $locale, 'slug' => $slug, 'url' => $urls->url('pages', $locale, ['slug' => $slug])];
             }
         }
 
@@ -49,6 +54,8 @@ class PublicPageResource extends JsonResource
             'locale' => $this->locale,
             'direction' => app(ContentLocales::class)->direction($this->locale),
             'slug' => (string) $translation->slug,
+            /** The page's public address in this language, or null when no public origin is configured. */
+            'url' => $url,
             'title' => (string) $translation->title,
             'summary' => $translation->summary,
             'sort_order' => $page->sort_order,
@@ -60,14 +67,22 @@ class PublicPageResource extends JsonResource
             return $data;
         }
 
+        $seo = $store->resolve($store->for($page, $this->locale), $this->locale, (string) $translation->title, $translation->summary, null, $url);
+
         return [
             ...$data,
             /** Sanitised HTML. */
             'body' => (string) $translation->body,
-            /** @var array{title: string, description: string|null, robots: string|null, canonical_url: string|null, og_title: string, og_description: string|null, og_image_url: string|null} */
-            'seo' => $store->resolve($store->for($page, $this->locale), (string) $translation->title, $translation->summary)->toArray(),
-            /** @var list<array{locale: string, slug: string}> */
+            /** @var array{title: string, description: string|null, robots: string, canonical_url: string|null, og_title: string, og_description: string|null, og_image_url: string|null, twitter_card: string} */
+            'seo' => $seo->toArray(),
+            /** @var list<array{locale: string, slug: string, url: string|null}> */
             'alternates' => $alternates,
+            /**
+             * JSON-LD for the page: the site's WebSite and Organization, and this WebPage.
+             *
+             * @var array{'@context': string, '@graph': list<array<string, mixed>>}|null
+             */
+            'structured_data' => app(StructuredData::class)->for('pages', $page, $this->locale, $seo, $url),
         ];
     }
 }

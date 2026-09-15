@@ -14,6 +14,7 @@ use App\Modules\Core\Delivery\EdgeCacheTag;
 use App\Modules\Core\Delivery\EdgeInvalidation;
 use App\Modules\Core\Seo\SeoFields;
 use App\Modules\Core\Seo\SeoMetaStore;
+use App\Modules\Core\Seo\Sitemap\SitemapRenderer;
 use App\Modules\Core\Support\Slug;
 use App\Modules\Team\Models\TeamMember;
 use App\Modules\Team\Models\TeamMemberSlugHistory;
@@ -338,7 +339,13 @@ class TeamService
 
     private function invalidate(TeamMember $member): void
     {
-        $tags = [EdgeCacheTag::for('team', $member->id), EdgeCacheTag::for('team', 'list')];
+        // The profile, the directory, and the sitemap that lists it (ADR 0058 §2).
+        $tags = [
+            EdgeCacheTag::for('team', $member->id),
+            EdgeCacheTag::for('team', 'list'),
+            SitemapRenderer::sourceTag('team'),
+            SitemapRenderer::indexTag(),
+        ];
 
         DB::afterCommit(fn () => rescue(fn () => $this->edge->invalidate(EdgeInvalidation::tags($tags), 'team.changed')));
     }

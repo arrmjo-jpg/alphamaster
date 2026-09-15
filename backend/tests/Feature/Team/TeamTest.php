@@ -174,7 +174,7 @@ test('a profile is read in the language asked for, with its biography, links and
         ->and($profile->json('data.bio'))->toContain('Writes things.')
         ->and($profile->json('data.seo.title'))->toBe('Nadia Haddad')
         ->and($profile->json('data.seo.description'))->toBe('Editor')
-        ->and($profile->json('data.alternates'))->toBe([['locale' => 'ar', 'slug' => 'نادية-حداد']]);
+        ->and($profile->json('data.alternates'))->toBe([['locale' => 'ar', 'slug' => 'نادية-حداد', 'url' => null]]);
 
     $this->getJson('/api/v1/team/nadia-haddad?locale=ar')
         ->assertStatus(301)

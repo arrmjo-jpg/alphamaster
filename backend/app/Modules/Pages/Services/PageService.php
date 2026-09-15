@@ -13,6 +13,7 @@ use App\Modules\Core\Delivery\EdgeCacheTag;
 use App\Modules\Core\Delivery\EdgeInvalidation;
 use App\Modules\Core\Seo\SeoFields;
 use App\Modules\Core\Seo\SeoMetaStore;
+use App\Modules\Core\Seo\Sitemap\SitemapRenderer;
 use App\Modules\Core\Support\Slug;
 use App\Modules\Pages\Enums\PageStatus;
 use App\Modules\Pages\Models\Page;
@@ -336,7 +337,13 @@ class PageService
 
     private function invalidate(Page $page): void
     {
-        $tags = [EdgeCacheTag::for('pages', $page->id), EdgeCacheTag::for('pages', 'list')];
+        // The page, the list, and the sitemap that lists it (ADR 0058 §2).
+        $tags = [
+            EdgeCacheTag::for('pages', $page->id),
+            EdgeCacheTag::for('pages', 'list'),
+            SitemapRenderer::sourceTag('pages'),
+            SitemapRenderer::indexTag(),
+        ];
 
         DB::afterCommit(fn () => rescue(fn () => $this->edge->invalidate(EdgeInvalidation::tags($tags), 'pages.changed')));
     }

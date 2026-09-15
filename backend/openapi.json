@@ -10752,6 +10752,194 @@
                 }
             }
         },
+        "/robots.txt": {
+            "get": {
+                "operationId": "seo.robots",
+                "description": "In production it allows crawling, excludes the administrative API, adds the operator's extra directives and names the sitemap. In every other environment it disallows everything.",
+                "summary": "The public site's robots.txt",
+                "tags": [
+                    "Seo"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The robots.txt document.",
+                        "content": {
+                            "text/plain; charset=UTF-8": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "text/plain": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": []
+            }
+        },
+        "/sitemap.xml": {
+            "get": {
+                "operationId": "seo.sitemap",
+                "description": "Names every sitemap file at the public origin. Answered 404 when no public origin is configured, because a sitemap of relative addresses is not one.",
+                "summary": "The sitemap index",
+                "tags": [
+                    "Seo"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The sitemap index document.",
+                        "content": {
+                            "application/xml; charset=UTF-8": {
+                                "schema": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ]
+                                }
+                            },
+                            "application/xml": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "NOT_FOUND: no public origin is configured.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "error": {
+                                            "type": "object",
+                                            "properties": {
+                                                "code": {
+                                                    "type": "string",
+                                                    "description": "`code` is contract and is never localized (ADR 0031).",
+                                                    "const": "NOT_FOUND"
+                                                },
+                                                "message": {
+                                                    "type": "string"
+                                                },
+                                                "details": {
+                                                    "type": "null"
+                                                }
+                                            },
+                                            "required": [
+                                                "code",
+                                                "message",
+                                                "details"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "error"
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": []
+            }
+        },
+        "/sitemaps/{source}-{file}.xml": {
+            "get": {
+                "operationId": "seo.sitemap.file",
+                "description": "One source's indexable addresses, at most 50,000 to a file, each with its alternates in every language it is published in.",
+                "summary": "One sitemap file",
+                "tags": [
+                    "Seo"
+                ],
+                "parameters": [
+                    {
+                        "name": "source",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "file",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The sitemap document.",
+                        "content": {
+                            "application/xml; charset=UTF-8": {
+                                "schema": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ]
+                                }
+                            },
+                            "application/xml": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "NOT_FOUND: no such source or file, or no public origin is configured.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "error": {
+                                            "type": "object",
+                                            "properties": {
+                                                "code": {
+                                                    "type": "string",
+                                                    "description": "`code` is contract and is never localized (ADR 0031).",
+                                                    "const": "NOT_FOUND"
+                                                },
+                                                "message": {
+                                                    "type": "string"
+                                                },
+                                                "details": {
+                                                    "type": "null"
+                                                }
+                                            },
+                                            "required": [
+                                                "code",
+                                                "message",
+                                                "details"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "error"
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": []
+            }
+        },
         "/admin/settings": {
             "get": {
                 "operationId": "admin.settings.index",
@@ -17491,6 +17679,10 @@
                             "slug": {
                                 "type": "string"
                             },
+                            "url": {
+                                "type": "string",
+                                "description": "The page's public address in this language, or null when no public origin is configured."
+                            },
                             "title": {
                                 "type": "string"
                             },
@@ -17529,10 +17721,7 @@
                                         ]
                                     },
                                     "robots": {
-                                        "type": [
-                                            "string",
-                                            "null"
-                                        ]
+                                        "type": "string"
                                     },
                                     "canonical_url": {
                                         "type": [
@@ -17554,6 +17743,9 @@
                                             "string",
                                             "null"
                                         ]
+                                    },
+                                    "twitter_card": {
+                                        "type": "string"
                                     }
                                 },
                                 "required": [
@@ -17563,7 +17755,8 @@
                                     "canonical_url",
                                     "og_title",
                                     "og_description",
-                                    "og_image_url"
+                                    "og_image_url",
+                                    "twitter_card"
                                 ]
                             },
                             "alternates": {
@@ -17576,13 +17769,43 @@
                                         },
                                         "slug": {
                                             "type": "string"
+                                        },
+                                        "url": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
                                         }
                                     },
                                     "required": [
                                         "locale",
-                                        "slug"
+                                        "slug",
+                                        "url"
                                     ]
                                 }
+                            },
+                            "structured_data": {
+                                "type": [
+                                    "object",
+                                    "null"
+                                ],
+                                "description": "JSON-LD for the page: the site's WebSite and Organization, and this WebPage.",
+                                "properties": {
+                                    "@context": {
+                                        "type": "string"
+                                    },
+                                    "@graph": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "object",
+                                            "additionalProperties": {}
+                                        }
+                                    }
+                                },
+                                "required": [
+                                    "@context",
+                                    "@graph"
+                                ]
                             }
                         },
                         "required": [
@@ -17590,6 +17813,7 @@
                             "locale",
                             "direction",
                             "slug",
+                            "url",
                             "title",
                             "summary",
                             "sort_order",
@@ -17597,7 +17821,8 @@
                             "updated_at",
                             "body",
                             "seo",
-                            "alternates"
+                            "alternates",
+                            "structured_data"
                         ]
                     },
                     {
@@ -17614,6 +17839,10 @@
                             },
                             "slug": {
                                 "type": "string"
+                            },
+                            "url": {
+                                "type": "string",
+                                "description": "The page's public address in this language, or null when no public origin is configured."
                             },
                             "title": {
                                 "type": "string"
@@ -17642,6 +17871,7 @@
                             "locale",
                             "direction",
                             "slug",
+                            "url",
                             "title",
                             "summary",
                             "sort_order",
@@ -17668,6 +17898,10 @@
                             },
                             "slug": {
                                 "type": "string"
+                            },
+                            "url": {
+                                "type": "string",
+                                "description": "The profile's public address in this language, or null when no public origin is configured."
                             },
                             "name": {
                                 "type": "string"
@@ -17737,10 +17971,7 @@
                                         ]
                                     },
                                     "robots": {
-                                        "type": [
-                                            "string",
-                                            "null"
-                                        ]
+                                        "type": "string"
                                     },
                                     "canonical_url": {
                                         "type": [
@@ -17762,6 +17993,9 @@
                                             "string",
                                             "null"
                                         ]
+                                    },
+                                    "twitter_card": {
+                                        "type": "string"
                                     }
                                 },
                                 "required": [
@@ -17771,7 +18005,8 @@
                                     "canonical_url",
                                     "og_title",
                                     "og_description",
-                                    "og_image_url"
+                                    "og_image_url",
+                                    "twitter_card"
                                 ]
                             },
                             "alternates": {
@@ -17784,13 +18019,43 @@
                                         },
                                         "slug": {
                                             "type": "string"
+                                        },
+                                        "url": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
                                         }
                                     },
                                     "required": [
                                         "locale",
-                                        "slug"
+                                        "slug",
+                                        "url"
                                     ]
                                 }
+                            },
+                            "structured_data": {
+                                "type": [
+                                    "object",
+                                    "null"
+                                ],
+                                "description": "JSON-LD for the profile: the site's WebSite and Organization, and this Person.",
+                                "properties": {
+                                    "@context": {
+                                        "type": "string"
+                                    },
+                                    "@graph": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "object",
+                                            "additionalProperties": {}
+                                        }
+                                    }
+                                },
+                                "required": [
+                                    "@context",
+                                    "@graph"
+                                ]
                             }
                         },
                         "required": [
@@ -17798,6 +18063,7 @@
                             "locale",
                             "direction",
                             "slug",
+                            "url",
                             "name",
                             "position",
                             "avatar",
@@ -17805,7 +18071,8 @@
                             "bio",
                             "social_links",
                             "seo",
-                            "alternates"
+                            "alternates",
+                            "structured_data"
                         ]
                     },
                     {
@@ -17822,6 +18089,10 @@
                             },
                             "slug": {
                                 "type": "string"
+                            },
+                            "url": {
+                                "type": "string",
+                                "description": "The profile's public address in this language, or null when no public origin is configured."
                             },
                             "name": {
                                 "type": "string"
@@ -17874,6 +18145,7 @@
                             "locale",
                             "direction",
                             "slug",
+                            "url",
                             "name",
                             "position",
                             "avatar",

@@ -6,7 +6,9 @@ namespace App\Modules\Team\Resources;
 
 use App\Modules\Core\Content\ContentLocales;
 use App\Modules\Core\Contracts\MediaReferenceContract;
+use App\Modules\Core\Contracts\PublicUrlContract;
 use App\Modules\Core\Seo\SeoMetaStore;
+use App\Modules\Core\Seo\StructuredData\StructuredData;
 use App\Modules\Team\Models\TeamMember;
 use App\Modules\Team\Models\TeamMemberTranslation;
 use App\Modules\Team\Services\TeamReader;
@@ -34,12 +36,16 @@ class PublicTeamMemberResource extends JsonResource
         /** @var TeamMemberTranslation $translation */
         $translation = $member->translationIn($this->locale);
         $avatar = $member->avatar_media_id === null ? null : app(MediaReferenceContract::class)->publicImage($member->avatar_media_id);
+        $urls = app(PublicUrlContract::class);
+        $url = $urls->url('team', $this->locale, ['slug' => (string) $translation->slug]);
 
         $data = [
             'id' => $member->id,
             'locale' => $this->locale,
             'direction' => app(ContentLocales::class)->direction($this->locale),
             'slug' => (string) $translation->slug,
+            /** The profile's public address in this language, or null when no public origin is configured. */
+            'url' => $url,
             'name' => (string) $translation->name,
             'position' => (string) $translation->position,
             /** @var array{id: string, url: string, mime_type: string, width: int|null, height: int|null}|null */
@@ -55,11 +61,13 @@ class PublicTeamMemberResource extends JsonResource
 
         foreach (app(TeamReader::class)->availableLocales($member) as $locale) {
             if ($locale !== $this->locale) {
-                $alternates[] = ['locale' => $locale, 'slug' => (string) $member->translationIn($locale)?->getAttribute('slug')];
+                $slug = (string) $member->translationIn($locale)?->getAttribute('slug');
+                $alternates[] = ['locale' => $locale, 'slug' => $slug, 'url' => $urls->url('team', $locale, ['slug' => $slug])];
             }
         }
 
         $store = app(SeoMetaStore::class);
+        $seo = $store->resolve($store->for($member, $this->locale), $this->locale, (string) $translation->name, $translation->position, $avatar?->url, $url);
 
         return [
             ...$data,
@@ -67,10 +75,16 @@ class PublicTeamMemberResource extends JsonResource
             'bio' => $translation->bio,
             /** @var array<string, string> */
             'social_links' => (object) ($member->social_links ?? []),
-            /** @var array{title: string, description: string|null, robots: string|null, canonical_url: string|null, og_title: string, og_description: string|null, og_image_url: string|null} */
-            'seo' => $store->resolve($store->for($member, $this->locale), (string) $translation->name, $translation->position, $avatar?->url)->toArray(),
-            /** @var list<array{locale: string, slug: string}> */
+            /** @var array{title: string, description: string|null, robots: string, canonical_url: string|null, og_title: string, og_description: string|null, og_image_url: string|null, twitter_card: string} */
+            'seo' => $seo->toArray(),
+            /** @var list<array{locale: string, slug: string, url: string|null}> */
             'alternates' => $alternates,
+            /**
+             * JSON-LD for the profile: the site's WebSite and Organization, and this Person.
+             *
+             * @var array{'@context': string, '@graph': list<array<string, mixed>>}|null
+             */
+            'structured_data' => app(StructuredData::class)->for('team', $member, $this->locale, $seo, $url),
         ];
     }
 }
