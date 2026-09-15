@@ -274,7 +274,7 @@ test('the workshop is behind the administrative perimeter', function (): void {
     ])->assertUnauthorized();
 });
 
-test('completeness counts fields rather than items', function (): void {
+test('completeness counts items rather than fields', function (): void {
     $token = tokenWithPermissions(['notifications.view', 'notifications.update']);
 
     /** @var NotificationTemplate $template */
@@ -300,7 +300,7 @@ test('completeness counts fields rather than items', function (): void {
     // write it back.
     $write(['subject' => null, 'body' => null])->assertOk();
 
-    expect($translated())->toBe($before - 2);
+    expect($translated())->toBe($before - 1);
 
     $write(['subject' => 'موضوع', 'body' => 'نص'])->assertOk();
 
@@ -311,10 +311,10 @@ test('completeness counts fields rather than items', function (): void {
         ->assertOk();
     $source = collect($response->json('data.sources'))->firstWhere('key', 'notification-templates');
 
-    // Fields, not items: a template counts twice, because a subject in one language
-    // over a body in another is not half a translated template in any sense a
-    // recipient would recognise.
-    expect($source['completeness']['total'])->toBe(count($response->json('data.entries')) * 2);
+    // Items, not fields (ADR 0056): a template is one thing a recipient reads, and it is
+    // translated when both of its required fields are.
+    expect($source['completeness']['total'])->toBe(count($response->json('data.entries')))
+        ->and($source['statuses']['translated'])->toBe($before);
 });
 
 test('a language is taken back whole, or not at all', function (): void {

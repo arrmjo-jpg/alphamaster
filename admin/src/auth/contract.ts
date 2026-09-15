@@ -86,6 +86,11 @@ export interface AuthenticatedUser {
     phone: string | null;
     phone_verified: boolean;
     phone_verified_at: string | null;
+    /**
+     * The account's picture when it has one ready to serve (ADR 0057). Optional because a
+     * platform older than the field does not send it; absent reads as no picture.
+     */
+    avatar_url?: string | null;
     abilities: string[];
     roles: string[];
     permissions: string[];

@@ -53,7 +53,8 @@ async function renderControls(localeProps?: LocaleControlProps) {
 
 /** Open a menu by its trigger's accessible name and return its panel. */
 async function open(name: string) {
-    await userEvent.click(screen.getByRole('button', { name }));
+    // Found rather than got: the language menu exists once Language Management has answered.
+    await userEvent.click(await screen.findByRole('button', { name }));
 
     return screen.getByRole('menu', { name });
 }
@@ -198,7 +199,7 @@ describe('the language switcher', () => {
     it('is a single menu naming the language in force', async () => {
         await renderControls();
 
-        const trigger = screen.getByRole('button', { name: 'Language' });
+        const trigger = await screen.findByRole('button', { name: 'Language' });
 
         // Not one button per language, which is what does not scale.
         expect(trigger).toHaveTextContent('English');
@@ -217,7 +218,57 @@ describe('the language switcher', () => {
         expect(document.documentElement.dir).toBe('rtl');
     });
 
-    it('still switches direction when the language list cannot be loaded', async () => {
+    it('offers any language Language Management serves, and takes its direction from it', async () => {
+        // A language no code has heard of, running right to left. Nothing in the console
+        // knows it; the platform's answer is all it takes (ADR 0049).
+        vi.stubGlobal(
+            'fetch',
+            vi.fn((input: RequestInfo | URL) =>
+                Promise.resolve(
+                    new Response(
+                        JSON.stringify({
+                            success: true,
+                            data: (input instanceof Request
+                                ? input.url
+                                : input.toString()
+                            ).includes('/interface/')
+                                ? { language: { label: 'Zunge' } }
+                                : [
+                                      {
+                                          code: 'en',
+                                          name: 'English',
+                                          native_name: 'English',
+                                          direction: 'ltr',
+                                          is_default: true,
+                                      },
+                                      {
+                                          code: 'qzx',
+                                          name: 'Invented',
+                                          native_name: 'Erfunden',
+                                          direction: 'rtl',
+                                          is_default: false,
+                                      },
+                                  ],
+                        }),
+                        { status: 200, headers: { 'Content-Type': 'application/json' } },
+                    ),
+                ),
+            ),
+        );
+
+        await renderControls();
+
+        const panel = await open('Language');
+        await userEvent.click(within(panel).getByRole('menuitemradio', { name: /Erfunden/ }));
+
+        expect(document.documentElement.lang).toBe('qzx');
+        expect(document.documentElement.dir).toBe('rtl');
+        // Its wording comes from the platform, and what it has not translated reads in English.
+        expect(await screen.findByRole('button', { name: 'Zunge' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Appearance' })).toBeInTheDocument();
+    });
+
+    it('invents no languages when the list cannot be loaded', async () => {
         vi.stubGlobal(
             'fetch',
             vi.fn(() => Promise.reject(new TypeError('Failed to fetch'))),
@@ -225,10 +276,10 @@ describe('the language switcher', () => {
 
         await renderControls();
 
-        const panel = await open('Language');
-        await userEvent.click(within(panel).getByRole('menuitemradio', { name: /العربية/ }));
-
-        expect(document.documentElement.dir).toBe('rtl');
+        // No list of its own to fall back on: the language in force is announced.
+        expect(await screen.findByText('Interface language: en')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Language' })).not.toBeInTheDocument();
+        expect(document.documentElement.dir).toBe('ltr');
     });
 
     it('announces the language instead of offering a choice of one', async () => {
@@ -257,9 +308,8 @@ describe('the language switcher', () => {
 
         await renderControls();
 
-        // Waited for rather than asserted immediately: until the list answers there
-        // is no knowing it holds one row, and the fallback offers both catalogues the
-        // bundle ships. The switcher collapsing is a consequence of the answer.
+        // Waited for rather than asserted immediately: until the list answers there is no
+        // knowing it holds one row. The switcher collapsing is a consequence of the answer.
         expect(await screen.findByText('Interface language: English')).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Language' })).not.toBeInTheDocument();
     });

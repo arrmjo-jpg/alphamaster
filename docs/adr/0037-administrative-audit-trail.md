@@ -405,6 +405,17 @@ The rule extends to what social login handles: no email address, no provider sub
 no authorization code, state, PKCE verifier, nonce, ID token, access token, refresh token
 or client secret, in any form.
 
+## Extension — 2026-09-15: what an account does to itself (ADR 0057)
+
+A change an account makes to itself is recorded, as a social link already was: the subject is
+the account, whoever changed it. `account.updated` gains `by_account_holder` and
+`phone_verification_cleared`, and five actions are added — `account.password_changed`,
+`account.avatar_changed`, `account.avatar_removed`, `account.mfa_enabled` and
+`account.mfa_disabled`. Fields are named, never valued; no password, second-factor secret,
+recovery code or submitted code appears in any form; a request that changes nothing records
+nothing. Turning a factor on or off is a change to who may sign in, not an authentication
+event, so the exclusion above is unchanged. ADR 0057 §3 carries the detail.
+
 ## Alternatives considered
 
 **A package — `owen-it/laravel-auditing` or `spatie/laravel-activitylog`.** Rejected for the reason ADR 0017 gives for vendor SDKs. Both record model attribute changes generically, which is precisely wrong here: the default behaviour of an attribute-diffing auditor is to record the old and new value of every changed column, and `settings.value` holds ciphertext. Getting the redaction right would mean configuring against the package's defaults on every model that ever holds a secret, and the failure mode is silent — a secret in a table nobody thought to check. A small, explicit recorder that cannot write a value it was not given is safer than a general one taught what to omit.

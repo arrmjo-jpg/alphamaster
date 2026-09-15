@@ -284,7 +284,10 @@ describe('the navigation tree', () => {
     it('is what the real registry says: configuration and access are separate sections', () => {
         const tree = fullTree();
 
-        expect(sections(tree)).toEqual(['access', 'settings']);
+        // Static pages (ADR 0055) are content, which is neither configuration nor access.
+        expect(sections(tree)).toEqual(['access', 'content', 'settings']);
+
+        expect(childrenOf(tree, 'content')).toEqual(['pages', 'team']);
 
         expect(childrenOf(tree, 'settings')).toEqual([
             'settings',

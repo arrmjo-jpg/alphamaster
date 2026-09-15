@@ -5,7 +5,6 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 
 import { ApiError } from '@/api/errors';
-import { isSupportedLocale } from '@/i18n';
 import { cn } from '@/lib/cn';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import { languages as fetchLanguages, type AdminLanguage } from '@/screens/languages/api';
@@ -61,10 +60,10 @@ export function LanguagesScreen() {
     const standing = useQuery({
         queryKey: ['translation-overview'],
         queryFn: ({ signal }) => fetchOverview(signal),
-        // While suggestions are being generated the counts move on their own, so the
-        // page follows them — and stops asking once nothing is waiting.
+        // While items are being translated the counts move on their own, so the page
+        // follows them — and stops asking once nothing is waiting.
         refetchInterval: (query) =>
-            (query.state.data?.languages ?? []).some((row) => row.suggestions.pending > 0)
+            (query.state.data?.languages ?? []).some((row) => row.batches.pending > 0)
                 ? 3000
                 : false,
     });
@@ -284,9 +283,6 @@ function Identity({ language }: { language: AdminLanguage }) {
             <span className="text-(length:--text-xs) text-(--text-muted)" data-technical>
                 {language.code} · {t(`languages.direction.${language.direction}`)}
             </span>
-            <span className="mt-1">
-                <InterfaceFlag code={language.code} />
-            </span>
         </span>
     );
 }
@@ -381,25 +377,6 @@ function NextStep({
             {t('languages.manageTranslations')}
             <ArrowRight aria-hidden className="size-3.5 rtl:-scale-x-100" />
         </Button>
-    );
-}
-
-/**
- * Whether this console can be read in the language, as opposed to whether the platform
- * serves it.
- *
- * The catalogues are shipped with the bundle, so this is a fact about the build rather
- * than anything the API could answer — which is exactly why it is worth showing beside
- * the rows the API did answer (ADR 0049).
- */
-function InterfaceFlag({ code }: { code: string }) {
-    const { t } = useTranslation();
-    const translated = isSupportedLocale(code);
-
-    return (
-        <StatusBadge tone={translated ? 'success' : 'neutral'}>
-            {translated ? t('languages.interfaceYes') : t('languages.interfaceNo')}
-        </StatusBadge>
     );
 }
 

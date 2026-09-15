@@ -1,7 +1,6 @@
 import { Globe, Monitor, Moon, Sun } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-import { isSupportedLocale, SUPPORTED_LOCALES, type SupportedLocale } from '@/i18n';
 import { Menu, MenuRadioList, MenuSeparator, type MenuRadioOption } from '@/ui/Menu';
 import { SegmentedControl } from '@/ui/SegmentedControl';
 
@@ -23,8 +22,6 @@ import { useTheme, type ThemePreference } from './ThemeProvider';
  * per browser rather than per account, and separating them bought a second trigger for
  * no distinction an operator makes.
  */
-
-const LOCALE_LABELS: Record<SupportedLocale, string> = { en: 'English', ar: 'العربية' };
 
 /**
  * What sits before a language's name.
@@ -144,11 +141,11 @@ export function ThemeControl() {
 
 export interface LocaleControlProps {
     /**
-     * The choices, for a test that needs more of them than the bundle ships.
+     * The choices, for a test that needs a long list.
      *
-     * Absent in the application: the real list is the platform's, read through
+     * Absent in the application: the real list is Language Management's, read through
      * DirectionProvider. Present here because the property worth testing is that a
-     * long list stays usable, and that cannot be exercised against two.
+     * long list stays usable.
      */
     options?: readonly MenuRadioOption<string>[];
     /**
@@ -159,12 +156,13 @@ export interface LocaleControlProps {
 }
 
 /**
- * The languages this console can be read in, as the platform currently serves them.
+ * The languages this console can be read in: every language the platform serves (ADR 0049).
  *
- * Driven by `/languages` rather than by a list written here: a language an
- * administrator has deactivated is one the platform no longer serves, and offering it
- * would be offering to render the console in a language the API will not answer in.
- * The label is the platform's own `native_name` — a language names itself.
+ * Driven by `/languages` and nothing else. A language added in Language Management is offered
+ * here after the next read, with no build — its wording comes from the platform when it is
+ * chosen, and English fills whatever it has not translated. A language an administrator has
+ * deactivated is no longer offered. The label is the platform's own `native_name` — a
+ * language names itself.
  *
  * A flag is shown when — and only when — the platform has said which region a language
  * entry is for. That comes from an explicit `region` field if the API ever grows one,
@@ -179,9 +177,8 @@ export interface LocaleControlProps {
  * The English `name` is folded into the filter's haystack, so searching "arabic" finds
  * العربية without either name being displayed twice.
  *
- * The static list is the fallback for the one case where there is no answer: the API is
- * unreachable, and a switcher with nothing in it is worse than one offering what the
- * bundle can certainly render.
+ * When the API cannot be reached there is no list, and nothing here invents one: the language
+ * in force is announced instead of a choice nobody can verify.
  */
 export function LocaleControl({ options: injected, tone }: LocaleControlProps = {}) {
     const { t } = useTranslation();
@@ -189,20 +186,12 @@ export function LocaleControl({ options: injected, tone }: LocaleControlProps = 
 
     const choices: readonly MenuRadioOption<string>[] =
         injected ??
-        (available.length > 0
-            ? available
-                  .filter((language) => isSupportedLocale(language.code))
-                  .map((language) => ({
-                      value: language.code,
-                      label: language.native_name,
-                      hint: language.code.toLocaleUpperCase(),
-                      keywords: language.name,
-                  }))
-            : SUPPORTED_LOCALES.map((code) => ({
-                  value: code,
-                  label: LOCALE_LABELS[code],
-                  hint: code.toLocaleUpperCase(),
-              })));
+        available.map((language) => ({
+            value: language.code,
+            label: language.native_name,
+            hint: language.code.toLocaleUpperCase(),
+            keywords: language.name,
+        }));
 
     // The indicator is attached here rather than inside each branch above, so the
     // rule is applied once and applies equally to the platform's list and to an
@@ -247,10 +236,9 @@ export function LocaleControl({ options: injected, tone }: LocaleControlProps = 
                 emptyLabel={t('language.noMatches')}
                 label={t('language.label')}
                 onSelect={(next) => {
-                    // A real guard rather than a cast: the injected list exists for
-                    // tests and may name a locale this bundle has no catalogue for,
-                    // and switching to one would render an interface of raw keys.
-                    if (isSupportedLocale(next)) {
+                    // Only a language that was offered. Its wording is loaded when it
+                    // is chosen, and English fills what it has not translated.
+                    if (options.some((option) => option.value === next)) {
                         setLocale(next);
                     }
                 }}

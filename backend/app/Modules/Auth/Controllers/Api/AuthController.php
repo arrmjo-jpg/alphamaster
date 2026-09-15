@@ -22,6 +22,7 @@ use App\Modules\Auth\Services\LoginThrottle;
 use App\Modules\Auth\Support\AuthCookie;
 use App\Modules\Auth\Support\LoginIdentifier;
 use App\Modules\Core\Contracts\EffectiveGrants;
+use App\Modules\Core\Contracts\ProfileAvatarContract;
 use App\Modules\Core\Contracts\PushDeviceRegistrarContract;
 use App\Modules\Core\Controllers\BaseApiController;
 use Dedoc\Scramble\Attributes\Response;
@@ -40,6 +41,8 @@ class AuthController extends BaseApiController
         // Declared in Core because this module may not depend on Notification, which
         // owns the registry (ADR 0045 §5).
         protected PushDeviceRegistrarContract $devices,
+        // Core's, because the picture is media and this module may not depend on Media.
+        protected ProfileAvatarContract $avatars,
     ) {}
 
     /**
@@ -284,6 +287,7 @@ class AuthController extends BaseApiController
             $token instanceof PersonalAccessToken ? $token->abilities : [],
             $user === null ? [] : $this->grants->rolesFor($user),
             $user === null ? [] : $this->grants->permissionsFor($user),
+            $user === null ? null : $this->avatars->urlFor($user),
         ));
     }
 

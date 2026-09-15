@@ -1,10 +1,8 @@
-import { fetchData, request } from '@/api/client';
+import { fetchData } from '@/api/client';
 import type {
     AdminAiCheckResponses,
     AdminAiShowResponses,
-    AdminTranslationsSuggestionsIndexResponses,
     AiCheckRequest,
-    RequestSuggestionsRequest,
     SaveAiProviderRequest,
 } from '@/api/generated';
 
@@ -12,9 +10,9 @@ import type {
  * AI, mapped operation for operation onto what the platform has.
  *
  * The control centre reads each provider's state, saves one provider's setup, tests a
- * setup before it is saved, and chooses which provider answers. The workshop asks for
- * suggestions and decides about them. Nothing here reads a key back: the platform
- * reports only whether one is stored.
+ * setup before it is saved, and chooses which provider answers. Translating with AI is
+ * the workshop's, in `screens/translations/api`. Nothing here reads a key back: the
+ * platform reports only whether one is stored.
  */
 
 export type AiState = AdminAiShowResponses[200]['data'];
@@ -22,8 +20,6 @@ export type AiProvider = AiState['providers'][number];
 export type AiCheck = AdminAiCheckResponses[200]['data'];
 export type AiCheckBody = AiCheckRequest;
 export type AiProviderSetup = SaveAiProviderRequest;
-export type Suggestion = AdminTranslationsSuggestionsIndexResponses[200]['data'][number];
-export type SuggestionRequest = RequestSuggestionsRequest;
 
 export async function aiState(signal?: AbortSignal): Promise<AiState> {
     return fetchData<AiState>('/admin/ai', { ...(signal ? { signal } : {}) });
@@ -63,46 +59,5 @@ export async function removeAiKey(driver: string): Promise<AiProvider> {
 export async function makeAiDefault(driver: string): Promise<AiProvider> {
     return fetchData<AiProvider>(`/admin/ai/providers/${encodeURIComponent(driver)}/default`, {
         method: 'POST',
-    });
-}
-
-/**
- * Ask for translations of what is missing in a language.
- *
- * Answers with what was queued rather than with translations: a generation takes
- * seconds and runs on a queue, so the client polls rather than waits.
- */
-export async function requestSuggestions(
-    body: SuggestionRequest,
-): Promise<{ queued: number; skipped: number }> {
-    return fetchData<{ queued: number; skipped: number }>('/admin/translations/suggestions', {
-        method: 'POST',
-        body,
-    });
-}
-
-export async function suggestions(locale: string, signal?: AbortSignal): Promise<Suggestion[]> {
-    return fetchData<Suggestion[]>(
-        `/admin/translations/suggestions?locale=${encodeURIComponent(locale)}`,
-        { ...(signal ? { signal } : {}) },
-    );
-}
-
-/**
- * Write a suggestion through, as the person accepting it wants it.
- *
- * The text is sent rather than referenced, because the whole point is that a person
- * may have edited it before deciding.
- */
-export async function acceptSuggestion(id: string, text: string): Promise<void> {
-    await request(`/admin/translations/suggestions/${encodeURIComponent(id)}/accept`, {
-        method: 'POST',
-        body: { text },
-    });
-}
-
-export async function dismissSuggestion(id: string): Promise<void> {
-    await request(`/admin/translations/suggestions/${encodeURIComponent(id)}`, {
-        method: 'DELETE',
     });
 }

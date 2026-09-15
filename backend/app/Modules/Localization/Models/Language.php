@@ -7,6 +7,7 @@ namespace App\Modules\Localization\Models;
 use App\Modules\Core\Contracts\LocaleResolverInterface;
 use App\Modules\Core\Models\BaseModel;
 use App\Modules\Localization\Enums\LanguageDirection;
+use App\Modules\Localization\Interface\InterfaceCatalogue;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 
@@ -55,16 +56,22 @@ class Language extends BaseModel
      */
     protected static function booted(): void
     {
+        // A language change is an interface change too (ADR 0049): the console's catalogue is
+        // served per language, so both caches go.
         static::saved(function (): void {
             if (app()->bound(LocaleResolverInterface::class)) {
                 app(LocaleResolverInterface::class)->clearCache();
             }
+
+            app(InterfaceCatalogue::class)->forget();
         });
 
         static::deleted(function (): void {
             if (app()->bound(LocaleResolverInterface::class)) {
                 app(LocaleResolverInterface::class)->clearCache();
             }
+
+            app(InterfaceCatalogue::class)->forget();
         });
     }
 

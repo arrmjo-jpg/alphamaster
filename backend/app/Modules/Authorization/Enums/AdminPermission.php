@@ -145,6 +145,13 @@ enum AdminPermission: string implements PermissionDefinition
      */
     case MEDIA_ANALYSIS_REVIEW = 'media.analysis.review';
 
+    /**
+     * Translate the platform's own interface — the console's wording and the API's messages —
+     * in the translation workshop (ADR 0049). Its own permission: rewriting what every
+     * operator reads is not the same power as editing settings or any one module's content.
+     */
+    case INTERFACE_TRANSLATE = 'interface.translate';
+
     public function key(): string
     {
         return $this->value;
@@ -169,6 +176,7 @@ enum AdminPermission: string implements PermissionDefinition
             self::MEDIA_VIEW, self::MEDIA_DELETE,
             self::MEDIA_ANALYSIS_VIEW, self::MEDIA_ANALYSIS_REQUEST, self::MEDIA_ANALYSIS_REVIEW => 'media',
             self::AI_USE, self::CDN_VIEW, self::CDN_PURGE, self::CDN_PURGE_EVERYTHING => 'integration',
+            self::INTERFACE_TRANSLATE => 'localization',
         };
     }
 

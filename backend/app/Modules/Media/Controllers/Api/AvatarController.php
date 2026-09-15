@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Modules\Media\Controllers\Api;
 
+use App\Modules\Core\Audit\AuditAction;
+use App\Modules\Core\Contracts\AuditRecorderContract;
 use App\Modules\Core\Controllers\BaseApiController;
 use App\Modules\Media\Contracts\MediaServiceContract;
 use App\Modules\Media\Exceptions\MediaValidationException;
@@ -26,6 +28,7 @@ class AvatarController extends BaseApiController
     public function __construct(
         protected ProfileAvatars $avatars,
         protected MediaServiceContract $media,
+        protected AuditRecorderContract $audit,
     ) {}
 
     /**
@@ -46,6 +49,12 @@ class AvatarController extends BaseApiController
             return $this->errorResponse('MEDIA_REJECTED', $e->translationKey(), ['reason' => $e->reason], 422, $e->translationParameters());
         }
 
+        // The picture is the face an account shows every operator and, for a user, the public.
+        // The media id is recorded — it names a file, not a person — and never the file's name.
+        $this->audit->succeeded(AuditAction::ACCOUNT_AVATAR_CHANGED, (string) $account->getKey(), [
+            'media_id' => $media->id,
+        ]);
+
         return $this->successResponse([
             'media_id' => $media->id,
             'status' => $media->status->value,
@@ -62,7 +71,11 @@ class AvatarController extends BaseApiController
         /** @var Model $account */
         $account = $request->user();
 
-        $this->avatars->remove($account);
+        // Recorded only when there was a picture to remove: a request that changed nothing is
+        // not an event.
+        if ($this->avatars->remove($account)) {
+            $this->audit->succeeded(AuditAction::ACCOUNT_AVATAR_REMOVED, (string) $account->getKey());
+        }
 
         return response()->noContent();
     }

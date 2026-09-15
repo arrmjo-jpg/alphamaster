@@ -89,6 +89,24 @@ trait HasTranslations
     }
 
     /**
+     * The translation row for exactly this locale, or null.
+     *
+     * Never another language. Content with an address of its own reads through this rather
+     * than `translate()`: a privacy policy served in the default language at the French
+     * address tells a reader it is the French policy (ADR 0055 §3).
+     */
+    /**
+     * @return TTranslation|null
+     */
+    public function translationIn(string $locale): ?Model
+    {
+        /** @var TTranslation|null $row */
+        $row = $this->loadedTranslations()->firstWhere('locale', $locale);
+
+        return $row;
+    }
+
+    /**
      * Create or replace the translation for one locale.
      *
      * @param  array<string, string>  $values

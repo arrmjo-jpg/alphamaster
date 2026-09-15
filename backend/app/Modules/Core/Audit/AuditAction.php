@@ -73,14 +73,45 @@ final class AuditAction
     public const ACCOUNT_CREATED = 'account.created';
 
     /**
-     * An account's identity was changed by an administrator.
+     * An account's identity was changed, by an administrator or by the account holder.
      *
      * The context names the fields that changed and no value of any of them, which
      * is the same rule the secret actions follow and for the same reason: the trail
      * is readable by anyone holding `audit.view`, and a directory of every operator's
-     * address and telephone number is not something it should become.
+     * address and telephone number is not something it should become. A change the
+     * holder made to their own profile carries `by_account_holder: true` (ADR 0057).
      */
     public const ACCOUNT_UPDATED = 'account.updated';
+
+    /**
+     * An account's password was set or changed by its holder (ADR 0057).
+     *
+     * That it happened, whether one existed before, and how many other sessions were signed
+     * out. Never the password, and nothing derived from one.
+     */
+    public const ACCOUNT_PASSWORD_CHANGED = 'account.password_changed';
+
+    /**
+     * An account's profile picture was set or replaced. The context names the media id.
+     */
+    public const ACCOUNT_AVATAR_CHANGED = 'account.avatar_changed';
+
+    /**
+     * An account's profile picture was removed.
+     */
+    public const ACCOUNT_AVATAR_REMOVED = 'account.avatar_removed';
+
+    /**
+     * A second factor now guards an account. The context names the method, never its secret
+     * or recovery codes. Not an authentication event: it changes who can sign in, once.
+     */
+    public const ACCOUNT_MFA_ENABLED = 'account.mfa_enabled';
+
+    /**
+     * An account's second factor was disabled. The context says whether every session was
+     * signed out, which is what happens to an administrator.
+     */
+    public const ACCOUNT_MFA_DISABLED = 'account.mfa_disabled';
 
     /**
      * Sign-in was allowed, or stopped and existing tokens revoked.

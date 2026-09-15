@@ -381,8 +381,13 @@ test('every key this scope introduced exists in both dictionaries', function ():
     // missing required configuration under integration. Phone sign-in and registration
     // (ADR 0051) added five under auth. A refused credential rotation then gained a second
     // message, for when nothing was checked because the configuration it is verified
-    // against was incomplete.
-    expect($keys)->toHaveCount(74);
+    // against was incomplete. Item-level translation (ADR 0056) replaced the stale
+    // suggestion with a stale item and added six refusals: a target that is the source, an
+    // item not ready, an unknown field, a field too long, a required field left empty, and
+    // an item whose write failed. Interface translation (ADR 0049) removed the first — nothing is
+    // refused for being the source, it is skipped — and added a changed placeholder and a write
+    // to the interface's own language.
+    expect($keys)->toHaveCount(81);
 
     foreach ($keys as $key) {
         expect($ar)->toHaveKey($key)

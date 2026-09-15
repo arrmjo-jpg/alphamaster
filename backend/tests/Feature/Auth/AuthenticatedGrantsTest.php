@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use App\Modules\Authorization\Database\Seeders\AdminPermissionSeeder;
-use App\Modules\Authorization\Enums\AdminPermission;
+use App\Modules\Authorization\Services\PermissionCatalogue;
 use App\Modules\Localization\Database\Seeders\LanguageSeeder;
 use App\Modules\Settings\Database\Seeders\SettingSeeder;
 use App\Modules\User\Models\User;
@@ -79,7 +79,9 @@ test('a super_admin is told it holds every permission in the catalogue', functio
     expect($permissions)->toContain('settings.secrets.manage')
         ->and($permissions)->toContain('audit.manage')
         ->and($permissions)->toContain('settings.backup.manage')
-        ->and($permissions)->toHaveCount(count(AdminPermission::cases()));
+        // Every permission any module declares into the catalogue (ADR 0052), Pages and Team
+        // included, not only the platform's own.
+        ->and($permissions)->toHaveCount(count(app(PermissionCatalogue::class)->values()));
 });
 
 test('permissions granted directly, without a role, are reported', function (): void {
@@ -163,11 +165,13 @@ test('the payload carries exactly the declared fields and no others', function (
     // The list grows only deliberately. It caught email_verified and
     // email_verified_at arriving, which is exactly what it is for — an addition is as
     // much a contract change as a removal, and this is where it gets acknowledged.
+    // avatar_url was acknowledged here by ADR 0057.
     expect(array_keys($response->json('data')))
         ->toEqualCanonicalizing([
             'id', 'name', 'email', 'account_type', 'is_active',
             'email_verified', 'email_verified_at',
             'phone', 'phone_verified', 'phone_verified_at',
+            'avatar_url',
             'abilities', 'roles', 'permissions',
         ]);
 });

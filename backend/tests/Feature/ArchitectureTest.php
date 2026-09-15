@@ -211,6 +211,66 @@ arch('Filesystem internals are reachable only from the Media storage layer')
     ->expect('League\Flysystem')
     ->toOnlyBeUsedIn('App\Modules\Media\Services\Storage');
 
+arch('Pages controllers extend BaseApiController')
+    ->expect('App\Modules\Pages\Controllers')
+    ->classes()
+    ->toExtend('App\Modules\Core\Controllers\BaseApiController');
+
+arch('All Pages classes use strict types')
+    ->expect('App\Modules\Pages')
+    ->toUseStrictTypes();
+
+arch('Pages depends only on Core, Authorization and Framework')
+    // Authorization only for the catalogue its permissions register with (ADR 0052). Media is
+    // reached through Core's MediaReferenceContract, and languages through Core's resolver.
+    ->expect('App\Modules\Pages')
+    ->not->toUse([
+        'App\Modules\Auth',
+        'App\Modules\User',
+        'App\Modules\Settings',
+        'App\Modules\Localization',
+        'App\Modules\Integration',
+        'App\Modules\Notification',
+        'App\Modules\Media',
+        'App\Modules\Team',
+    ]);
+
+arch('Team controllers extend BaseApiController')
+    ->expect('App\Modules\Team\Controllers')
+    ->classes()
+    ->toExtend('App\Modules\Core\Controllers\BaseApiController');
+
+arch('All Team classes use strict types')
+    ->expect('App\Modules\Team')
+    ->toUseStrictTypes();
+
+arch('Team depends only on Core, Authorization and Framework')
+    ->expect('App\Modules\Team')
+    ->not->toUse([
+        'App\Modules\Auth',
+        'App\Modules\User',
+        'App\Modules\Settings',
+        'App\Modules\Localization',
+        'App\Modules\Integration',
+        'App\Modules\Notification',
+        'App\Modules\Media',
+        'App\Modules\Pages',
+    ]);
+
+arch('No foundation module depends on the content modules built on it')
+    ->expect([
+        'App\Modules\Core',
+        'App\Modules\Auth',
+        'App\Modules\User',
+        'App\Modules\Settings',
+        'App\Modules\Localization',
+        'App\Modules\Integration',
+        'App\Modules\Notification',
+        'App\Modules\Media',
+        'App\Modules\Authorization',
+    ])
+    ->not->toUse(['App\Modules\Pages', 'App\Modules\Team']);
+
 arch('The cache facade is reached only through the platform cache')
     // ADR 0035: no module composes a cache key or passes a TTL. A module reaching the
     // facade directly is how four independently invented key conventions become

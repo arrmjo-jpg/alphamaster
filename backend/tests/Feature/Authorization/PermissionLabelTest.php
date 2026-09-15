@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Modules\Authorization\Database\Seeders\AdminPermissionSeeder;
 use App\Modules\Authorization\Enums\AdminPermission;
 use App\Modules\Authorization\Models\Permission;
+use App\Modules\Authorization\Services\PermissionCatalogue;
 use App\Modules\Localization\Database\Seeders\LanguageSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
@@ -29,8 +30,9 @@ test('every permission in the catalogue resolves a label in both locales', funct
     // M3-A `notifications.send` when announcements gained a sender, and M3-G `ai.use`
     // when asking a vendor for text became a power of its own. ADR 0053 added the CDN
     // trio: viewing the edge, purging named objects, and purging everything. ADR 0054
-    // added viewing, requesting and reviewing media analyses.
-    expect($cases)->toHaveCount(30);
+    // added viewing, requesting and reviewing media analyses. ADR 0049 added translating the
+    // interface.
+    expect($cases)->toHaveCount(31);
 
     foreach (['en', 'ar'] as $locale) {
         app()->setLocale($locale);
@@ -135,10 +137,13 @@ test('the catalogue still lists every permission it listed before', function ():
     }
 
     sort($names);
-    $expected = AdminPermission::values();
+    // The catalogue is the registry every module declares into (ADR 0052), so Pages and Team
+    // (ADR 0055) appear beside the platform's own permissions.
+    $expected = app(PermissionCatalogue::class)->values();
     sort($expected);
 
-    expect($names)->toBe($expected);
+    expect($names)->toBe($expected)
+        ->and($names)->toContain(...AdminPermission::values());
 });
 
 test('the catalogue labels follow X-Locale', function (): void {
@@ -172,7 +177,9 @@ test('every permission key exists in both dictionaries and differs between them'
 
     $keys = array_values(array_filter(array_keys($en), fn (string $k): bool => str_starts_with($k, 'permission.')));
 
-    expect($keys)->toHaveCount(30);
+    // 30 for the platform's own permissions; ADR 0055 added five for pages and four for the
+    // team directory, declared by those modules; ADR 0049 added translating the interface.
+    expect($keys)->toHaveCount(40);
 
     foreach ($keys as $key) {
         expect($ar)->toHaveKey($key)
@@ -180,7 +187,7 @@ test('every permission key exists in both dictionaries and differs between them'
     }
 });
 
-test('a key exists for every enum case, and no key is orphaned', function (): void {
+test('a key exists for every catalogued permission, and no key is orphaned', function (): void {
     /** @var array<string, string> $en */
     $en = json_decode((string) file_get_contents(base_path('lang/en.json')), true);
 
@@ -189,7 +196,8 @@ test('a key exists for every enum case, and no key is orphaned', function (): vo
         array_values(array_filter(array_keys($en), fn (string $k): bool => str_starts_with($k, 'permission.')))
     );
 
-    $cases = AdminPermission::values();
+    // Every module's, not only the platform's own (ADR 0052).
+    $cases = app(PermissionCatalogue::class)->values();
     sort($keyed);
     sort($cases);
 

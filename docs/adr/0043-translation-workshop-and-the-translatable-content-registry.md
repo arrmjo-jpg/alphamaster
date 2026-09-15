@@ -125,3 +125,7 @@ A translator works down a list. A failure should cost the entry they are on, not
 **Localization owning the content directly.** A generic `translations` table Localization reads and writes, keyed by entity type and id. It removes the registry, and it removes the per-module ownership with it: Localization would have to know that a `role` label means something different from a `template` body, that one needs `roles.update` and the other `notifications.update`, and that a settings value must be written through the settings service to be audited. Every one of those facts belongs to the owning module.
 
 **Scanning for `HasTranslations` users.** Discovery rather than declaration. It would find the models and could not answer the questions that matter — which permission guards this, what to call it, whether writes must go through a service — so each model would need an attribute or interface anyway, at which point declaration is the same work without the reflection.
+
+## Amendment, 2026-09-14: the item is the unit (ADR 0056)
+
+§4's completeness is counted in items, not fields: an item is translated when every field its source marks `required` has text, and optional fields never make it incomplete. §6 stands for a typed save. AI translation works on the item as well — translated, reviewed and accepted once — and every field is written in one call to `TranslationSource::write`. Each `TranslationField` now describes itself (`required`, `type`, `group`, `maxLength`, `translatable`), and the workshop reads that description rather than a field's name.

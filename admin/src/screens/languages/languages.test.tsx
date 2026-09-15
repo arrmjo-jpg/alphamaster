@@ -80,13 +80,13 @@ const ARABIC = language({
     sort_order: 1,
 });
 
-const NO_SUGGESTIONS = { pending: 0, ready: 0, failed: 0, accepted: 0, dismissed: 0 };
+const NO_BATCHES = { pending: 0, ready: 0, failed: 0, accepted: 0, dismissed: 0 };
 
 function overview(
     ai: { available: boolean; may_use: boolean } = { available: true, may_use: true },
     languages: unknown[] = [
-        { code: 'en', coverage: { total: 10, translated: 10 }, suggestions: NO_SUGGESTIONS },
-        { code: 'ar', coverage: { total: 10, translated: 8 }, suggestions: NO_SUGGESTIONS },
+        { code: 'en', coverage: { total: 10, translated: 10 }, batches: NO_BATCHES },
+        { code: 'ar', coverage: { total: 10, translated: 8 }, batches: NO_BATCHES },
     ],
 ) {
     return { source_locale: 'en', ai, languages };
@@ -204,7 +204,7 @@ describe('the languages workspace', () => {
         expect(await write.json()).toEqual({ name: 'Arabic (Jordan)' });
     });
 
-    it('warns that a language the console has no catalogue for will not translate it', async () => {
+    it('adds any language as a whole language, with no warning that the console will not speak it', async () => {
         renderScreen();
 
         await userEvent.click(await screen.findByRole('button', { name: 'Add a language' }));
@@ -212,7 +212,8 @@ describe('the languages workspace', () => {
         const code = await screen.findByLabelText(/Code/);
         await userEvent.type(code, 'ku');
 
-        expect(screen.getByText(/ships no message catalogue for ku/)).toBeInTheDocument();
+        // A language is a console language as soon as it exists (ADR 0049).
+        expect(screen.queryByText(/message catalogue/)).not.toBeInTheDocument();
     });
 
     it('reaches a language from the keyboard on a wide screen, not only by pointer', async () => {
@@ -234,7 +235,7 @@ describe('the languages workspace', () => {
         expect(await screen.findByText(/A language cannot be deleted/)).toBeInTheDocument();
     });
 
-    it('marks which languages the console itself is translated into', async () => {
+    it('does not split languages into ones the console speaks and ones it does not', async () => {
         renderScreen([
             language(),
             ARABIC,
@@ -243,8 +244,8 @@ describe('the languages workspace', () => {
 
         await screen.findByText('Kurdish');
 
-        expect(screen.getAllByText('Console translated')).toHaveLength(2);
-        expect(screen.getAllByText('Console not translated')).toHaveLength(1);
+        // How far each has got is its coverage, interface included — not a fact about a build.
+        expect(screen.queryByText(/Console (not )?translated/)).not.toBeInTheDocument();
     });
 });
 
@@ -354,21 +355,21 @@ describe('the language workflow', () => {
         await userEvent.click(screen.getByRole('button', { name: 'Translate manually' }));
 
         expect(await screen.findByTestId('landed')).toHaveTextContent(
-            '/translations?target=ar&state=missing',
+            '/translations?target=ar&state=not_translated',
         );
     });
 
-    it('asks AI for what is missing, and says nothing was saved', async () => {
+    it('translates everything missing with AI in one request, and says nothing was saved', async () => {
         const asked: Array<Record<string, unknown>> = [];
 
         server.use(
-            http.post('*/api/v1/admin/translations/suggestions', async ({ request }) => {
+            http.post('*/api/v1/admin/translations/batches', async ({ request }) => {
                 asked.push((await request.json()) as Record<string, unknown>);
 
                 return HttpResponse.json({
                     success: true,
                     message: 'queued',
-                    data: { queued: 12, skipped: 3 },
+                    data: { queued: 12, existing: 2, skipped: 3 },
                 });
             }),
         );
@@ -376,9 +377,12 @@ describe('the language workflow', () => {
         renderScreen();
 
         await userEvent.click(await screen.findByText('Arabic'));
-        await userEvent.click(await screen.findByRole('button', { name: 'Translate with AI' }));
+        await userEvent.click(
+            await screen.findByRole('button', { name: 'Translate all missing with AI' }),
+        );
 
-        expect(await screen.findByText(/Asked for 12; skipped 3/)).toBeInTheDocument();
+        expect(await screen.findByText(/Started 12; 2 already in progress/)).toBeInTheDocument();
+        // The language, and nothing about items or fields.
         expect(asked).toEqual([{ locale: 'ar' }]);
     });
 
@@ -387,7 +391,9 @@ describe('the language workflow', () => {
 
         await userEvent.click(await screen.findByText('Arabic'));
 
-        expect(screen.getByRole('button', { name: 'Translate with AI' })).toBeDisabled();
+        expect(
+            screen.getByRole('button', { name: 'Translate all missing with AI' }),
+        ).toBeDisabled();
         expect(screen.getByText(/AI provider not configured/)).toBeInTheDocument();
         // The manual path is untouched.
         expect(screen.getByRole('button', { name: 'Translate manually' })).toBeEnabled();
@@ -401,12 +407,12 @@ describe('the language workflow', () => {
                 {
                     code: 'en',
                     coverage: { total: 10, translated: 10 },
-                    suggestions: NO_SUGGESTIONS,
+                    batches: NO_BATCHES,
                 },
                 {
                     code: 'ar',
                     coverage: { total: 10, translated: 4 },
-                    suggestions: { pending: 0, ready: 3, failed: 1, accepted: 4, dismissed: 0 },
+                    batches: { pending: 0, ready: 3, failed: 1, accepted: 4, dismissed: 0 },
                 },
             ]),
         );
@@ -415,9 +421,9 @@ describe('the language workflow', () => {
 
         expect(screen.getByText('Ready for review')).toBeInTheDocument();
         expect(
-            screen.getByText('Suggestions are not translations until somebody accepts them.'),
+            screen.getByText('An AI translation is not saved until somebody accepts it.'),
         ).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Review suggestions' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Review translations' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Retry failed' })).toBeInTheDocument();
     });
 
@@ -482,7 +488,7 @@ describe('the interface language switcher', () => {
         expect(screen.queryByRole('button', { name: 'Language' })).not.toBeInTheDocument();
     });
 
-    it('does not offer a language the console ships no catalogue for', async () => {
+    it('offers a language added in Language Management, with no catalogue in the bundle', async () => {
         renderSwitcher([
             language(),
             ARABIC,
@@ -492,11 +498,8 @@ describe('the interface language switcher', () => {
         const panel = await openSwitcher();
 
         expect(within(panel).getByRole('menuitemradio', { name: /English/ })).toBeInTheDocument();
-        // Offered by the platform, and this bundle has no catalogue for it: switching
-        // would render an interface of raw keys.
-        expect(
-            within(panel).queryByRole('menuitemradio', { name: /کوردی/ }),
-        ).not.toBeInTheDocument();
+        // Its wording is the platform's to serve (ADR 0049); nothing in the build decides it.
+        expect(within(panel).getByRole('menuitemradio', { name: /کوردی/ })).toBeInTheDocument();
     });
 });
 

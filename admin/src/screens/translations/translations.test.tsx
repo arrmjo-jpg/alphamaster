@@ -15,10 +15,10 @@ import '@/i18n';
 /**
  * The translation workshop, against the shape the platform actually publishes.
  *
- * What is asserted here is mostly what the screen refuses to do: prefill an empty
- * target with the source, offer a save on content the caller may not write, send a
- * field nobody touched, or filter a catalogue it was never given. The workshop is
- * queried (ADR 0048 §4) — every filter, search and page is a request.
+ * The item is the unit (ADR 0056): one status and one "3 / 5" per item, translated with AI in
+ * one action, reviewed once and accepted once. What is asserted is mostly what the screen
+ * refuses to do — prefill an empty target with the source, offer an accept for a single
+ * field, send a field nobody touched, or filter a catalogue it was never given.
  */
 
 const LANGUAGES = http.get('*/api/v1/languages', () =>
@@ -74,32 +74,58 @@ const LOCALES = [
     },
 ];
 
-function entries() {
-    return [
-        {
-            source: 'settings',
-            id: 'general.site_name',
-            title: 'Site name',
-            context: 'The name a visitor reads.',
-            fields: [
-                { name: 'value', label: 'Value', multiline: false, values: { en: 'AlphaMaster' } },
-            ],
-        },
-        {
-            source: 'settings',
-            id: 'general.tagline',
-            title: 'Tagline',
-            context: null,
-            fields: [
-                {
-                    name: 'value',
-                    label: 'Value',
-                    multiline: false,
-                    values: { en: 'Everything in one place', ar: 'كل شيء في مكان واحد' },
-                },
-            ],
-        },
-    ];
+function field(overrides: Record<string, unknown> = {}) {
+    return {
+        name: 'value',
+        label: 'Value',
+        multiline: false,
+        required: true,
+        type: 'plain_text',
+        group: 'content',
+        max_length: null,
+        translatable: true,
+        values: { en: 'AlphaMaster' },
+        ...overrides,
+    };
+}
+
+function entry(overrides: Record<string, unknown> = {}) {
+    return {
+        source: 'settings',
+        id: 'general.site_name',
+        title: 'Site name',
+        context: 'The name a visitor reads.',
+        status: 'not_translated',
+        status_label: 'Not translated',
+        progress: { filled: 0, total: 1, complete: false },
+        fields: [field()],
+        batch: null,
+        ...overrides,
+    };
+}
+
+function tagline() {
+    return entry({
+        id: 'general.tagline',
+        title: 'Tagline',
+        context: null,
+        status: 'translated',
+        status_label: 'Translated',
+        progress: { filled: 1, total: 1, complete: true },
+        fields: [field({ values: { en: 'Everything in one place', ar: 'كل شيء في مكان واحد' } })],
+    });
+}
+
+function statuses(overrides: Record<string, number> = {}) {
+    return {
+        not_translated: 1,
+        incomplete: 0,
+        pending: 0,
+        ready: 0,
+        translated: 1,
+        failed: 0,
+        ...overrides,
+    };
 }
 
 function workshop(overrides: Record<string, unknown> = {}) {
@@ -114,28 +140,62 @@ function workshop(overrides: Record<string, unknown> = {}) {
                 label: 'Settings copy',
                 may_write: true,
                 completeness: { total: 2, translated: 1 },
+                statuses: statuses(),
             },
         ],
-        entries: entries(),
+        entries: [entry(), tagline()],
         pagination: { page: 1, per_page: 25, total: 2, last_page: 1 },
         ...overrides,
     };
 }
 
+/** The site name, translated by AI and waiting for review. */
+function readyForReview(text = 'ألفاماستر') {
+    return entry({
+        status: 'ready',
+        status_label: 'Ready for review',
+        batch: {
+            id: '01hzzbatch',
+            status: 'ready',
+            status_label: 'Ready for review',
+            fields_total: 1,
+            fields_ready: 1,
+            fields_failed: 0,
+            error_code: null,
+            error_message: null,
+            completed_at: '2026-09-14T10:00:00+00:00',
+            suggestions: [
+                { field: 'value', status: 'ready', text, error_code: null, error_message: null },
+            ],
+        },
+    });
+}
+
+function withEntries(first: unknown, sourceStatuses: Record<string, number>) {
+    return workshop({
+        entries: [first, tagline()],
+        sources: [
+            {
+                key: 'settings',
+                label: 'Settings copy',
+                may_write: true,
+                completeness: { total: 2, translated: 1 },
+                statuses: statuses(sourceStatuses),
+            },
+        ],
+    });
+}
+
 function renderScreen(
     body: unknown = workshop(),
     extra: RequestHandler[] = [],
-    proposals: unknown[] = [],
     permissions: string[] = ['settings.view', 'settings.update'],
-    entry = '/translations',
+    at = '/translations',
     aiAvailable = true,
 ) {
     server.use(
         LANGUAGES,
         HEALTH,
-        http.get('*/api/v1/admin/translations/suggestions', () =>
-            HttpResponse.json({ success: true, data: proposals }),
-        ),
         http.get('*/api/v1/admin/translations/overview', () =>
             HttpResponse.json({
                 success: true,
@@ -173,7 +233,7 @@ function renderScreen(
     );
 
     render(
-        <MemoryRouter initialEntries={[entry]}>
+        <MemoryRouter initialEntries={[at]}>
             <AppProviders>
                 <AuthGate>
                     <TranslationsScreen />
@@ -203,34 +263,49 @@ async function workshopRequest(fragment: string): Promise<URL> {
     throw new Error(`The workshop was never asked for ${fragment}.`);
 }
 
+async function item(title: string): Promise<HTMLElement> {
+    return screen.findByRole('article', { name: title });
+}
+
 describe('the translation workshop', () => {
     it('translates from the default language into another, without offering a choice of source', async () => {
         renderScreen();
 
         expect(await screen.findByText('Translating from')).toBeInTheDocument();
-
-        // One default language, and it is the one everything falls back to. A picker
-        // would imply the platform could be read from somewhere else.
         expect(screen.queryByLabelText('Translating from')).not.toBeInTheDocument();
         expect(screen.getByLabelText('Into')).toHaveValue('ar');
+    });
+
+    it('shows each item with one status and how much of it is written', async () => {
+        renderScreen();
+
+        const siteName = await item('Site name');
+        const translated = await item('Tagline');
+
+        expect(within(siteName).getByText('Not translated')).toBeInTheDocument();
+        expect(within(siteName).getByText('0 / 1')).toBeInTheDocument();
+        expect(within(translated).getByText('Translated')).toBeInTheDocument();
+        expect(within(translated).getByText('1 / 1')).toBeInTheDocument();
+    });
+
+    it('counts items rather than fields, and shows the coverage the server counted', async () => {
+        renderScreen();
+
+        expect(
+            await screen.findByText('Items: 2 · Not translated: 1 · Translated: 1'),
+        ).toBeInTheDocument();
+        expect(screen.getByText('50%')).toBeInTheDocument();
+        expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '50');
     });
 
     it('leaves an untranslated field empty rather than seeding it with the source', async () => {
         renderScreen();
 
-        const field = (await screen.findAllByLabelText(/Value · العربية/))[0]!;
+        await userEvent.click(
+            within(await item('Site name')).getByRole('button', { name: 'Edit' }),
+        );
 
-        // Prefilling with the English is how a platform ends up with English inside its
-        // Arabic column and no way to tell which of those were deliberate.
-        expect(field).toHaveValue('');
-    });
-
-    it('counts fields rather than items, and shows the coverage the server counted', async () => {
-        renderScreen();
-
-        expect(await screen.findByText('1 of 2 fields still untranslated')).toBeInTheDocument();
-        expect(screen.getByText('50%')).toBeInTheDocument();
-        expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '50');
+        expect(screen.getByLabelText('Value · العربية')).toHaveValue('');
     });
 
     it('sends only the field that changed, for the language being written', async () => {
@@ -248,15 +323,15 @@ describe('the translation workshop', () => {
             }),
         ]);
 
-        const fields = await screen.findAllByLabelText(/Value · العربية/);
-
-        await userEvent.type(fields[0]!, 'ألفاماستر');
-        await userEvent.click(screen.getAllByRole('button', { name: 'Save' })[0]!);
+        await userEvent.click(
+            within(await item('Site name')).getByRole('button', { name: 'Edit' }),
+        );
+        await userEvent.type(screen.getByLabelText('Value · العربية'), 'ألفاماستر');
+        await userEvent.click(screen.getByRole('button', { name: 'Save' }));
 
         await screen.findByText('Saved');
 
-        expect(sent).toHaveLength(1);
-        expect(sent[0]).toEqual({ locale: 'ar', values: { value: 'ألفاماستر' } });
+        expect(sent).toEqual([{ locale: 'ar', values: { value: 'ألفاماستر' } }]);
     });
 
     it('offers no way to save content the platform says may not be written', async () => {
@@ -268,34 +343,36 @@ describe('the translation workshop', () => {
                         label: 'Settings copy',
                         may_write: false,
                         completeness: { total: 2, translated: 1 },
+                        statuses: statuses(),
                     },
                 ],
             }),
         );
 
-        expect(
-            await screen.findByText('You can read this content but not change it.'),
-        ).toBeInTheDocument();
+        const siteName = await item('Site name');
 
+        expect(
+            screen.getAllByText('You can read this content but not change it.').length,
+        ).toBeGreaterThan(0);
+        expect(within(siteName).queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
+
+        await userEvent.click(within(siteName).getByRole('button', { name: 'Show fields' }));
+
+        expect(screen.getByLabelText('Value · العربية')).toBeDisabled();
         expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
-        expect(screen.getAllByLabelText(/Value · العربية/)[0]).toBeDisabled();
     });
 
-    it('asks the server for a state rather than filtering what it was given', async () => {
+    it('asks the server for a status rather than filtering what it was given', async () => {
         renderScreen();
 
-        await userEvent.click(await screen.findByRole('radio', { name: 'Missing' }));
+        await userEvent.click(await screen.findByRole('radio', { name: 'Not translated' }));
 
-        const url = await workshopRequest('state=missing');
+        const url = await workshopRequest('state=not_translated');
 
         expect(url.searchParams.get('page')).toBe('1');
-        expect(screen.getByRole('radio', { name: 'Missing' })).toHaveAttribute(
-            'aria-checked',
-            'true',
-        );
     });
 
-    it('offers only the states the platform stores', async () => {
+    it('offers exactly the statuses an item can have', async () => {
         renderScreen();
 
         const group = await screen.findByRole('radiogroup', { name: 'Show' });
@@ -304,7 +381,15 @@ describe('the translation workshop', () => {
             within(group)
                 .getAllByRole('radio')
                 .map((radio) => radio.textContent),
-        ).toEqual(['All', 'Missing', 'Needs review', 'Translated', 'Failed']);
+        ).toEqual([
+            'All',
+            'Not translated',
+            'Incomplete',
+            'Processing',
+            'Ready for review',
+            'Failed',
+            'Translated',
+        ]);
     });
 
     it('moves between the filters from the keyboard', async () => {
@@ -315,8 +400,8 @@ describe('the translation workshop', () => {
 
         await userEvent.keyboard('{ArrowRight}');
 
-        expect(screen.getByRole('radio', { name: 'Missing' })).toHaveFocus();
-        await workshopRequest('state=missing');
+        expect(screen.getByRole('radio', { name: 'Not translated' })).toHaveFocus();
+        await workshopRequest('state=not_translated');
     });
 
     it('searches on the server', async () => {
@@ -338,10 +423,9 @@ describe('the translation workshop', () => {
         await workshopRequest('page=2');
     });
 
-    it('offers a draft language as a target and says it is not served', async () => {
+    it('offers a language added in Language Management as a target and says it is not served', async () => {
         renderScreen(
             workshop({ target: 'fr', coverage: { total: 2, translated: 0 } }),
-            [],
             [],
             undefined,
             '/translations?target=fr',
@@ -374,210 +458,359 @@ describe('the translation workshop', () => {
     it('marks each column with its own language and direction', async () => {
         renderScreen();
 
-        const target = (await screen.findAllByLabelText(/Value · العربية/))[0]!;
+        await userEvent.click(
+            within(await item('Site name')).getByRole('button', { name: 'Edit' }),
+        );
+
+        const target = screen.getByLabelText('Value · العربية');
 
         expect(target).toHaveAttribute('lang', 'ar');
         expect(target).toHaveAttribute('dir', 'rtl');
 
-        // The source is text rather than a disabled input: it is what is being
-        // translated, not something the editor is being stopped from changing.
-        const section = target.closest('div.grid');
+        const pair = target.closest('div.grid');
 
-        expect(within(section as HTMLElement).getByText('AlphaMaster')).toHaveAttribute(
-            'dir',
-            'ltr',
+        expect(within(pair as HTMLElement).getByText('AlphaMaster')).toHaveAttribute('dir', 'ltr');
+    });
+
+    it('describes a field by its metadata: optional, rich text and a length limit', async () => {
+        renderScreen(
+            withEntries(
+                entry({
+                    source: 'settings',
+                    fields: [
+                        field({
+                            name: 'body',
+                            label: 'Body',
+                            type: 'html',
+                            multiline: true,
+                            values: { en: '<p>Hi</p>' },
+                        }),
+                        field({
+                            name: 'seo_title',
+                            label: 'SEO title',
+                            group: 'seo',
+                            required: false,
+                            max_length: 255,
+                            values: {},
+                        }),
+                    ],
+                    progress: { filled: 0, total: 2, complete: false },
+                }),
+                {},
+            ),
         );
+
+        await userEvent.click(
+            within(await item('Site name')).getByRole('button', { name: 'Edit' }),
+        );
+
+        expect(
+            screen.getByText('Rich text: keep every tag and link as it is.'),
+        ).toBeInTheDocument();
+        expect(screen.getByText('SEO')).toBeInTheDocument();
+        expect(screen.getByText('SEO title · English · optional')).toBeInTheDocument();
+        expect(screen.getByText('0 / 255 characters')).toBeInTheDocument();
     });
 });
 
-/** One proposed translation of the site name into Arabic. */
-function proposal(overrides: Record<string, unknown> = {}) {
-    return {
-        id: '01hzzsuggestion',
-        source: 'settings',
-        item_id: 'general.site_name',
-        field: 'value',
-        locale: 'ar',
-        status: 'ready',
-        status_label: 'AI suggested',
-        source_text: 'AlphaMaster',
-        existing_text: null,
-        suggestion: 'ألفاماستر',
-        error_code: null,
-        error_message: null,
-        completed_at: '2026-09-10T10:00:00+00:00',
-        ...overrides,
-    };
-}
+describe('translating an item with AI', () => {
+    it('reviews an item once, with every field that came back, and saves nothing until it is accepted', async () => {
+        const writes: unknown[] = [];
 
-describe('a proposed translation', () => {
-    it('is shown as a proposal and changes nothing until it is accepted', async () => {
-        renderScreen(workshop(), [], [proposal()]);
+        renderScreen(withEntries(readyForReview(), { not_translated: 0, ready: 1 }), [
+            http.post('*/api/v1/admin/translations/batches/:id/accept', () => {
+                writes.push(true);
 
-        expect(await screen.findByText('AI suggested')).toBeInTheDocument();
+                return HttpResponse.json({ success: true, message: 'ok', data: {} });
+            }),
+        ]);
+
+        const siteName = await item('Site name');
+
+        expect(within(siteName).getByText('Ready for review')).toBeInTheDocument();
+
+        await userEvent.click(within(siteName).getByRole('button', { name: 'Review translation' }));
+
+        expect(screen.getByLabelText('Value · العربية')).toHaveValue('ألفاماستر');
         expect(screen.getByText('Nothing is saved until you accept.')).toBeInTheDocument();
+        expect(writes).toHaveLength(0);
 
-        // The field is still empty. A suggestion sitting beside it is not a translation.
-        expect((await screen.findAllByLabelText(/Value · العربية/))[0]).toHaveValue('');
+        // One decision for the item. There is no accept beside a field.
+        expect(within(siteName).getAllByRole('button', { name: /^Accept/ })).toHaveLength(1);
+        expect(screen.getByRole('button', { name: 'Accept translation' })).toBeInTheDocument();
     });
 
-    it('fills the field when the translator takes it, and still saves nothing', async () => {
+    it('accepts the whole item once, as it was generated', async () => {
         const sent: unknown[] = [];
 
-        renderScreen(
-            workshop(),
-            [
-                http.post('*/api/v1/admin/translations/suggestions/:id/accept', () => {
-                    sent.push(true);
+        renderScreen(withEntries(readyForReview(), { not_translated: 0, ready: 1 }), [
+            http.post(
+                '*/api/v1/admin/translations/batches/:id/accept',
+                async ({ request, params }) => {
+                    sent.push({ id: params.id, body: await request.json() });
 
                     return HttpResponse.json({ success: true, message: 'ok', data: {} });
-                }),
-                http.put('*/api/v1/admin/translations/settings/:id', () => {
-                    sent.push(true);
+                },
+            ),
+        ]);
 
-                    return HttpResponse.json({ success: true, message: 'ok', data: {} });
-                }),
-            ],
-            [proposal()],
+        await userEvent.click(
+            within(await item('Site name')).getByRole('button', { name: 'Review translation' }),
         );
+        await userEvent.click(screen.getByRole('button', { name: 'Accept translation' }));
 
-        await userEvent.click(await screen.findByRole('button', { name: 'Use this text' }));
-
-        expect((await screen.findAllByLabelText(/Value · العربية/))[0]).toHaveValue('ألفاماستر');
-        expect(sent).toHaveLength(0);
+        await expect.poll(() => sent.length).toBe(1);
+        expect(sent[0]).toEqual({ id: '01hzzbatch', body: {} });
     });
 
-    it('sends what is in the field, not what the model said', async () => {
-        const sent: Array<Record<string, unknown>> = [];
+    it('sends only the fields the reviewer changed, and says the item was edited', async () => {
+        const sent: unknown[] = [];
 
-        renderScreen(
-            workshop(),
-            [
-                http.post(
-                    '*/api/v1/admin/translations/suggestions/:id/accept',
-                    async ({ request }) => {
-                        sent.push((await request.json()) as Record<string, unknown>);
+        renderScreen(withEntries(readyForReview(), { not_translated: 0, ready: 1 }), [
+            http.post('*/api/v1/admin/translations/batches/:id/accept', async ({ request }) => {
+                sent.push(await request.json());
 
-                        return HttpResponse.json({ success: true, message: 'ok', data: {} });
-                    },
-                ),
-            ],
-            [proposal()],
+                return HttpResponse.json({ success: true, message: 'ok', data: {} });
+            }),
+        ]);
+
+        await userEvent.click(
+            within(await item('Site name')).getByRole('button', { name: 'Review translation' }),
         );
 
-        const field = (await screen.findAllByLabelText(/Value · العربية/))[0]!;
-        await userEvent.type(field, 'نصّ من إنسان');
+        const value = screen.getByLabelText('Value · العربية');
+        await userEvent.clear(value);
+        await userEvent.type(value, 'نصّ من إنسان');
 
-        // "A person wrote this" and "a person let this through" are different facts.
-        expect(await screen.findByText('Edited')).toBeInTheDocument();
+        expect(screen.getByText('Edited')).toBeInTheDocument();
 
-        await userEvent.click(screen.getByRole('button', { name: 'Accept your version' }));
+        await userEvent.click(screen.getByRole('button', { name: 'Accept translation' }));
 
-        expect(sent).toHaveLength(1);
-        expect(sent[0]).toEqual({ text: 'نصّ من إنسان' });
+        await expect.poll(() => sent.length).toBe(1);
+        expect(sent[0]).toEqual({ values: { value: 'نصّ من إنسان' } });
     });
 
-    it('discards a suggestion without writing anything', async () => {
+    it('discards a translation without writing anything', async () => {
         const writes: unknown[] = [];
         let dismissed = false;
 
-        renderScreen(
-            workshop(),
-            [
-                http.delete('*/api/v1/admin/translations/suggestions/:id', () => {
-                    dismissed = true;
+        renderScreen(withEntries(readyForReview(), { not_translated: 0, ready: 1 }), [
+            http.delete('*/api/v1/admin/translations/batches/:id', () => {
+                dismissed = true;
 
-                    return HttpResponse.json({ success: true, message: 'ok', data: {} });
-                }),
-                http.put('*/api/v1/admin/translations/settings/:id', () => {
-                    writes.push(true);
+                return HttpResponse.json({ success: true, message: 'ok', data: {} });
+            }),
+            http.put('*/api/v1/admin/translations/settings/:id', () => {
+                writes.push(true);
 
-                    return HttpResponse.json({ success: true, message: 'ok', data: {} });
-                }),
-            ],
-            [proposal()],
+                return HttpResponse.json({ success: true, message: 'ok', data: {} });
+            }),
+        ]);
+
+        await userEvent.click(
+            within(await item('Site name')).getByRole('button', { name: 'Review translation' }),
         );
-
-        await userEvent.click(await screen.findByRole('button', { name: 'Discard' }));
+        await userEvent.click(screen.getByRole('button', { name: 'Discard' }));
 
         await expect.poll(() => dismissed).toBe(true);
         expect(writes).toHaveLength(0);
     });
 
-    it('shows a queued suggestion as waiting rather than as nothing', async () => {
-        renderScreen(workshop(), [], [proposal({ status: 'pending', suggestion: null })]);
-
-        expect(await screen.findByText('Waiting for the provider…')).toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: 'Accept' })).not.toBeInTheDocument();
-    });
-
-    it('shows a failed suggestion with the vendor’s reason', async () => {
+    it('shows an item being translated as processing, with nothing to accept', async () => {
         renderScreen(
-            workshop(),
+            withEntries(entry({ status: 'pending', status_label: 'Processing' }), {
+                not_translated: 0,
+                pending: 1,
+            }),
             [],
-            [
-                proposal({
-                    status: 'failed',
-                    suggestion: null,
-                    error_code: 'model_not_found',
-                    error_message: 'No such model.',
-                }),
-            ],
+            ['settings.view', 'settings.update', 'ai.use'],
         );
 
-        expect(await screen.findByText('This one was not generated.')).toBeInTheDocument();
-        expect(screen.getByText('No such model.')).toBeInTheDocument();
-    });
+        const siteName = await item('Site name');
 
-    it('offers no way to ask without the permission that governs spending', async () => {
-        renderScreen(workshop(), [], [], ['settings.view', 'settings.update']);
-
-        expect(await screen.findByText('Site name')).toBeInTheDocument();
+        expect(within(siteName).getByText('Translating…')).toBeInTheDocument();
         expect(
-            screen.queryByRole('button', { name: /Suggest .* with AI/ }),
+            within(siteName).queryByRole('button', { name: 'Review translation' }),
+        ).not.toBeInTheDocument();
+        expect(
+            within(siteName).queryByRole('button', { name: 'Translate with AI' }),
         ).not.toBeInTheDocument();
     });
 
-    it('disables asking, with the reason, when no provider is configured', async () => {
+    it('shows a failed item with its reason, and retries the item as a whole', async () => {
+        const asked: unknown[] = [];
+
+        renderScreen(
+            withEntries(
+                entry({
+                    status: 'failed',
+                    status_label: 'Failed',
+                    batch: {
+                        id: '01hzzfailed',
+                        status: 'failed',
+                        status_label: 'Failed',
+                        fields_total: 2,
+                        fields_ready: 1,
+                        fields_failed: 1,
+                        error_code: 'model_not_found',
+                        error_message: 'No such model.',
+                        completed_at: '2026-09-14T10:00:00+00:00',
+                        suggestions: [],
+                    },
+                }),
+                { not_translated: 0, failed: 1 },
+            ),
+            [
+                http.post('*/api/v1/admin/translations/batches', async ({ request }) => {
+                    asked.push(await request.json());
+
+                    return HttpResponse.json({
+                        success: true,
+                        message: 'ok',
+                        data: { queued: 1, existing: 0, skipped: 0 },
+                    });
+                }),
+            ],
+            ['settings.view', 'settings.update', 'ai.use'],
+        );
+
+        const siteName = await item('Site name');
+
+        expect(
+            within(siteName).getByText('This translation did not complete.'),
+        ).toBeInTheDocument();
+        expect(within(siteName).getByText('No such model.')).toBeInTheDocument();
+        expect(within(siteName).getByText('1 of 2 fields came back.')).toBeInTheDocument();
+
+        await userEvent.click(within(siteName).getByRole('button', { name: 'Retry with AI' }));
+
+        await expect.poll(() => asked.length).toBe(1);
+        expect(asked[0]).toEqual({ locale: 'ar', source: 'settings', item: 'general.site_name' });
+    });
+
+    it('translates everything missing in the language with one command', async () => {
+        const asked: unknown[] = [];
+
         renderScreen(
             workshop(),
-            [],
+            [
+                http.post('*/api/v1/admin/translations/batches', async ({ request }) => {
+                    asked.push(await request.json());
+
+                    return HttpResponse.json({
+                        success: true,
+                        message: 'ok',
+                        data: { queued: 1, existing: 0, skipped: 1 },
+                    });
+                }),
+            ],
+            ['settings.view', 'settings.update', 'ai.use'],
+        );
+
+        await userEvent.click(
+            await screen.findByRole('button', { name: 'Translate all missing into العربية' }),
+        );
+
+        expect(
+            await screen.findByText(
+                'Started 1; 0 already in progress or waiting for review; 1 needed nothing.',
+            ),
+        ).toBeInTheDocument();
+        // The language, and nothing about which items or which fields.
+        expect(asked).toEqual([{ locale: 'ar' }]);
+    });
+
+    it('translates everything missing in one source', async () => {
+        const asked: unknown[] = [];
+
+        renderScreen(
+            workshop(),
+            [
+                http.post('*/api/v1/admin/translations/batches', async ({ request }) => {
+                    asked.push(await request.json());
+
+                    return HttpResponse.json({
+                        success: true,
+                        message: 'ok',
+                        data: { queued: 1, existing: 0, skipped: 0 },
+                    });
+                }),
+            ],
+            ['settings.view', 'settings.update', 'ai.use'],
+        );
+
+        await userEvent.click(await screen.findByRole('button', { name: 'Translate all missing' }));
+
+        await expect.poll(() => asked.length).toBe(1);
+        expect(asked[0]).toEqual({ locale: 'ar', source: 'settings' });
+    });
+
+    it('accepts every ready item and reports the ones that were refused', async () => {
+        const asked: unknown[] = [];
+
+        renderScreen(withEntries(readyForReview(), { not_translated: 0, ready: 2 }), [
+            http.post('*/api/v1/admin/translations/batches/accept-ready', async ({ request }) => {
+                asked.push(await request.json());
+
+                return HttpResponse.json({
+                    success: true,
+                    message: '1 accepted / 1 failed.',
+                    data: {
+                        accepted: 1,
+                        failed: 1,
+                        results: [
+                            {
+                                batch: 'b1',
+                                source: 'settings',
+                                item_id: 'general.site_name',
+                                status: 'accepted',
+                                error_code: null,
+                                message: null,
+                            },
+                            {
+                                batch: 'b2',
+                                source: 'settings',
+                                item_id: 'general.tagline',
+                                status: 'failed',
+                                error_code: 'TRANSLATION_MOVED',
+                                message: 'This item changed after its translation was generated.',
+                            },
+                        ],
+                    },
+                });
+            }),
+        ]);
+
+        await userEvent.click(await screen.findByRole('button', { name: 'Accept all ready (2)' }));
+
+        expect(await screen.findByText('1 accepted / 1 failed')).toBeInTheDocument();
+        expect(
+            screen.getByText('Tagline: This item changed after its translation was generated.'),
+        ).toBeInTheDocument();
+        expect(asked).toEqual([{ locale: 'ar' }]);
+    });
+
+    it('offers no way to translate with AI without the permission that governs spending', async () => {
+        renderScreen();
+
+        expect(await item('Site name')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Translate/ })).not.toBeInTheDocument();
+    });
+
+    it('disables translating with AI, with the reason, when no provider is configured', async () => {
+        renderScreen(
+            workshop(),
             [],
             ['settings.view', 'settings.update', 'ai.use'],
             '/translations',
             false,
         );
 
-        const ask = await screen.findByRole('button', { name: 'Suggest العربية with AI' });
+        const all = await screen.findByRole('button', {
+            name: 'Translate all missing into العربية',
+        });
 
-        await expect.poll(() => (ask as HTMLButtonElement).disabled).toBe(true);
+        await expect.poll(() => (all as HTMLButtonElement).disabled).toBe(true);
         expect(screen.getByText(/AI provider not configured/)).toBeInTheDocument();
-    });
-
-    it('asks for a whole language, and says what it skipped', async () => {
-        renderScreen(
-            workshop(),
-            [
-                http.post('*/api/v1/admin/translations/suggestions', () =>
-                    HttpResponse.json({
-                        success: true,
-                        message: 'queued',
-                        data: { queued: 3, skipped: 5 },
-                    }),
-                ),
-            ],
-            [],
-            ['settings.view', 'settings.update', 'ai.use'],
-        );
-
-        await userEvent.click(
-            await screen.findByRole('button', { name: 'Suggest العربية with AI' }),
-        );
-
-        expect(
-            await screen.findByText(
-                'Asked for 3; skipped 5 that were already translated or had nothing to translate from.',
-            ),
-        ).toBeInTheDocument();
     });
 });

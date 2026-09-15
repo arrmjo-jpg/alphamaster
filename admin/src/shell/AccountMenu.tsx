@@ -10,15 +10,22 @@ import { StatusBadge } from '@/ui/StatusBadge';
 
 import { initialsOf } from './initials';
 
-function Avatar({ name, size }: { name: string; size: 'sm' | 'lg' }) {
+function Avatar({ name, url, size }: { name: string; url: string | null; size: 'sm' | 'lg' }) {
+    const box =
+        size === 'sm' ? 'size-8 text-(length:--text-sm)' : 'size-11 text-(length:--text-lg)';
+
+    // The picture when the account has one that is ready to serve, and the initials otherwise:
+    // a picture still being processed is null from the platform, not a broken image here.
+    if (url !== null) {
+        return <img alt="" aria-hidden className={cn('shrink-0 object-cover', box)} src={url} />;
+    }
+
     return (
         <span
             aria-hidden
             className={cn(
                 'inline-flex shrink-0 items-center justify-center bg-(--action-primary-subtle) font-bold text-(--text-brand)',
-                size === 'sm'
-                    ? 'size-8 text-(length:--text-sm)'
-                    : 'size-11 text-(length:--text-lg)',
+                box,
             )}
         >
             {initialsOf(name)}
@@ -45,12 +52,10 @@ function Avatar({ name, size }: { name: string; size: 'sm' | 'lg' }) {
  * "where do I go in this system". The link is drawn only when the registry declares the
  * module, so a build without it gets no entry pointing at nothing.
  *
- * There is still no Security item. The page shows the account and verifies a phone; no
- * screen changes a password — the platform has no endpoint for it — or manages the
- * second factor, whose endpoints exist and are called only during sign-in. A menu entry
- * that opens a screen unable to do what it names would read as a capability, so this
- * menu offers what the console can actually do — ADR 0029 item 23 records what is
- * missing and what has to be decided before it is built.
+ * The account page is also where the password, the picture and the second factor are
+ * managed (ADR 0057), so one entry leads to all of it rather than a separate Security item
+ * pointing at a section of the same page. The avatar is the account's picture when it has
+ * one ready to serve, and its initials otherwise.
  */
 export function AccountMenu() {
     const { t } = useTranslation();
@@ -68,7 +73,7 @@ export function AccountMenu() {
             panelClassName="min-w-64"
             trigger={
                 <>
-                    <Avatar name={user.name} size="sm" />
+                    <Avatar name={user.name} size="sm" url={user.avatar_url ?? null} />
                     <span className="hidden max-w-32 truncate text-(--shell-text) lg:inline">
                         {user.name}
                     </span>
@@ -78,7 +83,7 @@ export function AccountMenu() {
             {/* Identity, not a choice: the panel opens onto who you are, and nothing
                 here is focusable because none of it does anything. */}
             <div className="flex items-start gap-3 px-3 py-3">
-                <Avatar name={user.name} size="lg" />
+                <Avatar name={user.name} size="lg" url={user.avatar_url ?? null} />
                 <div className="flex min-w-0 flex-col gap-0.5">
                     <span className="truncate text-(length:--text-md) font-bold text-(--text-primary)">
                         {user.name}

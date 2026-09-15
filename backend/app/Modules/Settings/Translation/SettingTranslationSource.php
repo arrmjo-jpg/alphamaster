@@ -94,6 +94,8 @@ class SettingTranslationSource implements TranslationSource
                         name: 'value',
                         label: 'translations.fields.value',
                         values: $this->writtenValues($row),
+                        required: true,
+                        maxLength: $this->maxLength($definition),
                     ),
                 ],
                 context: $this->help($definition->helpKey()),
@@ -170,6 +172,21 @@ class SettingTranslationSource implements TranslationSource
         }
 
         return $localized;
+    }
+
+    /**
+     * The longest value the definition's own rules accept, so a translation is generated
+     * within the limit the write will enforce.
+     */
+    private function maxLength(SettingDefinition $definition): ?int
+    {
+        foreach ($definition->rules as $rule) {
+            if (preg_match('/^max:(\d+)$/', $rule, $matches) === 1) {
+                return (int) $matches[1];
+            }
+        }
+
+        return null;
     }
 
     /**

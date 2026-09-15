@@ -8,6 +8,7 @@ import { languages as adminLanguages } from '@/screens/languages/api';
 import { useDirection } from '@/shell/DirectionProvider';
 import { Alert } from '@/ui/Alert';
 import { Button } from '@/ui/Button';
+import { ContentLanguageSelector } from '@/ui/ContentLanguageSelector';
 
 import { group as fetchGroup, testMail, updateGroup, type SettingDefinition } from './api';
 import { changedValues, fieldStates, invalidFields, settingKey, type Draft } from './draft';
@@ -323,37 +324,20 @@ export function SettingsWorkspace({ name, definitions, onPendingChange }: Settin
                     ) : null}
 
                     {localized && languages.data !== undefined && languages.data.length > 0 ? (
-                        <div className="flex flex-col gap-1">
-                            <label
-                                className="text-(length:--text-sm) font-medium text-(--text-secondary)"
-                                htmlFor={`${name}-content-language`}
-                            >
-                                {t('settings.contentLanguage')}
-                            </label>
-                            <select
-                                className="h-(--field-height) w-full max-w-xs border border-(--border-strong) bg-(--surface-default) px-2 text-(length:--text-sm) text-(--text-primary) focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-(--focus-ring)"
-                                id={`${name}-content-language`}
-                                onChange={(event) => {
-                                    // The draft belongs to the language it was typed
-                                    // in. Carrying it across would write one language's
-                                    // words into another.
-                                    setDraft({});
-                                    setStage('editing');
-                                    onPendingChange(name, 0);
-                                    setContentLocale(event.target.value);
-                                }}
-                                value={selectedLocale ?? ''}
-                            >
-                                {languages.data.map((language) => (
-                                    <option key={language.code} value={language.code}>
-                                        {language.native_name}
-                                    </option>
-                                ))}
-                            </select>
-                            <p className="text-(length:--text-xs) text-(--text-muted)">
-                                {t('settings.contentLanguageHint')}
-                            </p>
-                        </div>
+                        <ContentLanguageSelector
+                            id={`${name}-content-language`}
+                            languages={languages.data}
+                            onChange={(code) => {
+                                // The draft belongs to the language it was typed in.
+                                // Carrying it across would write one language's words
+                                // into another.
+                                setDraft({});
+                                setStage('editing');
+                                onPendingChange(name, 0);
+                                setContentLocale(code);
+                            }}
+                            value={selectedLocale}
+                        />
                     ) : null}
 
                     {name === 'auth' ? <SocialLoginSetup /> : null}

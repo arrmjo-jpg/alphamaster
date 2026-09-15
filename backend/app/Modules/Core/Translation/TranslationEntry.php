@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace App\Modules\Core\Translation;
 
 /**
- * One translatable item: a role, a notification template, a setting.
+ * One translatable item: a role, a notification template, a setting, a page (ADR 0043).
  *
- * `id` is whatever its owning module uses to address it, and travels back unchanged
- * on a write — the workshop never parses it, so a source is free to key by ulid,
- * integer or `group.key` without this having to know which.
+ * The item is the unit of translation (ADR 0056). It is translated, reviewed and accepted as a
+ * whole, and its status in a language is derived from its fields' metadata rather than from
+ * counting every field alike.
+ *
+ * `id` is whatever its owning module uses to address it, and travels back unchanged on a
+ * write — the workshop never parses it.
  */
 final class TranslationEntry
 {
@@ -27,18 +30,61 @@ final class TranslationEntry
     ) {}
 
     /**
-     * How many of this item's fields are still untranslated in a locale.
+     * The fields that are sent to be translated.
+     *
+     * @return list<TranslationField>
+     */
+    public function translatableFields(): array
+    {
+        return array_values(array_filter($this->fields, static fn (TranslationField $field): bool => $field->translatable));
+    }
+
+    /**
+     * How many of this item's required fields are still untranslated in a locale.
      */
     public function missingIn(string $locale): int
     {
         $missing = 0;
 
-        foreach ($this->fields as $field) {
-            if (! $field->hasValueFor($locale)) {
+        foreach ($this->translatableFields() as $field) {
+            if ($field->required && ! $field->hasValueFor($locale)) {
                 $missing++;
             }
         }
 
         return $missing;
+    }
+
+    public function progressIn(string $locale): TranslationProgress
+    {
+        $values = [];
+        $required = [];
+
+        foreach ($this->translatableFields() as $field) {
+            $values[$field->name] = $field->valueFor($locale);
+
+            if ($field->required) {
+                $required[] = $field->name;
+            }
+        }
+
+        return TranslationProgress::of($values, $required);
+    }
+
+    /**
+     * Where the item stands in a locale from what is written alone. A translation in progress
+     * — pending, ready, failed — is known only to whoever runs it, and is laid over this.
+     */
+    public function statusIn(string $locale): TranslationItemStatus
+    {
+        $progress = $this->progressIn($locale);
+
+        // Nothing written is "not translated" before anything else, so an item whose fields
+        // are all optional is not counted as finished for having none of them.
+        return match (true) {
+            $progress->filled === 0 => TranslationItemStatus::NOT_TRANSLATED,
+            $progress->complete => TranslationItemStatus::TRANSLATED,
+            default => TranslationItemStatus::INCOMPLETE,
+        };
     }
 }
