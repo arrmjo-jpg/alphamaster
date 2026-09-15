@@ -6,6 +6,7 @@ namespace App\Modules\Settings\Providers;
 
 use App\Modules\Core\Backup\ConfigurationPortability;
 use App\Modules\Core\Contracts\RetentionPolicyContract;
+use App\Modules\Core\Contracts\SiteSeoDefaultsContract;
 use App\Modules\Core\Translation\TranslationRegistry;
 use App\Modules\Settings\Backup\SettingsPortability;
 use App\Modules\Settings\Console\SynchroniseSettingsCommand;
@@ -21,6 +22,7 @@ use App\Modules\Settings\Definitions\Catalogues\MediaAnalysisCatalogue;
 use App\Modules\Settings\Definitions\Catalogues\OperationsCatalogue;
 use App\Modules\Settings\Definitions\Catalogues\RateLimitCatalogue;
 use App\Modules\Settings\Definitions\Catalogues\SecurityCatalogue;
+use App\Modules\Settings\Definitions\Catalogues\SeoCatalogue;
 use App\Modules\Settings\Definitions\SettingCatalogue;
 use App\Modules\Settings\Definitions\SettingRegistry;
 use App\Modules\Settings\Secrets\MailPasswordVerifier;
@@ -28,6 +30,7 @@ use App\Modules\Settings\Secrets\SecretVerifierRegistry;
 use App\Modules\Settings\Services\MailRuntimeConfiguration;
 use App\Modules\Settings\Services\SettingService;
 use App\Modules\Settings\Services\SettingsRetentionPolicy;
+use App\Modules\Settings\Services\SettingsSiteSeoDefaults;
 use App\Modules\Settings\Translation\SettingTranslationSource;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
@@ -52,6 +55,10 @@ class SettingsServiceProvider extends ServiceProvider
         // out (ADR 0037). Settings owns the answer, so Settings binds it — the same
         // direction LocaleResolverInterface already runs in.
         $this->app->singleton(RetentionPolicyContract::class, SettingsRetentionPolicy::class);
+
+        // The site's SEO defaults, which Core resolves content against and may not read from
+        // Settings itself (ADR 0058 §4).
+        $this->app->singleton(SiteSeoDefaultsContract::class, SettingsSiteSeoDefaults::class);
 
         // The registry is a singleton because it is the catalogue, not a query: it is
         // populated once at boot and read many times per request.
@@ -141,6 +148,7 @@ class SettingsServiceProvider extends ServiceProvider
             AiCatalogue::class,
             CdnCatalogue::class,
             MediaAnalysisCatalogue::class,
+            SeoCatalogue::class,
         ];
     }
 

@@ -12,12 +12,20 @@ use App\Modules\Core\Cache\PlatformCache;
 use App\Modules\Core\Contracts\AuditRecorderContract;
 use App\Modules\Core\Contracts\EdgeCacheContract;
 use App\Modules\Core\Contracts\PlatformCacheContract;
+use App\Modules\Core\Contracts\PublicUrlContract;
+use App\Modules\Core\Contracts\SiteSeoDefaultsContract;
 use App\Modules\Core\Delivery\NullEdgeCache;
 use App\Modules\Core\Http\Cache\HttpCacheProfile;
 use App\Modules\Core\Http\Cache\HttpCacheProfileRegistry;
 use App\Modules\Core\Http\Cache\ResponseCacheTags;
+use App\Modules\Core\Media\MediaReferenceRegistry;
 use App\Modules\Core\MediaAnalysis\MediaAnalyzerContract;
 use App\Modules\Core\MediaAnalysis\NullMediaAnalyzer;
+use App\Modules\Core\Seo\NullSiteSeoDefaults;
+use App\Modules\Core\Seo\PublicUrls;
+use App\Modules\Core\Seo\Sitemap\SitemapRegistry;
+use App\Modules\Core\Seo\Sitemap\SitemapRenderer;
+use App\Modules\Core\Seo\StructuredData\StructuredData;
 use App\Modules\Core\Services\RateLimitPolicy;
 use App\Modules\Core\Support\ClientUrlPolicy;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -84,11 +92,34 @@ class CoreServiceProvider extends ServiceProvider
                 localized: true,
             ));
 
+            // The public robots.txt and sitemap (ADR 0058 §2, §3). Not localized: one document
+            // covers every language. Purged when content or the configuration they read changes.
+            $registry->register(new HttpCacheProfile(
+                name: 'seo',
+                browserMaxAge: 300,
+                edgeMaxAge: 3600,
+                staleWhileRevalidate: 60,
+                staleIfError: 86400,
+                localized: false,
+            ));
+
             return $registry;
         });
 
         // One per request: the tags the response being built will carry to the edge.
         $this->app->scoped(ResponseCacheTags::class);
+
+        // Site-level SEO defaults (ADR 0058 §4). Bound only if nothing else is: Settings binds
+        // the configured values, and without it nothing is invented — no name, no origin.
+        $this->app->singletonIf(SiteSeoDefaultsContract::class, NullSiteSeoDefaults::class);
+
+        // Public addresses, sitemaps, structured data and media references (ADR 0058). Core
+        // owns the composition; each module registers its own part from its own provider.
+        $this->app->singleton(PublicUrlContract::class, PublicUrls::class);
+        $this->app->singleton(SitemapRegistry::class);
+        $this->app->singleton(SitemapRenderer::class);
+        $this->app->singleton(StructuredData::class);
+        $this->app->singleton(MediaReferenceRegistry::class);
     }
 
     /**

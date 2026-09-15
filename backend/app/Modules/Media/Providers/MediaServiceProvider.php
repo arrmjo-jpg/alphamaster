@@ -13,9 +13,11 @@ use App\Modules\Media\Contracts\MediaScannerContract;
 use App\Modules\Media\Contracts\MediaServiceContract;
 use App\Modules\Media\Contracts\MediaStorageContract;
 use App\Modules\Media\Enums\MediaType;
+use App\Modules\Media\Models\MediaFile;
 use App\Modules\Media\Services\Analysis\MediaAnalysisPolicy;
 use App\Modules\Media\Services\Analysis\MediaAnalysisService;
 use App\Modules\Media\Services\MediaAccessResolver;
+use App\Modules\Media\Services\MediaReferenceInvalidation;
 use App\Modules\Media\Services\MediaReferences;
 use App\Modules\Media\Services\MediaService;
 use App\Modules\Media\Services\Processing\FfprobeInspector;
@@ -83,6 +85,17 @@ class MediaServiceProvider extends ServiceProvider
     {
         $this->loadMigrationsFrom(dirname(__DIR__).'/Database/Migrations');
         $this->registerRoutes();
+
+        // A file content refers to stops being servable: every public response showing it is
+        // purged, whoever owns that response (ADR 0058 §7).
+        MediaFile::deleted(static fn (MediaFile $media) => app(MediaReferenceInvalidation::class)
+            ->forMedia($media->id, 'media.deleted'));
+
+        MediaFile::updated(static function (MediaFile $media): void {
+            if (MediaReferenceInvalidation::becameUnservable($media)) {
+                app(MediaReferenceInvalidation::class)->forMedia($media->id, 'media.unavailable');
+            }
+        });
 
         if ($this->app->runningInConsole()) {
             $this->commands([ProbeMediaDurationsCommand::class]);

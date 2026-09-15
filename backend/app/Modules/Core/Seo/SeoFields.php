@@ -18,6 +18,9 @@ final readonly class SeoFields
 
     public const ROBOTS = ['index,follow', 'noindex,follow', 'index,nofollow', 'noindex,nofollow'];
 
+    /** What an absent robots policy means (ADR 0058 §4). */
+    public const DEFAULT_ROBOTS = 'index,follow';
+
     public const TITLE_MAX = 255;
 
     public const DESCRIPTION_MAX = 1000;

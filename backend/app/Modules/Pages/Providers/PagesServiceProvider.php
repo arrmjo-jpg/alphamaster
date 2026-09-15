@@ -5,10 +5,18 @@ declare(strict_types=1);
 namespace App\Modules\Pages\Providers;
 
 use App\Modules\Authorization\Services\PermissionCatalogue;
+use App\Modules\Core\Contracts\PublicUrlContract;
 use App\Modules\Core\Http\Cache\HttpCacheProfile;
 use App\Modules\Core\Http\Cache\HttpCacheProfileRegistry;
+use App\Modules\Core\Media\MediaReferenceRegistry;
+use App\Modules\Core\Seo\PublicRoute;
+use App\Modules\Core\Seo\Sitemap\SitemapRegistry;
+use App\Modules\Core\Seo\StructuredData\StructuredData;
 use App\Modules\Core\Translation\TranslationRegistry;
 use App\Modules\Pages\Enums\PagePermission;
+use App\Modules\Pages\Seo\PageMediaReferences;
+use App\Modules\Pages\Seo\PageSitemapSource;
+use App\Modules\Pages\Seo\WebPageSchema;
 use App\Modules\Pages\Translation\PageTranslationSource;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
@@ -39,6 +47,25 @@ class PagesServiceProvider extends ServiceProvider
                 staleIfError: 86400,
                 localized: true,
             )),
+        );
+
+        // Search and sharing (ADR 0058): where a page is published, its sitemap entries, its
+        // structured data, and the files it shows.
+        $this->callAfterResolving(
+            PublicUrlContract::class,
+            static fn (PublicUrlContract $urls) => $urls->register(new PublicRoute('pages', '/{locale}/pages/{slug}')),
+        );
+        $this->callAfterResolving(
+            SitemapRegistry::class,
+            fn (SitemapRegistry $sitemap) => $sitemap->register($this->app->make(PageSitemapSource::class)),
+        );
+        $this->callAfterResolving(
+            StructuredData::class,
+            static fn (StructuredData $schema) => $schema->register(new WebPageSchema),
+        );
+        $this->callAfterResolving(
+            MediaReferenceRegistry::class,
+            fn (MediaReferenceRegistry $references) => $references->register($this->app->make(PageMediaReferences::class)),
         );
     }
 

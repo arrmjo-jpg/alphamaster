@@ -492,6 +492,10 @@ export type PublicPageResource = {
     locale: string;
     direction: string;
     slug: string;
+    /**
+     * The page's public address in this language, or null when no public origin is configured.
+     */
+    url: string;
     title: string;
     summary: string;
     sort_order: number;
@@ -504,21 +508,34 @@ export type PublicPageResource = {
     seo: {
         title: string;
         description: string | null;
-        robots: string | null;
+        robots: string;
         canonical_url: string | null;
         og_title: string;
         og_description: string | null;
         og_image_url: string | null;
+        twitter_card: string;
     };
     alternates: Array<{
         locale: string;
         slug: string;
+        url: string | null;
     }>;
+    /**
+     * JSON-LD for the page: the site's WebSite and Organization, and this WebPage.
+     */
+    structured_data: {
+        '@context': string;
+        '@graph': Array<{}>;
+    } | null;
 } | {
     id: string;
     locale: string;
     direction: string;
     slug: string;
+    /**
+     * The page's public address in this language, or null when no public origin is configured.
+     */
+    url: string;
     title: string;
     summary: string;
     sort_order: number;
@@ -531,6 +548,10 @@ export type PublicTeamMemberResource = {
     locale: string;
     direction: string;
     slug: string;
+    /**
+     * The profile's public address in this language, or null when no public origin is configured.
+     */
+    url: string;
     name: string;
     position: string;
     avatar: {
@@ -551,21 +572,34 @@ export type PublicTeamMemberResource = {
     seo: {
         title: string;
         description: string | null;
-        robots: string | null;
+        robots: string;
         canonical_url: string | null;
         og_title: string;
         og_description: string | null;
         og_image_url: string | null;
+        twitter_card: string;
     };
     alternates: Array<{
         locale: string;
         slug: string;
+        url: string | null;
     }>;
+    /**
+     * JSON-LD for the profile: the site's WebSite and Organization, and this Person.
+     */
+    structured_data: {
+        '@context': string;
+        '@graph': Array<{}>;
+    } | null;
 } | {
     id: string;
     locale: string;
     direction: string;
     slug: string;
+    /**
+     * The profile's public address in this language, or null when no public origin is configured.
+     */
+    url: string;
     name: string;
     position: string;
     avatar: {
@@ -6527,6 +6561,95 @@ export type AdminSettingsSecretsRotateResponses = {
 };
 
 export type AdminSettingsSecretsRotateResponse = AdminSettingsSecretsRotateResponses[keyof AdminSettingsSecretsRotateResponses];
+
+export type SeoRobotsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/robots.txt';
+};
+
+export type SeoRobotsResponses = {
+    /**
+     * The robots.txt document.
+     */
+    200: string;
+};
+
+export type SeoRobotsResponse = SeoRobotsResponses[keyof SeoRobotsResponses];
+
+export type SeoSitemapData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/sitemap.xml';
+};
+
+export type SeoSitemapErrors = {
+    /**
+     * NOT_FOUND: no public origin is configured.
+     */
+    404: {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'NOT_FOUND';
+            message: string;
+            details: null;
+        };
+    };
+};
+
+export type SeoSitemapError = SeoSitemapErrors[keyof SeoSitemapErrors];
+
+export type SeoSitemapResponses = {
+    /**
+     * The sitemap index document.
+     */
+    200: string | null;
+};
+
+export type SeoSitemapResponse = SeoSitemapResponses[keyof SeoSitemapResponses];
+
+export type SeoSitemapFileData = {
+    body?: never;
+    path: {
+        source: string;
+        file: string;
+    };
+    query?: never;
+    url: '/sitemaps/{source}-{file}.xml';
+};
+
+export type SeoSitemapFileErrors = {
+    /**
+     * NOT_FOUND: no such source or file, or no public origin is configured.
+     */
+    404: {
+        success: boolean;
+        error: {
+            /**
+             * `code` is contract and is never localized (ADR 0031).
+             */
+            code: 'NOT_FOUND';
+            message: string;
+            details: null;
+        };
+    };
+};
+
+export type SeoSitemapFileError = SeoSitemapFileErrors[keyof SeoSitemapFileErrors];
+
+export type SeoSitemapFileResponses = {
+    /**
+     * The sitemap document.
+     */
+    200: string | null;
+};
+
+export type SeoSitemapFileResponse = SeoSitemapFileResponses[keyof SeoSitemapFileResponses];
 
 export type AdminSettingsIndexData = {
     body?: never;

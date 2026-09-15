@@ -297,7 +297,8 @@ test('another language’s address, or an old one, answers with this language’
 
     $page = $this->getJson('/api/v1/pages/privacy-policy?locale=en')->assertOk();
 
-    expect($page->json('data.alternates'))->toBe([['locale' => 'ar', 'slug' => 'الخصوصية']]);
+    // No public origin is configured here, so the alternate has no absolute address (ADR 0058 §1).
+    expect($page->json('data.alternates'))->toBe([['locale' => 'ar', 'slug' => 'الخصوصية', 'url' => null]]);
 });
 
 test('SEO resolves within the language asked for, never from another', function (): void {

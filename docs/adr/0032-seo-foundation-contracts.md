@@ -91,3 +91,22 @@ A project can add SEO to its own models without extending the foundation, and tw
 The store is one table with a morph key, so SEO for a model that has none costs nothing.
 
 **Implementation status.** Nothing here is built. The scope is deliberately left unphased: SEO is worth implementing when there is a consumer whose requirements can test the contracts, and implementing it against no consumer is how a foundation acquires speculative surface — the mistake ADR 0024 already recorded twice, with the MediaLibrary packages and the unused attachment trait. Tracked in ADR 0029.
+
+## Amendment, 2026-09-15: built and settled by ADR 0055 and ADR 0058
+
+The text above is kept as it was decided. Where it and ADR 0058 disagree, ADR 0058 governs:
+
+* **Fallback chain.** Replaced by ADR 0058 §4, which never leaves the requested language:
+  * title → content title → the site name in that language
+  * description → content summary → the site description in that language
+  * og image → content image → `branding.og_image`
+  * robots → `seo.robots_policy` → `index,follow`
+  * canonical → the content's own address
+
+  The rule above that a locale without a row falls back to the default locale first is withdrawn, as ADR 0055 §7 already did for Pages and Team.
+* **`twitter_*`.** Withdrawn (ADR 0058 §6). No Twitter/X metadata is stored. Open Graph is the sharing metadata, and `twitter_card` is derived from whether a sharing image exists.
+* **The sharing image's `og` variant.** Still ADR 0024's. Until variants exist, the original is used, as this record already allowed.
+* **Contracts now built:**
+  * the per-locale store and its write path (ADR 0055 and the SEO Core refactor)
+  * public address composition, the sitemap, the public robots.txt, structured data and site defaults (ADR 0058)
+  * media invalidation (ADR 0058 §7)

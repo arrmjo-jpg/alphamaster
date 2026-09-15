@@ -219,7 +219,17 @@ The processing pipeline exists; no image processor can run. The container image 
 
 *Closed by*: adding the image extensions to the container image, then implementing named variants and watermarking against the existing contracts. The original is never modified and never watermarked.
 
-### 18. SEO contracts are partly built — OPEN
+### 18. SEO contracts are partly built — CLOSED (ADR 0058)
+
+*Closed by*: ADR 0058, as built:
+* public addresses composed from module patterns
+* the sitemap, served from registered sources
+* the public robots.txt
+* site defaults in resolution, in the same language only
+* structured data
+* media invalidation through a registry of references
+
+`twitter_*` is withdrawn rather than built. The history below is kept as it was written.
 
 *Decision*: ADR 0032, amended by ADR 0055 §7. *Implementation*: partial.
 

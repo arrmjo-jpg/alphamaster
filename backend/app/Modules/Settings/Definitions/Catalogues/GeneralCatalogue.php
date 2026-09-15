@@ -62,7 +62,9 @@ class GeneralCatalogue implements SettingCatalogue
                 rules: ['string', 'max:500'],
                 isPublic: true,
                 isLocalized: true,
-                reach: SettingReach::AWAITING,
+                // The description content falls back to when it has no summary, in the same
+                // language (ADR 0058 §4).
+                reach: SettingReach::PLATFORM,
             ),
         ];
     }
@@ -161,7 +163,9 @@ class GeneralCatalogue implements SettingCatalogue
                 type: SettingType::URL,
                 rules: ['url:http,https', 'max:255'],
                 isPublic: true,
-                reach: SettingReach::AWAITING,
+                // The origin every public address is composed on: canonical links,
+                // alternates, the sitemap and structured data (ADR 0058 §1).
+                reach: SettingReach::PLATFORM,
             ),
             new SettingDefinition(
                 group: 'general',

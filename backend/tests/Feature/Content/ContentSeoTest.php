@@ -154,14 +154,17 @@ test('SEO set in one language never appears in another, including canonical and 
 
     resetClient($this);
 
+    // Robots is the site's policy, not English's noindex,nofollow; canonical is null only because
+    // no public origin is configured, never English's address.
     expect($this->getJson('/api/v1/pages/من-نحن?locale=ar')->assertOk()->json('data.seo'))->toBe([
         'title' => 'من نحن',
         'description' => 'فريقنا',
-        'robots' => null,
+        'robots' => 'index,follow',
         'canonical_url' => null,
         'og_title' => 'من نحن',
         'og_description' => 'فريقنا',
         'og_image_url' => null,
+        'twitter_card' => 'summary',
     ]);
 });
 

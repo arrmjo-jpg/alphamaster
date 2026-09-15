@@ -189,3 +189,21 @@ Workshop writes keep `translation.updated` (ADR 0048).
 * A page can be live in two languages and missing in a third, and each address says exactly that.
 * Content in a draft language can be written and reviewed before the language is served.
 * `seo_meta` exists, so a later module attaches SEO without a migration of its own.
+
+## Amendment, 2026-09-15: resolution, addresses and structured data (ADR 0058)
+
+§7's resolution table is kept as decided, and is extended by ADR 0058 §4. Every step stays in the language asked for:
+
+| Value | Resolves from, in order |
+| :--- | :--- |
+| title | per-locale SEO title → the translation's title (or name) → the site's name in that locale |
+| description | per-locale SEO description → the translation's summary (or position) → the site's description in that locale |
+| robots | per-locale robots → `seo.robots_policy` → `index,follow` |
+| og image | per-locale og media → the member's avatar → `branding.og_image` |
+| canonical | per-locale canonical → the content's own address in that locale |
+
+Beyond resolution:
+* **Addresses.** Pages and team members declare where they are published: `/{locale}/pages/{slug}` and `/{locale}/team/{slug}` (ADR 0058 §1). Their public responses carry `url` and `alternates[].url`.
+* **Sitemap.** Both register sitemap sources (ADR 0058 §2).
+* **Structured data.** Both register structured data, `WebPage` and `Person` respectively, returned as `structured_data` (ADR 0058 §5).
+* **Media invalidation.** Both answer for the media their public responses show, so deleting or failing a file purges them (ADR 0058 §7).

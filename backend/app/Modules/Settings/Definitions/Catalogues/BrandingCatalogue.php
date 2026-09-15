@@ -61,8 +61,9 @@ class BrandingCatalogue implements SettingCatalogue
                 isPublic: true,
                 // Published and read by nothing yet. The console renders none of these
                 // — its own mark is in the bundle — and the public site that would is
-                // not built.
-                reach: SettingReach::AWAITING,
+                // not built. The sharing image is the exception: it is the default Open
+                // Graph image content resolves to (ADR 0058 §4).
+                reach: $key === 'og_image' ? SettingReach::PLATFORM : SettingReach::AWAITING,
             ),
             $keys,
         );

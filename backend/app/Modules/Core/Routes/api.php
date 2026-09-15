@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Modules\Core\Controllers\Admin\AuditAdminController;
 use App\Modules\Core\Controllers\Admin\CacheAdminController;
 use App\Modules\Core\Controllers\Admin\ConfigurationBackupController;
+use App\Modules\Core\Controllers\Api\SeoController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -39,6 +40,22 @@ Route::prefix('v1')->group(function (): void {
             ],
         ]);
     })->name('api.health');
+
+    // The public site's robots.txt and sitemap (ADR 0058 §2, §3). Public, cached at the edge,
+    // and tagged so a change to the configuration they read, to which languages are served, or
+    // to a source's content purges them.
+    Route::get('/robots.txt', [SeoController::class, 'robots'])
+        ->middleware('http.cache:seo,settings:public')
+        ->name('api.seo.robots');
+
+    Route::get('/sitemap.xml', [SeoController::class, 'index'])
+        ->middleware('http.cache:seo,settings:public,localization:languages')
+        ->name('api.seo.sitemap');
+
+    Route::get('/sitemaps/{source}-{file}.xml', [SeoController::class, 'file'])
+        ->where(['source' => '[a-z][a-z0-9_]*', 'file' => '[1-9][0-9]*'])
+        ->middleware('http.cache:seo,settings:public,localization:languages')
+        ->name('api.seo.sitemap.file');
 
     // The administrative trail (ADR 0037).
     //
