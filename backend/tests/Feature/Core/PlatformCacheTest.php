@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Modules\Core\Cache\CacheFailureMode;
 use App\Modules\Core\Cache\CacheKeyBuilder;
 use App\Modules\Core\Cache\CacheNamespace;
+use App\Modules\Core\Cache\CacheNamespaceDefinition;
 use App\Modules\Core\Contracts\PlatformCacheContract;
 use Illuminate\Support\Facades\Cache;
 
@@ -179,7 +180,9 @@ test('there is no way to reach a raw key or flush the store', function (): void 
     foreach ($methods as $method) {
         $first = (new ReflectionMethod(PlatformCacheContract::class, $method))->getParameters()[0] ?? null;
 
+        // A declared namespace — the platform's own or a module's registered one
+        // (ADR 0052) — and never a string.
         expect($first?->getType()?->getName())
-            ->toBe(CacheNamespace::class, $method.' does not start from a namespace');
+            ->toBe(CacheNamespaceDefinition::class, $method.' does not start from a namespace');
     }
 });

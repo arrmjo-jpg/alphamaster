@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Core\Contracts;
 
-use App\Modules\Core\Cache\CacheNamespace;
+use App\Modules\Core\Cache\CacheNamespaceDefinition;
 use Closure;
 
 /**
@@ -14,23 +14,26 @@ use Closure;
  * store: an administrative operation that could empty a shared Redis is an outage
  * with an audit trail nobody wrote, and a raw-key interface is an authorization
  * hole with no meaning to whoever reads it later.
+ *
+ * Every method takes a declared namespace — the platform's own `CacheNamespace`, or one
+ * a module registered (ADR 0052). A namespace nobody registered is refused.
  */
 interface PlatformCacheContract
 {
     /**
      * @param  array<int|string, string|int|bool|null>  $discriminators
      */
-    public function remember(CacheNamespace $namespace, string $resource, array $discriminators, Closure $callback): mixed;
+    public function remember(CacheNamespaceDefinition $namespace, string $resource, array $discriminators, Closure $callback): mixed;
 
     /**
      * @param  array<int|string, string|int|bool|null>  $discriminators
      */
-    public function get(CacheNamespace $namespace, string $resource, array $discriminators = [], mixed $default = null): mixed;
+    public function get(CacheNamespaceDefinition $namespace, string $resource, array $discriminators = [], mixed $default = null): mixed;
 
     /**
      * @param  array<int|string, string|int|bool|null>  $discriminators
      */
-    public function put(CacheNamespace $namespace, string $resource, array $discriminators, mixed $value, ?int $ttl = null): void;
+    public function put(CacheNamespaceDefinition $namespace, string $resource, array $discriminators, mixed $value, ?int $ttl = null): void;
 
     /**
      * Store a value only if nothing is stored under the key, and answer whether this
@@ -44,22 +47,22 @@ interface PlatformCacheContract
      *
      * @param  array<int|string, string|int|bool|null>  $discriminators
      */
-    public function add(CacheNamespace $namespace, string $resource, array $discriminators, mixed $value, ?int $ttl = null): bool;
+    public function add(CacheNamespaceDefinition $namespace, string $resource, array $discriminators, mixed $value, ?int $ttl = null): bool;
 
     /**
      * @param  array<int|string, string|int|bool|null>  $discriminators
      */
-    public function forget(CacheNamespace $namespace, string $resource, array $discriminators = []): void;
+    public function forget(CacheNamespaceDefinition $namespace, string $resource, array $discriminators = []): void;
 
     /**
      * Invalidate one namespace entirely, reaching nothing outside it.
      */
-    public function flushNamespace(CacheNamespace $namespace): void;
+    public function flushNamespace(CacheNamespaceDefinition $namespace): void;
 
-    public function generation(CacheNamespace $namespace): int;
+    public function generation(CacheNamespaceDefinition $namespace): int;
 
     /**
      * @param  array<int|string, string|int|bool|null>  $discriminators
      */
-    public function key(CacheNamespace $namespace, string $resource, array $discriminators = []): string;
+    public function key(CacheNamespaceDefinition $namespace, string $resource, array $discriminators = []): string;
 }

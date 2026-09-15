@@ -91,3 +91,5 @@ The cost is indirection: a developer adding a cached value declares a namespace 
 Existing entries are not migrated. The four current owners move to the builder as they are touched, and the namespace version exists to make a shape change safe when they are.
 
 Nothing here governs HTTP responses. Application cache and HTTP representation are different layers with different keys, different lifetimes and different failure modes; ADR 0036 covers that one.
+
+**Amended by ADR 0052.** Namespaces are no longer only the cases of one Core enum. A module declares its own namespaces by implementing `CacheNamespaceDefinition` and registering them with `CacheNamespaceRegistry`. The platform cache refuses any namespace that was not registered, so no call site can invent one, which is the rule this record set.

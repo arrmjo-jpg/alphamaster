@@ -4,14 +4,20 @@ declare(strict_types=1);
 
 namespace App\Modules\Authorization\Enums;
 
+use App\Modules\Authorization\Contracts\PermissionDefinition;
+
 /**
- * The administrative permission catalogue.
+ * The platform's own administrative permissions.
  *
  * Two-segment keys, {resource}.{action}, with the owning module recorded in its own
- * column rather than folded into the name. Enumerating them here means a permission
+ * column rather than folded into the name. Enumerating them means a permission
  * string is never invented at a call site and typos fail at the type level.
+ *
+ * These are the permissions of the modules that ship with the platform. A module added
+ * later declares its own enum and registers it with `PermissionCatalogue` rather than
+ * adding cases here (ADR 0052).
  */
-enum AdminPermission: string
+enum AdminPermission: string implements PermissionDefinition
 {
     case USERS_VIEW = 'users.view';
     case USERS_CREATE = 'users.create';
@@ -104,6 +110,11 @@ enum AdminPermission: string
      * accepting is the owning content's own write permission.
      */
     case AI_USE = 'ai.use';
+
+    public function key(): string
+    {
+        return $this->value;
+    }
 
     /**
      * The module that owns this permission.

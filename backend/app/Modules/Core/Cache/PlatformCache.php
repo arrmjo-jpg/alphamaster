@@ -22,13 +22,20 @@ use Throwable;
  * store. On a shared Redis a flush empties the whole logical database including
  * entries this platform did not write — Phase 15 demonstrated that when a test run
  * destroyed the development cache.
+ *
+ * A namespace must be registered before it is used (ADR 0052). The check runs before
+ * any fail-open handling, so an unregistered namespace is a loud programming error and
+ * never a silent cache bypass.
  */
 class PlatformCache implements PlatformCacheContract
 {
     /** Generations are read far more often than they change. */
     private const GENERATION_TTL = 604800;
 
-    public function __construct(private readonly CacheKeyBuilder $keys) {}
+    public function __construct(
+        private readonly CacheKeyBuilder $keys,
+        private readonly ?CacheNamespaceRegistry $registry = null,
+    ) {}
 
     /**
      * Read through the cache, computing and storing on a miss.
@@ -40,11 +47,12 @@ class PlatformCache implements PlatformCacheContract
      * @param  array<int|string, string|int|bool|null>  $discriminators
      */
     public function remember(
-        CacheNamespace $namespace,
+        CacheNamespaceDefinition $namespace,
         string $resource,
         array $discriminators,
         Closure $callback,
     ): mixed {
+        $this->guard($namespace);
         $policy = $namespace->policy();
 
         try {
@@ -72,8 +80,10 @@ class PlatformCache implements PlatformCacheContract
      *
      * @param  array<int|string, string|int|bool|null>  $discriminators
      */
-    public function get(CacheNamespace $namespace, string $resource, array $discriminators = [], mixed $default = null): mixed
+    public function get(CacheNamespaceDefinition $namespace, string $resource, array $discriminators = [], mixed $default = null): mixed
     {
+        $this->guard($namespace);
+
         try {
             return $this->store()->get($this->key($namespace, $resource, $discriminators), $default);
         } catch (Throwable $e) {
@@ -88,8 +98,10 @@ class PlatformCache implements PlatformCacheContract
     /**
      * @param  array<int|string, string|int|bool|null>  $discriminators
      */
-    public function put(CacheNamespace $namespace, string $resource, array $discriminators, mixed $value, ?int $ttl = null): void
+    public function put(CacheNamespaceDefinition $namespace, string $resource, array $discriminators, mixed $value, ?int $ttl = null): void
     {
+        $this->guard($namespace);
+
         try {
             $this->store()->put(
                 $this->key($namespace, $resource, $discriminators),
@@ -108,8 +120,10 @@ class PlatformCache implements PlatformCacheContract
      *
      * @param  array<int|string, string|int|bool|null>  $discriminators
      */
-    public function add(CacheNamespace $namespace, string $resource, array $discriminators, mixed $value, ?int $ttl = null): bool
+    public function add(CacheNamespaceDefinition $namespace, string $resource, array $discriminators, mixed $value, ?int $ttl = null): bool
     {
+        $this->guard($namespace);
+
         try {
             return $this->store()->add(
                 $this->key($namespace, $resource, $discriminators),
@@ -131,8 +145,10 @@ class PlatformCache implements PlatformCacheContract
      *
      * @param  array<int|string, string|int|bool|null>  $discriminators
      */
-    public function forget(CacheNamespace $namespace, string $resource, array $discriminators = []): void
+    public function forget(CacheNamespaceDefinition $namespace, string $resource, array $discriminators = []): void
     {
+        $this->guard($namespace);
+
         try {
             $this->store()->forget($this->key($namespace, $resource, $discriminators));
         } catch (Throwable $e) {
@@ -150,8 +166,10 @@ class PlatformCache implements PlatformCacheContract
      * This is what replaces a flush — it is scoped by construction, it cannot reach
      * another namespace, and it cannot touch a key the platform did not write.
      */
-    public function flushNamespace(CacheNamespace $namespace): void
+    public function flushNamespace(CacheNamespaceDefinition $namespace): void
     {
+        $this->guard($namespace);
+
         try {
             $key = $this->keys->generationKey($namespace);
             $store = $this->store();
@@ -172,8 +190,10 @@ class PlatformCache implements PlatformCacheContract
      * A store that cannot answer yields 0 rather than raising: a fail-open read
      * whose generation is unknown should still produce a usable key.
      */
-    public function generation(CacheNamespace $namespace): int
+    public function generation(CacheNamespaceDefinition $namespace): int
     {
+        $this->guard($namespace);
+
         try {
             return $this->asGeneration($this->store()->get($this->keys->generationKey($namespace)));
         } catch (Throwable) {
@@ -184,9 +204,19 @@ class PlatformCache implements PlatformCacheContract
     /**
      * @param  array<int|string, string|int|bool|null>  $discriminators
      */
-    public function key(CacheNamespace $namespace, string $resource, array $discriminators = []): string
+    public function key(CacheNamespaceDefinition $namespace, string $resource, array $discriminators = []): string
     {
+        $this->guard($namespace);
+
         return $this->keys->build($namespace, $resource, $discriminators, $this->generation($namespace));
+    }
+
+    /**
+     * Refuse a namespace nobody declared.
+     */
+    private function guard(CacheNamespaceDefinition $namespace): void
+    {
+        ($this->registry ?? app(CacheNamespaceRegistry::class))->assertRegistered($namespace);
     }
 
     /**

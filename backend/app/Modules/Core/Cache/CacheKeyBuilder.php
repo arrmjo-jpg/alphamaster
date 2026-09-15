@@ -28,14 +28,14 @@ final readonly class CacheKeyBuilder
      * @param  array<int|string, string|int|bool|null>  $discriminators
      */
     public function build(
-        CacheNamespace $namespace,
+        CacheNamespaceDefinition $namespace,
         string $resource,
         array $discriminators = [],
         int $generation = 0,
     ): string {
         $this->assertResource($resource);
 
-        $parts = [$namespace->value, $resource];
+        $parts = [$namespace->namespace(), $resource];
 
         foreach ($this->normalise($discriminators) as $discriminator) {
             $parts[] = $discriminator;
@@ -52,9 +52,9 @@ final readonly class CacheKeyBuilder
      * Deliberately outside the namespace's own key space: bumping a generation must
      * not invalidate the counter that records it.
      */
-    public function generationKey(CacheNamespace $namespace): string
+    public function generationKey(CacheNamespaceDefinition $namespace): string
     {
-        return 'cache_generation:'.$namespace->value;
+        return 'cache_generation:'.$namespace->namespace();
     }
 
     /**

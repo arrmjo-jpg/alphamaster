@@ -5,13 +5,17 @@ declare(strict_types=1);
 namespace App\Modules\Core\Cache;
 
 /**
- * The owning domain of a cache entry (ADR 0035).
+ * The platform's own cache namespaces (ADR 0035).
  *
  * One namespace per owner, so invalidation can be scoped to a domain without
- * knowing that domain's keys. A namespace is declared here rather than passed as a
+ * knowing that domain's keys. A namespace is declared rather than passed as a
  * string, which is what stops a typo becoming a second, permanently cold namespace.
+ *
+ * These are the namespaces of the modules that ship with the platform. A module added
+ * later declares its own enum implementing `CacheNamespaceDefinition` and registers it,
+ * rather than adding a case here (ADR 0052).
  */
-enum CacheNamespace: string
+enum CacheNamespace: string implements CacheNamespaceDefinition
 {
     case SETTINGS = 'settings';
     case LOCALIZATION = 'localization';
@@ -24,6 +28,22 @@ enum CacheNamespace: string
      * lives encrypted on the provider row and is read at the moment it is used.
      */
     case INTEGRATION = 'integration';
+
+    public function namespace(): string
+    {
+        return $this->value;
+    }
+
+    /**
+     * Two namespaces cannot be invalidated from the Admin. `auth` is the source of truth
+     * for MFA challenges and social login states in flight, so invalidating it would sign
+     * people out of the middle of a sign-in. `authorization` belongs to the permission
+     * package, which manages its own entries.
+     */
+    public function flushable(): bool
+    {
+        return ! in_array($this, [self::AUTH, self::AUTHORIZATION], true);
+    }
 
     /**
      * This namespace's lifetime, failure behaviour and shape version.
