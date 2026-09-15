@@ -666,7 +666,7 @@ export type RoleRequest = {
      * same in a list while remaining distinct underneath.
      */
     label: string;
-    permissions: Array<'users.view' | 'users.create' | 'users.update' | 'users.delete' | 'settings.view' | 'settings.update' | 'settings.rollback' | 'settings.security.update' | 'settings.secrets.manage' | 'audit.view' | 'audit.manage' | 'settings.backup.manage' | 'roles.view' | 'roles.update' | 'permissions.view' | 'permissions.update' | 'integrations.view' | 'integrations.update' | 'notifications.view' | 'notifications.update' | 'notifications.send' | 'media.view' | 'media.delete' | 'ai.use' | 'cdn.view' | 'cdn.purge' | 'cdn.purge_everything' | 'media.analysis.view' | 'media.analysis.request' | 'media.analysis.review' | 'interface.translate' | 'pages.view' | 'pages.create' | 'pages.update' | 'pages.publish' | 'pages.delete' | 'team.view' | 'team.create' | 'team.update' | 'team.delete'>;
+    permissions: Array<'users.view' | 'users.create' | 'users.update' | 'users.delete' | 'settings.view' | 'settings.update' | 'settings.rollback' | 'settings.security.update' | 'settings.secrets.manage' | 'audit.view' | 'audit.manage' | 'settings.backup.manage' | 'roles.view' | 'roles.update' | 'permissions.view' | 'permissions.update' | 'integrations.view' | 'integrations.update' | 'notifications.view' | 'notifications.update' | 'notifications.send' | 'media.view' | 'media.delete' | 'ai.use' | 'cdn.view' | 'cdn.purge' | 'cdn.purge_everything' | 'media.analysis.view' | 'media.analysis.request' | 'media.analysis.review' | 'interface.translate' | 'languages.manage' | 'pages.view' | 'pages.create' | 'pages.update' | 'pages.publish' | 'pages.delete' | 'team.view' | 'team.create' | 'team.update' | 'team.delete'>;
 };
 
 export type RoleResource = {
