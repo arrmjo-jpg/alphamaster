@@ -622,7 +622,8 @@
             "mail": "Mail",
             "operations": "Operations",
             "rate_limit": "Rate limits",
-            "security": "Security"
+            "security": "Security",
+            "seo": "Search"
         },
         "eyebrow": "Configuration",
         "reach": {

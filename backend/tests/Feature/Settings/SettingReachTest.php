@@ -44,7 +44,8 @@ function settingsNothingReadsYet(): array
 {
     return [
         // ── The public website (not started; out of scope for M3) ──
-        'general.site_description' => 'public site',
+        // general.site_description, general.frontend_url and branding.og_image left this list
+        // when SEO began reading them (ADR 0058 §1, §4).
         'general.official_email' => 'public site',
         'general.contact_phones' => 'public site',
         'general.contact_person' => 'public site',
@@ -52,7 +53,6 @@ function settingsNothingReadsYet(): array
         'general.location_latitude' => 'public site',
         'general.location_longitude' => 'public site',
         'general.site_url' => 'public site',
-        'general.frontend_url' => 'public site',
         'general.admin_url' => 'public site',
         'general.footer_copyright' => 'public site',
         'general.footer_text' => 'public site',
@@ -63,7 +63,6 @@ function settingsNothingReadsYet(): array
         'branding.logo_dark' => 'public site',
         'branding.logo_light_en' => 'public site',
         'branding.logo_dark_en' => 'public site',
-        'branding.og_image' => 'public site',
 
         // ── The image pipeline (ADR 0024, deferred by ADR 0029 item 17) ──
         'branding.max_image_dimension' => 'image pipeline',

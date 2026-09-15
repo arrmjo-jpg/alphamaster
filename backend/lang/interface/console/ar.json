@@ -726,7 +726,8 @@
             "mail": "البريد",
             "operations": "التشغيل",
             "rate_limit": "حدود المعدّل",
-            "security": "الأمان"
+            "security": "الأمان",
+            "seo": "البحث"
         },
         "eyebrow": "التهيئة",
         "reach": {
