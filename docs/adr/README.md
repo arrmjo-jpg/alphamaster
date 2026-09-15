@@ -61,3 +61,4 @@ This directory maintains the architectural decision records for the **alphamaste
 | [0055](0055-localized-static-pages-and-team-directory.md) | Localized Static Pages and the Team Directory | Accepted |
 | [0056](0056-item-level-translation-batches.md) | Item-Level Translation Batches | Accepted |
 | [0057](0057-account-self-service-and-media-references-in-content.md) | Account Self-Service in the Console, and Media References in Content | Accepted |
+| [0058](0058-seo-platform-public-urls-sitemap-robots-defaults-structured-data.md) | The SEO Platform — Public Addresses, Sitemap, Robots, Site Defaults, Structured Data and Media Invalidation | Accepted |
