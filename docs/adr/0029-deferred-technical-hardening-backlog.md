@@ -291,10 +291,11 @@ Found while building item 4 and confirmed during its review, where the same prio
 
 *Closed by*, as built: ADR 0046. The answer to the shared-bucket question turned out to be that the limiter should never refuse on the way *in*. Global middleware wraps `Authenticate`, and counts — per hashed address, against the anonymous ceiling — only requests that authentication already refused; past the ceiling those refusals are answered 429 instead of 401. A credential that authenticates is never touched, so a hostile caller behind a shared address can exhaust nothing but its own refusals. A wrong password and a failed second factor are not counted: they answer 401 too, but they are not rejected credentials, and each has its own throttle. Requests that match no route remain the edge's to limit, as ADR 0046 records.
 
-### 23. An administrator can see their own account but cannot change it — OPEN
+### 23. An administrator can see their own account but cannot change it — CLOSED (ADR 0057)
 
-*Decision*: none yet. *Implementation*: partially built — a page that reads, and a
-second-factor API no screen manages.
+*Decision*: ADR 0057. *Implementation*: built — the account page edits the profile, changes
+the password, sets the picture and reports and disables the second factor, over the
+self-service endpoints of ADR 0051 §4. The history below is kept as it was written.
 
 The console has an account page at `/account`, reached from the account menu rather than
 the navigation. It shows the signed-in identity from `/auth/me` and confirms a phone
@@ -324,10 +325,15 @@ changing a password revokes other sessions, whether a second factor may be repla
 using only the current session or needs a challenge first — and none of them should be
 settled as a side effect of moving a menu.
 
-*Closed by*: an ADR deciding the self-service perimeter; endpoints for the account to
-amend its identity and change its password, distinct from the administrative ones; a
-Security section on the account page over those and the existing second-factor
-endpoints; and the Security entry the account menu already has a place for.
+*Closed by*: ADR 0057, as built. The perimeter was mostly settled by ADR 0051 §4, which
+arrived after this item was written: `/profile` acts on the caller and accepts an
+administrator's token; an administrator's address stays with account management; a password
+change needs the current password and signs out every other session. ADR 0057 puts the
+console over those endpoints and the existing second-factor ones, records each self-service
+change in the trail, and answers the remaining question — a second factor is disabled only with
+a current code or an unused recovery code, and for an administrator that signs out every
+session and requires enrolment at the next sign-in. Replacing a method from inside a session,
+without signing in again, is still not offered.
 
 ### 24. A language cannot say which region it is for — OPEN
 
