@@ -2,7 +2,7 @@
 
 * **Status**: Accepted
 * **Date**: 2026-09-04
-* **Implementation**: Not started, and deliberately not scoped to a phase yet. See *Implementation status* below.
+* **Implementation**: Partial. The per-locale store, its write path and in-locale resolution are built in Core and consumed by Pages and Team (ADR 0055 §7, which amends the locale fallback below). Site-level defaults in resolution, `twitter_*`, sitemap, robots.txt and structured data are not built. See ADR 0029 item 18.
 
 ## Context
 

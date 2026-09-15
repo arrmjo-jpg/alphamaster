@@ -442,6 +442,29 @@
             "translated": "Translated",
             "incomplete": "Incomplete ({{filled}} of {{total}})",
             "missing": "Not translated"
+        },
+        "seo": {
+            "heading": "Search and sharing",
+            "intro": "This language only. Anything left empty is taken from this language's own content, never from another language.",
+            "title": "Search title",
+            "titleHint": "Shown in search results and the browser tab. Left empty, the content's own title is used.",
+            "description": "Search description",
+            "descriptionHint": "Left empty, the content's own summary is used.",
+            "robots": "Search engines",
+            "robotsDefault": "Follow the site's policy",
+            "robotsIndexFollow": "Index this, and follow its links",
+            "robotsNoindexFollow": "Do not index this, but follow its links",
+            "robotsIndexNofollow": "Index this, but do not follow its links",
+            "robotsNoindexNofollow": "Do not index this or follow its links",
+            "canonical": "Canonical address",
+            "canonicalHint": "A full http or https address, only when this content's preferred address is somewhere else.",
+            "ogTitle": "Sharing title",
+            "ogTitleHint": "Shown when this language's address is shared. Left empty, the search title is used.",
+            "ogDescription": "Sharing description",
+            "ogDescriptionHint": "Left empty, the search description is used.",
+            "ogImage": "Sharing image",
+            "ogImageHint": "Shown when this language's address is shared. Saved with this language.",
+            "count": "{{count}} of {{max}} characters"
         }
     },
     "settings": {
@@ -1479,13 +1502,8 @@
             "slugHint": "Letters, numbers and single hyphens. Made from the title when left empty.",
             "summary": "Summary",
             "body": "Body",
-            "bodyHint": "HTML. Scripts, styles and unsafe links are removed when it is saved.",
-            "seoTitle": "SEO title",
-            "seoDescription": "SEO description",
-            "ogImage": "Sharing image",
-            "ogImageHint": "Shown when this language's address is shared. Saved with the translation."
+            "bodyHint": "HTML. Scripts, styles and unsafe links are removed when it is saved."
         },
-        "seo": "SEO",
         "save": "Save translation",
         "saved": "Saved.",
         "publish": "Publish",
@@ -1514,14 +1532,9 @@
             "slugHint": "Letters, numbers and single hyphens. Made from the name when left empty.",
             "bio": "Biography",
             "bioHint": "HTML. Scripts, styles and unsafe links are removed when it is saved.",
-            "seoTitle": "SEO title",
-            "seoDescription": "SEO description",
             "avatar": "Picture",
-            "avatarHint": "The same in every language. Saved as soon as it is chosen.",
-            "ogImage": "Sharing image",
-            "ogImageHint": "Shown when this language's profile is shared. Left empty, the picture is used. Saved with the profile."
+            "avatarHint": "The same in every language. Saved as soon as it is chosen."
         },
-        "seo": "SEO",
         "social": "Social links",
         "socialHint": "Full web addresses, the same in every language.",
         "saveLinks": "Save links",

@@ -7,7 +7,6 @@ namespace App\Modules\Team\Requests;
 use App\Modules\Core\Seo\SeoFields;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 /**
  * One language's profile and SEO for a team member (ADR 0055). The language is in the path.
@@ -31,14 +30,8 @@ class WriteTeamMemberTranslationRequest extends FormRequest
             'bio' => ['sometimes', 'nullable', 'string', 'max:50000'],
             /** Lower-case letters in any script, digits and single hyphens. Made from the name when absent. */
             'slug' => ['sometimes', 'nullable', 'string', 'max:190'],
-            'seo' => ['sometimes', 'nullable', 'array'],
-            'seo.title' => ['sometimes', 'nullable', 'string', 'max:255'],
-            'seo.description' => ['sometimes', 'nullable', 'string', 'max:1000'],
-            'seo.robots' => ['sometimes', 'nullable', 'string', Rule::in(SeoFields::ROBOTS)],
-            'seo.canonical_url' => ['sometimes', 'nullable', 'string', 'max:2048', 'url:http,https'],
-            'seo.og_title' => ['sometimes', 'nullable', 'string', 'max:255'],
-            'seo.og_description' => ['sometimes', 'nullable', 'string', 'max:1000'],
-            'seo.og_media_id' => ['sometimes', 'nullable', 'string', 'ulid'],
+            // This language's search and sharing fields, validated by Core's rules.
+            ...SeoFields::rules(),
         ];
     }
 

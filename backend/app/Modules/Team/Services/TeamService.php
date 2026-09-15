@@ -132,8 +132,8 @@ class TeamService
 
         $seoFields = $seo === null ? null : SeoFields::fromArray($seo);
 
-        if ($seoFields?->ogMediaId !== null && $this->media->publicImage($seoFields->ogMediaId) === null) {
-            throw ContentRefusedException::imageUnavailable('seo.og_media_id');
+        if ($seoFields !== null) {
+            $this->seo->assertUsable($seoFields);
         }
 
         return DB::transaction(function () use ($member, $locale, $values, $seoFields, $actorId): ?TeamMemberTranslation {
@@ -164,16 +164,7 @@ class TeamService
                 $this->persist($row, $existing);
             }
 
-            $seoChanged = false;
-
-            if ($seoFields !== null) {
-                $previous = $this->seo->for($member, $locale) ?? new SeoFields;
-                $seoChanged = $previous->toArray() !== $seoFields->toArray();
-
-                if ($seoChanged) {
-                    $this->seo->put($member, $locale, $seoFields);
-                }
-            }
+            $seoChanged = $seoFields !== null && $this->seo->write($member, $locale, $seoFields);
 
             if ($changed !== [] || $seoChanged) {
                 $member->forceFill(['updated_by' => $actorId])->touch();
@@ -195,7 +186,7 @@ class TeamService
     public function delete(TeamMember $member): void
     {
         DB::transaction(function () use ($member): void {
-            $this->seo->forget($member);
+            // Their SEO goes with them, through HasSeoMeta.
             $member->delete();
 
             $this->audit->succeeded('team_member.deleted', $member->id);

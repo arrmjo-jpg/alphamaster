@@ -219,11 +219,27 @@ The processing pipeline exists; no image processor can run. The container image 
 
 *Closed by*: adding the image extensions to the container image, then implementing named variants and watermarking against the existing contracts. The original is never modified and never watermarked.
 
-### 18. SEO has no contracts
+### 18. SEO contracts are partly built — OPEN
 
-*Decision*: ADR 0032. *Implementation*: deliberately unphased.
+*Decision*: ADR 0032, amended by ADR 0055 §7. *Implementation*: partial.
 
-*Closed by*: implementing the contracts when a consumer exists whose requirements can test them. Building them against no consumer is the speculative surface ADR 0024 has already recorded twice, and ADR 0033 forbids.
+Built, with Pages and Team as the consumers the item waited for:
+* `seo_meta`, one polymorphic row per owner and locale.
+* `SeoMetaStore`, holding the write path, the image rule and in-locale resolution.
+* `SeoFields::rules()`.
+* `HasSeoMeta`, which deletes an owner's rows with the owner.
+
+Not built:
+* Site-level defaults in resolution: a site robots policy, a default sharing image, and a default title.
+* `twitter_*`.
+* A sitemap contract.
+* A public robots.txt.
+* Structured data.
+* Any public URL a canonical or alternate could default to.
+
+Each of these waits on a decision about how an API-only platform names its public addresses.
+
+*Closed by*: that decision, recorded, and the contracts built against it.
 
 ### 19. Scramble emits a keyword OpenAPI 3.1 does not allow — upstream blocker
 

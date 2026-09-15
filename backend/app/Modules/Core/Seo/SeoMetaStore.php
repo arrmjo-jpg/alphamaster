@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Core\Seo;
 
+use App\Modules\Core\Content\ContentRefusedException;
 use App\Modules\Core\Contracts\MediaReferenceContract;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -61,6 +62,44 @@ class SeoMetaStore
             ],
             $fields->toArray(),
         );
+    }
+
+    /**
+     * Refuse a sharing image that is not a public image ready to serve (ADR 0055 §10).
+     *
+     * Separate from `write` so an owner can refuse before it takes a lock.
+     *
+     * @throws ContentRefusedException
+     */
+    public function assertUsable(SeoFields $fields): void
+    {
+        if ($fields->ogMediaId !== null && $this->media->publicImage($fields->ogMediaId) === null) {
+            throw ContentRefusedException::imageUnavailable('seo.og_media_id');
+        }
+    }
+
+    /**
+     * Replace one language's metadata if it changed, and answer whether it did.
+     *
+     * The one write path for every module: the image rule is applied here, and the answer lets
+     * the owner decide what to audit and which edge tags to purge without comparing fields
+     * itself.
+     *
+     * @throws ContentRefusedException
+     */
+    public function write(Model $owner, string $locale, SeoFields $fields): bool
+    {
+        $this->assertUsable($fields);
+
+        $previous = $this->for($owner, $locale) ?? new SeoFields;
+
+        if ($previous->toArray() === $fields->toArray()) {
+            return false;
+        }
+
+        $this->put($owner, $locale, $fields);
+
+        return true;
     }
 
     public function forget(Model $owner): void

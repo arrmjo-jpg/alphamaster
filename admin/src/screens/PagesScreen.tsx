@@ -7,7 +7,8 @@ import { ApiError } from '@/api/errors';
 import { useCurrentUser } from '@/auth/AuthProvider';
 import { initialContentLanguage } from '@/lib/contentLanguages';
 import { ContentTextArea } from '@/screens/content/ContentFields';
-import { MediaImageField } from '@/screens/content/MediaImageField';
+import { seoChanged, seoDraftFor, seoWrite, type SeoDraft } from '@/screens/content/seo';
+import { SeoFieldsEditor } from '@/screens/content/SeoFieldsEditor';
 import { languageNames, textOrNull } from '@/screens/content/text';
 import { languages as fetchLanguages, type AdminLanguage } from '@/screens/languages/api';
 import {
@@ -19,7 +20,6 @@ import {
     unpublishPage,
     writePageTranslation,
     type AdminPage,
-    type PageSeoWrite,
     type PageTranslationWrite,
 } from '@/screens/pages/api';
 import { Alert } from '@/ui/Alert';
@@ -180,9 +180,7 @@ interface PageDraft {
     slug: string;
     summary: string;
     body: string;
-    seo_title: string;
-    seo_description: string;
-    og_media_id: string | null;
+    seo: SeoDraft;
 }
 
 const CONTENT_FIELDS = ['title', 'slug', 'summary', 'body'] as const;
@@ -190,16 +188,13 @@ const CONTENT_FIELDS = ['title', 'slug', 'summary', 'body'] as const;
 /** What is written in one language — and nothing, never another language's text, where it is not. */
 function draftFor(page: AdminPage, locale: string): PageDraft {
     const written = page.translations[locale];
-    const seo = page.seo[locale];
 
     return {
         title: written?.title ?? '',
         slug: written?.slug ?? '',
         summary: written?.summary ?? '',
         body: written?.body ?? '',
-        seo_title: seo?.title ?? '',
-        seo_description: seo?.description ?? '',
-        og_media_id: seo?.og_media_id ?? null,
+        seo: seoDraftFor(page.seo[locale]),
     };
 }
 
@@ -238,24 +233,9 @@ function PageEditor({
         }
     }
 
-    if (
-        draft.seo_title !== base.seo_title ||
-        draft.seo_description !== base.seo_description ||
-        draft.og_media_id !== base.og_media_id
-    ) {
-        const current = page.seo[locale];
-
-        // The whole language's SEO is replaced, so what this editor does not show is sent back
-        // as it is.
-        changes.seo = {
-            title: textOrNull(draft.seo_title),
-            description: textOrNull(draft.seo_description),
-            robots: (current?.robots ?? null) as NonNullable<PageSeoWrite['robots']> | null,
-            canonical_url: current?.canonical_url ?? null,
-            og_title: current?.og_title ?? null,
-            og_description: current?.og_description ?? null,
-            og_media_id: draft.og_media_id,
-        };
+    // A language's SEO is replaced as a whole, and every field is in the editor.
+    if (seoChanged(draft.seo, base.seo)) {
+        changes.seo = seoWrite(draft.seo);
     }
 
     const dirty = Object.keys(changes).length > 0;
@@ -454,38 +434,13 @@ function PageEditor({
                         value={draft.body}
                     />
 
-                    <h3 data-eyebrow>{t('pages.seo')}</h3>
-
-                    <Field label={t('pages.fields.seoTitle')}>
-                        {({ id, 'aria-describedby': describedBy }) => (
-                            <Input
-                                {...text}
-                                aria-describedby={describedBy}
-                                disabled={!mayUpdate}
-                                id={id}
-                                onChange={(event) => set({ seo_title: event.target.value })}
-                                value={draft.seo_title}
-                            />
-                        )}
-                    </Field>
-
-                    <ContentTextArea
-                        {...text}
-                        disabled={!mayUpdate}
-                        label={t('pages.fields.seoDescription')}
-                        onChange={(value) => set({ seo_description: value })}
-                        rows={2}
-                        value={draft.seo_description}
-                    />
-
-                    <MediaImageField
+                    <SeoFieldsEditor
                         collection="pages"
+                        direction={text.dir}
                         disabled={!mayUpdate}
-                        hint={t('pages.fields.ogImageHint')}
-                        key={`og-${locale}`}
-                        label={t('pages.fields.ogImage')}
-                        mediaId={draft.og_media_id}
-                        onChange={(id) => set({ og_media_id: id })}
+                        locale={locale}
+                        onChange={(seo) => set({ seo })}
+                        value={draft.seo}
                     />
 
                     {save.error instanceof ApiError ? (

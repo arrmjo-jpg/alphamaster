@@ -8,6 +8,8 @@ import { useCurrentUser } from '@/auth/AuthProvider';
 import { initialContentLanguage } from '@/lib/contentLanguages';
 import { ContentTextArea } from '@/screens/content/ContentFields';
 import { MediaImageField } from '@/screens/content/MediaImageField';
+import { seoChanged, seoDraftFor, seoWrite, type SeoDraft } from '@/screens/content/seo';
+import { SeoFieldsEditor } from '@/screens/content/SeoFieldsEditor';
 import { languageNames, textOrNull } from '@/screens/content/text';
 import { languages as fetchLanguages, type AdminLanguage } from '@/screens/languages/api';
 import {
@@ -18,7 +20,6 @@ import {
     updateMember,
     writeProfile,
     type AdminTeamMember,
-    type ProfileSeoWrite,
     type ProfileWrite,
     type SocialLinks,
 } from '@/screens/team/api';
@@ -168,25 +169,20 @@ interface ProfileDraft {
     position: string;
     slug: string;
     bio: string;
-    seo_title: string;
-    seo_description: string;
-    og_media_id: string | null;
+    seo: SeoDraft;
 }
 
 const PROFILE_FIELDS = ['name', 'position', 'slug', 'bio'] as const;
 
 function draftFor(member: AdminTeamMember, locale: string): ProfileDraft {
     const written = member.translations[locale];
-    const seo = member.seo[locale];
 
     return {
         name: written?.name ?? '',
         position: written?.position ?? '',
         slug: written?.slug ?? '',
         bio: written?.bio ?? '',
-        seo_title: seo?.title ?? '',
-        seo_description: seo?.description ?? '',
-        og_media_id: seo?.og_media_id ?? null,
+        seo: seoDraftFor(member.seo[locale]),
     };
 }
 
@@ -231,22 +227,9 @@ function MemberEditor({
         }
     }
 
-    if (
-        draft.seo_title !== base.seo_title ||
-        draft.seo_description !== base.seo_description ||
-        draft.og_media_id !== base.og_media_id
-    ) {
-        const current = member.seo[locale];
-
-        changes.seo = {
-            title: textOrNull(draft.seo_title),
-            description: textOrNull(draft.seo_description),
-            robots: (current?.robots ?? null) as NonNullable<ProfileSeoWrite['robots']> | null,
-            canonical_url: current?.canonical_url ?? null,
-            og_title: current?.og_title ?? null,
-            og_description: current?.og_description ?? null,
-            og_media_id: draft.og_media_id,
-        };
+    // A language's SEO is replaced as a whole, and every field is in the editor.
+    if (seoChanged(draft.seo, base.seo)) {
+        changes.seo = seoWrite(draft.seo);
     }
 
     const dirty = Object.keys(changes).length > 0;
@@ -433,38 +416,13 @@ function MemberEditor({
                         value={draft.bio}
                     />
 
-                    <h3 data-eyebrow>{t('team.seo')}</h3>
-
-                    <Field label={t('team.fields.seoTitle')}>
-                        {({ id, 'aria-describedby': describedBy }) => (
-                            <Input
-                                {...text}
-                                aria-describedby={describedBy}
-                                disabled={!mayUpdate}
-                                id={id}
-                                onChange={(event) => set({ seo_title: event.target.value })}
-                                value={draft.seo_title}
-                            />
-                        )}
-                    </Field>
-
-                    <ContentTextArea
-                        {...text}
-                        disabled={!mayUpdate}
-                        label={t('team.fields.seoDescription')}
-                        onChange={(value) => set({ seo_description: value })}
-                        rows={2}
-                        value={draft.seo_description}
-                    />
-
-                    <MediaImageField
+                    <SeoFieldsEditor
                         collection="team"
+                        direction={text.dir}
                         disabled={!mayUpdate}
-                        hint={t('team.fields.ogImageHint')}
-                        key={`og-${locale}`}
-                        label={t('team.fields.ogImage')}
-                        mediaId={draft.og_media_id}
-                        onChange={(id) => set({ og_media_id: id })}
+                        locale={locale}
+                        onChange={(seo) => set({ seo })}
+                        value={draft.seo}
                     />
 
                     {save.error instanceof ApiError ? (

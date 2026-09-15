@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Modules\Core\Seo;
 
+use Illuminate\Validation\Rule;
+
 /**
  * What an operator set for search and sharing, in one language (ADR 0032, ADR 0055 §7).
  *
@@ -15,6 +17,36 @@ final readonly class SeoFields
     public const FIELDS = ['title', 'description', 'robots', 'canonical_url', 'og_title', 'og_description', 'og_media_id'];
 
     public const ROBOTS = ['index,follow', 'noindex,follow', 'index,nofollow', 'noindex,nofollow'];
+
+    public const TITLE_MAX = 255;
+
+    public const DESCRIPTION_MAX = 1000;
+
+    public const CANONICAL_MAX = 2048;
+
+    /**
+     * The validation for one language's SEO, under a key prefix.
+     *
+     * Every module that carries SEO validates it with these rules rather than restating them,
+     * so two consumers cannot drift apart on what a canonical address or a robots value may
+     * be. A canonical address must be http or https: a `javascript:` or `data:` value never
+     * reaches a page's head.
+     *
+     * @return array<string, list<mixed>>
+     */
+    public static function rules(string $prefix = 'seo'): array
+    {
+        return [
+            $prefix => ['sometimes', 'nullable', 'array'],
+            "{$prefix}.title" => ['sometimes', 'nullable', 'string', 'max:'.self::TITLE_MAX],
+            "{$prefix}.description" => ['sometimes', 'nullable', 'string', 'max:'.self::DESCRIPTION_MAX],
+            "{$prefix}.robots" => ['sometimes', 'nullable', 'string', Rule::in(self::ROBOTS)],
+            "{$prefix}.canonical_url" => ['sometimes', 'nullable', 'string', 'max:'.self::CANONICAL_MAX, 'url:http,https'],
+            "{$prefix}.og_title" => ['sometimes', 'nullable', 'string', 'max:'.self::TITLE_MAX],
+            "{$prefix}.og_description" => ['sometimes', 'nullable', 'string', 'max:'.self::DESCRIPTION_MAX],
+            "{$prefix}.og_media_id" => ['sometimes', 'nullable', 'string', 'ulid'],
+        ];
+    }
 
     public function __construct(
         public ?string $title = null,

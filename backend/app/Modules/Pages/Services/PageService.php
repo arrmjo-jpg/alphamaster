@@ -9,7 +9,6 @@ use App\Modules\Core\Content\ContentRefusedException;
 use App\Modules\Core\Content\HtmlSanitizer;
 use App\Modules\Core\Contracts\AuditRecorderContract;
 use App\Modules\Core\Contracts\EdgeCacheContract;
-use App\Modules\Core\Contracts\MediaReferenceContract;
 use App\Modules\Core\Delivery\EdgeCacheTag;
 use App\Modules\Core\Delivery\EdgeInvalidation;
 use App\Modules\Core\Seo\SeoFields;
@@ -44,7 +43,6 @@ class PageService
         private readonly ContentLocales $locales,
         private readonly SeoMetaStore $seo,
         private readonly HtmlSanitizer $html,
-        private readonly MediaReferenceContract $media,
         private readonly AuditRecorderContract $audit,
         private readonly EdgeCacheContract $edge,
     ) {}
@@ -102,8 +100,8 @@ class PageService
 
         $seoFields = $seo === null ? null : SeoFields::fromArray($seo);
 
-        if ($seoFields?->ogMediaId !== null && $this->media->publicImage($seoFields->ogMediaId) === null) {
-            throw ContentRefusedException::imageUnavailable('seo.og_media_id');
+        if ($seoFields !== null) {
+            $this->seo->assertUsable($seoFields);
         }
 
         return DB::transaction(function () use ($page, $locale, $values, $seoFields, $actorId): ?PageTranslation {
@@ -138,16 +136,7 @@ class PageService
                 $this->persist($row, $existing);
             }
 
-            $seoChanged = false;
-
-            if ($seoFields !== null) {
-                $previous = $this->seo->for($page, $locale) ?? new SeoFields;
-                $seoChanged = $previous->toArray() !== $seoFields->toArray();
-
-                if ($seoChanged) {
-                    $this->seo->put($page, $locale, $seoFields);
-                }
-            }
+            $seoChanged = $seoFields !== null && $this->seo->write($page, $locale, $seoFields);
 
             if ($changed !== [] || $seoChanged) {
                 $page->forceFill(['updated_by' => $actorId])->touch();
@@ -209,7 +198,7 @@ class PageService
     public function delete(Page $page): void
     {
         DB::transaction(function () use ($page): void {
-            $this->seo->forget($page);
+            // Its SEO goes with it, through HasSeoMeta.
             $page->delete();
 
             $this->audit->succeeded('page.deleted', $page->id);
