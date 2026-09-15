@@ -7,6 +7,7 @@ use App\Modules\Localization\Database\Seeders\LanguageSeeder;
 use App\Modules\Localization\Models\Language;
 use App\Modules\Settings\Database\Seeders\SettingSeeder;
 use App\Modules\Team\Enums\TeamPermission;
+use App\Modules\Team\Models\TeamMemberSlugHistory;
 use App\Modules\Team\Models\TeamMemberTranslation;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
@@ -194,4 +195,74 @@ test('reading the directory in the Admin is not permission to change it', functi
 
 test('the team administration routes are behind the perimeter', function (): void {
     $this->getJson('/api/v1/admin/team')->assertUnauthorized();
+});
+
+// ── Addresses, order, lifecycle ──────────────────────────────────────────────
+
+test('a renamed address answers with the new one in the same language, and nothing else', function (): void {
+    $token = teamToken();
+    $id = activeEditor($this, $token);
+
+    writeProfile($this, $token, $id, 'en', ['slug' => 'nadia-h'])->assertOk();
+    resetClient($this);
+
+    $this->getJson('/api/v1/team/nadia-haddad?locale=en')
+        ->assertStatus(301)
+        ->assertHeader('Location', '/api/v1/team/nadia-h?locale=en')
+        ->assertJsonPath('data.redirect.slug', 'nadia-h');
+
+    $this->getJson('/api/v1/team/nadia-h?locale=en')->assertOk()->assertJsonPath('data.name', 'Nadia Haddad');
+    $this->getJson('/api/v1/team/nobody-at-all?locale=en')->assertNotFound()->assertJsonPath('error.code', 'NOT_FOUND');
+});
+
+test('the public directory follows the sort order an editor sets', function (): void {
+    $token = teamToken();
+    $first = activeEditor($this, $token);
+    $second = newMember($this, $token, ['sort_order' => 5]);
+
+    writeProfile($this, $token, $second, 'en', ['name' => 'Omar Saleh', 'position' => 'Designer'])->assertOk();
+    $this->withToken($token)->patchJson("/api/v1/admin/team/{$second}", ['is_active' => true])->assertOk();
+    resetClient($this);
+
+    expect(array_column($this->getJson('/api/v1/team?locale=en')->json('data'), 'name'))->toBe(['Nadia Haddad', 'Omar Saleh']);
+
+    $this->withToken($token)->patchJson("/api/v1/admin/team/{$first}", ['sort_order' => 9])->assertOk();
+    resetClient($this);
+
+    expect(array_column($this->getJson('/api/v1/team?locale=en')->json('data'), 'name'))->toBe(['Omar Saleh', 'Nadia Haddad']);
+});
+
+test('a deactivated member leaves the public directory and their address', function (): void {
+    $token = teamToken();
+    $id = activeEditor($this, $token);
+
+    $this->withToken($token)->patchJson("/api/v1/admin/team/{$id}", ['is_active' => false])->assertOk();
+    resetClient($this);
+
+    expect($this->getJson('/api/v1/team?locale=en')->assertOk()->json('data'))->toBe([]);
+    $this->getJson('/api/v1/team/nadia-haddad?locale=en')->assertNotFound();
+});
+
+test('removing a member removes every profile and old address, and the public read with them', function (): void {
+    $token = teamToken();
+    $id = activeEditor($this, $token);
+    writeProfile($this, $token, $id, 'en', ['slug' => 'nadia-h'])->assertOk();
+
+    $this->withToken($token)->deleteJson("/api/v1/admin/team/{$id}")->assertOk();
+    resetClient($this);
+
+    expect(TeamMemberTranslation::query()->where('team_member_id', $id)->count())->toBe(0)
+        ->and(TeamMemberSlugHistory::query()->where('team_member_id', $id)->count())->toBe(0);
+
+    $this->getJson('/api/v1/team/nadia-h?locale=en')->assertNotFound();
+    $this->getJson('/api/v1/team/nadia-haddad?locale=en')->assertNotFound();
+});
+
+test('a language the platform does not serve is refused, never substituted', function (): void {
+    $token = teamToken();
+    activeEditor($this, $token);
+    resetClient($this);
+
+    $this->getJson('/api/v1/team?locale=fr')->assertNotFound()->assertJsonPath('error.code', 'CONTENT_LOCALE_NOT_SERVED');
+    $this->getJson('/api/v1/team/nadia-haddad?locale=fr')->assertNotFound()->assertJsonPath('error.code', 'CONTENT_LOCALE_NOT_SERVED');
 });
