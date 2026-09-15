@@ -4,6 +4,7 @@
 * **Date**: 2026-09-11
 * **Amends**: ADR 0043
 * **Leaves unchanged**: ADR 0015 (locale negotiation), ADR 0044 (AI proposes, a person accepts)
+* **Revised**: 2026-09-15 — changing a language needs `languages.manage`; reading the list stays open to the perimeter
 
 ## Context
 
@@ -87,3 +88,12 @@ A client of the old workshop shape breaks: the index now requires reading a targ
 ## Amendment, 2026-09-14: coverage counts items (ADR 0056)
 
 §3's single calculation now counts translated items out of items, where an item is translated when its required fields have text. §4's filters are an item's statuses — `not_translated`, `incomplete`, `pending`, `ready`, `translated`, `failed` — and each source reports how many of its items are in each. §5's overview reports AI progress as item batches by state rather than suggestions by field.
+
+## Amendment, 2026-09-15: changing a language is `languages.manage`
+
+The language routes sat behind the administrative perimeter and no permission, so every administrator — the seeded `editor` and `support` roles included — could add a language, rename one, switch one off or change the default. Each of those decides what the whole platform serves: deactivating a language takes every address in it offline, and the default is every translation's fallback.
+
+* `POST /admin/languages`, `PUT /admin/languages/{id}`, `PATCH /admin/languages/{id}/status` and `PATCH /admin/languages/{id}/default` require `languages.manage`, a permission of the Localization module.
+* Reading — `GET /admin/languages` and `GET /admin/languages/{id}` — stays open to the perimeter. Every editor of localized content (pages, team, settings, the workshop) needs every language, served or not, and gating the list would break those editors without protecting anything.
+* The seeded `administrator` role holds it, and `super_admin` holds the whole catalogue. `editor` and `support` do not.
+* The Admin shows a language without its add, state and save controls to a viewer who lacks the permission, and says which permission is missing.
