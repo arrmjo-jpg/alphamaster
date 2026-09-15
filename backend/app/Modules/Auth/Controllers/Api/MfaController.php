@@ -13,6 +13,8 @@ use App\Modules\Auth\Requests\MfaCodeRequest;
 use App\Modules\Auth\Requests\MfaEnrolRequest;
 use App\Modules\Auth\Services\MfaManager;
 use App\Modules\Auth\Support\AuthCookie;
+use App\Modules\Core\Audit\AuditAction;
+use App\Modules\Core\Contracts\AuditRecorderContract;
 use App\Modules\Core\Contracts\PlatformNotifierContract;
 use App\Modules\Core\Controllers\BaseApiController;
 use App\Modules\Core\Translation\Phrase;
@@ -28,6 +30,7 @@ class MfaController extends BaseApiController
         protected MfaManagerContract $mfa,
         protected AuthServiceContract $auth,
         protected PlatformNotifierContract $notifier,
+        protected AuditRecorderContract $audit,
     ) {}
 
     /**
@@ -110,6 +113,13 @@ class MfaController extends BaseApiController
         // account is told on every channel it has, and cannot opt out (ADR 0019).
         $this->notifier->notify($request->user(), 'security.alert', [
             'event' => new Phrase('notifications.event.mfa_method_added'),
+        ]);
+
+        // A change to what guards the account, not an authentication event: it happens once per
+        // method, not at request rate (ADR 0037 extension, ADR 0057 §3). The method is recorded;
+        // the secret and the recovery codes never are.
+        $this->audit->succeeded(AuditAction::ACCOUNT_MFA_ENABLED, (string) $request->user()->getKey(), [
+            'method' => $type->value,
         ]);
 
         $payload = [
@@ -198,6 +208,11 @@ class MfaController extends BaseApiController
         // off a phone left unlocked — the owner hears about it either way.
         $this->notifier->notify($user, 'security.alert', [
             'event' => new Phrase('notifications.event.mfa_disabled'),
+        ]);
+
+        // The protection that stops a stolen password came off. Never the code that was used.
+        $this->audit->succeeded(AuditAction::ACCOUNT_MFA_DISABLED, (string) $user->getKey(), [
+            'sessions_revoked' => $user->isAdmin(),
         ]);
 
         // MFA is mandatory for administrators, so one who disables it must not keep

@@ -165,11 +165,13 @@ test('the payload carries exactly the declared fields and no others', function (
     // The list grows only deliberately. It caught email_verified and
     // email_verified_at arriving, which is exactly what it is for — an addition is as
     // much a contract change as a removal, and this is where it gets acknowledged.
+    // avatar_url was acknowledged here by ADR 0057.
     expect(array_keys($response->json('data')))
         ->toEqualCanonicalizing([
             'id', 'name', 'email', 'account_type', 'is_active',
             'email_verified', 'email_verified_at',
             'phone', 'phone_verified', 'phone_verified_at',
+            'avatar_url',
             'abilities', 'roles', 'permissions',
         ]);
 });

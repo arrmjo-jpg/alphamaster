@@ -89,6 +89,12 @@ export type AuthenticatedUserResource = {
     phone: string | null;
     phone_verified: boolean;
     phone_verified_at: string | null;
+    /**
+     * The picture every screen showing who is signed in draws, so a console does not
+     * fetch the whole profile to put a face in its top bar. Null when there is none or
+     * it is not ready to serve.
+     */
+    avatar_url: string | null;
     abilities: string | Array<string>;
     /**
      * Names, not identifiers. A permission's name is its stable contract and

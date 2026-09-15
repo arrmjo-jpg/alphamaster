@@ -16126,6 +16126,13 @@
                             "null"
                         ]
                     },
+                    "avatar_url": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "The picture every screen showing who is signed in draws, so a console does not\nfetch the whole profile to put a face in its top bar. Null when there is none or\nit is not ready to serve."
+                    },
                     "abilities": {
                         "anyOf": [
                             {
@@ -16166,6 +16173,7 @@
                     "phone",
                     "phone_verified",
                     "phone_verified_at",
+                    "avatar_url",
                     "abilities",
                     "roles",
                     "permissions"

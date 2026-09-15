@@ -39,12 +39,14 @@ class AuthenticatedUserResource extends JsonResource
      * @param  array<int, string>  $abilities  the presented token's own scopes
      * @param  array<int, string>  $roles  the account's roles, empty for a regular account
      * @param  array<int, string>  $permissions  every permission held, directly or by role
+     * @param  string|null  $avatarUrl  the account's picture, read through Core's contract (ADR 0057)
      */
     public function __construct(
         ?User $resource,
         private readonly array $abilities,
         private readonly array $roles = [],
         private readonly array $permissions = [],
+        private readonly ?string $avatarUrl = null,
     ) {
         parent::__construct($resource);
     }
@@ -77,6 +79,10 @@ class AuthenticatedUserResource extends JsonResource
             'phone' => $user?->phone,
             'phone_verified' => $user?->phone_verified_at !== null,
             'phone_verified_at' => $user?->phone_verified_at?->toIso8601String(),
+            // The picture every screen showing who is signed in draws, so a console does not
+            // fetch the whole profile to put a face in its top bar. Null when there is none or
+            // it is not ready to serve.
+            'avatar_url' => $this->avatarUrl,
             'abilities' => $this->abilities,
             // Names, not identifiers. A permission's name is its stable contract and
             // what `can()` is asked with (ADR 0031); its row id is an implementation

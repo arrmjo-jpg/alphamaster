@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Modules\User\Controllers\Api;
 
+use App\Modules\Core\Audit\AuditAction;
+use App\Modules\Core\Contracts\AuditRecorderContract;
 use App\Modules\Core\Contracts\ProfileAvatarContract;
 use App\Modules\Core\Controllers\BaseApiController;
 use App\Modules\User\Models\User;
@@ -31,7 +33,13 @@ class ProfileController extends BaseApiController
 {
     private const LOCATION_FIELDS = ['country_code', 'region', 'city', 'latitude', 'longitude'];
 
-    public function __construct(private readonly ProfileAvatarContract $avatars) {}
+    /** The fields whose change is recorded, by name and never by value (ADR 0037, ADR 0057). */
+    private const RECORDED_FIELDS = ['name', 'email', 'phone', 'preferred_locale', 'bio', ...self::LOCATION_FIELDS];
+
+    public function __construct(
+        private readonly ProfileAvatarContract $avatars,
+        private readonly AuditRecorderContract $audit,
+    ) {}
 
     /**
      * Your profile.
@@ -85,7 +93,33 @@ class ProfileController extends BaseApiController
         }
 
         $user->fill(Arr::only($data, ['name', 'phone', 'preferred_locale', 'bio', ...self::LOCATION_FIELDS]));
-        $user->save();
+
+        // What actually moved, not what was sent: re-sending a current value changes nothing
+        // and records nothing, the rule the administrative edit follows.
+        $moved = array_values(array_filter(
+            self::RECORDED_FIELDS,
+            static fn (string $field): bool => $user->isDirty($field)
+        ));
+        $emailVerificationCleared = $user->isDirty('email');
+        $phoneVerificationCleared = $user->isDirty('phone') && $user->getOriginal('phone_verified_at') !== null;
+
+        DB::transaction(function () use ($user, $moved, $emailVerificationCleared, $phoneVerificationCleared): void {
+            $user->save();
+
+            if ($moved === []) {
+                return;
+            }
+
+            // The same action an administrator's edit records, marked as the holder's own. The
+            // subject is who changed, not who changed it: an operator asking what happened to an
+            // account needs both kinds of change in one place (ADR 0057 §3).
+            $this->audit->succeeded(AuditAction::ACCOUNT_UPDATED, $user->id, [
+                'changed' => $moved,
+                'by_account_holder' => true,
+                'email_verification_cleared' => $emailVerificationCleared,
+                'phone_verification_cleared' => $phoneVerificationCleared,
+            ]);
+        });
 
         return $this->successResponse($this->present($user->refresh()), 'Your profile was updated.');
     }
@@ -109,7 +143,9 @@ class ProfileController extends BaseApiController
             ]);
         }
 
-        DB::transaction(function () use ($user, $request): void {
+        $hadPassword = $user->password !== null;
+
+        DB::transaction(function () use ($user, $request, $hadPassword): void {
             // Hashed by the model's cast; the plaintext never reaches the column.
             $user->password = (string) $request->validated('password');
             $user->save();
@@ -125,7 +161,14 @@ class ProfileController extends BaseApiController
                 $tokens->whereKeyNot($current->getKey());
             }
 
-            $tokens->delete();
+            $revoked = $tokens->delete();
+
+            // That it happened, and its consequence. Never the password in any form, and
+            // nothing derived from one (ADR 0037).
+            $this->audit->succeeded(AuditAction::ACCOUNT_PASSWORD_CHANGED, $user->id, [
+                'had_password' => $hadPassword,
+                'other_sessions_revoked' => $revoked,
+            ]);
         });
 
         return $this->successResponse(null, 'Your password was changed. Your other sessions were signed out.');
