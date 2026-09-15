@@ -7,6 +7,7 @@ import { ApiError } from '@/api/errors';
 import { useCurrentUser } from '@/auth/AuthProvider';
 import { initialContentLanguage } from '@/lib/contentLanguages';
 import { ContentTextArea } from '@/screens/content/ContentFields';
+import { MediaImageField } from '@/screens/content/MediaImageField';
 import { languageNames, textOrNull } from '@/screens/content/text';
 import { languages as fetchLanguages, type AdminLanguage } from '@/screens/languages/api';
 import {
@@ -181,6 +182,7 @@ interface PageDraft {
     body: string;
     seo_title: string;
     seo_description: string;
+    og_media_id: string | null;
 }
 
 const CONTENT_FIELDS = ['title', 'slug', 'summary', 'body'] as const;
@@ -197,6 +199,7 @@ function draftFor(page: AdminPage, locale: string): PageDraft {
         body: written?.body ?? '',
         seo_title: seo?.title ?? '',
         seo_description: seo?.description ?? '',
+        og_media_id: seo?.og_media_id ?? null,
     };
 }
 
@@ -235,7 +238,11 @@ function PageEditor({
         }
     }
 
-    if (draft.seo_title !== base.seo_title || draft.seo_description !== base.seo_description) {
+    if (
+        draft.seo_title !== base.seo_title ||
+        draft.seo_description !== base.seo_description ||
+        draft.og_media_id !== base.og_media_id
+    ) {
         const current = page.seo[locale];
 
         // The whole language's SEO is replaced, so what this editor does not show is sent back
@@ -247,7 +254,7 @@ function PageEditor({
             canonical_url: current?.canonical_url ?? null,
             og_title: current?.og_title ?? null,
             og_description: current?.og_description ?? null,
-            og_media_id: current?.og_media_id ?? null,
+            og_media_id: draft.og_media_id,
         };
     }
 
@@ -469,6 +476,16 @@ function PageEditor({
                         onChange={(value) => set({ seo_description: value })}
                         rows={2}
                         value={draft.seo_description}
+                    />
+
+                    <MediaImageField
+                        collection="pages"
+                        disabled={!mayUpdate}
+                        hint={t('pages.fields.ogImageHint')}
+                        key={`og-${locale}`}
+                        label={t('pages.fields.ogImage')}
+                        mediaId={draft.og_media_id}
+                        onChange={(id) => set({ og_media_id: id })}
                     />
 
                     {save.error instanceof ApiError ? (

@@ -7,6 +7,7 @@ import { ApiError } from '@/api/errors';
 import { useCurrentUser } from '@/auth/AuthProvider';
 import { initialContentLanguage } from '@/lib/contentLanguages';
 import { ContentTextArea } from '@/screens/content/ContentFields';
+import { MediaImageField } from '@/screens/content/MediaImageField';
 import { languageNames, textOrNull } from '@/screens/content/text';
 import { languages as fetchLanguages, type AdminLanguage } from '@/screens/languages/api';
 import {
@@ -35,9 +36,9 @@ import { TranslationStatusList } from '@/ui/TranslationStatusList';
  *
  * A member is one record with a profile in every language Language Management knows. The
  * editor names the content language it writes, lists every known language with its status,
- * and never fills one language's fields with another's text. Avatar-free and link-light on
- * purpose: what is the same in every language — being active, the social links — is edited
- * once, beside the profile.
+ * and never fills one language's fields with another's text. What is the same in every language —
+ * being active, the picture, the social links — is edited once, beside the profile. Images come
+ * from the platform's media capability through the shared field (ADR 0057 §4).
  */
 export function TeamScreen() {
     const { t } = useTranslation();
@@ -169,6 +170,7 @@ interface ProfileDraft {
     bio: string;
     seo_title: string;
     seo_description: string;
+    og_media_id: string | null;
 }
 
 const PROFILE_FIELDS = ['name', 'position', 'slug', 'bio'] as const;
@@ -184,6 +186,7 @@ function draftFor(member: AdminTeamMember, locale: string): ProfileDraft {
         bio: written?.bio ?? '',
         seo_title: seo?.title ?? '',
         seo_description: seo?.description ?? '',
+        og_media_id: seo?.og_media_id ?? null,
     };
 }
 
@@ -228,7 +231,11 @@ function MemberEditor({
         }
     }
 
-    if (draft.seo_title !== base.seo_title || draft.seo_description !== base.seo_description) {
+    if (
+        draft.seo_title !== base.seo_title ||
+        draft.seo_description !== base.seo_description ||
+        draft.og_media_id !== base.og_media_id
+    ) {
         const current = member.seo[locale];
 
         changes.seo = {
@@ -238,7 +245,7 @@ function MemberEditor({
             canonical_url: current?.canonical_url ?? null,
             og_title: current?.og_title ?? null,
             og_description: current?.og_description ?? null,
-            og_media_id: current?.og_media_id ?? null,
+            og_media_id: draft.og_media_id,
         };
     }
 
@@ -255,7 +262,11 @@ function MemberEditor({
     });
 
     const shared = useMutation({
-        mutationFn: (body: { is_active?: boolean; social_links?: SocialLinks }) =>
+        mutationFn: (body: {
+            is_active?: boolean;
+            social_links?: SocialLinks;
+            avatar_media_id?: string | null;
+        }) =>
             updateMember(member.id, body),
         onSuccess: async (next) => {
             setLinks(linksFor(next));
@@ -447,6 +458,16 @@ function MemberEditor({
                         value={draft.seo_description}
                     />
 
+                    <MediaImageField
+                        collection="team"
+                        disabled={!mayUpdate}
+                        hint={t('team.fields.ogImageHint')}
+                        key={`og-${locale}`}
+                        label={t('team.fields.ogImage')}
+                        mediaId={draft.og_media_id}
+                        onChange={(id) => set({ og_media_id: id })}
+                    />
+
                     {save.error instanceof ApiError ? (
                         <Alert tone="danger">{save.error.message}</Alert>
                     ) : null}
@@ -478,6 +499,21 @@ function MemberEditor({
                     states={member.progress}
                 />
             </div>
+
+            <section className="flex flex-col gap-2 border-t border-(--border-default) pt-3">
+                {/* The picture is the same in every language, so it is saved on its own, like
+                    the links, rather than with one language's profile. */}
+                <MediaImageField
+                    busy={shared.isPending && shared.variables.avatar_media_id !== undefined}
+                    collection="team"
+                    disabled={!mayUpdate}
+                    hint={t('team.fields.avatarHint')}
+                    label={t('team.fields.avatar')}
+                    mediaId={member.avatar_media_id}
+                    onChange={(id) => shared.mutate({ avatar_media_id: id })}
+                    previewUrl={member.avatar?.url ?? null}
+                />
+            </section>
 
             <section className="flex flex-col gap-2 border-t border-(--border-default) pt-3">
                 <h3 data-eyebrow>{t('team.social')}</h3>
