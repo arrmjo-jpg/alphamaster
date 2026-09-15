@@ -7,7 +7,12 @@ use App\Modules\Core\Translation\TranslationRegistry;
 use App\Modules\Core\Translation\TranslationSource;
 use App\Modules\Pages\Translation\PageTranslationSource;
 use App\Modules\Team\Translation\TeamTranslationSource;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Symfony\Component\Finder\Finder;
+
+// Reading every source's entries reads their tables, so the schema must exist whatever ran
+// before this file. On in-memory SQLite nothing else guarantees that.
+uses(RefreshDatabase::class);
 
 /**
  * One translation contract for every module (ADR 0043, ADR 0056).

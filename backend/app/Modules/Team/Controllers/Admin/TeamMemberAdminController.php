@@ -23,6 +23,9 @@ class TeamMemberAdminController extends BaseApiController
 {
     public function __construct(private readonly TeamService $team) {}
 
+    /**
+     * Every member, with their profile progress in each language.
+     */
     #[Response(200, type: 'array{success: bool, data: list<TeamMemberAdminResource>}')]
     public function index(): JsonResponse
     {
@@ -47,6 +50,9 @@ class TeamMemberAdminController extends BaseApiController
         return $this->successResponse(new TeamMemberAdminResource($member->load('translations')), 'api.team.created', 201);
     }
 
+    /**
+     * One member, with every profile and its progress in each language.
+     */
     #[Response(200, type: 'array{success: bool, data: TeamMemberAdminResource}')]
     public function show(TeamMember $member): JsonResponse
     {
@@ -87,6 +93,9 @@ class TeamMemberAdminController extends BaseApiController
         return $this->successResponse(new TeamMemberAdminResource($member->refresh()->load('translations')), 'api.team.translation_saved');
     }
 
+    /**
+     * Remove a member with every profile, its SEO and its old addresses. Their picture stays in the library.
+     */
     #[Response(200, type: 'array{success: bool, message: string, data: null}')]
     public function destroy(TeamMember $member): JsonResponse
     {

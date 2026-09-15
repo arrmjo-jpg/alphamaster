@@ -49,6 +49,9 @@ class PageAdminController extends BaseApiController
         return $this->successResponse(new PageAdminResource($page->load('translations')), 'api.pages.created', 201);
     }
 
+    /**
+     * One page, with every translation and its progress in each language.
+     */
     #[Response(200, type: 'array{success: bool, data: PageAdminResource}')]
     public function show(Page $page): JsonResponse
     {
@@ -103,6 +106,9 @@ class PageAdminController extends BaseApiController
         return $this->successResponse(new PageAdminResource($page->load('translations')), 'api.pages.published');
     }
 
+    /**
+     * Unpublish. The page returns to draft and is served in no language.
+     */
     #[Response(200, type: 'array{success: bool, message: string, data: PageAdminResource}')]
     public function unpublish(Request $request, Page $page): JsonResponse
     {
@@ -111,6 +117,9 @@ class PageAdminController extends BaseApiController
         return $this->successResponse(new PageAdminResource($page->load('translations')), 'api.pages.unpublished');
     }
 
+    /**
+     * Archive. The page is kept and served in no language.
+     */
     #[Response(200, type: 'array{success: bool, message: string, data: PageAdminResource}')]
     public function archive(Request $request, Page $page): JsonResponse
     {

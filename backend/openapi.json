@@ -8045,6 +8045,7 @@
         "/admin/pages/{page}": {
             "get": {
                 "operationId": "admin.pages.show",
+                "summary": "One page, with every translation and its progress in each language",
                 "tags": [
                     "PageAdmin"
                 ],
@@ -8397,6 +8398,7 @@
         "/admin/pages/{page}/unpublish": {
             "post": {
                 "operationId": "admin.pages.unpublish",
+                "summary": "Unpublish. The page returns to draft and is served in no language",
                 "tags": [
                     "PageAdmin"
                 ],
@@ -8450,6 +8452,7 @@
         "/admin/pages/{page}/archive": {
             "post": {
                 "operationId": "admin.pages.archive",
+                "summary": "Archive. The page is kept and served in no language",
                 "tags": [
                     "PageAdmin"
                 ],
@@ -13413,6 +13416,7 @@
         "/admin/team": {
             "get": {
                 "operationId": "admin.team.index",
+                "summary": "Every member, with their profile progress in each language",
                 "tags": [
                     "TeamMemberAdmin"
                 ],
@@ -13538,6 +13542,7 @@
         "/admin/team/{member}": {
             "get": {
                 "operationId": "admin.team.show",
+                "summary": "One member, with every profile and its progress in each language",
                 "tags": [
                     "TeamMemberAdmin"
                 ],
@@ -13686,6 +13691,7 @@
             },
             "delete": {
                 "operationId": "admin.team.destroy",
+                "summary": "Remove a member with every profile, its SEO and its old addresses. Their picture stays in the library",
                 "tags": [
                     "TeamMemberAdmin"
                 ],
