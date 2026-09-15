@@ -176,6 +176,71 @@ describe('the team directory', () => {
         expect(sent[0]).toEqual({ locale: 'ar', body: { name: 'نادية حداد', position: 'محرّرة' } });
     });
 
+    it('sets a picture from the library as a media reference, saved on its own', async () => {
+        const sent: unknown[] = [];
+        let current: string | null = null;
+
+        renderScreen(
+            [member()],
+            [
+                http.get('*/api/v1/admin/media', () =>
+                    HttpResponse.json({
+                        success: true,
+                        data: [
+                            {
+                                id: '01hzzpicture',
+                                url: '/storage/nadia.png',
+                                original_filename: 'nadia.png',
+                                visibility: 'public',
+                            },
+                        ],
+                        meta: {},
+                    }),
+                ),
+                http.patch('*/api/v1/admin/team/:id', async ({ request }) => {
+                    const body = (await request.json()) as { avatar_media_id?: string | null };
+
+                    sent.push(body);
+                    current = body.avatar_media_id ?? null;
+
+                    return HttpResponse.json({
+                        success: true,
+                        message: 'ok',
+                        data: member({
+                            avatar_media_id: current,
+                            avatar:
+                                current === null
+                                    ? null
+                                    : {
+                                          id: current,
+                                          url: '/storage/nadia.png',
+                                          mime_type: 'image/png',
+                                          width: null,
+                                          height: null,
+                                      },
+                        }),
+                    });
+                }),
+            ],
+            ['team.view', 'team.update', 'media.view'],
+        );
+
+        const editor = await openNadia();
+
+        // The picture's own field, not the sharing image's: the picture sits beside the links,
+        // after the language's profile, so it is the last image field in the editor.
+        const libraryButton = within(editor)
+            .getAllByRole('button', { name: 'Choose from the library' })
+            .at(-1);
+
+        await userEvent.click(libraryButton as HTMLElement);
+        await userEvent.click(await within(editor).findByRole('button', { name: 'nadia.png' }));
+
+        // One upload path for every image: the member keeps an id, never a file.
+        await expect.poll(() => sent.length).toBe(1);
+        expect(sent[0]).toEqual({ avatar_media_id: '01hzzpicture' });
+    });
+
     it('refuses to activate, with the reason, until the default-language profile is complete', async () => {
         renderScreen([member({ activatable: false })]);
 
